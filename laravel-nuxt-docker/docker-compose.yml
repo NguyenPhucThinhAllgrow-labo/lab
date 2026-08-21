@@ -1,0 +1,72 @@
+services:
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - ./backend:/var/www/backend
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+
+    depends_on:
+      - backend
+      - frontend
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+
+    container_name: laravel
+
+    working_dir: /var/www/backend
+
+    volumes:
+      - ./backend:/var/www/backend
+
+    depends_on:
+      - mysql
+      - redis
+
+  frontend:
+    image: node:22-alpine
+
+    container_name: nuxt
+
+    working_dir: /app
+
+    volumes:
+      - ./frontend:/app
+
+    command: sh -c "npm install && npm run dev"
+
+    ports:
+      - "3000:3000"
+
+  mysql:
+    image: mysql:8.0
+    container_name: laravel-nuxt-mysql-local
+    environment:
+      MYSQL_DATABASE: laravel_nuxt
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+    ports:
+      - "3310:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+
+    container_name: redis
+
+    ports:
+      - "6381:6381"
+
+volumes:
+  mysql_data:
