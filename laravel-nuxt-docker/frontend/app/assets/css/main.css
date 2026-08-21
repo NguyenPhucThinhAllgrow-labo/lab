@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+}
+
+::selection {
+  @apply bg-cyan-400 text-slate-950;
+}
+
+.container-custom {
+  @apply mx-auto w-full max-w-6xl px-6 lg:px-8;
+}
