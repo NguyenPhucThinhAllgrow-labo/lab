@@ -1,0 +1,6 @@
+# Frontend dependencies and Nuxt build output
+laravel-nuxt-docker/frontend/node_modules/
+laravel-nuxt-docker/frontend/.nuxt/
+laravel-nuxt-docker/frontend/yarn.lock
+# Backend PHP dependencies
+laravel-nuxt-docker/backend/vendor/
