@@ -18,10 +18,18 @@ import {
   ArrowDownRight,
   MoreHorizontal,
   CalendarDays,
-  CreditCard
+  CreditCard,
+  Gamepad2
 } from 'lucide-vue-next'
 
 const sidebarOpen = ref(false)
+const gameMenuOpen = ref(true)
+
+const gameMenuItems = [
+  { label: 'Aim', to: '/games/aim' },
+  { label: 'Reaction', to: '/games/reaction' },
+  { label: 'Tetris', to: '/games/tetris' }
+]
 
 const menuGroups = [
   {
@@ -343,6 +351,43 @@ const activities = [
 
           </nav>
 
+        </div>
+
+        <div class="mb-7">
+          <p
+            class="mb-3 px-3 text-[10px] font-bold tracking-[0.15em] text-zinc-600"
+          >
+            GAME
+          </p>
+
+          <button
+            type="button"
+            class="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-zinc-500 transition-all duration-200 hover:bg-white/[0.04] hover:text-zinc-200"
+            :aria-expanded="gameMenuOpen"
+            @click="gameMenuOpen = !gameMenuOpen"
+          >
+            <Gamepad2 class="h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-105" />
+            <span>Game</span>
+            <ChevronDown
+              class="ml-auto h-4 w-4 transition-transform duration-200"
+              :class="gameMenuOpen ? 'rotate-180' : ''"
+            />
+          </button>
+
+          <Transition name="fade">
+            <nav v-if="gameMenuOpen" class="mt-1 space-y-1 pl-6">
+              <NuxtLink
+                v-for="item in gameMenuItems"
+                :key="item.to"
+                :to="item.to"
+                class="flex rounded-xl px-3 py-2 text-sm text-zinc-500 transition-all duration-200 hover:bg-white/[0.04] hover:text-zinc-200"
+                active-class="bg-violet-500/10 text-violet-300"
+                @click="sidebarOpen = false"
+              >
+                {{ item.label }}
+              </NuxtLink>
+            </nav>
+          </Transition>
         </div>
 
       </div>

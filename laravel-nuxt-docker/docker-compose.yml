@@ -52,7 +52,7 @@ services:
     environment:
       MYSQL_DATABASE: laravel_nuxt
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_USER: root
+      MYSQL_USER: user123
       MYSQL_PASSWORD: root
     ports:
       - "3310:3306"
