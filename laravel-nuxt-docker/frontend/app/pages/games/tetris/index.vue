@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   ref
@@ -33,12 +34,15 @@ interface Player {
   lines: number
   level: number
   gameOver: boolean
+  clearingRows: number[]
+  isClearing: boolean
 }
 
 type GameMode = 0 | 1 | 2
 
 const ROWS = 20
 const COLS = 10
+const LINE_CLEAR_DURATION = 360
 
 const pieces: Piece[] = [
   {
@@ -119,6 +123,7 @@ const paused = ref(false)
 const started = ref(false)
 
 let timer: ReturnType<typeof setTimeout> | null = null
+let gameSession = 0
 
 const SEQUENCE_BAGS = 100
 
@@ -189,7 +194,9 @@ function createPlayer(): Player {
     score: 0,
     lines: 0,
     level: 1,
-    gameOver: false
+    gameOver: false,
+    clearingRows: [],
+    isClearing: false
   }
 }
 
@@ -423,25 +430,35 @@ function mergePiece(
    CLEAR LINES
 ========================================================= */
 
-function clearLines(
+async function clearLines(
   player: Player
-): void {
-  let cleared = 0
+): Promise<void> {
+  const clearingRows = player.board
+    .map((row, index) =>
+      row.every(cell => cell !== null)
+        ? index
+        : -1
+    )
+    .filter(index => index >= 0)
 
-  const remaining =
-    player.board.filter(row => {
-      const full =
-        row.every(
-          cell => cell !== null
-        )
+  const cleared = clearingRows.length
 
-      if (full) {
-        cleared++
-        return false
-      }
+  if (cleared === 0) {
+    return
+  }
 
-      return true
-    })
+  player.isClearing = true
+  player.clearingRows = clearingRows
+
+  // Đợi Vue render class animation trước khi bắt đầu đếm thời gian.
+  await nextTick()
+  await new Promise<void>(resolve => {
+    window.setTimeout(resolve, LINE_CLEAR_DURATION)
+  })
+
+  const remaining = player.board.filter(
+    (_, index) => !clearingRows.includes(index)
+  )
 
   while (
     remaining.length < ROWS
@@ -456,9 +473,8 @@ function clearLines(
 
   player.board = remaining
 
-  if (cleared === 0) {
-    return
-  }
+  player.clearingRows = []
+  player.isClearing = false
 
   const points = [
     0,
@@ -492,6 +508,29 @@ function advancePiece(
   spawnPlayer(player)
 }
 
+async function lockPiece(
+  player: Player
+): Promise<void> {
+  const session = gameSession
+
+  mergePiece(player)
+  await clearLines(player)
+
+  // Ignore delayed work left over from a restart, mode change, or unmount.
+  if (
+    session !== gameSession ||
+    !started.value ||
+    (
+      player !== player1.value &&
+      player !== player2.value
+    )
+  ) {
+    return
+  }
+
+  advancePiece(player)
+}
+
 /* =========================================================
    MOVE DOWN
 ========================================================= */
@@ -503,6 +542,7 @@ function moveDown(
   if (
     paused.value ||
     player.gameOver ||
+    player.isClearing ||
     !started.value ||
     !player.current
   ) {
@@ -529,9 +569,7 @@ function moveDown(
     return
   }
 
-  mergePiece(player)
-  clearLines(player)
-  advancePiece(player)
+  void lockPiece(player)
 }
 
 /* =========================================================
@@ -544,6 +582,7 @@ function moveLeft(
   if (
     paused.value ||
     player.gameOver ||
+    player.isClearing ||
     !started.value ||
     !player.current
   ) {
@@ -571,6 +610,7 @@ function moveRight(
   if (
     paused.value ||
     player.gameOver ||
+    player.isClearing ||
     !started.value ||
     !player.current
   ) {
@@ -624,6 +664,7 @@ function rotate(
   if (
     paused.value ||
     player.gameOver ||
+    player.isClearing ||
     !started.value ||
     !player.current
   ) {
@@ -677,6 +718,7 @@ function hardDrop(
   if (
     paused.value ||
     player.gameOver ||
+    player.isClearing ||
     !started.value ||
     !player.current
   ) {
@@ -703,9 +745,7 @@ function hardDrop(
   player.score +=
     distance * 2
 
-  mergePiece(player)
-  clearLines(player)
-  advancePiece(player)
+  void lockPiece(player)
 }
 
 /* =========================================================
@@ -828,6 +868,7 @@ function startGame(
   selectedMode: 1 | 2
 ): void {
   stopTimer()
+  gameSession++
 
   mode.value =
     selectedMode
@@ -992,6 +1033,7 @@ function togglePause(): void {
 
 function backToMode(): void {
   stopTimer()
+  gameSession++
 
   started.value = false
   paused.value = false
@@ -1138,6 +1180,7 @@ onBeforeUnmount(() => {
   )
 
   stopTimer()
+  gameSession++
 })
 </script>
 
@@ -1410,6 +1453,10 @@ onBeforeUnmount(() => {
                 ) in player1.board"
                 :key="rowIndex"
                 class="board-row"
+                :class="{
+                  'line-clearing':
+                    player1.clearingRows.includes(rowIndex)
+                }"
               >
 
                 <div
@@ -1716,6 +1763,10 @@ onBeforeUnmount(() => {
                 ) in player2.board"
                 :key="rowIndex"
                 class="board-row"
+                :class="{
+                  'line-clearing':
+                    player2.clearingRows.includes(rowIndex)
+                }"
               >
 
                 <div
