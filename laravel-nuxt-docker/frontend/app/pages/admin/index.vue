@@ -19,16 +19,37 @@ import {
   MoreHorizontal,
   CalendarDays,
   CreditCard,
-  Gamepad2
+  Gamepad2,
+  Crosshair,
+  ChessKing,
+  Zap,
+  Blocks
 } from 'lucide-vue-next'
 
 const sidebarOpen = ref(false)
 const gameMenuOpen = ref(true)
 
 const gameMenuItems = [
-  { label: 'Aim', to: '/games/aim' },
-  { label: 'Reaction', to: '/games/reaction' },
-  { label: 'Tetris', to: '/games/tetris' }
+  {
+    label: 'Aim',
+    to: '/games/aim',
+    icon: Crosshair
+  },
+  {
+    label: 'Chess',
+    to: '/games/chess',
+    icon: ChessKing
+  },
+  {
+    label: 'Reaction',
+    to: '/games/reaction',
+    icon: Zap
+  },
+  {
+    label: 'Tetris',
+    to: '/games/tetris',
+    icon: Blocks
+  }
 ]
 
 const menuGroups = [
@@ -375,16 +396,26 @@ const activities = [
           </button>
 
           <Transition name="fade">
-            <nav v-if="gameMenuOpen" class="mt-1 space-y-1 pl-6">
+            <nav
+              v-if="gameMenuOpen"
+              class="mt-1 space-y-1 pl-6"
+            >
               <NuxtLink
                 v-for="item in gameMenuItems"
                 :key="item.to"
                 :to="item.to"
-                class="flex rounded-xl px-3 py-2 text-sm text-zinc-500 transition-all duration-200 hover:bg-white/[0.04] hover:text-zinc-200"
+                class="group flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition-all duration-200 hover:bg-white/[0.04] hover:text-zinc-200"
                 active-class="bg-violet-500/10 text-violet-300"
                 @click="sidebarOpen = false"
               >
-                {{ item.label }}
+                <component
+                  :is="item.icon"
+                  class="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-105"
+                />
+
+                <span>
+                  {{ item.label }}
+                </span>
               </NuxtLink>
             </nav>
           </Transition>
