@@ -1,606 +1,1885 @@
 <script setup lang="ts">
-type GameState = 'idle' | 'waiting' | 'ready' | 'result' | 'too-early'
+import {
+  computed,
+  onBeforeUnmount,
+  ref,
+} from 'vue'
 
-const gameState = ref<GameState>('idle')
-const reactionTime = ref<number | null>(null)
-const bestTime = ref<number | null>(null)
+import type {
+  ChessPiece,
+  PieceColor,
+} from '~/types/chess'
 
-let startTime = 0
-let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-onMounted(() => {
-  const saved = localStorage.getItem('reaction-best')
-
-  if (saved) {
-    bestTime.value = Number(saved)
-  }
-
-  window.addEventListener('keydown', handleKeydown)
+useHead({
+  title: 'Cờ Tướng',
 })
 
-onUnmounted(() => {
-  if (timeoutId) {
-    clearTimeout(timeoutId)
+/**
+ * ==========================================
+ * MOVE HISTORY
+ * ==========================================
+ */
+
+interface MoveHistory {
+  number: number
+  color: PieceColor
+  piece: ChessPiece
+
+  from: {
+    row: number
+    col: number
   }
 
-  window.removeEventListener('keydown', handleKeydown)
-})
+  to: {
+    row: number
+    col: number
+  }
+
+  captured: ChessPiece | null
+}
+
+/**
+ * ==========================================
+ * TIMER SNAPSHOT
+ * ==========================================
+ */
+
+interface GameSnapshot {
+  redTime: number
+  blackTime: number
+}
+
+/**
+ * ==========================================
+ * CHESS BOARD REF
+ * ==========================================
+ */
+
+const chessBoardRef =
+  ref<{
+    undoMove: () => boolean
+  } | null>(null)
+
+/**
+ * ==========================================
+ * GAME STATE
+ * ==========================================
+ */
+
+const gameKey = ref(0)
+
+const gameStarted =
+  ref(false)
+
+const gameOver =
+  ref(false)
+
+const currentTurn =
+  ref<PieceColor>('red')
+
+const winner =
+  ref<PieceColor | null>(null)
+
+const loser =
+  ref<PieceColor | null>(null)
+
+const winReason =
+  ref<
+    | 'checkmate'
+    | 'timeout'
+    | 'surrender'
+    | null
+  >(null)
+
+/**
+ * ==========================================
+ * CHECK STATE
+ * ==========================================
+ */
+
+const isCheck =
+  ref(false)
+
+const checkColor =
+  ref<PieceColor | null>(null)
+
+/**
+ * ==========================================
+ * TIMER
+ * ==========================================
+ */
+
+const INITIAL_TIME =
+  10 * 60
+
+const redTime =
+  ref(INITIAL_TIME)
+
+const blackTime =
+  ref(INITIAL_TIME)
+
+let timer:
+  ReturnType<
+    typeof setInterval
+  > | null = null
+
+/**
+ * ==========================================
+ * HISTORY
+ * ==========================================
+ */
+
+const moveHistory =
+  ref<MoveHistory[]>([])
+
+/**
+ * ==========================================
+ * GAME SNAPSHOTS
+ * ==========================================
+ */
+
+const gameSnapshots =
+  ref<GameSnapshot[]>([])
+
+/**
+ * ==========================================
+ * CAPTURED PIECES
+ * ==========================================
+ */
+
+const redCaptured =
+  ref<ChessPiece[]>([])
+
+const blackCaptured =
+  ref<ChessPiece[]>([])
+
+/**
+ * ==========================================
+ * TIMER TEXT
+ * ==========================================
+ */
+
+const redTimeText =
+  computed(() =>
+    formatTime(
+      redTime.value,
+    ),
+  )
+
+const blackTimeText =
+  computed(() =>
+    formatTime(
+      blackTime.value,
+    ),
+  )
+
+function formatTime(
+  totalSeconds: number,
+): string {
+  const minutes =
+    Math.floor(
+      totalSeconds / 60,
+    )
+
+  const seconds =
+    totalSeconds % 60
+
+  return `${String(
+    minutes,
+  ).padStart(2, '0')}:${String(
+    seconds,
+  ).padStart(2, '0')}`
+}
+
+/**
+ * ==========================================
+ * PLAYER NAME
+ * ==========================================
+ */
+
+const currentPlayerName =
+  computed(() =>
+    currentTurn.value === 'red'
+      ? 'Đỏ'
+      : 'Đen',
+  )
+
+const winnerName =
+  computed(() => {
+    if (
+      winner.value === 'red'
+    ) {
+      return 'Đỏ'
+    }
+
+    if (
+      winner.value === 'black'
+    ) {
+      return 'Đen'
+    }
+
+    return ''
+  })
+
+const loserName =
+  computed(() => {
+    if (
+      loser.value === 'red'
+    ) {
+      return 'Đỏ'
+    }
+
+    if (
+      loser.value === 'black'
+    ) {
+      return 'Đen'
+    }
+
+    return ''
+  })
+
+/**
+ * ==========================================
+ * CHECK PLAYER NAME
+ * ==========================================
+ */
+
+const checkPlayerName =
+  computed(() => {
+    if (
+      checkColor.value ===
+      'red'
+    ) {
+      return 'Tướng Đỏ'
+    }
+
+    if (
+      checkColor.value ===
+      'black'
+    ) {
+      return 'Tướng Đen'
+    }
+
+    return ''
+  })
+
+/**
+ * ==========================================
+ * WIN REASON
+ * ==========================================
+ */
+
+const winReasonText =
+  computed(() => {
+    switch (
+      winReason.value
+    ) {
+      case 'checkmate':
+        return 'Chiếu bí'
+
+      case 'timeout':
+        return 'Hết thời gian'
+
+      case 'surrender':
+        return 'Đầu hàng'
+
+      default:
+        return ''
+    }
+  })
+
+/**
+ * ==========================================
+ * CAN UNDO
+ * ==========================================
+ */
+
+const canUndo =
+  computed(
+    () =>
+      moveHistory.value.length >
+      0,
+  )
+
+/**
+ * ==========================================
+ * PIECE NAME
+ * ==========================================
+ */
+
+function getPieceName(
+  piece: ChessPiece,
+): string {
+  const names: Record<
+    ChessPiece['type'],
+    string
+  > = {
+    general: 'Tướng',
+    advisor: 'Sĩ',
+    elephant: 'Tượng',
+    horse: 'Mã',
+    chariot: 'Xe',
+    cannon: 'Pháo',
+    soldier: 'Tốt',
+  }
+
+  return names[piece.type]
+}
+
+/**
+ * ==========================================
+ * PIECE SYMBOL
+ * ==========================================
+ */
+
+function getPieceSymbol(
+  piece: ChessPiece,
+): string {
+  const symbols: Record<
+    ChessPiece['type'],
+    string
+  > = {
+    general:
+      piece.color === 'red'
+        ? '帥'
+        : '將',
+
+    advisor:
+      piece.color === 'red'
+        ? '仕'
+        : '士',
+
+    elephant:
+      piece.color === 'red'
+        ? '相'
+        : '象',
+
+    horse: '馬',
+
+    chariot: '車',
+
+    cannon: '炮',
+
+    soldier:
+      piece.color === 'red'
+        ? '兵'
+        : '卒',
+  }
+
+  return symbols[piece.type]
+}
+
+/**
+ * ==========================================
+ * POSITION TEXT
+ * ==========================================
+ *
+ * QUAN TRỌNG:
+ *
+ * Board nội bộ:
+ *
+ * row 0 = hàng 10
+ * row 1 = hàng 9
+ * row 2 = hàng 8
+ * ...
+ * row 8 = hàng 2
+ * row 9 = hàng 1
+ *
+ * Vì vậy phải dùng:
+ *
+ * 10 - row
+ *
+ * thay vì:
+ *
+ * row + 1
+ */
+
+function getPositionText(
+  row: number,
+  col: number,
+): string {
+  const columns = [
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'I',
+  ]
+
+  const boardRow =
+    10 - row
+
+  return `${columns[col]}${boardRow}`
+}
+
+/**
+ * ==========================================
+ * MOVE TEXT
+ * ==========================================
+ */
+
+function getMoveText(
+  move: MoveHistory,
+): string {
+  const from =
+    getPositionText(
+      move.from.row,
+      move.from.col,
+    )
+
+  const to =
+    getPositionText(
+      move.to.row,
+      move.to.col,
+    )
+
+  return `${from} → ${to}`
+}
+
+/**
+ * ==========================================
+ * CHECK
+ * ==========================================
+ */
+
+function handleCheck(
+  checked: boolean,
+  color: PieceColor | null,
+) {
+  isCheck.value = checked
+  checkColor.value = color
+}
+
+/**
+ * ==========================================
+ * TIMER
+ * ==========================================
+ */
+
+function stopTimer() {
+  if (
+    timer !== null
+  ) {
+    clearInterval(timer)
+
+    timer = null
+  }
+}
+
+function startTimer() {
+  stopTimer()
+
+  timer =
+    setInterval(() => {
+      if (
+        !gameStarted.value ||
+        gameOver.value
+      ) {
+        stopTimer()
+
+        return
+      }
+
+      /**
+       * ĐỎ
+       */
+
+      if (
+        currentTurn.value ===
+        'red'
+      ) {
+        if (
+          redTime.value <=
+          0
+        ) {
+          redTime.value = 0
+
+          finishGame(
+            'black',
+            'timeout',
+          )
+
+          return
+        }
+
+        redTime.value--
+
+        if (
+          redTime.value <=
+          0
+        ) {
+          redTime.value = 0
+
+          finishGame(
+            'black',
+            'timeout',
+          )
+        }
+
+        return
+      }
+
+      /**
+       * ĐEN
+       */
+
+      if (
+        currentTurn.value ===
+        'black'
+      ) {
+        if (
+          blackTime.value <=
+          0
+        ) {
+          blackTime.value = 0
+
+          finishGame(
+            'red',
+            'timeout',
+          )
+
+          return
+        }
+
+        blackTime.value--
+
+        if (
+          blackTime.value <=
+          0
+        ) {
+          blackTime.value = 0
+
+          finishGame(
+            'red',
+            'timeout',
+          )
+        }
+      }
+    }, 1000)
+}
+
+/**
+ * ==========================================
+ * FINISH GAME
+ * ==========================================
+ */
+
+function finishGame(
+  winningColor: PieceColor,
+  reason:
+    | 'checkmate'
+    | 'timeout'
+    | 'surrender',
+) {
+  stopTimer()
+
+  gameOver.value = true
+
+  winner.value =
+    winningColor
+
+  loser.value =
+    winningColor === 'red'
+      ? 'black'
+      : 'red'
+
+  winReason.value =
+    reason
+}
+
+/**
+ * ==========================================
+ * START GAME
+ * ==========================================
+ */
 
 function startGame() {
-  if (timeoutId) {
-    clearTimeout(timeoutId)
-    timeoutId = null
+  if (
+    gameStarted.value &&
+    !gameOver.value
+  ) {
+    return
   }
 
-  reactionTime.value = null
-  gameState.value = 'waiting'
+  gameStarted.value = true
 
-  // Random từ 1.5 đến 5 giây
-  const delay = Math.floor(Math.random() * 3500) + 1500
+  gameOver.value = false
 
-  timeoutId = setTimeout(() => {
-    gameState.value = 'ready'
-    startTime = performance.now()
-    timeoutId = null
-  }, delay)
+  currentTurn.value = 'red'
+
+  winner.value = null
+
+  loser.value = null
+
+  winReason.value = null
+
+  isCheck.value = false
+
+  checkColor.value = null
+
+  startTimer()
 }
 
-function handleClick() {
-  if (gameState.value === 'waiting') {
-    if (timeoutId) {
-      clearTimeout(timeoutId)
-      timeoutId = null
+/**
+ * ==========================================
+ * RESTART
+ * ==========================================
+ */
+
+function restartGame() {
+  stopTimer()
+
+  /**
+   * Tạo ChessBoard mới.
+   */
+
+  gameKey.value++
+
+  /**
+   * Reset trạng thái.
+   */
+
+  gameStarted.value = false
+
+  gameOver.value = false
+
+  currentTurn.value = 'red'
+
+  winner.value = null
+
+  loser.value = null
+
+  winReason.value = null
+
+  /**
+   * Reset check.
+   */
+
+  isCheck.value = false
+
+  checkColor.value = null
+
+  /**
+   * Reset timer.
+   */
+
+  redTime.value =
+    INITIAL_TIME
+
+  blackTime.value =
+    INITIAL_TIME
+
+  /**
+   * Reset lịch sử.
+   */
+
+  moveHistory.value = []
+
+  /**
+   * Reset snapshots.
+   */
+
+  gameSnapshots.value = []
+
+  /**
+   * Reset quân đã ăn.
+   */
+
+  redCaptured.value = []
+
+  blackCaptured.value = []
+}
+
+/**
+ * ==========================================
+ * HANDLE MOVE
+ * ==========================================
+ */
+
+function handleMove(
+  move: MoveHistory,
+) {
+  /**
+   * Không xử lý move sau game over.
+   */
+
+  if (
+    gameOver.value
+  ) {
+    return
+  }
+
+  /**
+   * ========================================
+   * SAVE TIMER SNAPSHOT
+   * ========================================
+   */
+
+  gameSnapshots.value.push({
+    redTime:
+      redTime.value,
+
+    blackTime:
+      blackTime.value,
+  })
+
+  /**
+   * ========================================
+   * SAVE MOVE HISTORY
+   * ========================================
+   */
+
+  moveHistory.value.push({
+    ...move,
+
+    number:
+      moveHistory.value.length +
+      1,
+  })
+
+  /**
+   * ========================================
+   * CAPTURED PIECE
+   * ========================================
+   */
+
+  if (
+    move.captured
+  ) {
+    if (
+      move.color === 'red'
+    ) {
+      redCaptured.value.push(
+        move.captured,
+      )
+    } else {
+      blackCaptured.value.push(
+        move.captured,
+      )
     }
+  }
 
-    gameState.value = 'too-early'
+  /**
+   * ========================================
+   * CHANGE TURN
+   * ========================================
+   */
+
+  currentTurn.value =
+    currentTurn.value === 'red'
+      ? 'black'
+      : 'red'
+
+  /**
+   * ========================================
+   * RESTART TIMER
+   * ========================================
+   */
+
+  startTimer()
+}
+
+/**
+ * ==========================================
+ * UNDO LAST MOVE
+ * ==========================================
+ */
+
+function undoLastMove() {
+  if (
+    moveHistory.value.length ===
+    0
+  ) {
     return
   }
 
-  if (gameState.value === 'ready') {
-    const time = Math.round(performance.now() - startTime)
+  if (
+    gameSnapshots.value.length ===
+    0
+  ) {
+    return
+  }
 
-    reactionTime.value = time
-    gameState.value = 'result'
+  /**
+   * ========================================
+   * RESTORE BOARD
+   * ========================================
+   */
 
-    if (bestTime.value === null || time < bestTime.value) {
-      bestTime.value = time
-      localStorage.setItem('reaction-best', String(time))
+  const success =
+    chessBoardRef.value?.undoMove()
+
+  if (!success) {
+    return
+  }
+
+  /**
+   * ========================================
+   * REMOVE LAST MOVE
+   * ========================================
+   */
+
+  const lastMove =
+    moveHistory.value.pop()
+
+  if (!lastMove) {
+    return
+  }
+
+  /**
+   * ========================================
+   * RESTORE TIMER
+   * ========================================
+   */
+
+  const snapshot =
+    gameSnapshots.value.pop()
+
+  if (!snapshot) {
+    return
+  }
+
+  redTime.value =
+    snapshot.redTime
+
+  blackTime.value =
+    snapshot.blackTime
+
+  /**
+   * ========================================
+   * RESTORE CAPTURED PIECE
+   * ========================================
+   */
+
+  if (
+    lastMove.captured
+  ) {
+    if (
+      lastMove.color === 'red'
+    ) {
+      redCaptured.value.pop()
+    } else {
+      blackCaptured.value.pop()
     }
   }
+
+  /**
+   * ========================================
+   * RESTORE TURN
+   * ========================================
+   */
+
+  currentTurn.value =
+    lastMove.color
+
+  /**
+   * ========================================
+   * RESTORE GAME STATE
+   * ========================================
+   */
+
+  gameStarted.value = true
+
+  gameOver.value = false
+
+  winner.value = null
+
+  loser.value = null
+
+  winReason.value = null
+
+  /**
+   * ========================================
+   * RESTART TIMER
+   * ========================================
+   */
+
+  startTimer()
 }
 
-function handleKeydown(event: KeyboardEvent) {
-  // Chỉ dùng phím Space
-  if (event.code !== 'Space') return
+/**
+ * ==========================================
+ * CHECKMATE
+ * ==========================================
+ */
 
-  // Không tính khi giữ phím
-  if (event.repeat) return
+function handleCheckmate(
+  winningColor: PieceColor,
+) {
+  finishGame(
+    winningColor,
+    'checkmate',
+  )
+}
 
-  // Không scroll trang khi nhấn Space
-  event.preventDefault()
+/**
+ * ==========================================
+ * SURRENDER
+ * ==========================================
+ */
 
-  if (gameState.value === 'idle') {
-    startGame()
+function surrender() {
+  if (
+    !gameStarted.value ||
+    gameOver.value
+  ) {
     return
   }
 
-  if (gameState.value === 'result' || gameState.value === 'too-early') {
-    startGame()
-    return
-  }
+  const winningColor:
+    PieceColor =
+      currentTurn.value === 'red'
+        ? 'black'
+        : 'red'
 
-  handleClick()
+  finishGame(
+    winningColor,
+    'surrender',
+  )
 }
 
-function resetBest() {
-  bestTime.value = null
-  localStorage.removeItem('reaction-best')
-}
+/**
+ * ==========================================
+ * CLEANUP
+ * ==========================================
+ */
+
+onBeforeUnmount(() => {
+  stopTimer()
+})
 </script>
 
 <template>
   <main
-    class="game"
-    :class="{
-      waiting: gameState === 'waiting',
-      ready: gameState === 'ready',
-      result: gameState === 'result',
-      early: gameState === 'too-early'
-    }"
-    @click="handleClick"
+    class="
+      min-h-screen
+      bg-slate-950
+      px-4
+      py-8
+      text-white
+    "
   >
-    <div class="content">
-      <div class="logo">⚡</div>
+    <div
+      class="
+        mx-auto
+        flex
+        min-h-[calc(100vh-4rem)]
+        w-full
+        max-w-[1450px]
+        flex-col
+        justify-center
+      "
+    >
+      <!-- ================================= -->
+      <!-- HEADER -->
+      <!-- ================================= -->
 
-      <h1>Reaction Test</h1>
-
-      <!-- IDLE -->
-      <p
-        v-if="gameState === 'idle'"
-        class="instruction"
+      <header
+        class="
+          mb-6
+          text-center
+        "
       >
-        Kiểm tra tốc độ phản xạ của bạn
-      </p>
-
-      <!-- WAITING -->
-      <p
-        v-if="gameState === 'waiting'"
-        class="instruction"
-      >
-        Chờ màu xanh...
-      </p>
-
-      <!-- READY -->
-      <p
-        v-if="gameState === 'ready'"
-        class="instruction big"
-      >
-        CLICK NGAY!
-      </p>
-
-      <!-- RESULT -->
-      <p
-        v-if="gameState === 'result'"
-        class="instruction"
-      >
-        Phản xạ của bạn
-      </p>
-
-      <!-- TOO EARLY -->
-      <p
-        v-if="gameState === 'too-early'"
-        class="instruction"
-      >
-        Bạn click quá sớm!
-      </p>
-
-      <!-- START -->
-      <div
-        v-if="gameState === 'idle'"
-        class="start-area"
-      >
-        <button
-          class="start-button"
-          @click.stop="startGame"
+        <h1
+          class="
+            text-3xl
+            font-bold
+          "
         >
-          BẮT ĐẦU
-        </button>
+          Cờ Tướng
+        </h1>
+      </header>
 
-        <p class="keyboard-hint">
-          Hoặc nhấn <kbd>SPACE</kbd>
-        </p>
-      </div>
+      <!-- ================================= -->
+      <!-- THREE COLUMNS -->
+      <!-- ================================= -->
 
-      <!-- RESULT -->
       <div
-        v-else-if="gameState === 'result'"
-        class="result-area"
+        class="
+          grid
+          w-full
+          gap-6
+          xl:grid-cols-[300px_minmax(0,600px)_300px]
+          xl:justify-center
+        "
       >
-        <div class="score">
-          {{ reactionTime }}
-          <span>ms</span>
-        </div>
+        <!-- ================================= -->
+        <!-- LEFT: HISTORY -->
+        <!-- ================================= -->
 
-        <div class="comparison">
-          <div>
-            <span>Kỷ lục</span>
-
-            <strong>
-              {{ bestTime !== null ? `${bestTime} ms` : '--' }}
-            </strong>
-          </div>
+        <aside
+          class="
+            order-2
+            w-full
+            rounded-2xl
+            border
+            border-slate-800
+            bg-slate-900
+            p-5
+            xl:order-1
+          "
+        >
+          <!-- HISTORY -->
 
           <div>
-            <span>Đánh giá</span>
+            <div
+              class="
+                flex
+                items-center
+                justify-between
+              "
+            >
+              <h2
+                class="
+                  font-semibold
+                "
+              >
+                Lịch sử nước đi
+              </h2>
 
-            <strong>
-              {{
-                reactionTime !== null && reactionTime < 200
-                  ? '🔥 Siêu nhanh!'
-                  : reactionTime !== null && reactionTime < 300
-                    ? '⚡ Rất nhanh!'
-                    : reactionTime !== null && reactionTime < 400
-                      ? '👍 Tốt'
-                      : '🐢 Cần luyện thêm'
-              }}
-            </strong>
+              <span
+                class="
+                  rounded-full
+                  bg-slate-800
+                  px-2
+                  py-1
+                  text-xs
+                  text-slate-400
+                "
+              >
+                {{ moveHistory.length }}
+              </span>
+            </div>
+
+            <div
+              class="
+                mt-3
+                h-72
+                overflow-y-auto
+                rounded-xl
+                bg-slate-800
+              "
+            >
+              <!-- EMPTY -->
+
+              <div
+                v-if="
+                  moveHistory.length ===
+                  0
+                "
+                class="
+                  flex
+                  h-full
+                  items-center
+                  justify-center
+                  p-4
+                  text-center
+                  text-sm
+                  text-slate-500
+                "
+              >
+                Chưa có nước đi
+              </div>
+
+              <!-- MOVES -->
+
+              <div
+                v-else
+                class="
+                  divide-y
+                  divide-slate-700
+                "
+              >
+                <div
+                  v-for="
+                    move in moveHistory
+                  "
+                  :key="
+                    `${move.number}-${move.piece.id}`
+                  "
+                  class="
+                    flex
+                    items-center
+                    gap-2
+                    px-3
+                    py-2.5
+                  "
+                >
+                  <!-- NUMBER -->
+
+                  <span
+                    class="
+                      w-5
+                      text-xs
+                      text-slate-500
+                    "
+                  >
+                    {{ move.number }}
+                  </span>
+
+                  <!-- COLOR -->
+
+                  <span
+                    class="
+                      h-2
+                      w-2
+                      shrink-0
+                      rounded-full
+                    "
+                    :class="
+                      move.color === 'red'
+                        ? 'bg-red-500'
+                        : 'bg-slate-300'
+                    "
+                  />
+
+                  <!-- PIECE -->
+
+                  <span
+                    class="
+                      text-lg
+                      font-bold
+                    "
+                    :class="
+                      move.color === 'red'
+                        ? 'text-red-400'
+                        : 'text-slate-200'
+                    "
+                  >
+                    {{
+                      getPieceSymbol(
+                        move.piece,
+                      )
+                    }}
+                  </span>
+
+                  <!-- MOVE -->
+
+                  <div
+                    class="
+                      min-w-0
+                      flex-1
+                    "
+                  >
+                    <p
+                      class="
+                        truncate
+                        text-sm
+                        text-slate-200
+                      "
+                    >
+                      {{
+                        getMoveText(
+                          move,
+                        )
+                      }}
+                    </p>
+                  </div>
+
+                  <!-- CAPTURE -->
+
+                  <span
+                    v-if="
+                      move.captured
+                    "
+                    class="
+                      shrink-0
+                      rounded
+                      bg-red-950/60
+                      px-1.5
+                      py-0.5
+                      text-xs
+                      text-red-300
+                    "
+                  >
+                    {{
+                      getPieceSymbol(
+                        move.captured,
+                      )
+                    }}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <button
-          class="retry-button"
-          @click.stop="startGame"
+          <!-- ================================= -->
+          <!-- CAPTURED -->
+          <!-- ================================= -->
+
+          <div
+            class="
+              mt-5
+              border-t
+              border-slate-800
+              pt-5
+            "
+          >
+            <h2
+              class="
+                font-semibold
+              "
+            >
+              Quân đã ăn
+            </h2>
+
+            <!-- RED -->
+
+            <div
+              class="
+                mt-4
+              "
+            >
+              <div
+                class="
+                  flex
+                  justify-between
+                "
+              >
+                <span
+                  class="
+                    text-sm
+                    text-red-400
+                  "
+                >
+                  Đỏ đã ăn
+                </span>
+
+                <span
+                  class="
+                    text-xs
+                    text-slate-500
+                  "
+                >
+                  {{ redCaptured.length }}
+                </span>
+              </div>
+
+              <div
+                class="
+                  mt-2
+                  flex
+                  min-h-9
+                  flex-wrap
+                  gap-1.5
+                "
+              >
+                <span
+                  v-for="
+                    (piece, index)
+                    in redCaptured
+                  "
+                  :key="
+                    `red-${index}`
+                  "
+                  class="
+                    flex
+                    h-9
+                    w-9
+                    items-center
+                    justify-center
+                    rounded-lg
+                    bg-slate-800
+                    text-lg
+                  "
+                  :title="
+                    getPieceName(
+                      piece,
+                    )
+                  "
+                >
+                  {{
+                    getPieceSymbol(
+                      piece,
+                    )
+                  }}
+                </span>
+
+                <span
+                  v-if="
+                    redCaptured.length ===
+                    0
+                  "
+                  class="
+                    text-xs
+                    text-slate-500
+                  "
+                >
+                  Chưa có
+                </span>
+              </div>
+            </div>
+
+            <!-- BLACK -->
+
+            <div
+              class="
+                mt-4
+              "
+            >
+              <div
+                class="
+                  flex
+                  justify-between
+                "
+              >
+                <span
+                  class="
+                    text-sm
+                    text-slate-300
+                  "
+                >
+                  Đen đã ăn
+                </span>
+
+                <span
+                  class="
+                    text-xs
+                    text-slate-500
+                  "
+                >
+                  {{ blackCaptured.length }}
+                </span>
+              </div>
+
+              <div
+                class="
+                  mt-2
+                  flex
+                  min-h-9
+                  flex-wrap
+                  gap-1.5
+                "
+              >
+                <span
+                  v-for="
+                    (piece, index)
+                    in blackCaptured
+                  "
+                  :key="
+                    `black-${index}`
+                  "
+                  class="
+                    flex
+                    h-9
+                    w-9
+                    items-center
+                    justify-center
+                    rounded-lg
+                    bg-slate-800
+                    text-lg
+                  "
+                  :title="
+                    getPieceName(
+                      piece,
+                    )
+                  "
+                >
+                  {{
+                    getPieceSymbol(
+                      piece,
+                    )
+                  }}
+                </span>
+
+                <span
+                  v-if="
+                    blackCaptured.length ===
+                    0
+                  "
+                  class="
+                    text-xs
+                    text-slate-500
+                  "
+                >
+                  Chưa có
+                </span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- ================================= -->
+        <!-- CENTER: CHESS BOARD -->
+        <!-- ================================= -->
+
+        <section
+          class="
+            order-1
+            flex
+            justify-center
+            xl:order-2
+          "
         >
-          CHƠI LẠI
-        </button>
+          <ChessBoard
+            ref="chessBoardRef"
+            :key="gameKey"
+            :current-turn="currentTurn"
+            :game-started="gameStarted"
+            @move="handleMove"
+            @checkmate="
+              handleCheckmate
+            "
+            @check="handleCheck"
+          />
+        </section>
 
-        <p class="keyboard-hint">
-          Hoặc nhấn <kbd>SPACE</kbd>
-        </p>
-      </div>
+        <!-- ================================= -->
+        <!-- RIGHT: SIDEBAR -->
+        <!-- ================================= -->
 
-      <!-- TOO EARLY -->
-      <div
-        v-else-if="gameState === 'too-early'"
-        class="result-area"
-      >
-        <div class="error-icon">✕</div>
-
-        <p class="error-text">
-          Hãy đợi màu xanh rồi mới click!
-        </p>
-
-        <button
-          class="retry-button"
-          @click.stop="startGame"
+        <aside
+          class="
+            order-3
+            w-full
+            rounded-2xl
+            border
+            border-slate-800
+            bg-slate-900
+            p-5
+          "
         >
-          THỬ LẠI
-        </button>
+          <!-- CHECK MESSAGE -->
 
-        <p class="keyboard-hint">
-          Hoặc nhấn <kbd>SPACE</kbd>
-        </p>
+          <Transition name="check">
+            <div
+              v-if="
+                gameStarted &&
+                isCheck
+              "
+              class="
+                mb-3
+                rounded-xl
+                border
+                border-red-500/30
+                bg-red-950/40
+                px-4
+                py-3
+                text-center
+                shadow-lg
+                shadow-red-950/20
+              "
+            >
+              <p
+                class="
+                  animate-pulse
+                  font-bold
+                  text-red-400
+                "
+              >
+                ⚠
+                {{
+                  checkPlayerName
+                }}
+                đang bị chiếu!
+              </p>
+
+              <p
+                class="
+                  mt-1
+                  text-xs
+                  text-red-300/70
+                "
+              >
+                Hãy tìm nước đi để
+                thoát chiếu
+              </p>
+            </div>
+          </Transition>
+
+          <!-- PLAYER -->
+
+          <div
+            class="
+              mb-5
+            "
+          >
+            <p
+              class="
+                text-sm
+                text-slate-400
+              "
+            >
+              Người chơi
+            </p>
+
+            <p
+              class="
+                mt-1
+                text-xl
+                font-bold
+              "
+              :class="
+                currentTurn === 'red'
+                  ? 'text-red-400'
+                  : 'text-slate-200'
+              "
+            >
+              {{ currentPlayerName }}
+            </p>
+          </div>
+
+          <!-- RED TIMER -->
+
+          <div
+            class="
+              mb-3
+              rounded-xl
+              p-4
+              text-center
+            "
+            :class="
+              currentTurn === 'red' &&
+              gameStarted &&
+              !gameOver
+                ? 'bg-red-950/60 ring-2 ring-red-500/50'
+                : 'bg-slate-800'
+            "
+          >
+            <p
+              class="
+                text-sm
+                text-slate-400
+              "
+            >
+              Đỏ
+            </p>
+
+            <p
+              class="
+                mt-1
+                font-mono
+                text-3xl
+                font-bold
+              "
+            >
+              {{ redTimeText }}
+            </p>
+          </div>
+
+          <!-- BLACK TIMER -->
+
+          <div
+            class="
+              rounded-xl
+              p-4
+              text-center
+            "
+            :class="
+              currentTurn === 'black' &&
+              gameStarted &&
+              !gameOver
+                ? 'bg-slate-700 ring-2 ring-slate-400/50'
+                : 'bg-slate-800'
+            "
+          >
+            <p
+              class="
+                text-sm
+                text-slate-400
+              "
+            >
+              Đen
+            </p>
+
+            <p
+              class="
+                mt-1
+                font-mono
+                text-3xl
+                font-bold
+              "
+            >
+              {{ blackTimeText }}
+            </p>
+          </div>
+
+          <!-- ================================= -->
+          <!-- CONTROLS -->
+          <!-- ================================= -->
+
+          <div
+            class="
+              mt-5
+              grid
+              gap-2
+            "
+          >
+            <!-- START -->
+
+            <button
+              v-if="
+                !gameStarted
+              "
+              type="button"
+              class="
+                rounded-lg
+                bg-green-600
+                px-4
+                py-2
+                font-semibold
+                transition
+                hover:bg-green-500
+              "
+              @click="
+                startGame
+              "
+            >
+              Bắt đầu
+            </button>
+
+            <!-- UNDO -->
+
+            <button
+              v-if="
+                canUndo
+              "
+              type="button"
+              class="
+                rounded-lg
+                border
+                border-yellow-500/30
+                bg-yellow-500/10
+                px-4
+                py-2
+                font-semibold
+                text-yellow-400
+                transition
+                hover:bg-yellow-500/20
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
+              :disabled="
+                !canUndo
+              "
+              @click="
+                undoLastMove
+              "
+            >
+              ↶ Hồi lại nước
+            </button>
+
+            <!-- RESTART -->
+
+            <button
+              v-if="
+                gameStarted
+              "
+              type="button"
+              class="
+                rounded-lg
+                bg-slate-700
+                px-4
+                py-2
+                transition
+                hover:bg-slate-600
+              "
+              @click="
+                restartGame
+              "
+            >
+              Chơi lại
+            </button>
+
+            <!-- SURRENDER -->
+
+            <button
+              v-if="
+                gameStarted &&
+                !gameOver
+              "
+              type="button"
+              class="
+                rounded-lg
+                border
+                border-slate-700
+                px-4
+                py-2
+                text-slate-300
+                transition
+                hover:bg-slate-800
+              "
+              @click="
+                surrender
+              "
+            >
+              Đầu hàng
+            </button>
+          </div>
+        </aside>
       </div>
-
-      <!-- WAITING / READY -->
-      <div
-        v-else
-        class="waiting-area"
-      >
-        <div class="target">
-          <span v-if="gameState === 'waiting'">
-            ĐỪNG CLICK
-          </span>
-
-          <span v-else>
-            CLICK!
-          </span>
-        </div>
-
-        <p class="keyboard-hint game-key">
-          Nhấn <kbd>SPACE</kbd>
-        </p>
-      </div>
-
-      <!-- BEST -->
-      <div
-        v-if="bestTime !== null"
-        class="best"
-      >
-        🏆 Best: {{ bestTime }} ms
-      </div>
-
-      <!-- RESET -->
-      <button
-        v-if="bestTime !== null"
-        class="reset"
-        @click.stop="resetBest"
-      >
-        Xóa kỷ lục
-      </button>
     </div>
+
+    <!-- ================================= -->
+    <!-- GAME OVER MODAL -->
+    <!-- ================================= -->
+
+    <Transition name="modal">
+      <div
+        v-if="gameOver"
+        class="
+          fixed
+          inset-0
+          z-[100]
+          flex
+          items-center
+          justify-center
+          bg-black/75
+          p-4
+          backdrop-blur-sm
+        "
+      >
+        <div
+          class="
+            w-full
+            max-w-md
+            rounded-3xl
+            border
+            border-slate-700
+            bg-slate-900
+            p-8
+            text-center
+            shadow-2xl
+          "
+        >
+          <div
+            class="
+              mx-auto
+              flex
+              h-20
+              w-20
+              items-center
+              justify-center
+              rounded-full
+              bg-yellow-500/10
+              text-4xl
+              ring-4
+              ring-yellow-500/20
+            "
+          >
+            🏆
+          </div>
+
+          <h2
+            class="
+              mt-5
+              text-3xl
+              font-bold
+            "
+          >
+            Game Over
+          </h2>
+
+          <p
+            class="
+              mt-4
+              text-xl
+              font-semibold
+            "
+          >
+            <span
+              :class="
+                winner === 'red'
+                  ? 'text-red-400'
+                  : 'text-slate-200'
+              "
+            >
+              {{ winnerName }}
+            </span>
+
+            thắng!
+          </p>
+
+          <div
+            class="
+              mx-auto
+              mt-4
+              w-fit
+              rounded-full
+              bg-slate-800
+              px-5
+              py-2
+              text-sm
+              text-slate-300
+            "
+          >
+            {{ winReasonText }}
+          </div>
+
+          <p
+            class="
+              mt-4
+              text-sm
+              text-slate-400
+            "
+          >
+            {{ loserName }} đã thua
+          </p>
+
+          <button
+            type="button"
+            class="
+              mt-3
+              w-full
+              rounded-xl
+              bg-green-600
+              px-5
+              py-3
+              font-semibold
+              transition
+              hover:bg-green-500
+            "
+            @click="
+              restartGame
+            "
+          >
+            Chơi lại
+          </button>
+        </div>
+      </div>
+    </Transition>
   </main>
 </template>
 
 <style scoped>
-* {
-  box-sizing: border-box;
-}
-
-.game {
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  color: white;
-
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-
-  background: #171717;
-
+.check-enter-active,
+.check-leave-active {
   transition:
-    background 0.15s ease,
-    transform 0.1s ease;
-
-  cursor: default;
-  user-select: none;
-
-  overflow: hidden;
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
-.game.waiting {
-  background: #e74c3c;
-  cursor: pointer;
+.check-enter-from,
+.check-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
-.game.ready {
-  background: #2ecc71;
-  cursor: pointer;
+.modal-enter-active,
+.modal-leave-active {
+  transition:
+    opacity 0.2s ease;
 }
 
-.game.result {
-  background: #171717;
+.modal-enter-active > div,
+.modal-leave-active > div {
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
-.game.early {
-  background: #8e44ad;
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
 }
 
-.content {
-  width: min(90%, 700px);
-  text-align: center;
-}
-
-.logo {
-  font-size: 52px;
-  margin-bottom: 5px;
-}
-
-h1 {
-  margin: 0;
-
-  font-size: clamp(38px, 8vw, 70px);
-  font-weight: 900;
-
-  letter-spacing: -3px;
-}
-
-.instruction {
-  margin: 15px 0 35px;
-
-  color: #bdbdbd;
-
-  font-size: 18px;
-}
-
-.waiting .instruction,
-.ready .instruction {
-  color: white;
-  font-weight: 600;
-}
-
-.instruction.big {
-  font-size: clamp(30px, 7vw, 60px);
-  font-weight: 900;
-
-  animation: pulse 0.5s infinite alternate;
-}
-
-.start-area {
-  margin-top: 45px;
-}
-
-.start-button,
-.retry-button {
-  border: 0;
-  border-radius: 14px;
-
-  padding: 18px 45px;
-
-  font-size: 18px;
-  font-weight: 800;
-
-  color: #171717;
-  background: #fff;
-
-  cursor: pointer;
-
-  transition: all 0.2s ease;
-
-  box-shadow:
-    0 8px 25px rgba(0, 0, 0, 0.25);
-}
-
-.start-button:hover,
-.retry-button:hover {
-  transform: translateY(-3px);
-
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.35);
-}
-
-.start-button:active,
-.retry-button:active {
-  transform: translateY(0);
-}
-
-.keyboard-hint {
-  margin-top: 20px;
-
-  color: rgba(255, 255, 255, 0.45);
-
-  font-size: 14px;
-}
-
-kbd {
-  display: inline-block;
-
-  padding: 4px 9px;
-
-  border-radius: 6px;
-
-  color: #fff;
-  background: rgba(255, 255, 255, 0.12);
-
-  border: 1px solid rgba(255, 255, 255, 0.2);
-
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 800;
-
-  box-shadow:
-    0 2px 0 rgba(255, 255, 255, 0.15);
-}
-
-.game-key {
-  margin-top: 18px;
-}
-
-.target {
-  margin: 40px auto 0;
-
-  width: min(75vw, 400px);
-  height: min(75vw, 400px);
-
-  border: 4px solid rgba(255, 255, 255, 0.7);
-
-  border-radius: 50%;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: 25px;
-  font-weight: 900;
-
-  letter-spacing: 2px;
-}
-
-.waiting .target {
-  animation: waitingPulse 1.2s infinite;
-}
-
-.ready .target {
-  border-color: white;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.result-area {
-  margin-top: 20px;
-}
-
-.score {
-  font-size: clamp(80px, 18vw, 150px);
-
-  font-weight: 900;
-
-  line-height: 1;
-
-  letter-spacing: -7px;
-}
-
-.score span {
-  font-size: 25px;
-
-  letter-spacing: 0;
-
-  color: #aaa;
-}
-
-.comparison {
-  display: flex;
-
-  justify-content: center;
-
-  gap: 50px;
-
-  margin: 35px 0;
-}
-
-.comparison div {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 8px;
-}
-
-.comparison span {
-  color: #888;
-
-  font-size: 13px;
-
-  text-transform: uppercase;
-}
-
-.comparison strong {
-  font-size: 17px;
-}
-
-.error-icon {
-  font-size: 100px;
-
-  font-weight: 900;
-
-  color: #f1c40f;
-}
-
-.error-text {
-  color: #ddd;
-
-  margin: 10px 0 35px;
-
-  font-size: 18px;
-}
-
-.best {
-  margin-top: 30px;
-
-  color: #ffd700;
-
-  font-weight: 700;
-}
-
-.reset {
-  margin-top: 15px;
-
-  background: transparent;
-
-  color: #666;
-
-  border: 0;
-
-  cursor: pointer;
-
-  text-decoration: underline;
-}
-
-.reset:hover {
-  color: #aaa;
-}
-
-@keyframes pulse {
-  from {
-    transform: scale(1);
-  }
-
-  to {
-    transform: scale(1.04);
-  }
-}
-
-@keyframes waitingPulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-
-  50% {
-    transform: scale(1.03);
-    opacity: 1;
-  }
-}
-
-@media (max-width: 600px) {
-  .comparison {
-    gap: 25px;
-  }
-
-  .comparison strong {
-    font-size: 15px;
-  }
-
-  .target {
-    width: 65vw;
-    height: 65vw;
-  }
+.modal-enter-from > div,
+.modal-leave-to > div {
+  opacity: 0;
+  transform: scale(0.92);
 }
 </style>
