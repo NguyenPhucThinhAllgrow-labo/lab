@@ -14,17 +14,22 @@ onMounted(() => {
   if (saved) {
     bestTime.value = Number(saved)
   }
+
+  window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (timeoutId) {
     clearTimeout(timeoutId)
   }
+
+  window.removeEventListener('keydown', handleKeydown)
 })
 
 function startGame() {
   if (timeoutId) {
     clearTimeout(timeoutId)
+    timeoutId = null
   }
 
   reactionTime.value = null
@@ -36,6 +41,7 @@ function startGame() {
   timeoutId = setTimeout(() => {
     gameState.value = 'ready'
     startTime = performance.now()
+    timeoutId = null
   }, delay)
 }
 
@@ -43,6 +49,7 @@ function handleClick() {
   if (gameState.value === 'waiting') {
     if (timeoutId) {
       clearTimeout(timeoutId)
+      timeoutId = null
     }
 
     gameState.value = 'too-early'
@@ -60,6 +67,29 @@ function handleClick() {
       localStorage.setItem('reaction-best', String(time))
     }
   }
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  // Chỉ dùng phím Space
+  if (event.code !== 'Space') return
+
+  // Không tính khi giữ phím
+  if (event.repeat) return
+
+  // Không scroll trang khi nhấn Space
+  event.preventDefault()
+
+  if (gameState.value === 'idle') {
+    startGame()
+    return
+  }
+
+  if (gameState.value === 'result' || gameState.value === 'too-early') {
+    startGame()
+    return
+  }
+
+  handleClick()
 }
 
 function resetBest() {
@@ -84,33 +114,68 @@ function resetBest() {
 
       <h1>Reaction Test</h1>
 
-      <p v-if="gameState === 'idle'" class="instruction">
+      <!-- IDLE -->
+      <p
+        v-if="gameState === 'idle'"
+        class="instruction"
+      >
         Kiểm tra tốc độ phản xạ của bạn
       </p>
 
-      <p v-if="gameState === 'waiting'" class="instruction">
+      <!-- WAITING -->
+      <p
+        v-if="gameState === 'waiting'"
+        class="instruction"
+      >
         Chờ màu xanh...
       </p>
 
-      <p v-if="gameState === 'ready'" class="instruction big">
+      <!-- READY -->
+      <p
+        v-if="gameState === 'ready'"
+        class="instruction big"
+      >
         CLICK NGAY!
       </p>
 
-      <p v-if="gameState === 'result'" class="instruction">
+      <!-- RESULT -->
+      <p
+        v-if="gameState === 'result'"
+        class="instruction"
+      >
         Phản xạ của bạn
       </p>
 
-      <p v-if="gameState === 'too-early'" class="instruction">
+      <!-- TOO EARLY -->
+      <p
+        v-if="gameState === 'too-early'"
+        class="instruction"
+      >
         Bạn click quá sớm!
       </p>
 
-      <div v-if="gameState === 'idle'" class="start-area">
-        <button class="start-button" @click.stop="startGame">
+      <!-- START -->
+      <div
+        v-if="gameState === 'idle'"
+        class="start-area"
+      >
+        <button
+          class="start-button"
+          @click.stop="startGame"
+        >
           BẮT ĐẦU
         </button>
+
+        <p class="keyboard-hint">
+          Hoặc nhấn <kbd>SPACE</kbd>
+        </p>
       </div>
 
-      <div v-else-if="gameState === 'result'" class="result-area">
+      <!-- RESULT -->
+      <div
+        v-else-if="gameState === 'result'"
+        class="result-area"
+      >
         <div class="score">
           {{ reactionTime }}
           <span>ms</span>
@@ -119,13 +184,15 @@ function resetBest() {
         <div class="comparison">
           <div>
             <span>Kỷ lục</span>
+
             <strong>
-              {{ bestTime ? `${bestTime} ms` : '--' }}
+              {{ bestTime !== null ? `${bestTime} ms` : '--' }}
             </strong>
           </div>
 
           <div>
             <span>Đánh giá</span>
+
             <strong>
               {{
                 reactionTime !== null && reactionTime < 200
@@ -140,36 +207,72 @@ function resetBest() {
           </div>
         </div>
 
-        <button class="retry-button" @click.stop="startGame">
+        <button
+          class="retry-button"
+          @click.stop="startGame"
+        >
           CHƠI LẠI
         </button>
+
+        <p class="keyboard-hint">
+          Hoặc nhấn <kbd>SPACE</kbd>
+        </p>
       </div>
 
-      <div v-else-if="gameState === 'too-early'" class="result-area">
+      <!-- TOO EARLY -->
+      <div
+        v-else-if="gameState === 'too-early'"
+        class="result-area"
+      >
         <div class="error-icon">✕</div>
 
         <p class="error-text">
           Hãy đợi màu xanh rồi mới click!
         </p>
 
-        <button class="retry-button" @click.stop="startGame">
+        <button
+          class="retry-button"
+          @click.stop="startGame"
+        >
           THỬ LẠI
         </button>
+
+        <p class="keyboard-hint">
+          Hoặc nhấn <kbd>SPACE</kbd>
+        </p>
       </div>
 
-      <div v-else class="waiting-area">
+      <!-- WAITING / READY -->
+      <div
+        v-else
+        class="waiting-area"
+      >
         <div class="target">
-          <span v-if="gameState === 'waiting'">ĐỪNG CLICK</span>
-          <span v-else>CLICK!</span>
+          <span v-if="gameState === 'waiting'">
+            ĐỪNG CLICK
+          </span>
+
+          <span v-else>
+            CLICK!
+          </span>
         </div>
+
+        <p class="keyboard-hint game-key">
+          Nhấn <kbd>SPACE</kbd>
+        </p>
       </div>
 
-      <div v-if="bestTime" class="best">
+      <!-- BEST -->
+      <div
+        v-if="bestTime !== null"
+        class="best"
+      >
         🏆 Best: {{ bestTime }} ms
       </div>
 
+      <!-- RESET -->
       <button
-        v-if="bestTime"
+        v-if="bestTime !== null"
         class="reset"
         @click.stop="resetBest"
       >
@@ -190,7 +293,9 @@ function resetBest() {
   display: flex;
   align-items: center;
   justify-content: center;
+
   color: white;
+
   font-family:
     Inter,
     -apple-system,
@@ -199,12 +304,15 @@ function resetBest() {
     sans-serif;
 
   background: #171717;
+
   transition:
     background 0.15s ease,
     transform 0.1s ease;
 
   cursor: default;
   user-select: none;
+
+  overflow: hidden;
 }
 
 .game.waiting {
@@ -237,14 +345,18 @@ function resetBest() {
 
 h1 {
   margin: 0;
+
   font-size: clamp(38px, 8vw, 70px);
   font-weight: 900;
+
   letter-spacing: -3px;
 }
 
 .instruction {
   margin: 15px 0 35px;
+
   color: #bdbdbd;
+
   font-size: 18px;
 }
 
@@ -257,6 +369,7 @@ h1 {
 .instruction.big {
   font-size: clamp(30px, 7vw, 60px);
   font-weight: 900;
+
   animation: pulse 0.5s infinite alternate;
 }
 
@@ -268,20 +381,29 @@ h1 {
 .retry-button {
   border: 0;
   border-radius: 14px;
+
   padding: 18px 45px;
+
   font-size: 18px;
   font-weight: 800;
+
   color: #171717;
   background: #fff;
+
   cursor: pointer;
+
   transition: all 0.2s ease;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.25);
 }
 
 .start-button:hover,
 .retry-button:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.35);
 }
 
 .start-button:active,
@@ -289,17 +411,55 @@ h1 {
   transform: translateY(0);
 }
 
+.keyboard-hint {
+  margin-top: 20px;
+
+  color: rgba(255, 255, 255, 0.45);
+
+  font-size: 14px;
+}
+
+kbd {
+  display: inline-block;
+
+  padding: 4px 9px;
+
+  border-radius: 6px;
+
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.15);
+}
+
+.game-key {
+  margin-top: 18px;
+}
+
 .target {
   margin: 40px auto 0;
+
   width: min(75vw, 400px);
   height: min(75vw, 400px);
+
   border: 4px solid rgba(255, 255, 255, 0.7);
+
   border-radius: 50%;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   font-size: 25px;
   font-weight: 900;
+
   letter-spacing: 2px;
 }
 
@@ -318,33 +478,45 @@ h1 {
 
 .score {
   font-size: clamp(80px, 18vw, 150px);
+
   font-weight: 900;
+
   line-height: 1;
+
   letter-spacing: -7px;
 }
 
 .score span {
   font-size: 25px;
+
   letter-spacing: 0;
+
   color: #aaa;
 }
 
 .comparison {
   display: flex;
+
   justify-content: center;
+
   gap: 50px;
+
   margin: 35px 0;
 }
 
 .comparison div {
   display: flex;
+
   flex-direction: column;
+
   gap: 8px;
 }
 
 .comparison span {
   color: #888;
+
   font-size: 13px;
+
   text-transform: uppercase;
 }
 
@@ -354,28 +526,39 @@ h1 {
 
 .error-icon {
   font-size: 100px;
+
   font-weight: 900;
+
   color: #f1c40f;
 }
 
 .error-text {
   color: #ddd;
+
   margin: 10px 0 35px;
+
   font-size: 18px;
 }
 
 .best {
   margin-top: 30px;
+
   color: #ffd700;
+
   font-weight: 700;
 }
 
 .reset {
   margin-top: 15px;
+
   background: transparent;
+
   color: #666;
+
   border: 0;
+
   cursor: pointer;
+
   text-decoration: underline;
 }
 
