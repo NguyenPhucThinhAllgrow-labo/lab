@@ -80,6 +80,62 @@ const board = ref<ChessPiece[]>(
 
 /**
  * ==========================================
+ * BOARD HISTORY / UNDO
+ * ==========================================
+ */
+
+const boardHistory =
+  ref<ChessPiece[][]>([])
+
+const canUndo =
+  computed(
+    () =>
+      boardHistory.value.length > 0,
+  )
+
+/**
+ * ==========================================
+ * COORDINATES
+ * ==========================================
+ *
+ * Board:
+ *
+ * 9 columns = a → i
+ * 10 rows  = 10 → 1
+ *
+ * Internal:
+ *
+ * col: 0 → 8
+ * row: 0 → 9
+ */
+
+const columnLabels = [
+  'A',
+  'B',
+  'C',
+  'D',
+  'E',
+  'F',
+  'G',
+  'H',
+  'I',
+]
+
+const rowLabels = [
+  '10',
+  '9',
+  '8',
+  '7',
+  '6',
+  '5',
+  '4',
+  '3',
+  '2',
+  '1',
+]
+
+/**
+ * ==========================================
  * SELECTION
  * ==========================================
  */
@@ -89,6 +145,53 @@ const selectedPieceId =
 
 const validMoves =
   ref<Position[]>([])
+
+/**
+ * ==========================================
+ * CAPTURE ANIMATION
+ * ==========================================
+ */
+
+const captureAnimation =
+  ref<{
+    piece: ChessPiece
+    position: Position
+  } | null>(null)
+
+let captureTimer:
+  ReturnType<typeof setTimeout> | null = null
+
+function triggerCaptureEffect(
+  piece: ChessPiece,
+  position: Position,
+) {
+  /**
+   * Clone piece để animation
+   * không phụ thuộc board chính.
+   */
+  captureAnimation.value = {
+    piece: {
+      ...piece,
+    },
+    position: {
+      ...position,
+    },
+  }
+
+  /**
+   * Clear timer cũ nếu có.
+   */
+  if (captureTimer) {
+    clearTimeout(captureTimer)
+  }
+
+  /**
+   * Xóa animation sau khi hoàn thành.
+   */
+  captureTimer = setTimeout(() => {
+    captureAnimation.value = null
+  }, 500)
+}
 
 /**
  * ==========================================
@@ -122,7 +225,7 @@ const currentPlayerInCheck =
 
 /**
  * ==========================================
- * EMIT CHECK STATE TO PARENT
+ * EMIT CHECK STATE
  * ==========================================
  */
 
@@ -419,6 +522,22 @@ function handlePointClick(
 
 /**
  * ==========================================
+ * CLONE BOARD
+ * ==========================================
+ */
+
+function cloneBoard(
+  source: ChessPiece[],
+): ChessPiece[] {
+  return source.map(
+    (piece) => ({
+      ...piece,
+    }),
+  )
+}
+
+/**
+ * ==========================================
  * PERFORM MOVE
  * ==========================================
  */
@@ -476,10 +595,6 @@ function performMove(
 
   /**
    * Lưu quân bị ăn.
-   *
-   * Phải lấy trước khi movePiece()
-   * vì sau đó quân này sẽ bị remove
-   * khỏi board.
    */
 
   const captured =
@@ -490,9 +605,6 @@ function performMove(
 
   /**
    * Lưu piece trước khi move.
-   *
-   * movePiece() có thể tạo board mới
-   * nên dữ liệu này dùng cho history.
    */
 
   const movedPiece: ChessPiece = {
@@ -500,7 +612,40 @@ function performMove(
   }
 
   /**
-   * Thực hiện nước đi.
+   * ========================================
+   * CAPTURE EFFECT
+   * ========================================
+   *
+   * Phải trigger trước khi board
+   * bị thay đổi.
+   */
+
+  if (captured) {
+    triggerCaptureEffect(
+      captured,
+      {
+        row,
+        col,
+      },
+    )
+  }
+
+  /**
+   * ========================================
+   * SAVE BOARD SNAPSHOT
+   * ========================================
+   */
+
+  boardHistory.value.push(
+    cloneBoard(
+      board.value,
+    ),
+  )
+
+  /**
+   * ========================================
+   * MOVE
+   * ========================================
    */
 
   const nextBoard =
@@ -530,12 +675,6 @@ function performMove(
    * ========================================
    * KIỂM TRA CHECKMATE
    * ========================================
-   *
-   * Sau khi Đỏ đi:
-   * kiểm tra Đen.
-   *
-   * Sau khi Đen đi:
-   * kiểm tra Đỏ.
    */
 
   const opponentColor:
@@ -604,6 +743,88 @@ function performMove(
 
 /**
  * ==========================================
+ * UNDO MOVE
+ * ==========================================
+ */
+
+function undoMove(): boolean {
+  if (
+    boardHistory.value.length === 0
+  ) {
+    return false
+  }
+
+  /**
+   * Lấy snapshot gần nhất.
+   */
+
+  const previousBoard =
+    boardHistory.value.pop()
+
+  if (!previousBoard) {
+    return false
+  }
+
+  /**
+   * Khôi phục board.
+   */
+
+  board.value =
+    cloneBoard(
+      previousBoard,
+    )
+
+  /**
+   * Tắt capture animation
+   * nếu undo trong lúc animation.
+   */
+
+  if (captureTimer) {
+    clearTimeout(captureTimer)
+    captureTimer = null
+  }
+
+  captureAnimation.value =
+    null
+
+  /**
+   * Xóa selection.
+   */
+
+  clearSelection()
+
+  return true
+}
+
+/**
+ * ==========================================
+ * RESET BOARD
+ * ==========================================
+ */
+
+function resetBoard() {
+  board.value =
+    createInitialBoard()
+
+  boardHistory.value = []
+
+  /**
+   * Clear capture animation.
+   */
+
+  if (captureTimer) {
+    clearTimeout(captureTimer)
+    captureTimer = null
+  }
+
+  captureAnimation.value =
+    null
+
+  clearSelection()
+}
+
+/**
+ * ==========================================
  * CHECKED GENERAL POSITION
  * ==========================================
  */
@@ -636,6 +857,63 @@ function isCurrentTurnPiece(
     props.currentTurn
   )
 }
+
+/**
+ * ==========================================
+ * CAPTURE POSITION
+ * ==========================================
+ */
+
+function isCapturePosition(
+  row: number,
+  col: number,
+): boolean {
+  return (
+    captureAnimation.value !==
+      null &&
+    captureAnimation.value.position
+      .row === row &&
+    captureAnimation.value.position
+      .col === col
+  )
+}
+
+/**
+ * ==========================================
+ * CAPTURE PIECE
+ * ==========================================
+ */
+
+function getCapturePiece(
+  row: number,
+  col: number,
+): ChessPiece | null {
+  if (
+    !isCapturePosition(
+      row,
+      col,
+    )
+  ) {
+    return null
+  }
+
+  return (
+    captureAnimation.value
+      ?.piece ?? null
+  )
+}
+
+/**
+ * ==========================================
+ * EXPOSE
+ * ==========================================
+ */
+
+defineExpose({
+  undoMove,
+  resetBoard,
+  canUndo,
+})
 </script>
 
 <template>
@@ -731,6 +1009,130 @@ function isCurrentTurnPiece(
       "
     >
       <!-- ================================= -->
+      <!-- COORDINATES -->
+      <!-- ================================= -->
+
+      <template
+        v-for="col in 9"
+        :key="
+          `coordinate-col-${col}`
+        "
+      >
+        <!-- TOP -->
+
+        <span
+          class="
+            pointer-events-none
+            absolute
+            z-10
+            -translate-x-1/2
+            text-[clamp(8px,1.8vw,12px)]
+            font-mono
+            font-bold
+            leading-none
+            text-[#5f381b]/70
+          "
+          :style="{
+            left: `${
+              5 +
+              ((col - 1) / 8) *
+                90
+            }%`,
+            top: '1.5%',
+          }"
+        >
+          {{ columnLabels[col - 1] }}
+        </span>
+
+        <!-- BOTTOM -->
+
+        <span
+          class="
+            pointer-events-none
+            absolute
+            z-10
+            -translate-x-1/2
+            text-[clamp(8px,1.8vw,12px)]
+            font-mono
+            font-bold
+            leading-none
+            text-[#5f381b]/70
+          "
+          :style="{
+            left: `${
+              5 +
+              ((col - 1) / 8) *
+                90
+            }%`,
+            bottom: '1.5%',
+          }"
+        >
+          {{ columnLabels[col - 1] }}
+        </span>
+      </template>
+
+      <!-- LEFT + RIGHT ROW LABELS -->
+
+      <template
+        v-for="row in 10"
+        :key="
+          `coordinate-row-${row}`
+        "
+      >
+        <!-- LEFT -->
+
+        <span
+          class="
+            pointer-events-none
+            absolute
+            z-10
+            -translate-y-1/2
+            text-[clamp(8px,1.8vw,12px)]
+            font-mono
+            font-bold
+            leading-none
+            text-[#5f381b]/70
+          "
+          :style="{
+            left: '1.5%',
+            top: `${
+              5 +
+              ((row - 1) / 9) *
+                90
+            }%`,
+          }"
+        >
+          {{ rowLabels[row - 1] }}
+        </span>
+
+        <!-- RIGHT -->
+
+        <span
+          class="
+            pointer-events-none
+            absolute
+            z-10
+            -translate-y-1/2
+            text-[clamp(8px,1.8vw,12px)]
+            font-mono
+            font-bold
+            leading-none
+            text-[#5f381b]/70
+          "
+          :style="{
+            right: '1.5%',
+            top: `${
+              5 +
+              ((row - 1) / 9) *
+                90
+            }%`,
+          }"
+        >
+          {{ rowLabels[row - 1] }}
+        </span>
+      </template>
+
+      <!-- ================================= -->
       <!-- CHECK EFFECT -->
       <!-- ================================= -->
 
@@ -755,13 +1157,11 @@ function isCurrentTurnPiece(
             (checkedGeneral.col / 8) *
               90
           }%`,
-
           top: `${
             5 +
             (checkedGeneral.row / 9) *
               90
           }%`,
-
           width: '12%',
           aspectRatio: '1',
         }"
@@ -781,9 +1181,7 @@ function isCurrentTurnPiece(
         viewBox="0 0 8 9"
         preserveAspectRatio="none"
       >
-        <!-- =============================== -->
         <!-- HORIZONTAL -->
-        <!-- =============================== -->
 
         <g
           stroke="#5f381b"
@@ -799,9 +1197,7 @@ function isCurrentTurnPiece(
           />
         </g>
 
-        <!-- =============================== -->
         <!-- VERTICAL -->
-        <!-- =============================== -->
 
         <g
           stroke="#5f381b"
@@ -834,9 +1230,7 @@ function isCurrentTurnPiece(
           />
         </g>
 
-        <!-- =============================== -->
         <!-- TOP PALACE -->
-        <!-- =============================== -->
 
         <line
           x1="3"
@@ -856,9 +1250,7 @@ function isCurrentTurnPiece(
           stroke-width="0.018"
         />
 
-        <!-- =============================== -->
         <!-- BOTTOM PALACE -->
-        <!-- =============================== -->
 
         <line
           x1="3"
@@ -930,8 +1322,6 @@ function isCurrentTurnPiece(
           w-[90%]
         "
       >
-        <!-- 10 x 9 = 90 intersections -->
-
         <template
           v-for="row in 10"
           :key="
@@ -981,9 +1371,9 @@ function isCurrentTurnPiece(
               )
             "
           >
-            <!-- =========================== -->
+            <!-- ================================= -->
             <!-- VALID MOVE -->
-            <!-- =========================== -->
+            <!-- ================================= -->
 
             <span
               v-if="
@@ -1003,9 +1393,9 @@ function isCurrentTurnPiece(
               "
             />
 
-            <!-- =========================== -->
+            <!-- ================================= -->
             <!-- CHECKED GENERAL -->
-            <!-- =========================== -->
+            <!-- ================================= -->
 
             <span
               v-if="
@@ -1027,9 +1417,9 @@ function isCurrentTurnPiece(
               "
             />
 
-            <!-- =========================== -->
-            <!-- PIECE -->
-            <!-- =========================== -->
+            <!-- ================================= -->
+            <!-- NORMAL PIECE -->
+            <!-- ================================= -->
 
             <ChessPiece
               v-if="
@@ -1053,9 +1443,152 @@ function isCurrentTurnPiece(
               "
             />
 
-            <!-- =========================== -->
+            <!-- ================================= -->
+            <!-- CAPTURED PIECE ANIMATION -->
+            <!-- ================================= -->
+
+            <Transition
+              name="capture-piece"
+            >
+              <div
+                v-if="
+                  isCapturePosition(
+                    row - 1,
+                    col - 1,
+                  )
+                "
+                class="
+                  pointer-events-none
+                  absolute
+                  z-50
+                  flex
+                  h-full
+                  w-full
+                  items-center
+                  justify-center
+                "
+              >
+                <ChessPiece
+                  v-if="
+                    getCapturePiece(
+                      row - 1,
+                      col - 1,
+                    )
+                  "
+                  :piece="
+                    getCapturePiece(
+                      row - 1,
+                      col - 1,
+                    )!
+                  "
+                  :selected="false"
+                  class="
+                    capture-piece-target
+                  "
+                />
+              </div>
+            </Transition>
+
+            <!-- ================================= -->
+            <!-- CAPTURE BURST -->
+            <!-- ================================= -->
+
+            <Transition
+              name="capture-burst"
+            >
+              <span
+                v-if="
+                  isCapturePosition(
+                    row - 1,
+                    col - 1,
+                  )
+                "
+                class="
+                  pointer-events-none
+                  absolute
+                  z-40
+                  h-[82%]
+                  w-[82%]
+                  rounded-full
+                  border-[3px]
+                  border-yellow-300
+                  bg-yellow-400/20
+                  shadow-[0_0_30px_rgba(250,204,21,0.95)]
+                "
+              />
+            </Transition>
+
+            <!-- ================================= -->
+            <!-- CAPTURE PARTICLE 1 -->
+            <!-- ================================= -->
+
+            <span
+              v-if="
+                isCapturePosition(
+                  row - 1,
+                  col - 1,
+                )
+              "
+              class="
+                capture-particle
+                capture-particle-1
+              "
+            />
+
+            <!-- ================================= -->
+            <!-- CAPTURE PARTICLE 2 -->
+            <!-- ================================= -->
+
+            <span
+              v-if="
+                isCapturePosition(
+                  row - 1,
+                  col - 1,
+                )
+              "
+              class="
+                capture-particle
+                capture-particle-2
+              "
+            />
+
+            <!-- ================================= -->
+            <!-- CAPTURE PARTICLE 3 -->
+            <!-- ================================= -->
+
+            <span
+              v-if="
+                isCapturePosition(
+                  row - 1,
+                  col - 1,
+                )
+              "
+              class="
+                capture-particle
+                capture-particle-3
+              "
+            />
+
+            <!-- ================================= -->
+            <!-- CAPTURE PARTICLE 4 -->
+            <!-- ================================= -->
+
+            <span
+              v-if="
+                isCapturePosition(
+                  row - 1,
+                  col - 1,
+                )
+              "
+              class="
+                capture-particle
+                capture-particle-4
+              "
+            />
+
+            <!-- ================================= -->
             <!-- TURN LOCK OVERLAY -->
-            <!-- =========================== -->
+            <!-- ================================= -->
 
             <span
               v-if="
@@ -1134,3 +1667,261 @@ function isCurrentTurnPiece(
     </div>
   </div>
 </template>
+
+<style scoped>
+/**
+ * ==========================================
+ * CAPTURE PIECE
+ * ==========================================
+ */
+
+.capture-piece-enter-active {
+  animation:
+    capture-piece
+    500ms
+    cubic-bezier(
+      0.2,
+      0.8,
+      0.2,
+      1
+    );
+}
+
+.capture-piece-leave-active {
+  display: none;
+}
+
+@keyframes capture-piece {
+  0% {
+    opacity: 1;
+    transform:
+      scale(1)
+      rotate(0deg);
+    filter:
+      brightness(1)
+      drop-shadow(
+        0 0 0
+        rgba(255, 80, 80, 0)
+      );
+  }
+
+  15% {
+    opacity: 1;
+    transform:
+      scale(1.12)
+      rotate(-5deg);
+    filter:
+      brightness(1.5)
+      drop-shadow(
+        0 0 10px
+        rgba(255, 80, 80, 0.8)
+      );
+  }
+
+  35% {
+    opacity: 1;
+    transform:
+      scale(1.18)
+      rotate(8deg);
+    filter:
+      brightness(1.8)
+      drop-shadow(
+        0 0 18px
+        rgba(255, 60, 60, 0.95)
+      );
+  }
+
+  60% {
+    opacity: 0.75;
+    transform:
+      scale(0.75)
+      rotate(-15deg);
+    filter:
+      brightness(2)
+      drop-shadow(
+        0 0 25px
+        rgba(255, 180, 50, 0.8)
+      );
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      scale(0.15)
+      rotate(35deg);
+    filter:
+      brightness(2)
+      drop-shadow(
+        0 0 35px
+        rgba(255, 80, 30, 0)
+      );
+  }
+}
+
+/**
+ * ==========================================
+ * CAPTURE BURST
+ * ==========================================
+ */
+
+.capture-burst-enter-active {
+  animation:
+    capture-burst
+    500ms
+    cubic-bezier(
+      0.15,
+      0.8,
+      0.2,
+      1
+    );
+}
+
+.capture-burst-leave-active {
+  display: none;
+}
+
+@keyframes capture-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.15);
+  }
+
+  15% {
+    opacity: 1;
+    transform: scale(0.55);
+  }
+
+  35% {
+    opacity: 1;
+    transform: scale(0.9);
+  }
+
+  60% {
+    opacity: 0.65;
+    transform: scale(1.2);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.65);
+  }
+}
+
+/**
+ * ==========================================
+ * CAPTURE PARTICLES
+ * ==========================================
+ */
+
+.capture-particle {
+  position: absolute;
+  z-index: 60;
+
+  width: 5px;
+  height: 5px;
+
+  border-radius: 9999px;
+
+  pointer-events: none;
+
+  background: #facc15;
+
+  box-shadow:
+    0 0 6px
+      rgba(250, 204, 21, 1),
+    0 0 12px
+      rgba(250, 204, 21, 0.8);
+
+  animation:
+    capture-particle
+    500ms
+    cubic-bezier(
+      0.15,
+      0.8,
+      0.2,
+      1
+    )
+    forwards;
+}
+
+.capture-particle-1 {
+  --x: -28px;
+  --y: -30px;
+}
+
+.capture-particle-2 {
+  --x: 30px;
+  --y: -25px;
+}
+
+.capture-particle-3 {
+  --x: -32px;
+  --y: 28px;
+}
+
+.capture-particle-4 {
+  --x: 30px;
+  --y: 30px;
+}
+
+@keyframes capture-particle {
+  0% {
+    opacity: 0;
+    transform:
+      translate(0, 0)
+      scale(0.2);
+  }
+
+  15% {
+    opacity: 1;
+    transform:
+      translate(0, 0)
+      scale(1.2);
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate(
+        var(--x),
+        var(--y)
+      )
+      scale(0);
+  }
+}
+
+/**
+ * ==========================================
+ * SMALL SCREEN
+ * ==========================================
+ */
+
+@media (
+  max-width: 400px
+) {
+  .capture-particle {
+    width: 4px;
+    height: 4px;
+  }
+
+  .capture-particle-1 {
+    --x: -20px;
+    --y: -22px;
+  }
+
+  .capture-particle-2 {
+    --x: 22px;
+    --y: -18px;
+  }
+
+  .capture-particle-3 {
+    --x: -22px;
+    --y: 20px;
+  }
+
+  .capture-particle-4 {
+    --x: 20px;
+    --y: 22px;
+  }
+}
+</style>
