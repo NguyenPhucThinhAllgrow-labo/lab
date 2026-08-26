@@ -1,8 +1,14 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: 'guest',
+})
+
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
+
+const { login } = useAuth()
 
 const handleLogin = async () => {
   error.value = ''
@@ -15,16 +21,42 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
-    // TODO: gọi API login ở đây
-    console.log({
-      email: email.value,
-      password: password.value,
-    })
+    await login(
+      email.value,
+      password.value,
+    )
 
-    // Ví dụ sau khi login thành công:
-    // await navigateTo('/')
-  } catch (err) {
-    error.value = 'Đăng nhập thất bại'
+    // Login thành công
+    await navigateTo('/admin')
+  } catch (err: any) {
+    console.error('Login error:', err)
+
+    if (err?.status === 422) {
+      error.value =
+        err?.data?.errors?.email?.[0] ||
+        err?.data?.message ||
+        'Email hoặc mật khẩu không chính xác.'
+
+      return
+    }
+
+    if (err?.status === 419) {
+      error.value =
+        'Phiên bảo mật đã hết hạn. Vui lòng thử lại.'
+
+      return
+    }
+
+    if (err?.status === 401) {
+      error.value =
+        'Email hoặc mật khẩu không chính xác.'
+
+      return
+    }
+
+    error.value =
+      err?.data?.message ||
+      'Đăng nhập thất bại. Vui lòng thử lại.'
   } finally {
     loading.value = false
   }
@@ -38,6 +70,7 @@ const handleLogin = async () => {
     <div class="background-glow background-glow-1"></div>
     <div class="background-glow background-glow-2"></div>
 
+    <!-- Login card -->
     <div class="login-card">
 
       <!-- Logo -->
@@ -59,7 +92,10 @@ const handleLogin = async () => {
       </div>
 
       <!-- Form -->
-      <form @submit.prevent="handleLogin">
+      <form
+        @submit.prevent="handleLogin"
+        novalidate
+      >
 
         <!-- Email -->
         <div class="form-group">
@@ -73,6 +109,7 @@ const handleLogin = async () => {
             type="email"
             placeholder="you@example.com"
             autocomplete="email"
+            :disabled="loading"
           />
         </div>
 
@@ -84,7 +121,10 @@ const handleLogin = async () => {
               Mật khẩu
             </label>
 
-            <NuxtLink to="/forgot-password">
+            <NuxtLink
+              to="/forgot-password"
+              tabindex="-1"
+            >
               Quên mật khẩu?
             </NuxtLink>
           </div>
@@ -95,6 +135,7 @@ const handleLogin = async () => {
             type="password"
             placeholder="••••••••"
             autocomplete="current-password"
+            :disabled="loading"
           />
         </div>
 
@@ -102,6 +143,7 @@ const handleLogin = async () => {
         <p
           v-if="error"
           class="error"
+          role="alert"
         >
           {{ error }}
         </p>
@@ -384,14 +426,15 @@ input {
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
-    background 0.2s ease;
+    background 0.2s ease,
+    opacity 0.2s ease;
 }
 
 input::placeholder {
   color: #52525b;
 }
 
-input:hover {
+input:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
@@ -403,6 +446,12 @@ input:focus {
   box-shadow:
     0 0 0 3px rgba(139, 92, 246, 0.10),
     0 0 20px rgba(139, 92, 246, 0.05);
+}
+
+input:disabled {
+  opacity: 0.6;
+
+  cursor: not-allowed;
 }
 
 /* =========================================
@@ -481,6 +530,8 @@ button:disabled {
   color: #f87171;
 
   font-size: 13px;
+
+  line-height: 1.5;
 }
 
 /* =========================================
