@@ -9,9 +9,19 @@ Route::get('/ping', function () {
     ]);
 });
 
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
+});
+
+
+Route::post('/debug-session', function (\Illuminate\Http\Request $request) {
+    return response()->json([
+        'session_id' => $request->session()->getId(),
+        'session_token' => $request->session()->token(),
+        'xsrf_cookie' => $request->cookie('XSRF-TOKEN'),
+        'session_cookie' => $request->cookie('laravel-session'),
+    ]);
 });
