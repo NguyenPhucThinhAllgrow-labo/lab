@@ -239,7 +239,7 @@ async function resetGame() {
     evidenceHistory.value = []
     taskHistory.value = []
     terminalInput.value = ''
-    expandedPanel.value = null
+    collapseExpandedPanels()
     progressStatus.value =
       user.value ? 'saved' : 'local'
     resetConfirmationOpen.value = false
@@ -316,26 +316,47 @@ const terminalRef =
     typeof Terminal
   > | null>(null)
 
-const expandedPanel =
-  ref<
-    'terminal' |
-    'task' |
-    'evidence' |
-    null
-  >(
-    null,
-  )
+type ExpandablePanel =
+  | 'terminal'
+  | 'task'
+  | 'evidence'
+
+const expandedPanels = reactive<
+  Record<ExpandablePanel, boolean>
+>({
+  terminal: false,
+  task: false,
+  evidence: false,
+})
+
+const allPanelsExpanded = computed(
+  () =>
+    expandedPanels.terminal &&
+    expandedPanels.task &&
+    expandedPanels.evidence,
+)
+
+const expandedPanelCount = computed(
+  () =>
+    Object.values(expandedPanels)
+      .filter(Boolean).length,
+)
+
+const multiplePanelsExpanded = computed(
+  () => expandedPanelCount.value >= 2,
+)
+
+function collapseExpandedPanels() {
+  expandedPanels.terminal = false
+  expandedPanels.task = false
+  expandedPanels.evidence = false
+}
 
 function togglePanel(
-  panel:
-    | 'terminal'
-    | 'task'
-    | 'evidence',
+  panel: ExpandablePanel,
 ) {
-  expandedPanel.value =
-    expandedPanel.value === panel
-      ? null
-      : panel
+  expandedPanels[panel] =
+    !expandedPanels[panel]
 }
 
 function handlePanelShortcut(
@@ -363,10 +384,11 @@ function handlePanelShortcut(
 
   if (
     event.key === 'Escape' &&
-    expandedPanel.value
+    Object.values(expandedPanels)
+      .some(Boolean)
   ) {
     event.preventDefault()
-    expandedPanel.value = null
+    collapseExpandedPanels()
     return
   }
 
@@ -509,6 +531,13 @@ async function handleCommandBarInput(
              gap-5
              p-6
              lg:grid-cols-[minmax(0,1fr)_400px]"
+      :class="
+        multiplePanelsExpanded
+          ? allPanelsExpanded
+            ? 'fixed inset-4 z-50 max-w-none grid-cols-2 grid-rows-2 gap-4 overflow-hidden bg-zinc-950 p-4 md:inset-8 lg:grid-cols-2'
+            : 'fixed inset-4 z-50 max-w-none grid-cols-2 grid-rows-1 gap-4 overflow-hidden bg-zinc-950 p-4 md:inset-8 lg:grid-cols-2'
+          : ''
+      "
     >
       <!-- ========================================
            TERMINAL
@@ -517,9 +546,16 @@ async function handleCommandBarInput(
       <section
         class="min-w-0"
         :class="
-          expandedPanel === 'terminal'
+          expandedPanels.terminal &&
+          expandedPanelCount === 1
             ? 'fixed inset-4 z-50 flex flex-col bg-zinc-950 md:inset-8'
-            : 'relative'
+            : allPanelsExpanded
+              ? 'relative col-span-2 row-start-2 flex min-h-0 flex-col'
+              : multiplePanelsExpanded && expandedPanels.terminal
+                ? 'relative order-3 flex min-h-0 flex-col'
+                : multiplePanelsExpanded
+                  ? 'hidden'
+                  : 'relative'
         "
       >
         <button
@@ -533,7 +569,7 @@ async function handleCommandBarInput(
                  transition
                  hover:bg-green-950"
           :title="
-            expandedPanel === 'terminal'
+            expandedPanels.terminal
               ? 'Collapse terminal'
               : 'Expand terminal'
           "
@@ -541,7 +577,7 @@ async function handleCommandBarInput(
         >
           [SPACE]
           {{
-            expandedPanel === 'terminal'
+            expandedPanels.terminal
               ? '−'
               : '+'
           }}
@@ -550,7 +586,7 @@ async function handleCommandBarInput(
         <Terminal
           ref="terminalRef"
           :expanded="
-            expandedPanel === 'terminal'
+            expandedPanels.terminal
           "
           :lines="
             game.state.terminal
@@ -600,10 +636,20 @@ async function handleCommandBarInput(
 
       <aside
         class="space-y-5"
+        :class="
+          multiplePanelsExpanded
+            ? 'contents'
+            : ''
+        "
       >
         <div
           class="flex items-center
                  justify-between gap-3"
+          :class="
+            multiplePanelsExpanded
+              ? 'hidden'
+              : ''
+          "
         >
           <div
             class="rounded border
@@ -680,38 +726,68 @@ async function handleCommandBarInput(
           </button>
         </div>
 
-        <TaskPanel
-          :tasks="
-            game.state.tasks
+        <div
+          :class="
+            allPanelsExpanded
+              ? 'col-start-1 row-start-1 min-h-0'
+              : multiplePanelsExpanded && expandedPanels.task
+                ? 'order-1 min-h-0'
+                : multiplePanelsExpanded
+                  ? 'hidden'
+                  : ''
           "
-          :evidence="
-            game.state.evidence
-          "
-          :locale="
-            game.state.locale
-          "
-          :expanded="
-            expandedPanel === 'task'
-          "
-          @toggle-expand="
-            togglePanel('task')
-          "
-        />
+        >
+          <TaskPanel
+            :tasks="
+              game.state.tasks
+            "
+            :evidence="
+              game.state.evidence
+            "
+            :locale="
+              game.state.locale
+            "
+            :expanded="
+              expandedPanels.task
+            "
+            :grouped="
+              multiplePanelsExpanded
+            "
+            @toggle-expand="
+              togglePanel('task')
+            "
+          />
+        </div>
 
-        <EvidencePanel
-          :evidence="
-            game.state.evidence
+        <div
+          :class="
+            allPanelsExpanded
+              ? 'col-start-2 row-start-1 min-h-0'
+              : multiplePanelsExpanded && expandedPanels.evidence
+                ? 'order-2 min-h-0'
+                : multiplePanelsExpanded
+                  ? 'hidden'
+                  : ''
           "
-          :locale="
-            game.state.locale
-          "
-          :expanded="
-            expandedPanel === 'evidence'
-          "
-          @toggle-expand="
-            togglePanel('evidence')
-          "
-        />
+        >
+          <EvidencePanel
+            :evidence="
+              game.state.evidence
+            "
+            :locale="
+              game.state.locale
+            "
+            :expanded="
+              expandedPanels.evidence
+            "
+            :grouped="
+              multiplePanelsExpanded
+            "
+            @toggle-expand="
+              togglePanel('evidence')
+            "
+          />
+        </div>
       </aside>
     </div>
 

@@ -39,8 +39,9 @@ function clickCommand(
     class="rounded-b-lg
            border-x
            border-b
-           border-zinc-800
-           bg-zinc-950
+           border-cyan-900/70
+           bg-slate-950
+           shadow-[0_8px_24px_rgba(8,145,178,0.08)]
            p-3"
   >
     <div
@@ -53,7 +54,7 @@ function clickCommand(
                text-[10px]
                uppercase
                tracking-[0.2em]
-               text-zinc-600"
+               text-cyan-400"
       >
         COMMAND SHORTCUTS
       </span>
@@ -61,7 +62,7 @@ function clickCommand(
       <span
         class="font-mono
                text-[9px]
-               text-zinc-700"
+               text-slate-500"
       >
         shortcuts only
       </span>
@@ -80,16 +81,19 @@ function clickCommand(
         "
         class="rounded-md
                border
-               border-zinc-800
-               bg-black
+               border-cyan-900/70
+               bg-cyan-950/30
                px-3 py-1.5
                font-mono
                text-xs
-               text-zinc-500
+               text-cyan-300
                transition
-               hover:border-green-800
-               hover:bg-green-950/20
-               hover:text-green-400
+               hover:border-emerald-600
+               hover:bg-emerald-950/40
+               hover:text-emerald-300
+               focus-visible:outline-none
+               focus-visible:ring-1
+               focus-visible:ring-cyan-400
                active:scale-95"
         @click="
           clickCommand(command)

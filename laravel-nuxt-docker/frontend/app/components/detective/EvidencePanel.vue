@@ -10,6 +10,8 @@ const props = defineProps<{
   locale: SupportedLocale
 
   expanded?: boolean
+
+  grouped?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -78,9 +80,11 @@ const availableHints =
            shadow-lg
            shadow-slate-950/30"
     :class="
-      expanded
+      expanded && !grouped
         ? 'fixed inset-4 z-50 flex flex-col bg-slate-900 md:inset-8'
-        : ''
+        : expanded
+          ? 'flex h-full min-h-0 flex-col'
+          : ''
     "
   >
     <div

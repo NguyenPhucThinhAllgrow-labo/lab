@@ -19,6 +19,8 @@ export interface TerminalLine {
 
   text: string
 
+  variant?: 'intro'
+
   highlights?: TerminalHighlight[]
 }
 

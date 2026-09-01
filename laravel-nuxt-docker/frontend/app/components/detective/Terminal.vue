@@ -550,15 +550,26 @@ watch(
  */
 
 watch(
-  () => props.autocompleteEntries,
-  entries => {
+  [
+    () => input.value,
+    () => props.autocompleteEntries,
+  ],
+  ([currentInput, entries]) => {
     autocompleteIndex.value = 0
 
     showAutocomplete.value =
       Boolean(
-        input.value.trim() &&
+        currentInput.trim() &&
         entries.length,
       )
+
+    if (
+      showAutocomplete.value
+    ) {
+      nextTick(() => {
+        scrollToBottom()
+      })
+    }
   },
   {
     deep: true,
@@ -812,8 +823,6 @@ function handleTab() {
     return
   }
 
-  autocompleteIndex.value = 0
-
   autocomplete()
 }
 
@@ -961,6 +970,35 @@ function renderLineParts(
   }
 
   return result
+}
+
+function getIntroFrameClass(
+  line: TerminalLine,
+  lineIndex: number,
+) {
+  if (line.variant !== 'intro') {
+    return ''
+  }
+
+  const previousLine =
+    displayedLines.value[
+      lineIndex - 1
+    ]
+
+  const nextLine =
+    displayedLines.value[
+      lineIndex + 1
+    ]
+
+  return [
+    'border-x border-violet-700/60 bg-violet-950/25 px-4',
+    previousLine?.variant !== 'intro'
+      ? 'mt-1 rounded-t-md border-t pt-3'
+      : '',
+    nextLine?.variant !== 'intro'
+      ? 'mb-3 rounded-b-md border-b pb-3'
+      : '',
+  ]
 }
 
 /*
@@ -1122,7 +1160,8 @@ onMounted(() => {
 <template>
   <div
     ref="terminalRef"
-    class="overflow-y-auto
+    class="terminal-scrollbar-hidden
+           overflow-y-auto
            rounded-t-lg
            border
            border-zinc-800
@@ -1155,7 +1194,7 @@ onMounted(() => {
       class="min-h-[20px]
              whitespace-pre-wrap
              leading-5"
-      :class="{
+      :class="[{
         'text-green-500':
           line.type === 'system',
 
@@ -1173,7 +1212,7 @@ onMounted(() => {
 
         'font-bold text-green-400':
           line.type === 'success',
-      }"
+      }, getIntroFrameClass(line, lineIndex)]"
     >
       <template
         v-for="(
@@ -1326,7 +1365,9 @@ onMounted(() => {
              bg-zinc-950"
     >
       <div
-        class="border-b
+        class="flex items-center
+               justify-between
+               border-b
                border-zinc-900
                px-3 py-2
                text-[9px]
@@ -1334,7 +1375,15 @@ onMounted(() => {
                tracking-[0.2em]
                text-zinc-600"
       >
-        Autocomplete
+        <span>Autocomplete</span>
+
+        <span
+          class="normal-case
+                 tracking-normal
+                 text-zinc-700"
+        >
+          ↑↓ select · Tab apply
+        </span>
       </div>
 
       <button
@@ -1377,3 +1426,14 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.terminal-scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.terminal-scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+</style>

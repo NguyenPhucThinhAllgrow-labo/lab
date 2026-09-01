@@ -398,6 +398,7 @@ export function useDetectiveGame(
     type: TerminalLine['type'],
     lineText: string,
     highlights?: TerminalLine['highlights'],
+    variant?: TerminalLine['variant'],
   ) {
     state.terminal.push({
       id: ++lineId,
@@ -407,6 +408,8 @@ export function useDetectiveGame(
       text: lineText,
 
       highlights,
+
+      variant,
     })
   }
 
@@ -1974,11 +1977,29 @@ export function useDetectiveGame(
       ),
     )
 
+    addLine(
+      'output',
+      '',
+    )
+
+    const guideDirectories =
+      guideNodes.filter(
+        node =>
+          node.type ===
+            'directory',
+      )
+
     for (
-      const node of guideNodes
+      const [
+        directoryIndex,
+        node,
+      ] of guideDirectories.entries()
     ) {
-      if (node.type !== 'directory') {
-        continue
+      if (directoryIndex > 0) {
+        addLine(
+          'output',
+          '',
+        )
       }
 
       const description =
@@ -2011,6 +2032,11 @@ export function useDetectiveGame(
         )
       }
     }
+
+    addLine(
+      'output',
+      '',
+    )
 
     const tip = getTranslation(
       'folderGuideTip',
@@ -2900,12 +2926,16 @@ function showIntro() {
     addLine(
       'system',
       line,
+      undefined,
+      'intro',
     )
   }
 
   addLine(
     'system',
     '',
+    undefined,
+    'intro',
   )
 
   addLine(
@@ -2913,6 +2943,8 @@ function showIntro() {
     `${getTranslation(
       'currentLanguage',
     )}: ${state.locale}`,
+    undefined,
+    'intro',
   )
 
   addLine(
@@ -2920,11 +2952,15 @@ function showIntro() {
     getTranslation(
       'helpInstruction',
     ),
+    undefined,
+    'intro',
   )
 
   addLine(
     'system',
     '',
+    undefined,
+    'intro',
   )
 }
 

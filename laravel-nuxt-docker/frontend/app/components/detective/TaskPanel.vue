@@ -13,6 +13,8 @@ const props = defineProps<{
   locale: SupportedLocale
 
   expanded?: boolean
+
+  grouped?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -62,14 +64,16 @@ function getDiscoveredCount(
     class="rounded-lg
            border
            border-amber-700/60
-           bg-stone-800/90
+           bg-stone-950/95
            p-4
            shadow-lg
            shadow-amber-950/20"
     :class="
-      expanded
-        ? 'fixed inset-4 z-50 flex flex-col bg-stone-900 md:inset-8'
-        : ''
+      expanded && !grouped
+        ? 'fixed inset-4 z-50 flex flex-col bg-stone-950 md:inset-8'
+        : expanded
+          ? 'flex h-full min-h-0 flex-col'
+          : ''
     "
   >
     <div
@@ -146,8 +150,8 @@ function getDiscoveredCount(
                 border p-3"
           :class="
             task.completed
-              ? 'border-emerald-600/60 bg-emerald-900/30'
-              : 'border-amber-800/60 bg-stone-700/50'
+              ? 'border-emerald-600/60 bg-emerald-900/45'
+              : 'border-amber-800/60 bg-stone-700/80'
           "
         >
           <div
