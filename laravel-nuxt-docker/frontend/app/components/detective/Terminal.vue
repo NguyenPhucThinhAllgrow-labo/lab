@@ -15,6 +15,8 @@ const props = defineProps<{
   commands: string[]
 
   autocompleteEntries: string[]
+
+  expanded?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -1108,8 +1110,7 @@ onMounted(() => {
 <template>
   <div
     ref="terminalRef"
-    class="h-[560px]
-           overflow-y-auto
+    class="overflow-y-auto
            rounded-t-lg
            border
            border-zinc-800
@@ -1119,6 +1120,11 @@ onMounted(() => {
            text-sm
            shadow-2xl
            shadow-black/40"
+    :class="
+      props.expanded
+        ? 'min-h-0 flex-1'
+        : 'h-[560px]'
+    "
     @click="focusInput"
   >
     <!-- ========================================= -->

@@ -126,7 +126,7 @@ function getDiscoveredCount(
           :title="expanded ? 'Collapse tasks' : 'Expand tasks'"
           @click="emit('toggleExpand')"
         >
-          [T] {{ expanded ? '−' : '+' }}
+          [Q] {{ expanded ? '−' : '+' }}
         </button>
       </div>
     </div>

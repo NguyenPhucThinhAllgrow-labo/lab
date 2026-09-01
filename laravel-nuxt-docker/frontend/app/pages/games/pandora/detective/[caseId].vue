@@ -58,12 +58,20 @@ const terminalRef =
   > | null>(null)
 
 const expandedPanel =
-  ref<'task' | 'evidence' | null>(
+  ref<
+    'terminal' |
+    'task' |
+    'evidence' |
+    null
+  >(
     null,
   )
 
 function togglePanel(
-  panel: 'task' | 'evidence',
+  panel:
+    | 'terminal'
+    | 'task'
+    | 'evidence',
 ) {
   expandedPanel.value =
     expandedPanel.value === panel
@@ -86,6 +94,15 @@ function handlePanelShortcut(
   const target = event.target
 
   if (
+    event.key === 'Escape' &&
+    expandedPanel.value
+  ) {
+    event.preventDefault()
+    expandedPanel.value = null
+    return
+  }
+
+  if (
     target instanceof HTMLElement &&
     (
       target.isContentEditable ||
@@ -98,7 +115,7 @@ function handlePanelShortcut(
 
   const key = event.key.toLowerCase()
 
-  if (key === 't') {
+  if (key === 'q') {
     event.preventDefault()
     togglePanel('task')
   }
@@ -108,12 +125,11 @@ function handlePanelShortcut(
     togglePanel('evidence')
   }
 
-  if (
-    event.key === 'Escape' &&
-    expandedPanel.value
-  ) {
-    expandedPanel.value = null
+  if (event.code === 'Space') {
+    event.preventDefault()
+    togglePanel('terminal')
   }
+
 }
 
 onMounted(() => {
@@ -216,9 +232,42 @@ async function handleCommandBarInput(
 
       <section
         class="min-w-0"
+        :class="
+          expandedPanel === 'terminal'
+            ? 'fixed inset-4 z-50 flex flex-col bg-zinc-950 md:inset-8'
+            : 'relative'
+        "
       >
+        <button
+          type="button"
+          class="absolute right-3 top-3
+                 z-10 rounded border
+                 border-green-800/70
+                 bg-black/90 px-2 py-1
+                 font-mono text-[9px]
+                 text-green-400
+                 transition
+                 hover:bg-green-950"
+          :title="
+            expandedPanel === 'terminal'
+              ? 'Collapse terminal'
+              : 'Expand terminal'
+          "
+          @click="togglePanel('terminal')"
+        >
+          [SPACE]
+          {{
+            expandedPanel === 'terminal'
+              ? '−'
+              : '+'
+          }}
+        </button>
+
         <Terminal
           ref="terminalRef"
+          :expanded="
+            expandedPanel === 'terminal'
+          "
           :lines="
             game.state.terminal
           "
