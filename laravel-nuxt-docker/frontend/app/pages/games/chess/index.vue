@@ -8,7 +8,7 @@ import {
 import type {
   ChessPiece,
   PieceColor,
-} from '~/types/chess'
+} from '~/types/games/chess'
 
 useHead({
   title: 'Cờ Tướng',

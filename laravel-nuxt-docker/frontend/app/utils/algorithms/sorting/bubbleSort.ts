@@ -1,4 +1,4 @@
-import type { SimulationStep } from '~/types/algorithm'
+import type { SimulationStep } from '~/types/algorithm/sort/common'
 
 /**
  * Generate every state of Bubble Sort.

@@ -8,13 +8,21 @@ import {
   FileText,
   Settings,
   ChevronDown,
-  MoreHorizontal,
   Gamepad2,
   Crosshair,
   ChessKing,
   Zap,
   Blocks,
-  X
+  Bubbles,
+  Brackets,
+  BetweenHorizonalEnd,
+  Code,
+  CircleDot,
+  X,
+  ArrowDownUp,
+  Brush,
+  SquareTerminal,
+  LogOut
 } from 'lucide-vue-next'
 
 defineProps<{
@@ -25,7 +33,11 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const gameMenuOpen = ref(true)
+const { user, logout } = useAuth()
+
+const gameMenuOpen = ref(false)
+const algorithmMenuOpen = ref(false)
+const sortingMenuOpen = ref(false)
 
 const menuItems = [
   {
@@ -81,8 +93,49 @@ const gameMenuItems = [
     label: 'Tetris',
     to: '/games/tetris',
     icon: Blocks
+  },
+  {
+    label: 'WhoAmI',
+    to: '/games/pandora/whoami',
+    icon: Blocks
+  },
+  {
+    label: 'I am a detective.',
+    to: '/games/pandora/detective',
+    icon: SquareTerminal
   }
 ]
+
+const sortingMenuItems = [
+  {
+    label: 'Bubble Sort',
+    to: '/algorithm/sorting/bubble-sort',
+    icon: Bubbles
+  },
+  {
+    label: 'Selection Sort',
+    to: '/algorithm/sorting/selection-sort',
+    icon: Brackets
+  },
+  {
+    label: 'Insertion Sort',
+    to: '/algorithm/sorting/insertion-sort',
+    icon: BetweenHorizonalEnd
+  }
+]
+
+const algorithmMenuItems = [
+  {
+    label: 'Greedy',
+    to: '/algorithm/greedy',
+    icon: CircleDot
+  }
+]
+
+const handleLogout = async () => {
+  await logout()
+  navigateTo('/login')
+}
 </script>
 
 <template>
@@ -95,17 +148,9 @@ const gameMenuItems = [
       shadow-2xl shadow-black/20
       transition-transform duration-300
     "
-    :class="
-      open
-        ? 'translate-x-0'
-        : '-translate-x-full lg:translate-x-0'
-    "
+    :class="open ? 'translate-x-0' : '-translate-x-full'"
   >
-
-    <!-- ==================== -->
-    <!-- HEADER / LOGO -->
-    <!-- ==================== -->
-
+    <!-- Header -->
     <div
       class="
         flex h-20 shrink-0 items-center
@@ -142,7 +187,7 @@ const gameMenuItems = [
         </p>
       </div>
 
-      <!-- Close mobile -->
+      <!-- Close -->
       <button
         type="button"
         class="
@@ -154,18 +199,15 @@ const gameMenuItems = [
           transition
           hover:bg-white/5
           hover:text-white
-          lg:hidden
         "
+        aria-label="Close sidebar"
         @click="emit('close')"
       >
         <X class="h-4 w-4" />
       </button>
     </div>
 
-    <!-- ==================== -->
-    <!-- MENU -->
-    <!-- ==================== -->
-
+    <!-- Menu -->
     <div
       class="
         flex-1
@@ -174,12 +216,8 @@ const gameMenuItems = [
         py-6
       "
     >
-
-      <!-- MAIN MENU -->
-
       <nav class="space-y-1">
-
-        <!-- Normal menu -->
+        <!-- Main menu -->
         <NuxtLink
           v-for="item in menuItems"
           :key="item.to"
@@ -200,8 +238,6 @@ const gameMenuItems = [
           active-class="bg-violet-500/10 !text-violet-300"
           @click="emit('close')"
         >
-
-          <!-- Icon -->
           <component
             :is="item.icon"
             class="
@@ -213,12 +249,10 @@ const gameMenuItems = [
             "
           />
 
-          <!-- Label -->
           <span>
             {{ item.label }}
           </span>
 
-          <!-- Badge -->
           <span
             v-if="item.badge"
             class="
@@ -232,17 +266,10 @@ const gameMenuItems = [
           >
             {{ item.badge }}
           </span>
-
         </NuxtLink>
 
-
-        <!-- ==================== -->
-        <!-- GAME -->
-        <!-- ==================== -->
-
+        <!-- Game -->
         <div class="pt-1">
-
-          <!-- Game button -->
           <button
             type="button"
             class="
@@ -262,7 +289,6 @@ const gameMenuItems = [
             :aria-expanded="gameMenuOpen"
             @click="gameMenuOpen = !gameMenuOpen"
           >
-
             <Gamepad2
               class="
                 h-[18px] w-[18px]
@@ -286,13 +312,9 @@ const gameMenuItems = [
               "
               :class="gameMenuOpen ? 'rotate-180' : ''"
             />
-
           </button>
 
-
-          <!-- Game children -->
-          <Transition name="fade">
-
+          <Transition name="game-menu">
             <nav
               v-if="gameMenuOpen"
               class="
@@ -301,7 +323,6 @@ const gameMenuItems = [
                 pl-6
               "
             >
-
               <NuxtLink
                 v-for="item in gameMenuItems"
                 :key="item.to"
@@ -322,7 +343,6 @@ const gameMenuItems = [
                 active-class="bg-violet-500/10 !text-violet-300"
                 @click="emit('close')"
               >
-
                 <component
                   :is="item.icon"
                   class="
@@ -337,22 +357,213 @@ const gameMenuItems = [
                 <span>
                   {{ item.label }}
                 </span>
-
               </NuxtLink>
-
             </nav>
-
           </Transition>
-
         </div>
 
-
-        <!-- ==================== -->
-        <!-- SETTINGS -->
-        <!-- ==================== -->
-
+        <!-- Algorithms -->
         <div class="pt-1">
+          <button
+            type="button"
+            class="
+              group
+              flex w-full
+              items-center
+              gap-3
+              rounded-xl
+              px-3 py-2.5
+              text-sm
+              text-zinc-500
+              transition-all
+              duration-200
+              hover:bg-white/[0.04]
+              hover:text-zinc-200
+            "
+            :aria-expanded="algorithmMenuOpen"
+            @click="algorithmMenuOpen = !algorithmMenuOpen"
+          >
+            <Code
+              class="
+                h-[18px] w-[18px]
+                shrink-0
+                transition-transform
+                duration-200
+                group-hover:scale-105
+              "
+            />
 
+            <span>
+              Algorithms
+            </span>
+
+            <ChevronDown
+              class="
+                ml-auto
+                h-4 w-4
+                transition-transform
+                duration-200
+              "
+              :class="
+                algorithmMenuOpen
+                  ? 'rotate-180'
+                  : ''
+              "
+            />
+          </button>
+
+          <Transition name="algorithm-menu">
+            <nav
+              v-if="algorithmMenuOpen"
+              class="
+                mt-1
+                space-y-1
+                pl-6
+              "
+            >
+              <!-- Sorting -->
+              <div>
+                <button
+                  type="button"
+                  class="
+                    group
+                    flex w-full
+                    items-center
+                    gap-3
+                    rounded-xl
+                    px-3 py-2
+                    text-sm
+                    text-zinc-500
+                    transition-all
+                    duration-200
+                    hover:bg-white/[0.04]
+                    hover:text-zinc-200
+                  "
+                  :aria-expanded="sortingMenuOpen"
+                  @click="
+                    sortingMenuOpen = !sortingMenuOpen
+                  "
+                >
+                  <ArrowDownUp
+                    class="
+                      h-4 w-4
+                      shrink-0
+                      transition-transform
+                      duration-200
+                      group-hover:scale-105
+                    "
+                  />
+
+                  <span>
+                    Sorting
+                  </span>
+
+                  <ChevronDown
+                    class="
+                      ml-auto
+                      h-4 w-4
+                      transition-transform
+                      duration-200
+                    "
+                    :class="
+                      sortingMenuOpen
+                        ? 'rotate-180'
+                        : ''
+                    "
+                  />
+                </button>
+
+                <!-- Sorting children -->
+                <Transition name="sorting-menu">
+                  <nav
+                    v-if="sortingMenuOpen"
+                    class="
+                      mt-1
+                      space-y-1
+                      pl-5
+                    "
+                  >
+                    <NuxtLink
+                      v-for="item in sortingMenuItems"
+                      :key="item.to"
+                      :to="item.to"
+                      class="
+                        group
+                        flex items-center
+                        gap-3
+                        rounded-xl
+                        px-3 py-2
+                        text-sm
+                        text-zinc-500
+                        transition-all
+                        duration-200
+                        hover:bg-white/[0.04]
+                        hover:text-zinc-200
+                      "
+                      active-class="bg-violet-500/10 !text-violet-300"
+                      @click="emit('close')"
+                    >
+                      <component
+                        :is="item.icon"
+                        class="
+                          h-4 w-4
+                          shrink-0
+                          transition-transform
+                          duration-200
+                          group-hover:scale-105
+                        "
+                      />
+
+                      <span>
+                        {{ item.label }}
+                      </span>
+                    </NuxtLink>
+                  </nav>
+                </Transition>
+              </div>
+
+              <!-- Other Algorithms -->
+              <NuxtLink
+                v-for="item in algorithmMenuItems"
+                :key="item.to"
+                :to="item.to"
+                class="
+                  group
+                  flex items-center
+                  gap-3
+                  rounded-xl
+                  px-3 py-2
+                  text-sm
+                  text-zinc-500
+                  transition-all
+                  duration-200
+                  hover:bg-white/[0.04]
+                  hover:text-zinc-200
+                "
+                active-class="bg-violet-500/10 !text-violet-300"
+                @click="emit('close')"
+              >
+                <component
+                  :is="item.icon"
+                  class="
+                    h-4 w-4
+                    shrink-0
+                    transition-transform
+                    duration-200
+                    group-hover:scale-105
+                  "
+                />
+
+                <span>
+                  {{ item.label }}
+                </span>
+              </NuxtLink>
+            </nav>
+          </Transition>
+        </div>
+
+        <!-- Settings -->
+        <div class="pt-1">
           <NuxtLink
             to="/settings"
             class="
@@ -371,7 +582,6 @@ const gameMenuItems = [
             active-class="bg-violet-500/10 !text-violet-300"
             @click="emit('close')"
           >
-
             <Settings
               class="
                 h-[18px] w-[18px]
@@ -385,20 +595,12 @@ const gameMenuItems = [
             <span>
               Settings
             </span>
-
           </NuxtLink>
-
         </div>
-
       </nav>
-
     </div>
 
-
-    <!-- ==================== -->
-    <!-- USER -->
-    <!-- ==================== -->
-
+    <!-- User -->
     <div
       class="
         shrink-0
@@ -407,7 +609,7 @@ const gameMenuItems = [
         p-4
       "
     >
-
+      <!-- User Info -->
       <div
         class="
           flex items-center
@@ -417,13 +619,11 @@ const gameMenuItems = [
           hover:bg-white/[0.04]
         "
       >
-
         <!-- Avatar -->
         <div
           class="
             flex h-9 w-9
-            shrink-0
-            items-center justify-center
+            shrink-0 items-center justify-center
             rounded-full
             bg-gradient-to-br
             from-violet-500
@@ -433,13 +633,11 @@ const gameMenuItems = [
             text-white
           "
         >
-          JD
+          {{ user?.name?.charAt(0).toUpperCase() || 'U' }}
         </div>
 
-
-        <!-- User info -->
+        <!-- User -->
         <div class="ml-3 min-w-0">
-
           <p
             class="
               truncate
@@ -448,7 +646,7 @@ const gameMenuItems = [
               text-zinc-200
             "
           >
-            John Doe
+            {{ user?.name || 'User' }}
           </p>
 
           <p
@@ -460,41 +658,62 @@ const gameMenuItems = [
           >
             Administrator
           </p>
-
         </div>
-
-
-        <!-- More -->
-        <button
-          type="button"
-          class="
-            ml-auto
-            text-zinc-600
-            transition
-            hover:text-zinc-300
-          "
-        >
-          <MoreHorizontal class="h-4 w-4" />
-        </button>
-
       </div>
 
-    </div>
+      <!-- Logout -->
+      <button
+        type="button"
+        class="
+          mt-2
+          flex w-full
+          items-center
+          gap-3
+          rounded-xl
+          px-3 py-2.5
+          text-sm
+          text-zinc-500
+          transition-all
+          duration-200
+          hover:bg-red-500/10
+          hover:text-red-400
+        "
+        aria-label="Logout"
+        @click="handleLogout"
+      >
+        <LogOut
+          class="
+            h-[18px] w-[18px]
+            shrink-0
+          "
+        />
 
+        <span>
+          Logout
+        </span>
+      </button>
+    </div>
   </aside>
 </template>
 
-
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
+.game-menu-enter-active,
+.game-menu-leave-active,
+.algorithm-menu-enter-active,
+.algorithm-menu-leave-active,
+.sorting-menu-enter-active,
+.sorting-menu-leave-active {
   transition:
     opacity 0.2s ease,
     transform 0.2s ease;
 }
 
-.fade-enter-from,
-.fade-leave-to {
+.game-menu-enter-from,
+.game-menu-leave-to,
+.algorithm-menu-enter-from,
+.algorithm-menu-leave-to,
+.sorting-menu-enter-from,
+.sorting-menu-leave-to {
   opacity: 0;
   transform: translateY(-4px);
 }

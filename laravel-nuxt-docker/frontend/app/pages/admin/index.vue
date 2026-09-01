@@ -9,10 +9,6 @@ import {
   CreditCard
 } from 'lucide-vue-next'
 
-definePageMeta({
-  layout: 'admin'
-})
-
 const stats = [
   {
     title: 'Total Revenue',

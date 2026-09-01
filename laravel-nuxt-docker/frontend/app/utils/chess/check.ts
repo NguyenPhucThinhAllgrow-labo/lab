@@ -2,7 +2,7 @@ import type {
   ChessPiece,
   PieceColor,
   Position,
-} from '~/types/chess'
+} from '~/types/games/chess'
 
 import {
   getPseudoLegalMoves,

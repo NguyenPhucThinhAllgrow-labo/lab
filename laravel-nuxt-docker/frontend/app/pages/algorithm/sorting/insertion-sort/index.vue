@@ -11,16 +11,18 @@ import {
   SkipForward,
 } from 'lucide-vue-next'
 
-import { generateBubbleSortSteps } from '~/utils/algorithms/sorting/bubbleSort'
+import {
+  generateInsertionSortSteps,
+} from '~/utils/algorithms/sorting/insertionSort'
 
 import type {
   Complexity,
   SimulationStatus,
-  SimulationStep,
-} from '~/types/algorithm/sort/common'
+  InsertionSortSimulationStep,
+} from '~/types/algorithm/sort/insertion'
 
 useHead({
-  title: 'Bubble Sort Playground',
+  title: 'Insertion Sort Playground',
 })
 
 /* =========================================================
@@ -37,15 +39,17 @@ const initialValues: number[] = [
   21,
 ]
 
-const values = ref<number[]>([...initialValues])
+const values = ref<number[]>([
+  ...initialValues,
+])
 
-const steps = ref<SimulationStep[]>([])
+const steps = ref<InsertionSortSimulationStep[]>([])
 
 const currentStep = ref<number>(0)
 
 const status = ref<SimulationStatus>('idle')
 
-const speed = ref<number>(700)
+const speed = ref<number>(550)
 
 let timer: ReturnType<typeof setTimeout> | null = null
 
@@ -60,7 +64,9 @@ const complexity: Complexity = {
    COMPUTED
 ========================================================= */
 
-const currentSimulation = computed<SimulationStep | null>(() => {
+const currentSimulation = computed<
+  InsertionSortSimulationStep | null
+>(() => {
   if (steps.value.length === 0) {
     return null
   }
@@ -69,19 +75,45 @@ const currentSimulation = computed<SimulationStep | null>(() => {
 })
 
 const currentValues = computed<number[]>(() => {
-  return currentSimulation.value?.values ?? values.value
+  return (
+    currentSimulation.value?.values ??
+    values.value
+  )
+})
+
+const currentIds = computed<number[]>(() => {
+  return (
+    currentSimulation.value?.ids ??
+    values.value.map((_, index) => index)
+  )
 })
 
 const currentComparing = computed<number[]>(() => {
-  return currentSimulation.value?.comparing ?? []
+  return (
+    currentSimulation.value?.comparing ??
+    []
+  )
 })
 
 const currentSwapping = computed<number[]>(() => {
-  return currentSimulation.value?.swapping ?? []
+  return (
+    currentSimulation.value?.swapping ??
+    []
+  )
 })
 
 const currentSorted = computed<number[]>(() => {
-  return currentSimulation.value?.sorted ?? []
+  return (
+    currentSimulation.value?.sorted ??
+    []
+  )
+})
+
+const currentIndex = computed<number | null>(() => {
+  return (
+    currentSimulation.value?.currentIndex ??
+    null
+  )
 })
 
 const currentDescription = computed<string>(() => {
@@ -97,7 +129,9 @@ const progress = computed<number>(() => {
   }
 
   return Math.round(
-    (currentStep.value / (steps.value.length - 1)) * 100,
+    (currentStep.value /
+      (steps.value.length - 1)) *
+      100,
   )
 })
 
@@ -108,7 +142,8 @@ const isFirstStep = computed<boolean>(() => {
 const isLastStep = computed<boolean>(() => {
   return (
     steps.value.length > 0 &&
-    currentStep.value >= steps.value.length - 1
+    currentStep.value >=
+      steps.value.length - 1
   )
 })
 
@@ -128,6 +163,13 @@ const statusLabel = computed<string>(() => {
   }
 })
 
+const maxValue = computed<number>(() => {
+  return Math.max(
+    ...currentValues.value,
+    1,
+  )
+})
+
 /* =========================================================
    HELPERS
 ========================================================= */
@@ -144,10 +186,85 @@ function isSorted(index: number): boolean {
   return currentSorted.value.includes(index)
 }
 
-function getBarHeight(value: number): string {
-  const height = Math.max(value * 3, 35)
+function isCurrent(index: number): boolean {
+  return currentIndex.value === index
+}
 
-  return `${height}px`
+function getBarHeight(value: number): string {
+  const maxHeight = 270
+  const minHeight = 36
+
+  const height =
+    (value / maxValue.value) *
+    maxHeight
+
+  return `${Math.max(height, minHeight)}px`
+}
+
+function getBarClass(
+  index: number,
+): string {
+  if (isSwapping(index)) {
+    return 'bar-moving'
+  }
+
+  if (isComparing(index)) {
+    return 'bar-comparing'
+  }
+
+  if (isCurrent(index)) {
+    return 'bar-current'
+  }
+
+  if (isSorted(index)) {
+    return 'bar-sorted'
+  }
+
+  return 'bar-default'
+}
+
+function getValueClass(
+  index: number,
+): string {
+  if (isSwapping(index)) {
+    return 'text-amber-400'
+  }
+
+  if (isComparing(index)) {
+    return 'text-blue-400'
+  }
+
+  if (isCurrent(index)) {
+    return 'text-violet-400'
+  }
+
+  if (isSorted(index)) {
+    return 'text-emerald-400'
+  }
+
+  return 'text-slate-300'
+}
+
+function getStatusLabel(
+  index: number,
+): string {
+  if (isSwapping(index)) {
+    return 'MOVE'
+  }
+
+  if (isComparing(index)) {
+    return 'COMPARE'
+  }
+
+  if (isCurrent(index)) {
+    return 'CURRENT'
+  }
+
+  if (isSorted(index)) {
+    return 'SORTED'
+  }
+
+  return ''
 }
 
 /* =========================================================
@@ -157,7 +274,10 @@ function getBarHeight(value: number): string {
 function initializeSimulation(): void {
   stopTimer()
 
-  steps.value = generateBubbleSortSteps(values.value)
+  steps.value =
+    generateInsertionSortSteps(
+      values.value,
+    )
 
   currentStep.value = 0
 
@@ -177,15 +297,18 @@ function randomize(): void {
 
   for (let index = 0; index < 8; index++) {
     generated.push(
-      Math.floor(Math.random() * 90) + 10,
+      Math.floor(
+        Math.random() * 90,
+      ) + 10,
     )
   }
 
   values.value = generated
 
-  steps.value = generateBubbleSortSteps(
-    generated,
-  )
+  steps.value =
+    generateInsertionSortSteps(
+      generated,
+    )
 
   currentStep.value = 0
 
@@ -199,7 +322,6 @@ function goToNextStep(): void {
 
   if (isLastStep.value) {
     status.value = 'completed'
-
     stopTimer()
 
     return
@@ -209,7 +331,6 @@ function goToNextStep(): void {
 
   if (isLastStep.value) {
     status.value = 'completed'
-
     stopTimer()
   }
 }
@@ -328,7 +449,9 @@ onBeforeUnmount(() => {
           class="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-white"
           @click="$router.back()"
         >
-          <ArrowLeft class="h-4 w-4" />
+          <ArrowLeft
+            class="h-4 w-4"
+          />
 
           Algorithms
         </button>
@@ -339,7 +462,7 @@ onBeforeUnmount(() => {
 
         <div>
           <div
-            class="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-400"
+            class="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-400"
           >
             Sorting
           </div>
@@ -347,7 +470,7 @@ onBeforeUnmount(() => {
           <h1
             class="text-sm font-bold text-white"
           >
-            Bubble Sort
+            Insertion Sort
           </h1>
         </div>
       </div>
@@ -364,17 +487,17 @@ onBeforeUnmount(() => {
         class="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-7 lg:p-10"
       >
         <div
-          class="pointer-events-none absolute -right-40 -top-40 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl"
+          class="pointer-events-none absolute -right-40 -top-40 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl"
         />
 
         <div
           class="relative max-w-4xl"
         >
           <div
-            class="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-bold text-blue-400"
+            class="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-xs font-bold text-violet-400"
           >
             <span
-              class="h-1.5 w-1.5 rounded-full bg-blue-400"
+              class="h-1.5 w-1.5 rounded-full bg-violet-400"
             />
 
             SORTING ALGORITHM
@@ -383,15 +506,15 @@ onBeforeUnmount(() => {
           <h2
             class="text-4xl font-black tracking-tight text-white sm:text-5xl"
           >
-            Bubble Sort
+            Insertion Sort
           </h2>
 
           <p
             class="mt-5 max-w-3xl text-base leading-8 text-slate-400 sm:text-lg"
           >
-            Thuật toán sắp xếp đơn giản bằng cách liên tục
-            so sánh các phần tử liền kề và hoán đổi chúng
-            nếu chúng nằm sai thứ tự.
+            Thuật toán sắp xếp xây dựng mảng đã sắp xếp
+            từng phần tử một. Mỗi phần tử mới sẽ được lấy ra
+            và chèn vào đúng vị trí trong vùng đã được sắp xếp.
           </p>
         </div>
       </section>
@@ -407,7 +530,7 @@ onBeforeUnmount(() => {
           class="mb-6 flex items-center gap-3"
         >
           <div
-            class="h-8 w-1 rounded-full bg-blue-500"
+            class="h-8 w-1 rounded-full bg-violet-500"
           />
 
           <h3
@@ -424,22 +547,24 @@ onBeforeUnmount(() => {
             class="space-y-4 text-sm leading-7 text-slate-400"
           >
             <p>
-              Bubble Sort duyệt qua mảng nhiều lần.
-              Trong mỗi lần duyệt, thuật toán so sánh
-              từng cặp phần tử đứng cạnh nhau.
-            </p>
-
-            <p>
-              Nếu phần tử bên trái lớn hơn phần tử bên phải,
-              hai phần tử sẽ được
+              Insertion Sort chia mảng thành hai vùng:
               <strong class="text-white">
-                swap
-              </strong>.
+                vùng đã sắp xếp
+              </strong>
+              và vùng chưa sắp xếp.
             </p>
 
             <p>
-              Sau mỗi vòng lặp, phần tử lớn nhất chưa được
-              sắp xếp sẽ dần di chuyển về cuối mảng.
+              Thuật toán lấy từng phần tử từ vùng chưa sắp xếp
+              và tìm vị trí phù hợp trong vùng đã sắp xếp.
+            </p>
+
+            <p>
+              Những phần tử lớn hơn phần tử đang xét sẽ được
+              <strong class="text-white">
+                dịch sang phải
+              </strong>
+              để tạo khoảng trống cho phần tử mới.
             </p>
           </div>
 
@@ -459,13 +584,13 @@ onBeforeUnmount(() => {
                 class="flex items-center gap-3"
               >
                 <span
-                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-xs font-bold text-blue-400"
+                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-xs font-bold text-violet-400"
                 >
                   1
                 </span>
 
                 <span class="text-sm text-slate-400">
-                  Chọn hai phần tử liền kề.
+                  Chọn phần tử hiện tại.
                 </span>
               </div>
 
@@ -479,7 +604,7 @@ onBeforeUnmount(() => {
                 </span>
 
                 <span class="text-sm text-slate-400">
-                  So sánh hai phần tử.
+                  So sánh với các phần tử bên trái.
                 </span>
               </div>
 
@@ -493,7 +618,7 @@ onBeforeUnmount(() => {
                 </span>
 
                 <span class="text-sm text-slate-400">
-                  Swap nếu chúng sai thứ tự.
+                  Dịch phần tử lớn hơn sang phải.
                 </span>
               </div>
 
@@ -507,7 +632,7 @@ onBeforeUnmount(() => {
                 </span>
 
                 <span class="text-sm text-slate-400">
-                  Lặp lại đến khi mảng được sort.
+                  Chèn phần tử vào đúng vị trí.
                 </span>
               </div>
             </div>
@@ -522,7 +647,6 @@ onBeforeUnmount(() => {
       <section
         class="grid gap-5 md:grid-cols-2"
       >
-        <!-- Use -->
         <div
           class="rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.08] to-slate-900 p-6"
         >
@@ -555,25 +679,13 @@ onBeforeUnmount(() => {
           <ul
             class="mt-6 space-y-3 text-sm text-slate-400"
           >
-            <li>
-              • Học và minh họa sorting algorithm.
-            </li>
-
-            <li>
-              • Dataset rất nhỏ.
-            </li>
-
-            <li>
-              • Implementation đơn giản.
-            </li>
-
-            <li>
-              • Ưu tiên tính dễ hiểu hơn performance.
-            </li>
+            <li>• Dataset nhỏ.</li>
+            <li>• Dữ liệu gần như đã được sắp xếp.</li>
+            <li>• Cần thuật toán đơn giản, dễ implement.</li>
+            <li>• Cần sorting in-place.</li>
           </ul>
         </div>
 
-        <!-- Don't use -->
         <div
           class="rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.08] to-slate-900 p-6"
         >
@@ -608,21 +720,10 @@ onBeforeUnmount(() => {
           <ul
             class="mt-6 space-y-3 text-sm text-slate-400"
           >
-            <li>
-              • Dataset lớn.
-            </li>
-
-            <li>
-              • Hệ thống yêu cầu performance cao.
-            </li>
-
-            <li>
-              • Sorting hàng triệu phần tử.
-            </li>
-
-            <li>
-              • Khi Quick Sort hoặc Merge Sort phù hợp hơn.
-            </li>
+            <li>• Dataset rất lớn.</li>
+            <li>• Dữ liệu hoàn toàn ngẫu nhiên với kích thước lớn.</li>
+            <li>• Cần performance cao.</li>
+            <li>• Có thể sử dụng Quick Sort hoặc Merge Sort hiệu quả hơn.</li>
           </ul>
         </div>
       </section>
@@ -632,18 +733,18 @@ onBeforeUnmount(() => {
       ==================================================== -->
 
       <section
-        class="relative overflow-hidden rounded-3xl border border-blue-500/20 bg-slate-900 shadow-2xl shadow-blue-950/20"
+        class="relative overflow-hidden rounded-3xl border border-violet-500/20 bg-slate-900 shadow-2xl shadow-violet-950/20"
       >
-        <!-- Background glow -->
         <div
-          class="pointer-events-none absolute -right-32 -top-32 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl"
+          class="pointer-events-none absolute -right-32 -top-32 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl"
         />
 
         <div
           class="pointer-events-none absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-cyan-500/5 blur-3xl"
         />
 
-        <!-- Header -->
+        <!-- HEADER -->
+
         <div
           class="relative border-b border-slate-800 bg-slate-900/90 px-6 py-5"
         >
@@ -654,9 +755,11 @@ onBeforeUnmount(() => {
               class="flex items-center gap-4"
             >
               <div
-                class="flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-500/10"
+                class="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-400/20 bg-violet-500/10"
               >
-                <span class="relative flex h-3 w-3">
+                <span
+                  class="relative flex h-3 w-3"
+                >
                   <span
                     v-if="status === 'running'"
                     class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"
@@ -668,7 +771,7 @@ onBeforeUnmount(() => {
                       'bg-emerald-400':
                         status === 'running',
 
-                      'bg-blue-400':
+                      'bg-violet-400':
                         status === 'completed',
 
                       'bg-slate-500':
@@ -698,7 +801,7 @@ onBeforeUnmount(() => {
                       'border-amber-500/20 bg-amber-500/10 text-amber-400':
                         status === 'paused',
 
-                      'border-blue-500/20 bg-blue-500/10 text-blue-400':
+                      'border-violet-500/20 bg-violet-500/10 text-violet-400':
                         status === 'completed',
 
                       'border-slate-700 bg-slate-800 text-slate-400':
@@ -712,13 +815,12 @@ onBeforeUnmount(() => {
                 <p
                   class="mt-1 text-sm text-slate-500"
                 >
-                  Theo dõi từng thao tác của Bubble Sort
+                  Theo dõi từng thao tác của Insertion Sort
                   theo thời gian thực.
                 </p>
               </div>
             </div>
 
-            <!-- Step -->
             <div
               class="rounded-2xl border border-slate-800 bg-slate-950/80 px-5 py-3"
             >
@@ -747,37 +849,40 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Progress -->
+        <!-- PROGRESS -->
+
         <div
           class="relative h-1 bg-slate-800"
         >
           <div
-            class="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 transition-all duration-300"
-            :style="{ width: `${progress}%` }"
+            class="h-full bg-gradient-to-r from-violet-500 via-blue-400 to-emerald-400 transition-all duration-300"
+            :style="{
+              width: `${progress}%`,
+            }"
           />
         </div>
 
-        <!-- Simulation body -->
+        <!-- BODY -->
+
         <div
           class="relative p-6 lg:p-8"
         >
-          <!-- Current operation -->
+          <!-- CURRENT OPERATION -->
+
           <div
-            class="mb-7 flex items-start gap-4 rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] p-5"
+            class="mb-7 flex items-start gap-4 rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] p-5"
           >
             <div
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400"
             >
               <ArrowUp
                 class="h-5 w-5"
               />
             </div>
 
-            <div
-              class="min-w-0"
-            >
+            <div class="min-w-0">
               <div
-                class="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-400"
+                class="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-400"
               >
                 Current Operation
               </div>
@@ -790,11 +895,15 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- Array -->
+          <!-- =================================================
+               ARRAY VISUALIZER
+          ================================================== -->
+
           <div
-            class="relative overflow-hidden rounded-3xl border border-slate-800 bg-[#080d18] p-5 sm:p-8"
+            class="array-stage relative overflow-hidden rounded-3xl border border-slate-800 bg-[#080d18] p-4 sm:p-8"
           >
-            <!-- Grid background -->
+            <!-- Background grid -->
+
             <div
               class="pointer-events-none absolute inset-0 opacity-[0.035]"
               style="
@@ -805,103 +914,132 @@ onBeforeUnmount(() => {
               "
             />
 
+            <!-- Floor -->
+
             <div
-              class="relative flex min-h-[360px] items-end justify-center gap-2 sm:gap-3"
+              class="pointer-events-none absolute bottom-[68px] left-4 right-4 h-px bg-slate-800 sm:left-8 sm:right-8"
+            />
+
+            <!-- ARRAY -->
+
+            <TransitionGroup
+              tag="div"
+              name="array"
+              move-class="array-move"
+              class="relative flex h-[390px] items-end gap-2 sm:gap-3"
             >
               <div
                 v-for="(value, index) in currentValues"
-                :key="`${index}-${value}`"
-                class="group relative flex h-full min-w-8 max-w-20 flex-1 flex-col items-center justify-end"
+                :key="currentIds[index]"
+                class="array-item relative flex min-w-0 flex-1 flex-col items-center justify-end"
               >
-                <!-- Status -->
+                <!-- STATUS -->
+
                 <div
-                  class="mb-2 h-5 text-[9px] font-black uppercase tracking-wider"
+                  class="mb-2 h-5 text-center text-[9px] font-black uppercase tracking-wider"
                 >
                   <span
-                    v-if="isSwapping(index)"
-                    class="text-amber-400"
-                  >
-                    SWAP
-                  </span>
+                    v-if="getStatusLabel(index)"
+                    :class="{
+                      'text-amber-400':
+                        isSwapping(index),
 
-                  <span
-                    v-else-if="isComparing(index)"
-                    class="text-blue-400"
-                  >
-                    COMPARE
-                  </span>
+                      'text-blue-400':
+                        isComparing(index),
 
-                  <span
-                    v-else-if="isSorted(index)"
-                    class="text-emerald-400"
+                      'text-violet-400':
+                        isCurrent(index) &&
+                        !isComparing(index) &&
+                        !isSwapping(index),
+
+                      'text-emerald-400':
+                        isSorted(index) &&
+                        !isCurrent(index) &&
+                        !isComparing(index) &&
+                        !isSwapping(index),
+                    }"
                   >
-                    SORTED
+                    {{ getStatusLabel(index) }}
                   </span>
                 </div>
 
-                <!-- Value -->
+                <!-- VALUE -->
+
                 <div
-                  class="mb-2 text-sm font-black transition-all duration-300 sm:text-base"
-                  :class="{
-                    'scale-125 text-blue-400':
-                      isComparing(index),
-
-                    'scale-125 text-amber-400':
-                      isSwapping(index),
-
-                    'text-emerald-400':
-                      isSorted(index),
-
-                    'text-slate-300':
-                      !isComparing(index) &&
-                      !isSwapping(index) &&
-                      !isSorted(index),
-                  }"
+                  class="relative z-10 mb-2 text-sm font-black transition-[color,text-shadow] duration-200 sm:text-base"
+                  :class="[
+                    getValueClass(index),
+                    {
+                      'value-glow':
+                        isCurrent(index) ||
+                        isComparing(index) ||
+                        isSwapping(index),
+                    },
+                  ]"
                 >
                   {{ value }}
                 </div>
 
-                <!-- Bar -->
+                <!-- BAR -->
+
                 <div
-                  class="relative w-full rounded-t-xl transition-all duration-500"
-                  :class="{
-                    'bg-gradient-to-t from-blue-700 to-blue-400 shadow-lg shadow-blue-500/30':
-                      isComparing(index),
-
-                    'bg-gradient-to-t from-amber-700 to-amber-400 shadow-lg shadow-amber-500/40':
-                      isSwapping(index),
-
-                    'bg-gradient-to-t from-emerald-700 to-emerald-400 shadow-lg shadow-emerald-500/30':
-                      isSorted(index),
-
-                    'bg-gradient-to-t from-slate-800 to-slate-600':
-                      !isComparing(index) &&
-                      !isSwapping(index) &&
-                      !isSorted(index),
-                  }"
+                  class="bar relative w-full"
+                  :class="getBarClass(index)"
                   :style="{
                     height: getBarHeight(value),
                   }"
                 >
                   <div
-                    class="absolute inset-x-0 top-0 h-px bg-white/30"
+                    class="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/40"
+                  />
+
+                  <div
+                    class="pointer-events-none absolute inset-x-0 top-0 h-10 bg-white/[0.08] blur-md"
                   />
                 </div>
 
-                <!-- Index -->
+                <!-- INDEX -->
+
                 <div
-                  class="mt-3 flex h-7 w-7 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-[10px] font-bold text-slate-600"
+                  class="mt-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-[10px] font-bold text-slate-600 transition-[border-color,color,background] duration-200"
+                  :class="{
+                    'border-violet-500/40 bg-violet-500/10 text-violet-400':
+                      isCurrent(index),
+
+                    'border-blue-500/40 bg-blue-500/10 text-blue-400':
+                      isComparing(index),
+
+                    'border-amber-500/40 bg-amber-500/10 text-amber-400':
+                      isSwapping(index),
+
+                    'border-emerald-500/30 bg-emerald-500/5 text-emerald-400':
+                      isSorted(index) &&
+                      !isCurrent(index) &&
+                      !isComparing(index) &&
+                      !isSwapping(index),
+                  }"
                 >
                   {{ index }}
                 </div>
               </div>
-            </div>
+            </TransitionGroup>
           </div>
 
-          <!-- Legend -->
+          <!-- LEGEND -->
+
           <div
             class="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-3"
           >
+            <div
+              class="flex items-center gap-2 text-xs text-slate-500"
+            >
+              <span
+                class="h-2.5 w-2.5 rounded-full bg-violet-400"
+              />
+
+              Current
+            </div>
+
             <div
               class="flex items-center gap-2 text-xs text-slate-500"
             >
@@ -919,7 +1057,7 @@ onBeforeUnmount(() => {
                 class="h-2.5 w-2.5 rounded-full bg-amber-400"
               />
 
-              Swapping
+              Moving
             </div>
 
             <div
@@ -933,10 +1071,9 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- Progress information -->
-          <div
-            class="mt-7"
-          >
+          <!-- PROGRESS -->
+
+          <div class="mt-7">
             <div
               class="mb-2 flex justify-between text-xs"
             >
@@ -957,20 +1094,24 @@ onBeforeUnmount(() => {
               class="h-1.5 overflow-hidden rounded-full bg-slate-800"
             >
               <div
-                class="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-300"
-                :style="{ width: `${progress}%` }"
+                class="h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-400 transition-all duration-300"
+                :style="{
+                  width: `${progress}%`,
+                }"
               />
             </div>
           </div>
 
-          <!-- Controls -->
+          <!-- CONTROLS -->
+
           <div
             class="mt-8 flex flex-col gap-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-5"
           >
             <div
               class="flex flex-wrap items-center justify-center gap-2"
             >
-              <!-- Previous -->
+              <!-- PREVIOUS -->
+
               <button
                 type="button"
                 :disabled="isFirstStep"
@@ -982,10 +1123,11 @@ onBeforeUnmount(() => {
                 />
               </button>
 
-              <!-- Play -->
+              <!-- PLAY -->
+
               <button
                 type="button"
-                class="flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-7 font-bold text-white shadow-lg shadow-blue-500/20 transition hover:from-blue-500 hover:to-blue-400 hover:shadow-blue-500/30 active:scale-[0.98]"
+                class="flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 px-7 font-bold text-white shadow-lg shadow-violet-500/20 transition hover:from-violet-500 hover:to-violet-400 hover:shadow-violet-500/30 active:scale-[0.98]"
                 @click="togglePlay"
               >
                 <Pause
@@ -1005,7 +1147,8 @@ onBeforeUnmount(() => {
                 }}
               </button>
 
-              <!-- Next -->
+              <!-- NEXT -->
+
               <button
                 type="button"
                 :disabled="isLastStep"
@@ -1017,7 +1160,8 @@ onBeforeUnmount(() => {
                 />
               </button>
 
-              <!-- Reset -->
+              <!-- RESET -->
+
               <button
                 type="button"
                 class="ml-2 flex h-11 items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 text-sm font-medium text-slate-400 transition hover:border-slate-700 hover:bg-slate-800 hover:text-white"
@@ -1030,7 +1174,8 @@ onBeforeUnmount(() => {
                 Reset
               </button>
 
-              <!-- Random -->
+              <!-- RANDOMIZE -->
+
               <button
                 type="button"
                 class="flex h-11 items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 text-sm font-medium text-slate-400 transition hover:border-slate-700 hover:bg-slate-800 hover:text-white"
@@ -1044,7 +1189,8 @@ onBeforeUnmount(() => {
               </button>
             </div>
 
-            <!-- Speed -->
+            <!-- SPEED -->
+
             <div
               class="mx-auto w-full max-w-xl"
             >
@@ -1069,8 +1215,8 @@ onBeforeUnmount(() => {
                 type="range"
                 min="100"
                 max="1500"
-                step="100"
-                class="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-blue-500"
+                step="50"
+                class="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-violet-500"
               />
 
               <div
@@ -1092,18 +1238,15 @@ onBeforeUnmount(() => {
       <section
         class="grid gap-6 lg:grid-cols-5"
       >
-        <!-- =================================================
-             PSEUDOCODE
-        ================================================== -->
+        <!-- PSEUDOCODE -->
 
         <div
-          class="group relative overflow-hidden rounded-3xl border border-violet-500/20 bg-slate-900 shadow-xl shadow-violet-950/10 lg:col-span-3"
+          class="relative overflow-hidden rounded-3xl border border-violet-500/20 bg-slate-900 shadow-xl shadow-violet-950/10 lg:col-span-3"
         >
           <div
             class="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-violet-500/10 blur-3xl"
           />
 
-          <!-- Header -->
           <div
             class="relative flex items-center justify-between border-b border-slate-800 px-6 py-5"
           >
@@ -1142,14 +1285,10 @@ onBeforeUnmount(() => {
             </span>
           </div>
 
-          <!-- Code -->
-          <div
-            class="relative p-5 sm:p-6"
-          >
+          <div class="relative p-5 sm:p-6">
             <div
               class="overflow-hidden rounded-2xl border border-slate-800 bg-[#070b13]"
             >
-              <!-- Editor bar -->
               <div
                 class="flex items-center gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-3"
               >
@@ -1168,81 +1307,80 @@ onBeforeUnmount(() => {
                 <span
                   class="ml-3 font-mono text-[10px] text-slate-600"
                 >
-                  bubble-sort.pseudo
+                  insertion-sort.pseudo
                 </span>
               </div>
 
-              <!-- Code body -->
               <div
                 class="overflow-x-auto p-5"
               >
                 <div
-                  class="min-w-[520px] font-mono text-[13px] leading-8"
+                  class="min-w-[560px] font-mono text-[13px] leading-8"
                 >
-                  <div
-                    class="flex"
-                  >
+                  <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
                     >
                       01
                     </span>
 
-                    <span
-                      class="ml-5 text-slate-500"
-                    >
-                      // Start Bubble Sort
+                    <span class="ml-5 text-slate-500">
+                      // Start Insertion Sort
                     </span>
                   </div>
 
-                  <div
-                    class="flex"
-                  >
+                  <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
                     >
                       02
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
+                    <span class="ml-5">
+                      <span class="text-violet-400">
                         for
                       </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
-                        i = 0 → n - 1
+                      <span class="text-slate-300">
+                        i = 1 → n - 1
                       </span>
                     </span>
                   </div>
 
                   <div
-                    class="flex"
+                    class="flex rounded-lg bg-violet-500/10"
                   >
                     <span
-                      class="w-10 shrink-0 select-none text-right text-slate-700"
+                      class="w-10 shrink-0 select-none text-right text-violet-500/50"
                     >
                       03
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
-                        for
+                    <span class="ml-5">
+                      <span class="text-violet-400">
+                        current
                       </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
-                        j = 0 → n - i - 1
+                      <span class="text-slate-300">
+                        = array[i]
+                      </span>
+                    </span>
+                  </div>
+
+                  <div class="flex">
+                    <span
+                      class="w-10 shrink-0 select-none text-right text-slate-700"
+                    >
+                      04
+                    </span>
+
+                    <span class="ml-5">
+                      <span class="text-violet-400">
+                        j
+                      </span>
+
+                      <span class="text-slate-300">
+                        = i - 1
                       </span>
                     </span>
                   </div>
@@ -1253,60 +1391,34 @@ onBeforeUnmount(() => {
                     <span
                       class="w-10 shrink-0 select-none text-right text-blue-500/50"
                     >
-                      04
+                      05
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
-                        compare
+                    <span class="ml-5">
+                      <span class="text-violet-400">
+                        while
                       </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
-                        array[j]
-                      </span>
-
-                      <span
-                        class="text-slate-600"
-                      >
-                        and
-                      </span>
-
-                      <span
-                        class="text-slate-300"
-                      >
-                        array[j + 1]
+                      <span class="text-slate-300">
+                        j &gt;= 0
                       </span>
                     </span>
                   </div>
 
-                  <div
-                    class="flex"
-                  >
+                  <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
                     >
-                      05
+                      06
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
+                    <span class="ml-5">
+                      <span class="text-violet-400">
                         if
                       </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
-                        array[j] &gt; array[j + 1]
+                      <span class="text-slate-300">
+                        array[j] &gt; current
                       </span>
                     </span>
                   </div>
@@ -1317,72 +1429,73 @@ onBeforeUnmount(() => {
                     <span
                       class="w-10 shrink-0 select-none text-right text-amber-500/50"
                     >
-                      06
-                    </span>
-
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
-                        swap
-                      </span>
-
-                      <span
-                        class="text-slate-300"
-                      >
-                        array[j], array[j + 1]
-                      </span>
-                    </span>
-                  </div>
-
-                  <div
-                    class="flex"
-                  >
-                    <span
-                      class="w-10 shrink-0 select-none text-right text-slate-700"
-                    >
                       07
                     </span>
 
-                    <span
-                      class="ml-5 text-slate-500"
-                    >
-                      // largest element moves to the end
+                    <span class="ml-5">
+                      <span class="text-violet-400">
+                        shift
+                      </span>
+
+                      <span class="text-slate-300">
+                        array[j] → array[j + 1]
+                      </span>
                     </span>
                   </div>
 
-                  <div
-                    class="flex"
-                  >
+                  <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
                     >
                       08
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
-                        return
+                    <span class="ml-5">
+                      <span class="text-violet-400">
+                        j
                       </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
-                        sorted array
+                      <span class="text-slate-300">
+                        = j - 1
                       </span>
+                    </span>
+                  </div>
+
+                  <div
+                    class="flex rounded-lg bg-emerald-500/10"
+                  >
+                    <span
+                      class="w-10 shrink-0 select-none text-right text-emerald-500/50"
+                    >
+                      09
+                    </span>
+
+                    <span class="ml-5">
+                      <span class="text-violet-400">
+                        insert
+                      </span>
+
+                      <span class="text-slate-300">
+                        current at array[j + 1]
+                      </span>
+                    </span>
+                  </div>
+
+                  <div class="flex">
+                    <span
+                      class="w-10 shrink-0 select-none text-right text-slate-700"
+                    >
+                      10
+                    </span>
+
+                    <span class="ml-5 text-slate-500">
+                      // sorted region grows
                     </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Explanation -->
             <div
               class="mt-5 rounded-2xl border border-violet-500/10 bg-violet-500/[0.04] p-4"
             >
@@ -1395,17 +1508,15 @@ onBeforeUnmount(() => {
               <p
                 class="mt-2 text-sm leading-6 text-slate-400"
               >
-                Thuật toán kiểm tra từng cặp phần tử
-                liền kề. Nếu phần tử bên trái lớn hơn
-                phần tử bên phải, chúng sẽ được hoán đổi.
+                Insertion Sort giữ một vùng bên trái đã được
+                sắp xếp. Mỗi lần lặp, một phần tử mới được
+                lấy ra và chèn vào đúng vị trí trong vùng đó.
               </p>
             </div>
           </div>
         </div>
 
-        <!-- =================================================
-             COMPLEXITY
-        ================================================== -->
+        <!-- COMPLEXITY -->
 
         <div
           class="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-slate-900 shadow-xl shadow-emerald-950/10 lg:col-span-2"
@@ -1414,7 +1525,6 @@ onBeforeUnmount(() => {
             class="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl"
           />
 
-          <!-- Header -->
           <div
             class="relative border-b border-slate-800 px-6 py-5"
           >
@@ -1447,11 +1557,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- Cards -->
-          <div
-            class="relative grid gap-3 p-5"
-          >
-            <!-- Best -->
+          <div class="relative grid gap-3 p-5">
             <div
               class="group rounded-2xl border border-emerald-500/10 bg-emerald-500/[0.04] p-4 transition hover:border-emerald-500/30"
             >
@@ -1486,7 +1592,6 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <!-- Average -->
             <div
               class="group rounded-2xl border border-amber-500/10 bg-amber-500/[0.04] p-4 transition hover:border-amber-500/30"
             >
@@ -1521,7 +1626,6 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <!-- Worst -->
             <div
               class="group rounded-2xl border border-red-500/10 bg-red-500/[0.04] p-4 transition hover:border-red-500/30"
             >
@@ -1556,7 +1660,6 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <!-- Space -->
             <div
               class="group rounded-2xl border border-blue-500/10 bg-blue-500/[0.04] p-4 transition hover:border-blue-500/30"
             >
@@ -1599,7 +1702,6 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- Summary -->
           <div
             class="relative mx-5 mb-5 rounded-2xl border border-slate-800 bg-slate-950/60 p-4"
           >
@@ -1613,13 +1715,13 @@ onBeforeUnmount(() => {
               <p
                 class="text-xs leading-5 text-slate-500"
               >
-                Bubble Sort sử dụng
+                Insertion Sort sử dụng
                 <span
                   class="font-semibold text-slate-300"
                 >
                   O(1) auxiliary space
                 </span>
-                vì việc sắp xếp được thực hiện
+                vì thuật toán sắp xếp
                 <span
                   class="font-semibold text-slate-300"
                 >
@@ -1638,7 +1740,6 @@ onBeforeUnmount(() => {
       <section
         class="overflow-hidden rounded-3xl border border-indigo-500/20 bg-slate-900 shadow-xl shadow-indigo-950/10"
       >
-        <!-- Header -->
         <div
           class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-5"
         >
@@ -1677,10 +1778,7 @@ onBeforeUnmount(() => {
           </span>
         </div>
 
-        <!-- PHP code -->
-        <div
-          class="p-5 sm:p-6"
-        >
+        <div class="p-5 sm:p-6">
           <div
             class="overflow-hidden rounded-2xl border border-slate-800 bg-[#070b13]"
           >
@@ -1702,34 +1800,30 @@ onBeforeUnmount(() => {
               <span
                 class="ml-3 font-mono text-[10px] text-slate-600"
               >
-                BubbleSort.php
+                InsertionSort.php
               </span>
             </div>
 
             <pre
               class="overflow-x-auto p-6 font-mono text-[13px] leading-7 text-slate-300"
-            ><code><span class="text-violet-400">function</span> <span class="text-blue-400">bubbleSort</span>(<span class="text-violet-400">array</span> $items): <span class="text-violet-400">array</span>
+            ><code><span class="text-violet-400">function</span> <span class="text-blue-400">insertionSort</span>(<span class="text-violet-400">array</span> $items): <span class="text-violet-400">array</span>
 {
     $n = <span class="text-blue-400">count</span>($items);
 
-    <span class="text-violet-400">for</span> ($i = <span class="text-amber-400">0</span>; $i &lt; $n - <span class="text-amber-400">1</span>; $i++) {
+    <span class="text-violet-400">for</span> ($i = <span class="text-amber-400">1</span>; $i &lt; $n; $i++) {
 
-        $swapped = <span class="text-violet-400">false</span>;
+        $current = $items[$i];
 
-        <span class="text-violet-400">for</span> ($j = <span class="text-amber-400">0</span>; $j &lt; $n - $i - <span class="text-amber-400">1</span>; $j++) {
+        $j = $i - <span class="text-amber-400">1</span>;
 
-            <span class="text-violet-400">if</span> ($items[$j] &gt; $items[$j + <span class="text-amber-400">1</span>]) {
+        <span class="text-violet-400">while</span> ($j &gt;= <span class="text-amber-400">0</span> &amp;&amp; $items[$j] &gt; $current) {
 
-                [$items[$j], $items[$j + <span class="text-amber-400">1</span>]]
-                    = [$items[$j + <span class="text-amber-400">1</span>], $items[$j]];
+            $items[$j + <span class="text-amber-400">1</span>] = $items[$j];
 
-                $swapped = <span class="text-violet-400">true</span>;
-            }
+            $j--;
         }
 
-        <span class="text-violet-400">if</span> (!$swapped) {
-            <span class="text-violet-400">break</span>;
-        }
+        $items[$j + <span class="text-amber-400">1</span>] = $current;
     }
 
     <span class="text-violet-400">return</span> $items;
@@ -1755,36 +1849,35 @@ onBeforeUnmount(() => {
           <h3
             class="text-xl font-black text-white"
           >
-            Tại sao gọi là "Bubble Sort"?
+            Tại sao gọi là "Insertion Sort"?
           </h3>
         </div>
 
         <p
           class="max-w-4xl text-sm leading-7 text-slate-400"
         >
-          Hãy tưởng tượng mỗi giá trị lớn là một bong bóng.
-          Khi thuật toán liên tục so sánh các phần tử liền kề,
-          giá trị lớn dần được đẩy về phía cuối mảng.
-          Sau mỗi vòng lặp, một phần tử lớn nhất chưa được
-          xử lý sẽ "nổi" lên vị trí cuối cùng.
+          Thuật toán hoạt động tương tự như cách con người
+          sắp xếp một bộ bài trên tay. Khi lấy một lá bài mới,
+          ta tìm vị trí thích hợp trong những lá bài đã được
+          sắp xếp rồi chèn nó vào đó.
         </p>
 
         <div
           class="mt-7 grid gap-4 md:grid-cols-3"
         >
           <div
-            class="rounded-2xl border border-blue-500/10 bg-blue-500/[0.04] p-5"
+            class="rounded-2xl border border-violet-500/10 bg-violet-500/[0.04] p-5"
           >
             <div
-              class="text-sm font-black text-blue-400"
+              class="text-sm font-black text-violet-400"
             >
-              01 — Compare
+              01 — Select
             </div>
 
             <p
               class="mt-2 text-xs leading-6 text-slate-500"
             >
-              So sánh hai phần tử liền kề.
+              Chọn phần tử tiếp theo từ vùng chưa sắp xếp.
             </p>
           </div>
 
@@ -1794,13 +1887,13 @@ onBeforeUnmount(() => {
             <div
               class="text-sm font-black text-amber-400"
             >
-              02 — Swap
+              02 — Shift
             </div>
 
             <p
               class="mt-2 text-xs leading-6 text-slate-500"
             >
-              Đổi vị trí nếu chúng sai thứ tự.
+              Dịch các phần tử lớn hơn sang bên phải.
             </p>
           </div>
 
@@ -1810,13 +1903,13 @@ onBeforeUnmount(() => {
             <div
               class="text-sm font-black text-emerald-400"
             >
-              03 — Sorted
+              03 — Insert
             </div>
 
             <p
               class="mt-2 text-xs leading-6 text-slate-500"
             >
-              Phần tử lớn nhất được cố định ở cuối.
+              Chèn phần tử hiện tại vào đúng vị trí.
             </p>
           </div>
         </div>
@@ -1824,3 +1917,223 @@ onBeforeUnmount(() => {
     </main>
   </div>
 </template>
+
+<style scoped>
+/* =========================================================
+   ARRAY FLIP ANIMATION
+========================================================= */
+
+/*
+ * Không dùng transform ở .array-item.
+ *
+ * Vue TransitionGroup sẽ tự sử dụng transform
+ * để thực hiện FLIP animation.
+ */
+.array-item {
+  min-width: 0;
+  will-change: transform;
+}
+
+/*
+ * Đây là animation chính khi phần tử đổi vị trí.
+ *
+ * Ví dụ:
+ *
+ * 45 | 12 | 87
+ *      ↓
+ * 12 | 45 | 87
+ *
+ * Vue sẽ tự tính vị trí cũ -> vị trí mới.
+ */
+.array-move {
+  transition:
+    transform 320ms cubic-bezier(
+      0.22,
+      1,
+      0.36,
+      1
+    );
+}
+
+/* =========================================================
+   BAR
+========================================================= */
+
+.bar {
+  position: relative;
+
+  width: 100%;
+
+  overflow: hidden;
+
+  border-radius:
+    12px
+    12px
+    0
+    0;
+
+  transform-origin:
+    bottom
+    center;
+
+  transition:
+    height 220ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
+
+  will-change:
+    height,
+    background,
+    box-shadow;
+}
+
+/* =========================================================
+   DEFAULT
+========================================================= */
+
+.bar-default {
+  background:
+    linear-gradient(
+      180deg,
+      #475569 0%,
+      #1e293b 100%
+    );
+
+  box-shadow:
+    0 8px 24px
+    rgba(15, 23, 42, 0.2);
+}
+
+/* =========================================================
+   SORTED
+========================================================= */
+
+.bar-sorted {
+  background:
+    linear-gradient(
+      180deg,
+      #34d399 0%,
+      #047857 100%
+    );
+
+  box-shadow:
+    0 10px 28px
+    rgba(16, 185, 129, 0.24);
+}
+
+/* =========================================================
+   CURRENT
+========================================================= */
+
+.bar-current {
+  background:
+    linear-gradient(
+      180deg,
+      #a78bfa 0%,
+      #6d28d9 100%
+    );
+
+  box-shadow:
+    0 12px 32px
+    rgba(139, 92, 246, 0.42);
+
+  filter:
+    brightness(1.08);
+}
+
+/* =========================================================
+   COMPARING
+========================================================= */
+
+.bar-comparing {
+  background:
+    linear-gradient(
+      180deg,
+      #60a5fa 0%,
+      #1d4ed8 100%
+    );
+
+  box-shadow:
+    0 12px 32px
+    rgba(59, 130, 246, 0.38);
+
+  filter:
+    brightness(1.08);
+}
+
+/* =========================================================
+   MOVING
+========================================================= */
+
+.bar-moving {
+  background:
+    linear-gradient(
+      180deg,
+      #fbbf24 0%,
+      #b45309 100%
+    );
+
+  box-shadow:
+    0 12px 32px
+    rgba(245, 158, 11, 0.42);
+
+  filter:
+    brightness(1.1);
+}
+
+/* =========================================================
+   VALUE HIGHLIGHT
+========================================================= */
+
+.value-glow {
+  text-shadow:
+    0 0 12px currentColor;
+}
+
+/* =========================================================
+   BAR SHINE
+========================================================= */
+
+.bar::before {
+  content: '';
+
+  position: absolute;
+
+  inset-inline: 0;
+
+  top: 0;
+
+  height: 1px;
+
+  background:
+    rgba(255, 255, 255, 0.42);
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 640px) {
+  .array-stage {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .array-item {
+    min-width: 28px;
+  }
+}
+
+/* =========================================================
+   REDUCE MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .array-move,
+  .bar {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+</style>

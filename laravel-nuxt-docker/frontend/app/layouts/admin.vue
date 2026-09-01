@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const sidebarOpen = ref(false)
+const sidebarOpen = ref(true)
 
 const openSidebar = () => {
   sidebarOpen.value = true
@@ -8,11 +8,14 @@ const openSidebar = () => {
 const closeSidebar = () => {
   sidebarOpen.value = false
 }
+
+const toggleSidebar = () => {
+  sidebarOpen.value = !sidebarOpen.value
+}
 </script>
 
 <template>
   <div class="min-h-screen bg-[#09090b] text-white">
-
     <!-- Mobile overlay -->
     <Transition name="fade">
       <div
@@ -28,22 +31,25 @@ const closeSidebar = () => {
       @close="closeSidebar"
     />
 
-    <!-- Main area -->
-    <div class="min-h-screen lg:pl-64">
-
+    <!-- Main -->
+    <div
+      class="min-h-screen transition-[padding] duration-300"
+      :class="sidebarOpen ? 'lg:pl-64' : 'lg:pl-0'"
+    >
       <!-- Header -->
       <AdminHeader
+        :sidebar-open="sidebarOpen"
         @open-sidebar="openSidebar"
+        @toggle-sidebar="toggleSidebar"
       />
 
-      <!-- Content -->
+      <!-- Page -->
       <main class="min-h-[calc(100vh-5rem)]">
         <slot />
       </main>
 
       <!-- Footer -->
       <AdminFooter />
-
     </div>
   </div>
 </template>

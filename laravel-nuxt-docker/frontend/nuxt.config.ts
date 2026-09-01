@@ -7,8 +7,19 @@ export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: true },
   modules: [
+    '@pinia/nuxt',
     '@nuxtjs/tailwindcss'
   ],
+  nitro: {
+    experimental: {
+      websocket: true,
+    },
+  },
+  pinia: {
+    storesDirs: [
+      './app/stores/**',
+    ],
+  },
   css: ['~/assets/css/main.css'],
   app: {
     head: {
