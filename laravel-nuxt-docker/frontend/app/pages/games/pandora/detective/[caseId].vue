@@ -1,4 +1,3 @@
-```vue
 <script setup lang="ts">
 import { getScenario } from '~/data/scenarios'
 
@@ -53,6 +52,11 @@ const game = useDetectiveGame(
 
 const terminalInput = ref('')
 
+const terminalRef =
+  ref<InstanceType<
+    typeof Terminal
+  > | null>(null)
+
 /*
  * --------------------------------------------------
  * AUTOCOMPLETE
@@ -85,10 +89,14 @@ function executeCommand(
  * --------------------------------------------------
  */
 
-function handleCommandBarInput(
+async function handleCommandBarInput(
   value: string,
 ) {
   terminalInput.value = value
+
+  await nextTick()
+
+  terminalRef.value?.focusInput()
 }
 </script>
 
@@ -137,6 +145,7 @@ function handleCommandBarInput(
         class="min-w-0"
       >
         <Terminal
+          ref="terminalRef"
           :lines="
             game.state.terminal
           "
@@ -207,4 +216,3 @@ function handleCommandBarInput(
     </div>
   </main>
 </template>
-```

@@ -165,8 +165,25 @@ function scrollToBottom() {
  */
 
 function focusInput() {
-  inputRef.value?.focus()
+  const element = inputRef.value
+
+  if (!element) {
+    return
+  }
+
+  element.focus()
+
+  const end = element.value.length
+
+  element.setSelectionRange(
+    end,
+    end,
+  )
 }
+
+defineExpose({
+  focusInput,
+})
 
 /*
  * ==================================================
@@ -557,8 +574,15 @@ function submit() {
     return
   }
 
-  const command =
-    input.value.trim()
+  /*
+   * input là computed lấy từ prop của component cha. Ở thời điểm
+   * keydown Enter chạy, prop có thể chưa kịp nhận input event mới
+   * nhất (đặc biệt khi dùng IME), trong khi DOM đã có giá trị đúng.
+   */
+  const command = (
+    inputRef.value?.value ??
+    input.value
+  ).trim()
 
   if (!command) {
     return
@@ -941,6 +965,10 @@ function handleKeydown(
   if (
     event.key === 'Enter'
   ) {
+    if (event.isComposing) {
+      return
+    }
+
     event.preventDefault()
 
     submit()

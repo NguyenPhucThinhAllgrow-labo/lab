@@ -28,9 +28,11 @@ function getText(
   <section
   class="rounded-lg
          border
-         border-slate-700
-         bg-slate-900/80
-         p-4"
+         border-amber-700/60
+         bg-stone-800/90
+         p-4
+         shadow-lg
+         shadow-amber-950/20"
 >
     <div
       class="mb-4
@@ -44,7 +46,7 @@ function getText(
                  text-xs
                  uppercase
                  tracking-[0.2em]
-                 text-zinc-500"
+                 text-amber-200"
         >
           Investigation
         </div>
@@ -52,7 +54,7 @@ function getText(
         <div
           class="mt-1
                  text-[10px]
-                 text-zinc-700"
+                 text-stone-400"
         >
           Current objectives
         </div>
@@ -61,7 +63,7 @@ function getText(
       <div
         class="font-mono
                text-[10px]
-               text-zinc-700"
+               text-amber-300"
       >
         {{
           tasks.filter(
@@ -73,66 +75,67 @@ function getText(
         {{ tasks.length }}
       </div>
     </div>
-
-    <div class="space-y-3 h-[320px] overflow-y-auto">
-      <div
-        v-for="task in tasks"
-        :key="task.id"
-        class="rounded-md
-               border p-3"
-        :class="
-          task.completed
-            ? 'border-green-900/50 bg-green-950/10'
-            : 'border-zinc-900 bg-black/20'
-        "
-      >
+    <div class="h-[320px] overflow-y-auto p-3">
+      <div class="space-y-3">
         <div
-          class="flex gap-3"
+          v-for="task in tasks"
+          :key="task.id"
+          class="rounded-md
+                border p-3"
+          :class="
+            task.completed
+              ? 'border-emerald-600/60 bg-emerald-900/30'
+              : 'border-amber-800/60 bg-stone-700/50'
+          "
         >
           <div
-            class="flex h-5
-                   w-5 shrink-0
-                   items-center
-                   justify-center
-                   rounded-full
-                   border
-                   font-mono
-                   text-[10px]"
-            :class="
-              task.completed
-                ? 'border-green-800 text-green-500'
-                : 'border-zinc-800 text-zinc-700'
-            "
+            class="flex gap-3"
           >
-            {{
-              task.completed
-                ? '✓'
-                : '!'
-            }}
-          </div>
-
-          <div>
             <div
-              class="text-xs
-                     font-medium"
+              class="flex h-5
+                    w-5 shrink-0
+                    items-center
+                    justify-center
+                    rounded-full
+                    border
+                    font-mono
+                    text-[10px]"
               :class="
                 task.completed
-                  ? 'text-green-400'
-                  : 'text-zinc-400'
+                  ? 'border-emerald-500 text-emerald-300'
+                  : 'border-amber-600 text-amber-300'
               "
             >
-              {{ getText(
-                  task.title,
-                ) }}
+              {{
+                task.completed
+                  ? '✓'
+                  : '!'
+              }}
             </div>
 
-            <div
-              class="mt-1
-                     text-[10px]
-                     leading-5
-                     text-zinc-600"
-            >
-              {{ getText(task.description) }}
+            <div>
+              <div
+                class="text-xs
+                      font-medium"
+                :class="
+                  task.completed
+                    ? 'text-emerald-300'
+                    : 'text-stone-100'
+                "
+              >
+                {{ getText(
+                    task.title,
+                  ) }}
+              </div>
+
+              <div
+                class="mt-1
+                      text-[10px]
+                      leading-5
+                      text-stone-300"
+              >
+                {{ getText(task.description) }}
+              </div>
             </div>
           </div>
         </div>

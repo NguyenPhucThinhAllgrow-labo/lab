@@ -1771,8 +1771,13 @@ requestedLocale
   function execute(
     rawCommand: string,
   ) {
-    const commandLine =
-      rawCommand.trim()
+    const commandLine = rawCommand
+      .replace(
+        /(?:&#x20;|&#32;|&nbsp;)/gi,
+        ' ',
+      )
+      .replace(/[\u00a0\u200b]/g, ' ')
+      .trim()
 
     if (!commandLine) {
       return

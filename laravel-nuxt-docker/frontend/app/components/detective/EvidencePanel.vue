@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type {
-    SupportedLocale,
+  SupportedLocale,
   Evidence,
 } from '~/types/games/detective'
 
@@ -66,9 +66,11 @@ const availableHints =
   <section
     class="rounded-lg
            border
-           border-zinc-800
-           bg-zinc-950
-           p-4"
+           border-slate-600
+           bg-slate-800/90
+           p-4
+           shadow-lg
+           shadow-slate-950/30"
   >
     <div
       class="mb-4
@@ -81,7 +83,7 @@ const availableHints =
                  text-xs
                  uppercase
                  tracking-[0.2em]
-                 text-zinc-500"
+                 text-slate-200"
         >
           Evidence
         </div>
@@ -89,7 +91,7 @@ const availableHints =
         <div
           class="mt-1
                  text-[10px]
-                 text-zinc-700"
+                 text-slate-400"
         >
           Collected evidence
         </div>
@@ -98,7 +100,7 @@ const availableHints =
       <div
         class="font-mono
                text-[10px]
-               text-zinc-700"
+               text-slate-300"
       >
         {{ discovered.length }}
         /
@@ -117,8 +119,8 @@ const availableHints =
         :key="item.id"
         class="rounded-md
                border
-               border-green-900/40
-               bg-green-950/10
+               border-green-600/60
+               bg-green-900/30
                p-3"
       >
         <div
@@ -128,7 +130,7 @@ const availableHints =
           <span
             class="font-mono
                    text-xs
-                   text-green-500"
+                   text-green-300"
           >
             ✓
           </span>
@@ -136,7 +138,7 @@ const availableHints =
           <span
             class="text-xs
                    font-medium
-                   text-green-400"
+                   text-green-300"
           >
             {{ getText(item.title) }}
           </span>
@@ -147,7 +149,7 @@ const availableHints =
                  pl-5
                  text-[10px]
                  leading-5
-                 text-zinc-500"
+                 text-slate-200"
         >
           {{ getText(item.description) }}
         </div>
@@ -157,7 +159,7 @@ const availableHints =
                  pl-5
                  font-mono
                  text-[9px]
-                 text-zinc-700"
+                 text-slate-400"
         >
           SOURCE:
           {{ item.discover.path }}
@@ -169,13 +171,13 @@ const availableHints =
       v-else
       class="rounded-md
              border
-             border-zinc-900
-             bg-black/20
+             border-slate-600
+             bg-slate-700/40
              p-4
              text-center
              font-mono
              text-[10px]
-             text-zinc-700"
+             text-slate-300"
     >
       No evidence discovered.
     </div>
@@ -186,7 +188,7 @@ const availableHints =
       v-if="availableHints.length"
       class="mt-5
              border-t
-             border-zinc-900
+             border-slate-600
              pt-4"
     >
       <div
@@ -195,7 +197,7 @@ const availableHints =
                text-[10px]
                uppercase
                tracking-[0.2em]
-               text-amber-600"
+               text-amber-300"
       >
         Available Clues
       </div>
@@ -204,11 +206,11 @@ const availableHints =
         class="font-mono
                text-[10px]
                leading-5
-               text-zinc-700"
+               text-slate-300"
       >
         Type
         <span
-          class="text-amber-600"
+          class="rounded bg-amber-950/60 px-1.5 py-0.5 text-amber-300"
         >
           hint
         </span>
