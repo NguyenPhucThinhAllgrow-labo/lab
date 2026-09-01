@@ -84,6 +84,15 @@ export const terminalCommands:
     },
 
     {
+      command: 'guide',
+
+      description:
+        'Explain investigation folders',
+
+      requiresArgument: false,
+    },
+
+    {
       command: 'help',
 
       description:
