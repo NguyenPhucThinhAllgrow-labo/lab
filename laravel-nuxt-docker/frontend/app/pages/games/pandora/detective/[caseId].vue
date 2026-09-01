@@ -57,6 +57,79 @@ const terminalRef =
     typeof Terminal
   > | null>(null)
 
+const expandedPanel =
+  ref<'task' | 'evidence' | null>(
+    null,
+  )
+
+function togglePanel(
+  panel: 'task' | 'evidence',
+) {
+  expandedPanel.value =
+    expandedPanel.value === panel
+      ? null
+      : panel
+}
+
+function handlePanelShortcut(
+  event: KeyboardEvent,
+) {
+  if (
+    event.repeat ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey
+  ) {
+    return
+  }
+
+  const target = event.target
+
+  if (
+    target instanceof HTMLElement &&
+    (
+      target.isContentEditable ||
+      ['INPUT', 'TEXTAREA', 'SELECT']
+        .includes(target.tagName)
+    )
+  ) {
+    return
+  }
+
+  const key = event.key.toLowerCase()
+
+  if (key === 't') {
+    event.preventDefault()
+    togglePanel('task')
+  }
+
+  if (key === 'e') {
+    event.preventDefault()
+    togglePanel('evidence')
+  }
+
+  if (
+    event.key === 'Escape' &&
+    expandedPanel.value
+  ) {
+    expandedPanel.value = null
+  }
+}
+
+onMounted(() => {
+  window.addEventListener(
+    'keydown',
+    handlePanelShortcut,
+  )
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener(
+    'keydown',
+    handlePanelShortcut,
+  )
+})
+
 /*
  * --------------------------------------------------
  * AUTOCOMPLETE
@@ -199,8 +272,17 @@ async function handleCommandBarInput(
           :tasks="
             game.state.tasks
           "
+          :evidence="
+            game.state.evidence
+          "
           :locale="
             game.state.locale
+          "
+          :expanded="
+            expandedPanel === 'task'
+          "
+          @toggle-expand="
+            togglePanel('task')
           "
         />
 
@@ -210,6 +292,12 @@ async function handleCommandBarInput(
           "
           :locale="
             game.state.locale
+          "
+          :expanded="
+            expandedPanel === 'evidence'
+          "
+          @toggle-expand="
+            togglePanel('evidence')
           "
         />
       </aside>

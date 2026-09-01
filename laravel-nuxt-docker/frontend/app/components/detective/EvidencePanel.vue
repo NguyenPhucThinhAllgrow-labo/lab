@@ -8,6 +8,12 @@ const props = defineProps<{
   evidence: Evidence[]
 
   locale: SupportedLocale
+
+  expanded?: boolean
+}>()
+
+const emit = defineEmits<{
+  toggleExpand: []
 }>()
 
 function getText(
@@ -71,6 +77,11 @@ const availableHints =
            p-4
            shadow-lg
            shadow-slate-950/30"
+    :class="
+      expanded
+        ? 'fixed inset-4 z-50 flex flex-col bg-slate-900 md:inset-8'
+        : ''
+    "
   >
     <div
       class="mb-4
@@ -97,14 +108,31 @@ const availableHints =
         </div>
       </div>
 
-      <div
-        class="font-mono
-               text-[10px]
-               text-slate-300"
-      >
-        {{ discovered.length }}
-        /
-        {{ evidence.length }}
+      <div class="flex items-center gap-3">
+        <div
+          class="font-mono
+                 text-[10px]
+                 text-slate-300"
+        >
+          {{ discovered.length }}
+          /
+          {{ evidence.length }}
+        </div>
+
+        <button
+          type="button"
+          class="rounded border
+                 border-slate-500/70
+                 px-2 py-1
+                 font-mono text-[9px]
+                 text-slate-200
+                 transition
+                 hover:bg-slate-700/70"
+          :title="expanded ? 'Collapse evidence' : 'Expand evidence'"
+          @click="emit('toggleExpand')"
+        >
+          [E] {{ expanded ? '−' : '+' }}
+        </button>
       </div>
     </div>
 
@@ -112,7 +140,12 @@ const availableHints =
 
     <div
       v-if="discovered.length"
-      class="space-y-2 h-[120px] overflow-y-auto"
+      class="space-y-2 overflow-y-auto"
+      :class="
+        expanded
+          ? 'min-h-0 flex-1'
+          : 'h-[120px]'
+      "
     >
       <div
         v-for="item in discovered"
