@@ -545,15 +545,20 @@ watch(
  * AUTOCOMPLETE WATCHER
  * ==================================================
  *
- * Không tự động show popup.
- *
- * Tab / click mới điều khiển.
+ * Tự động hiển thị khi input hiện tại
+ * có autocomplete entries.
  */
 
 watch(
   () => props.autocompleteEntries,
-  () => {
+  entries => {
     autocompleteIndex.value = 0
+
+    showAutocomplete.value =
+      Boolean(
+        input.value.trim() &&
+        entries.length,
+      )
   },
   {
     deep: true,
@@ -856,6 +861,13 @@ function selectAutocomplete(
   ) {
     input.value =
       `${entry} `
+
+    showAutocomplete.value =
+      false
+
+    nextTick(() => {
+      focusInput()
+    })
 
     return
   }
@@ -1300,7 +1312,6 @@ onMounted(() => {
     <!-- AUTOCOMPLETE -->
     <!-- ========================================= -->
 
-    <!--
     <div
       v-if="
         showAutocomplete &&
@@ -1364,6 +1375,5 @@ onMounted(() => {
         </span>
       </button>
     </div>
-    -->
   </div>
 </template>

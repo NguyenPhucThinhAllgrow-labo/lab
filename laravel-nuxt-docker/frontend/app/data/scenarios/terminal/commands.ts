@@ -89,7 +89,7 @@ export const terminalCommands:
       description:
         'Explain investigation folders',
 
-      requiresArgument: false,
+      requiresArgument: true,
     },
 
     {

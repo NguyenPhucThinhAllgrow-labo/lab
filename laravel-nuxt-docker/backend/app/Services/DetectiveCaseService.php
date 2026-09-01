@@ -21,10 +21,12 @@ class DetectiveCaseService
 
     public function get(string $caseId, string $locale): array
     {
-        return $this->serialize(
-            $this->cases->findActiveOrFail($caseId),
-            $locale,
-        );
+        $case = $this->cases->findActiveOrFail($caseId);
+
+        return [
+            ...$this->serialize($case, $locale),
+            'scenario' => $case->scenario,
+        ];
     }
 
     private function serialize(DetectiveCase $case, string $locale): array

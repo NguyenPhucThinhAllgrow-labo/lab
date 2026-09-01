@@ -30,6 +30,17 @@ class DetectiveApiTest extends TestCase
             ->assertUnauthorized();
     }
 
+    public function test_it_returns_the_complete_scenario_for_a_case(): void
+    {
+        $case = $this->createCase();
+
+        $this->getJson("/api/detective/cases/{$case->id}")
+            ->assertOk()
+            ->assertJsonPath('data.scenario.id', 'case001')
+            ->assertJsonPath('data.scenario.filesystem.0.name', 'logs')
+            ->assertJsonCount(1, 'data.scenario.tasks');
+    }
+
     public function test_a_user_can_save_and_read_detective_progress(): void
     {
         $case = $this->createCase();
@@ -74,12 +85,61 @@ class DetectiveApiTest extends TestCase
         $this->assertDatabaseCount('detective_progress', 0);
     }
 
+    public function test_completing_a_case_creates_detailed_history(): void
+    {
+        $case = $this->createCase();
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->putJson("/api/detective/cases/{$case->id}/progress", [
+            'game_completed' => true,
+            'elapsed_seconds' => 125,
+            'discovered_evidence' => ['system-activity'],
+            'completed_tasks' => ['inspect-logs'],
+            'evidence_history' => [[
+                'id' => 'system-activity',
+                'elapsed_seconds' => 42,
+                'recorded_at' => now()->toISOString(),
+            ]],
+            'task_history' => [[
+                'id' => 'inspect-logs',
+                'elapsed_seconds' => 125,
+                'recorded_at' => now()->toISOString(),
+            ]],
+        ])->assertOk();
+
+        $this->getJson('/api/detective/history')
+            ->assertOk()
+            ->assertJsonPath('data.0.elapsed_seconds', 125)
+            ->assertJsonPath('data.0.evidence_history.0.id', 'system-activity')
+            ->assertJsonPath('data.0.task_history.0.id', 'inspect-logs')
+            ->assertJsonPath('data.0.statistics.command_count', 0);
+    }
+
     private function createCase(): DetectiveCase
     {
         return DetectiveCase::query()->create([
             'id' => 'case001',
             'title' => ['en' => 'Test case', 'vi' => 'Vụ án thử nghiệm'],
             'description' => ['en' => 'Description', 'vi' => 'Mô tả'],
+            'scenario' => [
+                'id' => 'case001',
+                'title' => ['en' => 'Test case', 'vi' => 'Vụ án thử nghiệm'],
+                'description' => ['en' => 'Description', 'vi' => 'Mô tả'],
+                'initialDirectory' => '/',
+                'intro' => ['en' => [], 'vi' => []],
+                'filesystem' => [
+                    ['type' => 'directory', 'name' => 'logs', 'children' => []],
+                ],
+                'evidence' => [],
+                'tasks' => [
+                    [
+                        'id' => 'inspect-logs',
+                        'title' => ['en' => 'Inspect logs', 'vi' => 'Kiểm tra log'],
+                        'description' => ['en' => 'Inspect', 'vi' => 'Kiểm tra'],
+                        'requiresEvidence' => [],
+                    ],
+                ],
+            ],
             'sort_order' => 1,
             'is_active' => true,
         ]);

@@ -1,27 +1,42 @@
 <script setup lang="ts">
+import type {
+  DetectiveCaseMetadata,
+} from '~/composables/useDetectiveApi'
+
 /*
  * --------------------------------------------------
  * CASES
  * --------------------------------------------------
  */
 
-const cases = [
-  {
-    id: 'case001',
-    title: 'Case 001',
-    description: 'The first investigation.',
-  },
-  {
-    id: 'case002',
-    title: 'Case 002',
-    description: 'A new mystery begins.',
-  },
-  {
-    id: 'case003',
-    title: 'Case 003',
-    description: 'An investigation with new evidence.',
-  },
-]
+const detectiveApi =
+  useDetectiveApi()
+
+const cases =
+  ref<DetectiveCaseMetadata[]>([])
+
+const loading = ref(true)
+const loadError = ref(false)
+
+async function loadCases() {
+  loading.value = true
+  loadError.value = false
+
+  try {
+    cases.value =
+      await detectiveApi.listCases(
+        'en',
+      )
+  } catch {
+    loadError.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  void loadCases()
+})
 
 /*
  * --------------------------------------------------
@@ -91,6 +106,41 @@ function selectCase(
            ======================================== -->
 
       <div
+        v-if="loading"
+        class="rounded-xl border
+               border-zinc-800
+               bg-zinc-900 p-10
+               text-center font-mono
+               text-sm text-zinc-500"
+      >
+        Loading cases from server...
+      </div>
+
+      <div
+        v-else-if="loadError"
+        class="rounded-xl border
+               border-red-900/60
+               bg-red-950/20 p-10
+               text-center"
+      >
+        <p class="text-sm text-red-300">
+          Could not load detective cases.
+        </p>
+
+        <button
+          type="button"
+          class="mt-4 rounded border
+                 border-red-800 px-4 py-2
+                 font-mono text-xs
+                 text-red-300"
+          @click="loadCases"
+        >
+          RETRY
+        </button>
+      </div>
+
+      <div
+        v-else
         class="grid
                gap-5
                md:grid-cols-2

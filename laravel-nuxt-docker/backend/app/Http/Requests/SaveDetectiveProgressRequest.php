@@ -25,6 +25,15 @@ class SaveDetectiveProgressRequest extends FormRequest
             'terminal_lines' => ['sometimes', 'array', 'max:500'],
             'terminal_lines.*' => ['array'],
             'game_completed' => ['sometimes', 'boolean'],
+            'elapsed_seconds' => ['sometimes', 'integer', 'min:0', 'max:31536000'],
+            'evidence_history' => ['sometimes', 'array', 'max:200'],
+            'evidence_history.*.id' => ['required', 'string', 'max:100'],
+            'evidence_history.*.elapsed_seconds' => ['required', 'integer', 'min:0'],
+            'evidence_history.*.recorded_at' => ['required', 'date'],
+            'task_history' => ['sometimes', 'array', 'max:100'],
+            'task_history.*.id' => ['required', 'string', 'max:100'],
+            'task_history.*.elapsed_seconds' => ['required', 'integer', 'min:0'],
+            'task_history.*.recorded_at' => ['required', 'date'],
         ];
     }
 }

@@ -9,9 +9,23 @@ class DetectiveProgress extends Model
 {
     protected $table = 'detective_progress';
 
+    protected $attributes = [
+        'locale' => 'en',
+        'current_directory' => '/',
+        'discovered_evidence' => '[]',
+        'completed_tasks' => '[]',
+        'command_history' => '[]',
+        'terminal_lines' => '[]',
+        'game_completed' => false,
+        'elapsed_seconds' => 0,
+        'evidence_history' => '[]',
+        'task_history' => '[]',
+    ];
+
     protected $fillable = [
         'user_id',
         'case_id',
+        'run_id',
         'locale',
         'current_directory',
         'discovered_evidence',
@@ -19,6 +33,9 @@ class DetectiveProgress extends Model
         'command_history',
         'terminal_lines',
         'game_completed',
+        'elapsed_seconds',
+        'evidence_history',
+        'task_history',
         'last_played_at',
     ];
 
@@ -30,6 +47,9 @@ class DetectiveProgress extends Model
             'command_history' => 'array',
             'terminal_lines' => 'array',
             'game_completed' => 'boolean',
+            'elapsed_seconds' => 'integer',
+            'evidence_history' => 'array',
+            'task_history' => 'array',
             'last_played_at' => 'datetime',
         ];
     }

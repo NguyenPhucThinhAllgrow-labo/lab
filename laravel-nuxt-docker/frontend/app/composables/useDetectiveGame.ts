@@ -92,6 +92,102 @@ export function useDetectiveGame(
 
   let lineId = 0
 
+  function restoreProgress(
+    progress: {
+      locale: SupportedLocale
+      current_directory: string
+      discovered_evidence: string[] | null
+      completed_tasks: string[] | null
+      command_history: string[] | null
+      terminal_lines: TerminalLine[] | null
+      game_completed: boolean
+    },
+  ) {
+    const discoveredIds =
+      new Set(
+        progress.discovered_evidence ?? [],
+      )
+
+    const completedIds =
+      new Set(
+        progress.completed_tasks ?? [],
+      )
+
+    state.locale = progress.locale
+    state.currentDirectory =
+      normalizePath(
+        progress.current_directory ||
+          scenario.initialDirectory ||
+          '/',
+      )
+
+    state.evidence.forEach(
+      evidence => {
+        evidence.discovered =
+          discoveredIds.has(
+            evidence.id,
+          )
+      },
+    )
+
+    state.tasks.forEach(task => {
+      task.completed =
+        completedIds.has(task.id)
+    })
+
+    state.commandHistory = [
+      ...(progress.command_history ?? []),
+    ]
+
+    state.terminal =
+      (progress.terminal_lines ?? []).map(
+        line => ({ ...line }),
+      )
+
+    state.gameCompleted =
+      progress.game_completed
+
+    lineId = Math.max(
+      0,
+      ...state.terminal.map(
+        line => line.id,
+      ),
+    )
+  }
+
+  function resetGame() {
+    state.currentDirectory =
+      normalizePath(
+        scenario.initialDirectory ||
+          '/',
+      )
+
+    state.evidence =
+      scenario.evidence.map(
+        evidence => ({
+          ...evidence,
+          discovered:
+            evidence.discovered ??
+            false,
+        }),
+      )
+
+    state.tasks =
+      scenario.tasks.map(task => ({
+        ...task,
+        completed:
+          task.completed ?? false,
+      }))
+
+    state.commandHistory = []
+    state.gameCompleted = false
+    state.locale = 'en'
+    state.terminal = []
+    lineId = 0
+
+    showIntro()
+  }
+
   /*
    * --------------------------------------------------
    * TRANSLATION HELPER
@@ -1218,6 +1314,276 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
+  function showEvidenceHint(
+    evidence: Evidence,
+  ) {
+    const folder = evidence.discover.path
+      .split('/')
+      .filter(Boolean)[0] ?? ''
+
+    const termsByFolder: Record<
+      SupportedLocale,
+      Record<string, string[]>
+    > = {
+      en: {
+        logs: [
+          'timeline',
+          'workstation',
+          'account name',
+          'authentication',
+          'login',
+          'session',
+          'activity',
+        ],
+        network: [
+          'connection',
+          'endpoint',
+          'IP',
+          'traffic',
+          'remote access',
+          'device',
+        ],
+        devices: [
+          'device',
+          'USB',
+          'workstation',
+          'owner',
+          'history',
+        ],
+        usb: [
+          'USB',
+          'device',
+          'owner',
+          'contents',
+          'history',
+        ],
+        access: [
+          'badge',
+          'physical access',
+          'entry',
+          'identity',
+        ],
+        camera: [
+          'camera',
+          'footage',
+          'timeline',
+          'person',
+        ],
+        emails: [
+          'email',
+          'message',
+          'communication',
+          'sender',
+        ],
+        email: [
+          'email',
+          'message',
+          'communication',
+          'sender',
+        ],
+        users: [
+          'profile',
+          'account',
+          'identity',
+          'user',
+        ],
+        scripts: [
+          'script',
+          'command',
+          'automation',
+          'cleanup',
+        ],
+        forensics: [
+          'forensic',
+          'memory',
+          'process',
+          'artifact',
+        ],
+        incident: [
+          'contradiction',
+          'timeline',
+          'evidence',
+        ],
+        external: [
+          'external',
+          'certificate',
+          'destination',
+          'infrastructure',
+        ],
+        research: [
+          'research',
+          'archive',
+          'classified',
+          'project',
+        ],
+        server: [
+          'server',
+          'service',
+          'worker',
+          'job',
+        ],
+        documents: [
+          'document',
+          'report',
+          'record',
+          'file',
+        ],
+        notes: [
+          'note',
+          'context',
+          'personal',
+        ],
+        parking: [
+          'vehicle',
+          'parking',
+          'entry',
+        ],
+        system: [
+          'system',
+          'configuration',
+          'service',
+          'status',
+        ],
+      },
+
+      vi: {
+        logs: [
+          'dòng thời gian',
+          'máy trạm',
+          'tên tài khoản',
+          'xác thực',
+          'đăng nhập',
+          'phiên',
+          'hoạt động',
+        ],
+        network: [
+          'kết nối',
+          'endpoint',
+          'IP',
+          'lưu lượng',
+          'truy cập từ xa',
+          'thiết bị',
+        ],
+        devices: [
+          'thiết bị',
+          'USB',
+          'máy trạm',
+          'chủ sở hữu',
+          'lịch sử',
+        ],
+        usb: [
+          'USB',
+          'thiết bị',
+          'chủ sở hữu',
+          'nội dung',
+          'lịch sử',
+        ],
+        access: [
+          'thẻ',
+          'truy cập vật lý',
+          'ra vào',
+          'danh tính',
+        ],
+        camera: [
+          'camera',
+          'hình ảnh',
+          'dòng thời gian',
+          'người',
+        ],
+        emails: [
+          'email',
+          'thư',
+          'liên lạc',
+          'người gửi',
+        ],
+        email: [
+          'email',
+          'thư',
+          'liên lạc',
+          'người gửi',
+        ],
+        users: [
+          'hồ sơ',
+          'tài khoản',
+          'danh tính',
+          'người dùng',
+        ],
+        scripts: [
+          'script',
+          'lệnh',
+          'tự động hóa',
+          'xóa dấu vết',
+        ],
+        forensics: [
+          'pháp chứng',
+          'bộ nhớ',
+          'tiến trình',
+          'dấu vết',
+        ],
+        incident: [
+          'mâu thuẫn',
+          'dòng thời gian',
+          'bằng chứng',
+        ],
+        external: [
+          'bên ngoài',
+          'chứng chỉ',
+          'đích đến',
+          'hạ tầng',
+        ],
+        research: [
+          'nghiên cứu',
+          'archive',
+          'dữ liệu mật',
+          'dự án',
+        ],
+        server: [
+          'máy chủ',
+          'dịch vụ',
+          'worker',
+          'tác vụ',
+        ],
+        documents: [
+          'tài liệu',
+          'báo cáo',
+          'hồ sơ',
+          'tệp',
+        ],
+        notes: [
+          'ghi chú',
+          'bối cảnh',
+          'cá nhân',
+        ],
+        parking: [
+          'phương tiện',
+          'bãi đỗ xe',
+          'ra vào',
+        ],
+        system: [
+          'hệ thống',
+          'cấu hình',
+          'dịch vụ',
+          'trạng thái',
+        ],
+      },
+    }
+
+    const hintLine = `${getTranslation(
+      'hint',
+    )}: ${text(evidence.hint)}`
+
+    addLine(
+      'warning',
+      hintLine,
+      createHighlights(
+        hintLine,
+        termsByFolder[state.locale][
+          folder
+        ] ?? [],
+      ),
+    )
+  }
+
   function commandHint(
     args: string[],
   ) {
@@ -1251,14 +1617,7 @@ export function useDetectiveGame(
         return
       }
 
-      addLine(
-        'warning',
-        `${getTranslation(
-          'hint',
-        )}: ${text(
-          evidence.hint,
-        )}`,
-      )
+      showEvidenceHint(evidence)
 
       return
     }
@@ -1307,14 +1666,7 @@ export function useDetectiveGame(
       return
     }
 
-    addLine(
-      'warning',
-      `${getTranslation(
-        'hint',
-      )}: ${text(
-        evidence.hint,
-      )}`,
-    )
+    showEvidenceHint(evidence)
   }
 
   /*
@@ -1323,7 +1675,53 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function commandGuide() {
+  function commandGuide(
+    args: string[],
+  ) {
+    if (args.length > 1) {
+      addLine(
+        'error',
+        getTranslation(
+          'guideTooManyArguments',
+        ),
+      )
+
+      return
+    }
+
+    const requestedFolder =
+      args[0]
+        ?.replace(/^\/+|\/+$/g, '')
+        .toLowerCase()
+
+    const selectedFolder =
+      requestedFolder
+        ? scenario.filesystem.find(
+            node =>
+              node.type ===
+                'directory' &&
+              node.name.toLowerCase() ===
+                requestedFolder,
+          )
+        : undefined
+
+    if (
+      requestedFolder &&
+      !selectedFolder
+    ) {
+      addLine(
+        'error',
+        `${getTranslation(
+          'guideFolderNotFound',
+        )}: ${requestedFolder}`,
+      )
+
+      return
+    }
+
+    const guideNodes = selectedFolder
+      ? [selectedFolder]
+      : scenario.filesystem
     const descriptions: Record<
       SupportedLocale,
       Record<string, string>
@@ -1373,45 +1771,200 @@ export function useDetectiveGame(
       },
     }
 
-    const highlightTerms: Record<
+    const itemDescriptions: Record<
       SupportedLocale,
-      string[]
+      Record<string, string>
     > = {
-      en: [
-        'authentication',
-        'activity timelines',
-        'personnel records',
-        'protected research',
-        'remote access',
-        'device history',
-        'USB',
-        'physical access',
-        'surveillance',
-        'communication trails',
-        'identity information',
-        'suspicious scripts',
-        'forensic analysis',
-        'contradictions',
-        'third-party connections',
-      ],
+      en: {
+        directory: 'Subdirectory',
+        log: 'Event log',
+        text: 'Text document',
+        data: 'Structured data',
+        script: 'Executable script',
+        image: 'Visual evidence',
+        archive: 'Archived data',
+        authentication: 'Records logins, sessions, credentials and MFA events.',
+        systemActivity: 'Tracks system activity, services and workstation events over time.',
+        network: 'Records connections, addresses, ports and network traffic.',
+        dhcp: 'Maps network addresses to the devices that used them.',
+        physicalAccess: 'Records badge usage, doors and physical entry events.',
+        surveillance: 'Provides camera status, footage or visual timeline information.',
+        device: 'Describes USB or hardware identity, connection and usage history.',
+        communication: 'Contains messages used to trace communication and instructions.',
+        identity: 'Contains user, employee or account identity information.',
+        process: 'Shows process execution, memory activity or forensic artifacts.',
+        automation: 'Defines automated commands, maintenance actions or cleanup behavior.',
+        crypto: 'Contains key, certificate or trust identity information.',
+        incident: 'Combines incident events, timelines or conflicting observations.',
+        research: 'Contains protected project, archive or research-related data.',
+        generic: 'Investigation file',
+      },
+      vi: {
+        directory: 'Thư mục con',
+        log: 'Nhật ký sự kiện',
+        text: 'Tài liệu văn bản',
+        data: 'Dữ liệu có cấu trúc',
+        script: 'Script thực thi',
+        image: 'Bằng chứng hình ảnh',
+        archive: 'Dữ liệu lưu trữ',
+        authentication: 'Ghi lại đăng nhập, phiên, thông tin xác thực và sự kiện MFA.',
+        systemActivity: 'Theo dõi hoạt động hệ thống, dịch vụ và sự kiện máy trạm theo thời gian.',
+        network: 'Ghi lại kết nối, địa chỉ, cổng và lưu lượng mạng.',
+        dhcp: 'Ánh xạ địa chỉ mạng với thiết bị đã sử dụng địa chỉ đó.',
+        physicalAccess: 'Ghi lại việc dùng thẻ, cửa và các sự kiện ra vào vật lý.',
+        surveillance: 'Cung cấp trạng thái camera, hình ảnh hoặc dòng thời gian giám sát.',
+        device: 'Mô tả danh tính, kết nối và lịch sử sử dụng USB hoặc phần cứng.',
+        communication: 'Chứa thông điệp dùng để truy dấu liên lạc và chỉ đạo.',
+        identity: 'Chứa thông tin danh tính người dùng, nhân viên hoặc tài khoản.',
+        process: 'Cho biết tiến trình thực thi, hoạt động bộ nhớ hoặc dấu vết pháp chứng.',
+        automation: 'Định nghĩa lệnh tự động, thao tác bảo trì hoặc hành vi xóa dấu vết.',
+        crypto: 'Chứa khóa, chứng chỉ hoặc thông tin định danh tin cậy.',
+        incident: 'Kết hợp sự kiện, dòng thời gian hoặc các quan sát mâu thuẫn.',
+        research: 'Chứa dữ liệu dự án, kho lưu trữ hoặc nghiên cứu được bảo vệ.',
+        generic: 'Tệp điều tra',
+      },
+    }
 
-      vi: [
-        'xác thực',
-        'dòng thời gian',
-        'hồ sơ nhân sự',
-        'nghiên cứu được bảo vệ',
-        'truy cập từ xa',
-        'lịch sử thiết bị',
-        'USB',
-        'truy cập vật lý',
-        'camera giám sát',
-        'dấu vết liên lạc',
-        'thông tin danh tính',
-        'script đáng ngờ',
-        'phân tích pháp chứng',
-        'mâu thuẫn',
-        'kết nối bên thứ ba',
-      ],
+    function describeGuideItem(
+      node: FileNode,
+      path: string,
+    ) {
+      const labels =
+        itemDescriptions[state.locale]
+
+      if (node.type === 'directory') {
+        return labels.directory
+      }
+
+      const name = node.name.toLowerCase()
+      const normalizedPath = path.toLowerCase()
+
+      if (/auth|login|credential|mfa/.test(name)) {
+        return labels.authentication
+      }
+
+      if (/dhcp/.test(name)) {
+        return labels.dhcp
+      }
+
+      if (/network|dns|firewall|traffic|connection|pcap/.test(name)) {
+        return labels.network
+      }
+
+      if (/badge|door|access|parking/.test(name)) {
+        return labels.physicalAccess
+      }
+
+      if (/camera|photo|image|snapshot|footage|video/.test(name)) {
+        return labels.surveillance
+      }
+
+      if (/usb|device|mount|hardware/.test(name)) {
+        return labels.device
+      }
+
+      if (/mail|message|inbox/.test(name)) {
+        return labels.communication
+      }
+
+      if (/user|profile|employee|account/.test(name)) {
+        return labels.identity
+      }
+
+      if (/process|memory|forensic|artifact/.test(name)) {
+        return labels.process
+      }
+
+      if (/script|cleanup|maintenance|\.sh$|\.py$|\.ps1$/.test(name)) {
+        return labels.automation
+      }
+
+      if (/certificate|\.key$|\.pem$|\.crt$/.test(name)) {
+        return labels.crypto
+      }
+
+      if (/incident|contradiction|timeline/.test(name)) {
+        return labels.incident
+      }
+
+      if (
+        normalizedPath.includes('/research/') ||
+        /phoenix|research|archive/.test(name)
+      ) {
+        return labels.research
+      }
+
+      if (/system|service|activity/.test(name)) {
+        return labels.systemActivity
+      }
+
+      if (name.endsWith('.log')) {
+        return labels.log
+      }
+
+      if (/\.(txt|md|eml)$/.test(name)) {
+        return labels.text
+      }
+
+      if (/\.(json|csv|dat|db|pcap)$/.test(name)) {
+        return labels.data
+      }
+
+      if (/\.(sh|py|ps1|js)$/.test(name)) {
+        return labels.script
+      }
+
+      if (/\.(png|jpg|jpeg|gif|mp4)$/.test(name)) {
+        return labels.image
+      }
+
+      if (/\.(zip|tar|gz)$/.test(name)) {
+        return labels.archive
+      }
+
+      return labels.generic
+    }
+
+    function showGuideChildren(
+      nodes: FileNode[],
+      prefix = '     ',
+      basePath = '',
+    ) {
+      nodes.forEach((node, index) => {
+        const last =
+          index === nodes.length - 1
+
+        const branch =
+          last ? '└──' : '├──'
+
+        const name =
+          node.type === 'directory'
+            ? `${node.name}/`
+            : node.name
+
+        const nodePath =
+          `${basePath}/${node.name}`
+
+        addLine(
+          'output',
+          `${prefix}${branch} ${name} — ${describeGuideItem(node, nodePath)}`,
+          createHighlights(
+            `${prefix}${branch} ${name} — ${describeGuideItem(node, nodePath)}`,
+            [name],
+          ),
+        )
+
+        if (
+          node.type === 'directory' &&
+          node.children?.length
+        ) {
+          showGuideChildren(
+            node.children,
+            `${prefix}${last ? '    ' : '│   '}`,
+            nodePath,
+          )
+        }
+      })
     }
 
     addLine(
@@ -1422,7 +1975,7 @@ export function useDetectiveGame(
     )
 
     for (
-      const node of scenario.filesystem
+      const node of guideNodes
     ) {
       if (node.type !== 'directory') {
         continue
@@ -1446,12 +1999,17 @@ export function useDetectiveGame(
           line,
           [
             `/${node.name}`,
-            ...highlightTerms[
-              state.locale
-            ],
           ],
         ),
       )
+
+      if (node.children?.length) {
+        showGuideChildren(
+          node.children,
+          '     ',
+          `/${node.name}`,
+        )
+      }
     }
 
     const tip = getTranslation(
@@ -1678,6 +2236,12 @@ requestedLocale
       folderGuideTitle:
         'INVESTIGATION FOLDER GUIDE',
 
+      guideTooManyArguments:
+        'guide: too many arguments',
+
+      guideFolderNotFound:
+        'guide: folder not found',
+
       genericFolderDescription:
         'Case-related files for further investigation.',
 
@@ -1775,6 +2339,12 @@ requestedLocale
 
       folderGuideTitle:
         'HƯỚNG DẪN THƯ MỤC ĐIỀU TRA',
+
+      guideTooManyArguments:
+        'guide: quá nhiều đối số',
+
+      guideFolderNotFound:
+        'guide: không tìm thấy thư mục',
 
       genericFolderDescription:
         'Các tệp liên quan vụ án cần được điều tra thêm.',
@@ -1976,6 +2546,36 @@ requestedLocale
             argument.toLowerCase(),
           ),
       )
+    }
+
+    /*
+     * GUIDE AUTOCOMPLETE
+     */
+
+    if (command === 'guide') {
+      if (argument.includes(' ')) {
+        return []
+      }
+
+      const hasLeadingSlash =
+        argument.startsWith('/')
+
+      const query = argument
+        .replace(/^\/+/, '')
+        .toLowerCase()
+
+      return scenario.filesystem
+        .filter(
+          node =>
+            node.type ===
+              'directory' &&
+            node.name
+              .toLowerCase()
+              .startsWith(query),
+        )
+        .map(node =>
+          `${hasLeadingSlash ? '/' : ''}${node.name}`,
+        )
     }
 
     /*
@@ -2247,7 +2847,7 @@ requestedLocale
         break
 
       case 'guide':
-        commandGuide()
+        commandGuide(args)
         break
 
       case 'help':
@@ -2372,6 +2972,10 @@ function initialize() {
     checkTasks,
 
     checkGameCompletion,
+
+    restoreProgress,
+
+    resetGame,
 
     text,
   }

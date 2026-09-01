@@ -9,7 +9,8 @@ BACKEND_TTY_OFF := $(DOCKER_COMPOSE) exec -T backend
 .PHONY: help setup env-check build up down restart ps logs shell \
 	composer composer-install artisan key-generate wait-db migrate \
 	migrate-status migrate-rollback migrate-fresh seed test test-filter \
-	pint pint-test routes tinker queue-work cache-clear optimize db
+	pint pint-test routes tinker queue-work cache-clear optimize db \
+	detective-export
 
 help: ## Hiển thị danh sách lệnh
 	@awk 'BEGIN {FS = ":.*## "; printf "Backend commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -73,6 +74,9 @@ migrate-fresh: wait-db ## Xóa bảng, migrate lại và seed dữ liệu
 
 seed: wait-db ## Chạy database seeders
 	$(BACKEND) php artisan db:seed --force
+
+detective-export: ## Đồng bộ các file case TypeScript sang dữ liệu seed JSON
+	node scripts/export-detective-cases.mjs
 
 test: ## Chạy toàn bộ backend tests
 	$(BACKEND) php artisan test

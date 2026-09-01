@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DetectiveCaseController;
+use App\Http\Controllers\Api\DetectiveHistoryController;
 use App\Http\Controllers\Api\DetectiveProgressController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +29,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/cases/{caseId}/progress', [DetectiveProgressController::class, 'show']);
         Route::put('/cases/{caseId}/progress', [DetectiveProgressController::class, 'update']);
         Route::delete('/cases/{caseId}/progress', [DetectiveProgressController::class, 'destroy']);
+        Route::get('/history', [DetectiveHistoryController::class, 'index']);
+        Route::get('/history/{historyId}', [DetectiveHistoryController::class, 'show']);
     });
 });
 

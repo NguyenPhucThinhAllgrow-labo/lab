@@ -1,0 +1,2731 @@
+[
+  {
+    "id": "case001",
+    "title": {
+      "en": "THE MIDNIGHT TERMINAL",
+      "vi": "THIẾT BỊ ĐẦU CUỐI LÚC NỬA ĐÊM"
+    },
+    "description": {
+      "en": "Alex Morgan disappeared from his office at approximately 23:50. His workstation was left unlocked.",
+      "vi": "Alex Morgan biến mất khỏi văn phòng vào khoảng 23:50. Máy tính làm việc của anh ta vẫn được mở khóa."
+    },
+    "initialDirectory": "/",
+    "intro": {
+      "en": [
+        "DETECTIVE TERMINAL v1.0",
+        "----------------------------------------",
+        "CASE: THE MIDNIGHT TERMINAL",
+        "",
+        "Alex Morgan disappeared from his office",
+        "at approximately 23:50.",
+        "",
+        "His workstation was left unlocked.",
+        "",
+        "Your objective:",
+        "Investigate the filesystem.",
+        "Find the evidence.",
+        "Identify the suspect.",
+        "",
+        "Type \"help\" to see available commands."
+      ],
+      "vi": [
+        "DETECTIVE TERMINAL v1.0",
+        "----------------------------------------",
+        "VỤ ÁN: THIẾT BỊ ĐẦU CUỐI LÚC NỬA ĐÊM",
+        "",
+        "Alex Morgan biến mất khỏi văn phòng",
+        "vào khoảng 23:50.",
+        "",
+        "Máy tính làm việc của anh ta vẫn được mở khóa.",
+        "",
+        "Mục tiêu của bạn:",
+        "Điều tra hệ thống tệp.",
+        "Tìm bằng chứng.",
+        "Xác định nghi phạm.",
+        "",
+        "Gõ \"help\" để xem các lệnh khả dụng."
+      ]
+    },
+    "filesystem": [
+      {
+        "type": "directory",
+        "name": "logs",
+        "children": [
+          {
+            "type": "file",
+            "name": "system.log",
+            "content": {
+              "en": "[23:41:02] USER LOGIN: alex\n[23:43:11] FILE ACCESS: /documents/project.txt\n[23:47:55] COMMAND EXECUTED: mount /dev/usb0\n[23:48:01] USB DEVICE CONNECTED: UNKNOWN-USB\n[23:48:04] FILE COPIED: /documents/project.txt\n[23:49:22] CAMERA SERVICE STOPPED\n[23:50:03] USER SESSION LOCKED",
+              "vi": "[23:41:02] USER LOGIN: alex\n[23:43:11] FILE ACCESS: /documents/project.txt\n[23:47:55] COMMAND EXECUTED: mount /dev/usb0\n[23:48:01] USB DEVICE CONNECTED: UNKNOWN-USB\n[23:48:04] FILE COPIED: /documents/project.txt\n[23:49:22] CAMERA SERVICE STOPPED\n[23:50:03] USER SESSION LOCKED"
+            }
+          },
+          {
+            "type": "file",
+            "name": "access.log",
+            "content": {
+              "en": "[23:38:11] OFFICE DOOR OPENED\n[23:43:08] OFFICE DOOR OPENED\n[23:49:58] OFFICE DOOR OPENED\n[23:51:04] OFFICE DOOR CLOSED",
+              "vi": "[23:38:11] OFFICE DOOR OPENED\n[23:43:08] OFFICE DOOR OPENED\n[23:49:58] OFFICE DOOR OPENED\n[23:51:04] OFFICE DOOR CLOSED"
+            }
+          },
+          {
+            "type": "file",
+            "name": "network.log",
+            "content": {
+              "en": "[23:46:21] OUTBOUND CONNECTION\nHOST: secure-mail.local\nPORT: 443\n\n[23:47:10] CONNECTION ESTABLISHED\n\n[23:50:12] CONNECTION CLOSED",
+              "vi": "[23:46:21] OUTBOUND CONNECTION\nHOST: secure-mail.local\nPORT: 443\n\n[23:47:10] CONNECTION ESTABLISHED\n\n[23:50:12] CONNECTION CLOSED"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "documents",
+        "children": [
+          {
+            "type": "file",
+            "name": "project.txt",
+            "content": {
+              "en": "PROJECT NIGHTFALL\n\nSubject:\nTransfer protocol\n\nMeeting:\n23:45\n\nLocation:\nParking level B2\n\nInstruction:\nDo not trust internal channels.",
+              "vi": "DỰ ÁN NIGHTFALL\n\nChủ đề:\nGiao thức chuyển giao\n\nCuộc gặp:\n23:45\n\nĐịa điểm:\nBãi đỗ xe tầng B2\n\nChỉ thị:\nKhông được tin tưởng các kênh nội bộ."
+            }
+          },
+          {
+            "type": "file",
+            "name": "meeting.enc",
+            "content": {
+              "en": "ENCRYPTED DATA\n\n4D 41 52 43 55 53\n52 45 45 44\n\nKEY:\nNIGHTFALL\n\nSTATUS:\nPARTIALLY DECRYPTED",
+              "vi": "DỮ LIỆU ĐÃ MÃ HÓA\n\n4D 41 52 43 55 53\n52 45 45 44\n\nKHÓA:\nNIGHTFALL\n\nTRẠNG THÁI:\nGIẢI MÃ MỘT PHẦN"
+            }
+          },
+          {
+            "type": "file",
+            "name": "notes.txt",
+            "content": {
+              "en": "NOTES\n\nNightfall project is confidential.\n\nMarcus requested access\nto the project documentation.\n\nAlex refused.",
+              "vi": "GHI CHÚ\n\nDự án Nightfall là thông tin mật.\n\nMarcus yêu cầu quyền truy cập\nvào tài liệu của dự án.\n\nAlex đã từ chối."
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "emails",
+        "children": [
+          {
+            "type": "file",
+            "name": "inbox.txt",
+            "content": {
+              "en": "INBOX\n\n----------------------------------------\n\nFROM:\nunknown@secure-mail.local\n\nTO:\nalex@company.local\n\nTIME:\n23:32\n\nSUBJECT:\nTonight\n\nMESSAGE:\nMeet me at parking B2.\nCome alone.\n\n----------------------------------------\n\nFROM:\nmarcus@company.local\n\nTO:\nalex@company.local\n\nTIME:\n22:17\n\nSUBJECT:\nProject\n\nMESSAGE:\nWe need to discuss the Nightfall\nproject tomorrow.",
+              "vi": "HỘP THƯ ĐẾN\n\n----------------------------------------\n\nFROM:\nunknown@secure-mail.local\n\nTO:\nalex@company.local\n\nTIME:\n23:32\n\nSUBJECT:\nTối nay\n\nMESSAGE:\nGặp tôi tại bãi đỗ xe B2.\nHãy đi một mình.\n\n----------------------------------------\n\nFROM:\nmarcus@company.local\n\nTO:\nalex@company.local\n\nTIME:\n22:17\n\nSUBJECT:\nDự án\n\nMESSAGE:\nChúng ta cần thảo luận về dự án\nNightfall vào ngày mai."
+            }
+          },
+          {
+            "type": "file",
+            "name": "sent.txt",
+            "content": {
+              "en": "SENT\n\nFROM:\nalex@company.local\n\nTO:\nunknown@secure-mail.local\n\nTIME:\n23:36\n\nMESSAGE:\nI will be there.",
+              "vi": "ĐÃ GỬI\n\nFROM:\nalex@company.local\n\nTO:\nunknown@secure-mail.local\n\nTIME:\n23:36\n\nMESSAGE:\nTôi sẽ đến đó."
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "usb",
+        "children": [
+          {
+            "type": "file",
+            "name": "device.txt",
+            "content": {
+              "en": "USB DEVICE REPORT\n\nVendor:\nUNKNOWN\n\nSerial:\nUSB-8841-X\n\nConnected:\n23:48:01\n\nRemoved:\n23:50:17\n\nStatus:\nSUSPICIOUS",
+              "vi": "BÁO CÁO THIẾT BỊ USB\n\nNhà sản xuất:\nUNKNOWN\n\nSerial:\nUSB-8841-X\n\nKết nối:\n23:48:01\n\nNgắt kết nối:\n23:50:17\n\nTrạng thái:\nĐÁNG NGỜ"
+            }
+          },
+          {
+            "type": "file",
+            "name": "files.txt",
+            "content": {
+              "en": "USB CONTENT\n\nproject.txt\nmeeting.enc\n\nCOPY TIME:\n23:48:04",
+              "vi": "NỘI DUNG USB\n\nproject.txt\nmeeting.enc\n\nTHỜI GIAN SAO CHÉP:\n23:48:04"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "camera",
+        "children": [
+          {
+            "type": "file",
+            "name": "parking.txt",
+            "content": {
+              "en": "CAMERA FOOTAGE\n\n23:43\n\nA person wearing a dark hoodie\nentered the office.\n\n23:49\n\nThe same person exited\ntoward parking level B2.\n\n23:50\n\nCamera service stopped.\n\nFace recognition:\nUNAVAILABLE",
+              "vi": "HÌNH ẢNH CAMERA\n\n23:43\n\nMột người mặc áo hoodie tối màu\nđã bước vào văn phòng.\n\n23:49\n\nNgười này rời đi\nvề phía bãi đỗ xe tầng B2.\n\n23:50\n\nDịch vụ camera bị dừng.\n\nNhận diện khuôn mặt:\nKHÔNG KHẢ DỤNG"
+            }
+          },
+          {
+            "type": "file",
+            "name": "office.txt",
+            "content": {
+              "en": "OFFICE CAMERA\n\n23:42\nAlex enters the office.\n\n23:43\nUnknown person enters.\n\n23:49\nUnknown person leaves.\n\n23:50\nAlex session becomes locked.",
+              "vi": "CAMERA VĂN PHÒNG\n\n23:42\nAlex bước vào văn phòng.\n\n23:43\nMột người không rõ danh tính bước vào.\n\n23:49\nNgười không rõ danh tính rời đi.\n\n23:50\nPhiên làm việc của Alex bị khóa."
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "parking",
+        "children": [
+          {
+            "type": "file",
+            "name": "access.log",
+            "content": {
+              "en": "PARKING ACCESS LOG\n\n23:51:12\n\nCARD:\nMR-8841\n\nOWNER:\nMarcus Reed\n\nLOCATION:\nParking Level B2\n\nSTATUS:\nMATCH CONFIRMED",
+              "vi": "NHẬT KÝ RA VÀO BÃI ĐỖ XE\n\n23:51:12\n\nTHẺ:\nMR-8841\n\nCHỦ SỞ HỮU:\nMarcus Reed\n\nĐỊA ĐIỂM:\nBãi đỗ xe tầng B2\n\nTRẠNG THÁI:\nĐÃ XÁC NHẬN TRÙNG KHỚP"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "system",
+        "children": [
+          {
+            "type": "file",
+            "name": "users.txt",
+            "content": {
+              "en": "SYSTEM USERS\n\nalex\nmarcus\nadmin\nguest",
+              "vi": "NGƯỜI DÙNG HỆ THỐNG\n\nalex\nmarcus\nadmin\nguest"
+            }
+          },
+          {
+            "type": "file",
+            "name": "hostname.txt",
+            "content": {
+              "en": "HOSTNAME\n\nALEX-WORKSTATION-01",
+              "vi": "TÊN MÁY CHỦ\n\nALEX-WORKSTATION-01"
+            }
+          }
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "terminal-log",
+        "title": {
+          "en": "Terminal Activity Log",
+          "vi": "Nhật ký hoạt động Terminal"
+        },
+        "description": {
+          "en": "The system log shows that an unknown USB device was mounted shortly before Alex disappeared.",
+          "vi": "Nhật ký hệ thống cho thấy một thiết bị USB không xác định đã được kết nối ngay trước khi Alex biến mất."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Something unusual happened shortly before the workstation was locked. Look for system activity.",
+          "vi": "Có điều bất thường xảy ra ngay trước khi máy tính bị khóa. Hãy kiểm tra hoạt động hệ thống."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/logs/system.log"
+        },
+        "highlight": {
+          "en": [
+            "USB DEVICE CONNECTED",
+            "UNKNOWN-USB",
+            "FILE COPIED"
+          ],
+          "vi": [
+            "USB DEVICE CONNECTED",
+            "UNKNOWN-USB",
+            "FILE COPIED"
+          ]
+        },
+        "discovered": false
+      },
+      {
+        "id": "access-log",
+        "title": {
+          "en": "Office Access Log",
+          "vi": "Nhật ký ra vào văn phòng"
+        },
+        "description": {
+          "en": "The office door was opened several times around the disappearance.",
+          "vi": "Cửa văn phòng được mở nhiều lần xung quanh thời điểm Alex biến mất."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Someone physically entered the office around the time of the incident. Investigate access records.",
+          "vi": "Có người đã trực tiếp vào văn phòng vào thời điểm xảy ra vụ việc. Hãy kiểm tra nhật ký ra vào."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/logs/access.log"
+        },
+        "highlight": {
+          "en": [
+            "23:49:58",
+            "OFFICE DOOR OPENED"
+          ],
+          "vi": [
+            "23:49:58",
+            "OFFICE DOOR OPENED"
+          ]
+        },
+        "discovered": false
+      },
+      {
+        "id": "project-document",
+        "title": {
+          "en": "Nightfall Project Document",
+          "vi": "Tài liệu dự án Nightfall"
+        },
+        "description": {
+          "en": "The document mentions a meeting at parking level B2 and warns Alex not to trust internal channels.",
+          "vi": "Tài liệu đề cập đến một cuộc gặp tại bãi đỗ xe tầng B2 và cảnh báo Alex không được tin tưởng các kênh nội bộ."
+        },
+        "type": "document",
+        "hint": {
+          "en": "There may be a project document containing information about the meeting.",
+          "vi": "Có thể có một tài liệu dự án chứa thông tin về cuộc gặp."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/documents/project.txt"
+        },
+        "highlight": {
+          "en": [
+            "Transfer protocol",
+            "Parking level B2",
+            "Do not trust internal channels"
+          ],
+          "vi": [
+            "Giao thức chuyển giao",
+            "Bãi đỗ xe tầng B2",
+            "Không được tin tưởng các kênh nội bộ"
+          ]
+        },
+        "discovered": false
+      },
+      {
+        "id": "suspicious-email",
+        "title": {
+          "en": "Suspicious Email",
+          "vi": "Email đáng ngờ"
+        },
+        "description": {
+          "en": "An unknown sender instructed Alex to meet at parking level B2 and come alone.",
+          "vi": "Một người gửi không xác định yêu cầu Alex gặp tại bãi đỗ xe tầng B2 và đi một mình."
+        },
+        "type": "document",
+        "hint": {
+          "en": "Someone contacted Alex shortly before the incident. Investigate the email records.",
+          "vi": "Có người đã liên lạc với Alex ngay trước vụ việc. Hãy kiểm tra nhật ký email."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/emails/inbox.txt"
+        },
+        "highlight": {
+          "en": [
+            "unknown@secure-mail.local",
+            "Meet me at parking B2.",
+            "Come alone."
+          ],
+          "vi": [
+            "unknown@secure-mail.local",
+            "Gặp tôi tại bãi đỗ xe B2.",
+            "Hãy đi một mình."
+          ]
+        },
+        "discovered": false
+      },
+      {
+        "id": "sent-message",
+        "title": {
+          "en": "Alex Sent a Reply",
+          "vi": "Alex đã gửi phản hồi"
+        },
+        "description": {
+          "en": "Alex replied to the unknown sender and agreed to meet.",
+          "vi": "Alex đã trả lời người gửi không xác định và đồng ý gặp mặt."
+        },
+        "type": "document",
+        "hint": {
+          "en": "The incoming message may not be the whole story. Look for outgoing communication.",
+          "vi": "Tin nhắn đến có thể chưa phải toàn bộ câu chuyện. Hãy tìm các liên lạc được gửi đi."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/emails/sent.txt"
+        },
+        "requiresEvidence": [
+          "suspicious-email"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "usb-device",
+        "title": {
+          "en": "Unknown USB Device",
+          "vi": "Thiết bị USB không xác định"
+        },
+        "description": {
+          "en": "USB-8841-X was connected at 23:48:01 and removed at 23:50:17.",
+          "vi": "USB-8841-X được kết nối lúc 23:48:01 và được tháo ra lúc 23:50:17."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "The system activity mentioned an external device. Investigate removable media.",
+          "vi": "Hoạt động hệ thống đề cập đến một thiết bị bên ngoài. Hãy điều tra thiết bị lưu trữ di động."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/usb/device.txt"
+        },
+        "highlight": {
+          "en": [
+            "UNKNOWN",
+            "USB-8841-X",
+            "23:48:01",
+            "SUSPICIOUS"
+          ],
+          "vi": [
+            "UNKNOWN",
+            "USB-8841-X",
+            "23:48:01",
+            "ĐÁNG NGỜ"
+          ]
+        },
+        "requiresEvidence": [
+          "terminal-log"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "usb-files",
+        "title": {
+          "en": "Copied Project Files",
+          "vi": "Các tệp dự án đã sao chép"
+        },
+        "description": {
+          "en": "The USB contained copies of project.txt and meeting.enc.",
+          "vi": "USB chứa các bản sao của project.txt và meeting.enc."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "The suspicious USB may reveal what was copied from the workstation.",
+          "vi": "Chiếc USB đáng ngờ có thể cho biết những gì đã được sao chép khỏi máy tính."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/usb/files.txt"
+        },
+        "requiresEvidence": [
+          "usb-device"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "encrypted-meeting",
+        "title": {
+          "en": "Encrypted Meeting File",
+          "vi": "Tệp cuộc gặp được mã hóa"
+        },
+        "description": {
+          "en": "The encrypted data contains the name MARCUS REED.",
+          "vi": "Dữ liệu được mã hóa chứa tên MARCUS REED."
+        },
+        "type": "document",
+        "hint": {
+          "en": "A suspicious encrypted document may connect the project to a person.",
+          "vi": "Một tài liệu được mã hóa đáng ngờ có thể liên kết dự án với một người cụ thể."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/documents/meeting.enc"
+        },
+        "requiresEvidence": [
+          "project-document",
+          "usb-files"
+        ],
+        "highlight": {
+          "en": [
+            "4D 41 52 43 55 53",
+            "52 45 45 44",
+            "MARCUS REED"
+          ],
+          "vi": [
+            "4D 41 52 43 55 53",
+            "52 45 45 44",
+            "MARCUS REED"
+          ]
+        },
+        "discovered": false
+      },
+      {
+        "id": "camera-footage",
+        "title": {
+          "en": "Security Camera Footage",
+          "vi": "Hình ảnh camera an ninh"
+        },
+        "description": {
+          "en": "Camera footage shows an unknown person entering the office and leaving toward parking level B2.",
+          "vi": "Camera cho thấy một người không xác định bước vào văn phòng và rời đi về phía bãi đỗ xe tầng B2."
+        },
+        "type": "photo",
+        "hint": {
+          "en": "Someone entered the office and later moved toward parking B2. Check the surveillance records.",
+          "vi": "Có người bước vào văn phòng rồi di chuyển về phía bãi đỗ xe B2. Hãy kiểm tra camera giám sát."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/camera/parking.txt"
+        },
+        "highlight": {
+          "en": [
+            "23:43",
+            "A person wearing a dark hoodie",
+            "parking level B2",
+            "Camera service stopped"
+          ],
+          "vi": [
+            "23:43",
+            "Một người mặc áo hoodie tối màu",
+            "bãi đỗ xe tầng B2",
+            "Dịch vụ camera bị dừng"
+          ]
+        },
+        "requiresEvidence": [
+          "access-log"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "parking-trace",
+        "title": {
+          "en": "Parking Access Trace",
+          "vi": "Dấu vết ra vào bãi đỗ xe"
+        },
+        "description": {
+          "en": "Parking card MR-8841 belongs to Marcus Reed.",
+          "vi": "Thẻ ra vào bãi đỗ xe MR-8841 thuộc về Marcus Reed."
+        },
+        "type": "object",
+        "hint": {
+          "en": "The camera trail leads toward parking level B2. Investigate the parking access records.",
+          "vi": "Dấu vết từ camera dẫn đến bãi đỗ xe tầng B2. Hãy kiểm tra nhật ký ra vào bãi đỗ xe."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/parking/access.log"
+        },
+        "highlight": {
+          "en": [
+            "MR-8841",
+            "Marcus Reed",
+            "Parking Level B2",
+            "MATCH CONFIRMED"
+          ],
+          "vi": [
+            "MR-8841",
+            "Marcus Reed",
+            "Bãi đỗ xe tầng B2",
+            "ĐÃ XÁC NHẬN TRÙNG KHỚP"
+          ]
+        },
+        "requiresEvidence": [
+          "camera-footage",
+          "encrypted-meeting"
+        ],
+        "discovered": false
+      }
+    ],
+    "tasks": [
+      {
+        "id": "inspect-terminal",
+        "title": {
+          "en": "Inspect terminal activity",
+          "vi": "Kiểm tra hoạt động terminal"
+        },
+        "description": {
+          "en": "Determine what happened shortly before the workstation was locked.",
+          "vi": "Xác định điều gì đã xảy ra ngay trước khi máy tính bị khóa."
+        },
+        "requiresEvidence": [
+          "terminal-log"
+        ],
+        "completed": false
+      },
+      {
+        "id": "investigate-communication",
+        "title": {
+          "en": "Investigate communication",
+          "vi": "Điều tra liên lạc"
+        },
+        "description": {
+          "en": "Find out whether Alex was contacted before disappearing.",
+          "vi": "Tìm hiểu xem Alex có nhận được liên lạc trước khi biến mất hay không."
+        },
+        "requiresEvidence": [
+          "suspicious-email",
+          "sent-message"
+        ],
+        "completed": false
+      },
+      {
+        "id": "investigate-usb",
+        "title": {
+          "en": "Investigate the USB device",
+          "vi": "Điều tra thiết bị USB"
+        },
+        "description": {
+          "en": "Determine what external device was connected and what it contained.",
+          "vi": "Xác định thiết bị bên ngoài nào đã được kết nối và nó chứa những gì."
+        },
+        "requiresEvidence": [
+          "terminal-log",
+          "usb-device",
+          "usb-files"
+        ],
+        "completed": false
+      },
+      {
+        "id": "identify-suspect",
+        "title": {
+          "en": "Identify the suspect",
+          "vi": "Xác định nghi phạm"
+        },
+        "description": {
+          "en": "Connect the digital, physical and parking evidence to a suspect.",
+          "vi": "Liên kết các bằng chứng kỹ thuật số, vật lý và bãi đỗ xe với một nghi phạm."
+        },
+        "requiresEvidence": [
+          "encrypted-meeting",
+          "camera-footage",
+          "parking-trace"
+        ],
+        "completed": false
+      }
+    ]
+  },
+  {
+    "id": "case002",
+    "title": {
+      "en": "CASE 002 — THE MIDNIGHT TRANSFER",
+      "vi": "VỤ ÁN 002 — VỤ CHUYỂN GIAO LÚC NỬA ĐÊM"
+    },
+    "description": {
+      "en": "A suspicious data transfer occurred at 00:17. Investigate the workstation and determine who accessed the confidential files.",
+      "vi": "Một vụ chuyển dữ liệu đáng ngờ xảy ra lúc 00:17. Hãy điều tra máy trạm và xác định ai đã truy cập các tệp bảo mật."
+    },
+    "initialDirectory": "/",
+    "intro": {
+      "en": [
+        "========================================",
+        "          CASE 002",
+        "      THE MIDNIGHT TRANSFER",
+        "========================================",
+        "",
+        "Incident report:",
+        "A confidential company archive was accessed",
+        "shortly after midnight.",
+        "",
+        "The workstation was left unattended.",
+        "Your task is to reconstruct what happened.",
+        "",
+        "The evidence is hidden inside the filesystem.",
+        "Use terminal commands to investigate.",
+        "",
+        "Useful commands:",
+        "ls, cd, cat, find, pwd, history, hint"
+      ],
+      "vi": [
+        "========================================",
+        "          VỤ ÁN 002",
+        "      VỤ CHUYỂN GIAO LÚC NỬA ĐÊM",
+        "========================================",
+        "",
+        "Báo cáo sự việc:",
+        "Một kho lưu trữ bảo mật của công ty đã được truy cập",
+        "ngay sau nửa đêm.",
+        "",
+        "Máy trạm bị bỏ lại không có người giám sát.",
+        "Nhiệm vụ của bạn là tái dựng lại những gì đã xảy ra.",
+        "",
+        "Các bằng chứng được ẩn bên trong hệ thống tệp.",
+        "Sử dụng các lệnh terminal để điều tra.",
+        "",
+        "Các lệnh hữu ích:",
+        "ls, cd, cat, find, pwd, history, hint"
+      ]
+    },
+    "filesystem": [
+      {
+        "type": "directory",
+        "name": "logs",
+        "children": [
+          {
+            "type": "file",
+            "name": "access.log",
+            "content": {
+              "en": "[00:03:12] user=alice login successful\n[00:08:44] user=alice opened terminal\n[00:12:31] user=alice accessed /documents\n[00:17:42] USB DEVICE CONNECTED\n[00:18:03] external storage mounted\n[00:19:11] archive.zip copied to external device",
+              "vi": "[00:03:12] user=alice login successful\n[00:08:44] user=alice opened terminal\n[00:12:31] user=alice accessed /documents\n[00:17:42] USB DEVICE CONNECTED\n[00:18:03] external storage mounted\n[00:19:11] archive.zip copied to external device"
+            }
+          },
+          {
+            "type": "file",
+            "name": "system.log",
+            "content": {
+              "en": "[00:15:02] system status: normal\n[00:16:48] network connection established\n[00:17:42] USB DEVICE CONNECTED\n[00:17:45] device=/dev/usb0\n[00:18:01] filesystem mounted\n[00:20:04] USB DEVICE DISCONNECTED",
+              "vi": "[00:15:02] system status: bình thường\n[00:16:48] kết nối mạng được thiết lập\n[00:17:42] THIẾT BỊ USB ĐƯỢC KẾT NỐI\n[00:17:45] thiết bị=/dev/usb0\n[00:18:01] hệ thống tệp được gắn kết\n[00:20:04] THIẾT BỊ USB ĐÃ NGẮT KẾT NỐI"
+            }
+          },
+          {
+            "type": "directory",
+            "name": "archive",
+            "children": [
+              {
+                "type": "file",
+                "name": "old.log",
+                "content": {
+                  "en": "[23:41:02] backup completed\n[23:59:59] scheduled task completed",
+                  "vi": "[23:41:02] sao lưu hoàn tất\n[23:59:59] tác vụ theo lịch hoàn tất"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "documents",
+        "children": [
+          {
+            "type": "file",
+            "name": "employee-list.txt",
+            "content": {
+              "en": "Employee Directory\n\nAlice Morgan\nDepartment: Finance\nEmployee ID: EMP-1042\n\nBob Carter\nDepartment: IT\nEmployee ID: EMP-1031\n\nDaniel Reed\nDepartment: Security\nEmployee ID: EMP-1098",
+              "vi": "DANH BẠ NHÂN VIÊN\n\nAlice Morgan\nPhòng ban: Tài chính\nMã nhân viên: EMP-1042\n\nBob Carter\nPhòng ban: CNTT\nMã nhân viên: EMP-1031\n\nDaniel Reed\nPhòng ban: An ninh\nMã nhân viên: EMP-1098"
+            }
+          },
+          {
+            "type": "file",
+            "name": "confidential.txt",
+            "content": {
+              "en": "CONFIDENTIAL\n\nProject: Orion\nClassification: RESTRICTED\n\nAuthorized personnel:\n- Alice Morgan\n- Daniel Reed\n\nLast access:\n00:17:58\n\nAccess method:\nEXTERNAL USB DEVICE",
+              "vi": "BẢO MẬT\n\nDự án: Orion\nPhân loại: HẠN CHẾ\n\nNhân sự được cấp quyền:\n- Alice Morgan\n- Daniel Reed\n\nLần truy cập cuối:\n00:17:58\n\nPhương thức truy cập:\nTHIẾT BỊ USB BÊN NGOÀI"
+            }
+          },
+          {
+            "type": "directory",
+            "name": "reports",
+            "children": [
+              {
+                "type": "file",
+                "name": "security-report.txt",
+                "content": {
+                  "en": "SECURITY REPORT\n\nIncident date: 2026-08-31\n\nA temporary security exception was created\nat 00:16:51.\n\nException owner:\nDaniel Reed\n\nReason:\nEmergency maintenance.",
+                  "vi": "BÁO CÁO AN NINH\n\nNgày xảy ra sự việc: 2026-08-31\n\nMột ngoại lệ bảo mật tạm thời được tạo\nvào lúc 00:16:51.\n\nNgười tạo ngoại lệ:\nDaniel Reed\n\nLý do:\nBảo trì khẩn cấp."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "usb",
+        "children": [
+          {
+            "type": "file",
+            "name": "device-info.txt",
+            "content": {
+              "en": "USB DEVICE INFORMATION\n\nDevice ID: USB-7782\nManufacturer: SecureDrive\nSerial: SD-88421-X\n\nConnection:\n00:17:42\n\nDisconnection:\n00:20:04",
+              "vi": "THÔNG TIN THIẾT BỊ USB\n\nMã thiết bị: USB-7782\nNhà sản xuất: SecureDrive\nSố serial: SD-88421-X\n\nKết nối:\n00:17:42\n\nNgắt kết nối:\n00:20:04"
+            }
+          },
+          {
+            "type": "file",
+            "name": "transfer.log",
+            "content": {
+              "en": "TRANSFER LOG\n\n[00:18:22] archive.zip\n[00:18:23] 148 MB\n[00:18:24] transfer started\n[00:19:11] transfer completed\n\nDestination:\nUSB-7782",
+              "vi": "NHẬT KÝ CHUYỂN DỮ LIỆU\n\n[00:18:22] archive.zip\n[00:18:23] 148 MB\n[00:18:24] bắt đầu chuyển dữ liệu\n[00:19:11] chuyển dữ liệu hoàn tất\n\nĐích:\nUSB-7782"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "email",
+        "children": [
+          {
+            "type": "file",
+            "name": "inbox.txt",
+            "content": {
+              "en": "EMAIL INBOX\n\nFrom: daniel.reed@company.local\nTo: alice.morgan@company.local\nTime: 23:58\n\nSubject: Emergency maintenance\n\nPlease leave the workstation unlocked tonight.\nI need to perform a maintenance check.\n\n- Daniel",
+              "vi": "HỘP THƯ ĐẾN\n\nFrom: daniel.reed@company.local\nTo: alice.morgan@company.local\nTime: 23:58\n\nSubject: Bảo trì khẩn cấp\n\nVui lòng để máy trạm mở khóa tối nay.\nTôi cần thực hiện kiểm tra bảo trì.\n\n- Daniel"
+            }
+          },
+          {
+            "type": "file",
+            "name": "sent.txt",
+            "content": {
+              "en": "SENT EMAIL\n\nFrom: alice.morgan@company.local\nTo: daniel.reed@company.local\nTime: 00:21\n\nSubject: Re: Emergency maintenance\n\nI did not authorize any transfer of Project Orion.",
+              "vi": "EMAIL ĐÃ GỬI\n\nFrom: alice.morgan@company.local\nTo: daniel.reed@company.local\nTime: 00:21\n\nSubject: Re: Bảo trì khẩn cấp\n\nTôi không cho phép bất kỳ việc chuyển giao nào\ncủa Dự án Orion."
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "notes",
+        "children": [
+          {
+            "type": "file",
+            "name": "investigation.txt",
+            "content": {
+              "en": "PRIVATE INVESTIGATION NOTES\n\nThe workstation owner is Alice.\n\nDaniel requested access to the machine\nfor emergency maintenance.\n\nCheck the USB connection time against\nthe confidential archive access.",
+              "vi": "GHI CHÚ ĐIỀU TRA RIÊNG\n\nChủ sở hữu máy trạm là Alice.\n\nDaniel yêu cầu quyền truy cập vào máy\nđể thực hiện bảo trì khẩn cấp.\n\nHãy đối chiếu thời gian kết nối USB\nvới thời điểm truy cập kho lưu trữ bảo mật."
+            }
+          }
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "evidence-002-01",
+        "title": {
+          "en": "Unauthorized USB Device",
+          "vi": "Thiết bị USB không được phép"
+        },
+        "description": {
+          "en": "A USB device was connected to the workstation at 00:17:42.",
+          "vi": "Một thiết bị USB đã được kết nối với máy trạm lúc 00:17:42."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Check the system logs. Look for unusual hardware connections.",
+          "vi": "Hãy kiểm tra nhật ký hệ thống. Tìm các kết nối phần cứng bất thường."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/logs/system.log"
+        },
+        "highlight": {
+          "en": [
+            "USB DEVICE CONNECTED",
+            "00:17:42",
+            "/dev/usb0"
+          ],
+          "vi": [
+            "THIẾT BỊ USB ĐƯỢC KẾT NỐI",
+            "00:17:42",
+            "/dev/usb0"
+          ]
+        },
+        "requiresEvidence": [],
+        "discovered": false
+      },
+      {
+        "id": "evidence-002-02",
+        "title": {
+          "en": "Confidential Archive Transfer",
+          "vi": "Chuyển kho lưu trữ bảo mật"
+        },
+        "description": {
+          "en": "The confidential archive was copied to the connected USB device.",
+          "vi": "Kho lưu trữ bảo mật đã được sao chép vào thiết bị USB được kết nối."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Investigate the USB directory and look for a transfer log.",
+          "vi": "Hãy điều tra thư mục USB và tìm nhật ký chuyển dữ liệu."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/usb/transfer.log"
+        },
+        "highlight": {
+          "en": [
+            "archive.zip",
+            "148 MB",
+            "transfer completed",
+            "USB-7782"
+          ],
+          "vi": [
+            "archive.zip",
+            "148 MB",
+            "chuyển dữ liệu hoàn tất",
+            "USB-7782"
+          ]
+        },
+        "requiresEvidence": [
+          "evidence-002-01"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "evidence-002-03",
+        "title": {
+          "en": "Security Exception Created",
+          "vi": "Ngoại lệ bảo mật được tạo"
+        },
+        "description": {
+          "en": "A temporary security exception was created shortly before the USB device was connected. The exception was owned by Daniel Reed.",
+          "vi": "Một ngoại lệ bảo mật tạm thời được tạo ngay trước khi thiết bị USB được kết nối. Ngoại lệ này thuộc về Daniel Reed."
+        },
+        "type": "document",
+        "hint": {
+          "en": "Search the reports directory for security-related information.",
+          "vi": "Hãy tìm kiếm thông tin liên quan đến an ninh trong thư mục báo cáo."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/documents/reports/security-report.txt"
+        },
+        "highlight": {
+          "en": [
+            "00:16:51",
+            "Exception owner:",
+            "Daniel Reed",
+            "Emergency maintenance"
+          ],
+          "vi": [
+            "00:16:51",
+            "Người tạo ngoại lệ:",
+            "Daniel Reed",
+            "Bảo trì khẩn cấp"
+          ]
+        },
+        "requiresEvidence": [],
+        "discovered": false
+      },
+      {
+        "id": "evidence-002-04",
+        "title": {
+          "en": "Maintenance Request",
+          "vi": "Yêu cầu bảo trì"
+        },
+        "description": {
+          "en": "Daniel Reed asked Alice to leave the workstation unlocked for emergency maintenance.",
+          "vi": "Daniel Reed yêu cầu Alice để máy trạm mở khóa để thực hiện bảo trì khẩn cấp."
+        },
+        "type": "document",
+        "hint": {
+          "en": "Check the email inbox for messages sent shortly before the incident.",
+          "vi": "Hãy kiểm tra hộp thư đến để tìm các tin nhắn được gửi ngay trước sự việc."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/email/inbox.txt"
+        },
+        "highlight": {
+          "en": [
+            "daniel.reed@company.local",
+            "23:58",
+            "leave the workstation unlocked",
+            "maintenance"
+          ],
+          "vi": [
+            "daniel.reed@company.local",
+            "23:58",
+            "để máy trạm mở khóa",
+            "bảo trì"
+          ]
+        },
+        "requiresEvidence": [],
+        "discovered": false
+      },
+      {
+        "id": "evidence-002-05",
+        "title": {
+          "en": "Unauthorized Transfer",
+          "vi": "Chuyển dữ liệu trái phép"
+        },
+        "description": {
+          "en": "Alice explicitly denied authorizing the transfer after the incident.",
+          "vi": "Alice đã khẳng định rằng cô không cho phép việc chuyển dữ liệu sau sự việc."
+        },
+        "type": "document",
+        "hint": {
+          "en": "Look at the sent email after the incident.",
+          "vi": "Hãy kiểm tra email đã gửi sau khi sự việc xảy ra."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/email/sent.txt"
+        },
+        "highlight": {
+          "en": [
+            "00:21",
+            "I did not authorize any transfer",
+            "Project Orion"
+          ],
+          "vi": [
+            "00:21",
+            "Tôi không cho phép bất kỳ việc chuyển giao nào",
+            "Dự án Orion"
+          ]
+        },
+        "requiresEvidence": [
+          "evidence-002-02"
+        ],
+        "discovered": false
+      }
+    ],
+    "tasks": [
+      {
+        "id": "task-002-01",
+        "title": {
+          "en": "Identify the USB connection",
+          "vi": "Xác định kết nối USB"
+        },
+        "description": {
+          "en": "Determine when the suspicious USB device was connected.",
+          "vi": "Xác định thời điểm thiết bị USB đáng ngờ được kết nối."
+        },
+        "requiresEvidence": [
+          "evidence-002-01"
+        ],
+        "completed": false
+      },
+      {
+        "id": "task-002-02",
+        "title": {
+          "en": "Confirm the data transfer",
+          "vi": "Xác nhận việc chuyển dữ liệu"
+        },
+        "description": {
+          "en": "Establish that the confidential archive was copied to the USB device.",
+          "vi": "Xác nhận rằng kho lưu trữ bảo mật đã được sao chép vào thiết bị USB."
+        },
+        "requiresEvidence": [
+          "evidence-002-01",
+          "evidence-002-02"
+        ],
+        "completed": false
+      },
+      {
+        "id": "task-002-03",
+        "title": {
+          "en": "Identify the suspicious authorization",
+          "vi": "Xác định quyền cấp phép đáng ngờ"
+        },
+        "description": {
+          "en": "Determine who created the security exception before the incident.",
+          "vi": "Xác định ai đã tạo ngoại lệ bảo mật trước khi sự việc xảy ra."
+        },
+        "requiresEvidence": [
+          "evidence-002-03"
+        ],
+        "completed": false
+      },
+      {
+        "id": "task-002-04",
+        "title": {
+          "en": "Connect the evidence",
+          "vi": "Liên kết các bằng chứng"
+        },
+        "description": {
+          "en": "Establish the connection between the USB transfer and Daniel Reed.",
+          "vi": "Xác lập mối liên hệ giữa vụ chuyển dữ liệu qua USB và Daniel Reed."
+        },
+        "requiresEvidence": [
+          "evidence-002-02",
+          "evidence-002-03",
+          "evidence-002-04",
+          "evidence-002-05"
+        ],
+        "completed": false
+      }
+    ]
+  },
+  {
+    "id": "case003",
+    "title": {
+      "en": "THE GHOST PROTOCOL",
+      "vi": "GIAO THỨC BÓNG MA"
+    },
+    "description": {
+      "en": "At 02:17, the company security system detected an unauthorized transfer of a classified research archive. At 02:19, the lead researcher Daniel Cross was found unconscious inside a locked server room. The access logs identify Daniel as the last person to enter. However, network records suggest that someone else was operating his account.",
+      "vi": "Lúc 02:17, hệ thống an ninh của công ty phát hiện một vụ chuyển giao trái phép kho nghiên cứu mật. Lúc 02:19, trưởng nhóm nghiên cứu Daniel Cross được phát hiện bất tỉnh bên trong một phòng máy chủ bị khóa. Nhật ký ra vào xác định Daniel là người cuối cùng bước vào. Tuy nhiên, các bản ghi mạng cho thấy có người khác đang sử dụng tài khoản của anh ấy."
+    },
+    "initialDirectory": "/",
+    "intro": {
+      "en": [
+        "DETECTIVE TERMINAL v1.0",
+        "----------------------------------------",
+        "CASE: THE GHOST PROTOCOL",
+        "",
+        "02:17:42",
+        "CLASSIFIED DATA TRANSFER DETECTED.",
+        "",
+        "02:19:08",
+        "RESEARCHER DANIEL CROSS",
+        "FOUND UNCONSCIOUS INSIDE SERVER ROOM 4.",
+        "",
+        "The server room was locked from the inside.",
+        "",
+        "No obvious signs of forced entry were found.",
+        "",
+        "Initial access records identify",
+        "Daniel Cross as the last authorized user.",
+        "",
+        "But network telemetry tells a different story.",
+        "",
+        "Your objective:",
+        "Reconstruct the timeline.",
+        "Determine how the breach occurred.",
+        "Identify who controlled Daniel's account.",
+        "Separate the real evidence from fabricated evidence.",
+        "Identify the person responsible.",
+        "",
+        "WARNING:",
+        "Some logs may have been modified.",
+        "",
+        "Type \"help\" to see available commands."
+      ],
+      "vi": [
+        "DETECTIVE TERMINAL v1.0",
+        "----------------------------------------",
+        "VỤ ÁN: GIAO THỨC BÓNG MA",
+        "",
+        "02:17:42",
+        "PHÁT HIỆN CHUYỂN DỮ LIỆU MẬT TRÁI PHÉP.",
+        "",
+        "02:19:08",
+        "NHÀ NGHIÊN CỨU DANIEL CROSS",
+        "ĐƯỢC PHÁT HIỆN BẤT TỈNH TRONG PHÒNG MÁY CHỦ 4.",
+        "",
+        "Phòng máy chủ đã bị khóa từ bên trong.",
+        "",
+        "Không tìm thấy dấu hiệu đột nhập bằng vũ lực rõ ràng.",
+        "",
+        "Nhật ký truy cập ban đầu xác định",
+        "Daniel Cross là người dùng được cấp quyền cuối cùng.",
+        "",
+        "Nhưng dữ liệu mạng lại cho thấy một câu chuyện khác.",
+        "",
+        "Mục tiêu của bạn:",
+        "Tái dựng dòng thời gian.",
+        "Xác định cách thức vụ xâm nhập xảy ra.",
+        "Xác định ai đã kiểm soát tài khoản của Daniel.",
+        "Phân biệt bằng chứng thật với bằng chứng bị ngụy tạo.",
+        "Xác định người chịu trách nhiệm.",
+        "",
+        "CẢNH BÁO:",
+        "Một số nhật ký có thể đã bị chỉnh sửa.",
+        "",
+        "Gõ \"help\" để xem các lệnh khả dụng."
+      ]
+    },
+    "filesystem": [
+      {
+        "type": "directory",
+        "name": "logs",
+        "children": [
+          {
+            "type": "file",
+            "name": "system.log",
+            "content": {
+              "en": "[01:42:11] USER LOGIN: daniel\n[01:43:03] MFA SUCCESS\n[01:48:22] FILE ACCESS: /research/phoenix.dat\n[01:51:09] FILE ACCESS: /research/phoenix.key\n[01:58:44] USER SESSION IDLE\n[02:03:11] SERVICE ACCOUNT LOGIN: svc-backup\n[02:07:55] FILE ACCESS: /research/phoenix.dat\n[02:11:32] FILE ACCESS: /research/phoenix.key\n[02:14:02] USB DEVICE CONNECTED: UNKNOWN-USB\n[02:15:19] ARCHIVE CREATED: phoenix-export.tar\n[02:17:42] OUTBOUND TRANSFER STARTED\n[02:18:03] OUTBOUND TRANSFER COMPLETED\n[02:18:51] USB DEVICE REMOVED\n[02:19:08] SERVER ROOM ALARM TRIGGERED\n[02:19:11] DANIEL CROSS SESSION LOCKED",
+              "vi": "[01:42:11] USER LOGIN: daniel\n[01:43:03] MFA SUCCESS\n[01:48:22] FILE ACCESS: /research/phoenix.dat\n[01:51:09] FILE ACCESS: /research/phoenix.key\n[01:58:44] USER SESSION IDLE\n[02:03:11] SERVICE ACCOUNT LOGIN: svc-backup\n[02:07:55] FILE ACCESS: /research/phoenix.dat\n[02:11:32] FILE ACCESS: /research/phoenix.key\n[02:14:02] USB DEVICE CONNECTED: UNKNOWN-USB\n[02:15:19] ARCHIVE CREATED: phoenix-export.tar\n[02:17:42] OUTBOUND TRANSFER STARTED\n[02:18:03] OUTBOUND TRANSFER COMPLETED\n[02:18:51] USB DEVICE REMOVED\n[02:19:08] SERVER ROOM ALARM TRIGGERED\n[02:19:11] DANIEL CROSS SESSION LOCKED"
+            }
+          },
+          {
+            "type": "file",
+            "name": "auth.log",
+            "content": {
+              "en": "[01:42:08] AUTH REQUEST: daniel\n[01:42:11] PASSWORD ACCEPTED\n[01:42:12] MFA TOKEN ACCEPTED\n[01:42:13] DEVICE: DC-WORKSTATION-07\n\n[01:59:31] AUTH REQUEST: daniel\n[01:59:32] PASSWORD ACCEPTED\n[01:59:33] MFA BYPASS\n[01:59:34] DEVICE: UNKNOWN-ENDPOINT\n\n[02:06:12] AUTH REQUEST: daniel\n[02:06:13] PASSWORD ACCEPTED\n[02:06:14] MFA BYPASS\n[02:06:15] DEVICE: UNKNOWN-ENDPOINT\n\n[02:18:55] AUTH REQUEST: daniel\n[02:18:56] PASSWORD ACCEPTED\n[02:18:57] MFA TOKEN EXPIRED",
+              "vi": "[01:42:08] YÊU CẦU XÁC THỰC: daniel\n[01:42:11] MẬT KHẨU ĐƯỢC CHẤP NHẬN\n[01:42:12] TOKEN MFA ĐƯỢC CHẤP NHẬN\n[01:42:13] THIẾT BỊ: DC-WORKSTATION-07\n\n[01:59:31] YÊU CẦU XÁC THỰC: daniel\n[01:59:32] MẬT KHẨU ĐƯỢC CHẤP NHẬN\n[01:59:33] BỎ QUA MFA\n[01:59:34] THIẾT BỊ: UNKNOWN-ENDPOINT\n\n[02:06:12] YÊU CẦU XÁC THỰC: daniel\n[02:06:13] MẬT KHẨU ĐƯỢC CHẤP NHẬN\n[02:06:14] BỎ QUA MFA\n[02:06:15] THIẾT BỊ: UNKNOWN-ENDPOINT\n\n[02:18:55] YÊU CẦU XÁC THỰC: daniel\n[02:18:56] MẬT KHẨU ĐƯỢC CHẤP NHẬN\n[02:18:57] TOKEN MFA ĐÃ HẾT HẠN"
+            }
+          },
+          {
+            "type": "file",
+            "name": "kernel.log",
+            "content": {
+              "en": "[01:41:59] SYSTEM BOOT\n[01:42:01] TPM INITIALIZED\n[01:42:02] SECURE BOOT VERIFIED\n[01:58:42] PROCESS: research-agent\n[01:58:43] PROCESS: backup-agent\n[01:58:44] PROCESS: remote-sync\n[01:59:12] PROCESS: remote-sync CHILD PROCESS CREATED\n[02:00:01] MEMORY REGION MARKED EXECUTABLE\n[02:03:12] PROCESS: remote-sync TERMINATED\n[02:03:13] PROCESS: archive-worker STARTED\n[02:15:01] PROCESS: archive-worker ELEVATED\n[02:18:50] PROCESS: archive-worker TERMINATED",
+              "vi": "[01:41:59] KHỞI ĐỘNG HỆ THỐNG\n[01:42:01] TPM ĐƯỢC KHỞI TẠO\n[01:42:02] SECURE BOOT ĐÃ ĐƯỢC XÁC MINH\n[01:58:42] TIẾN TRÌNH: research-agent\n[01:58:43] TIẾN TRÌNH: backup-agent\n[01:58:44] TIẾN TRÌNH: remote-sync\n[01:59:12] TIẾN TRÌNH: remote-sync TẠO TIẾN TRÌNH CON\n[02:00:01] VÙNG BỘ NHỚ ĐƯỢC ĐÁNH DẤU CÓ THỂ THỰC THI\n[02:03:12] TIẾN TRÌNH: remote-sync ĐÃ KẾT THÚC\n[02:03:13] TIẾN TRÌNH: archive-worker ĐÃ KHỞI ĐỘNG\n[02:15:01] TIẾN TRÌNH: archive-worker ĐƯỢC NÂNG QUYỀN\n[02:18:50] TIẾN TRÌNH: archive-worker ĐÃ KẾT THÚC"
+            }
+          },
+          {
+            "type": "file",
+            "name": "audit.log",
+            "content": {
+              "en": "[01:48:22] DANIEL READ /research/phoenix.dat\n[01:51:09] DANIEL READ /research/phoenix.key\n[01:58:44] DANIEL SESSION IDLE\n\n[01:59:32] DANIEL ACCOUNT USED FROM UNKNOWN-ENDPOINT\n\n[02:07:55] DANIEL ACCOUNT READ /research/phoenix.dat\n[02:11:32] DANIEL ACCOUNT READ /research/phoenix.key\n\n[02:15:19] DANIEL ACCOUNT CREATED ARCHIVE\n[02:17:42] DANIEL ACCOUNT TRANSFERRED ARCHIVE\n\n[02:19:11] DANIEL ACCOUNT SESSION LOCKED",
+              "vi": "[01:48:22] DANIEL ĐỌC /research/phoenix.dat\n[01:51:09] DANIEL ĐỌC /research/phoenix.key\n[01:58:44] PHIÊN DANIEL KHÔNG HOẠT ĐỘNG\n\n[01:59:32] TÀI KHOẢN DANIEL ĐƯỢC SỬ DỤNG TỪ UNKNOWN-ENDPOINT\n\n[02:07:55] TÀI KHOẢN DANIEL ĐỌC /research/phoenix.dat\n[02:11:32] TÀI KHOẢN DANIEL ĐỌC /research/phoenix.key\n\n[02:15:19] TÀI KHOẢN DANIEL TẠO ARCHIVE\n[02:17:42] TÀI KHOẢN DANIEL CHUYỂN ARCHIVE\n\n[02:19:11] PHIÊN TÀI KHOẢN DANIEL BỊ KHÓA"
+            }
+          },
+          {
+            "type": "file",
+            "name": "integrity.log",
+            "content": {
+              "en": "[02:20:03] LOG INTEGRITY CHECK STARTED\n\nsystem.log\nEXPECTED HASH: 7F3A-91CC\nCURRENT HASH: 7F3A-91CC\nSTATUS: VALID\n\nauth.log\nEXPECTED HASH: A81D-44E2\nCURRENT HASH: 39BC-771A\nSTATUS: MODIFIED\n\naudit.log\nEXPECTED HASH: 0F22-18D9\nCURRENT HASH: 0F22-18D9\nSTATUS: VALID\n\nnetwork.log\nEXPECTED HASH: 91AB-771C\nCURRENT HASH: 91AB-771C\nSTATUS: VALID\n\ncamera.log\nEXPECTED HASH: 62CC-119A\nCURRENT HASH: 62CC-119A\nSTATUS: VALID",
+              "vi": "[02:20:03] BẮT ĐẦU KIỂM TRA TÍNH TOÀN VẸN NHẬT KÝ\n\nsystem.log\nHASH MONG ĐỢI: 7F3A-91CC\nHASH HIỆN TẠI: 7F3A-91CC\nTRẠNG THÁI: HỢP LỆ\n\nauth.log\nHASH MONG ĐỢI: A81D-44E2\nHASH HIỆN TẠI: 39BC-771A\nTRẠNG THÁI: ĐÃ CHỈNH SỬA\n\naudit.log\nHASH MONG ĐỢI: 0F22-18D9\nHASH HIỆN TẠI: 0F22-18D9\nTRẠNG THÁI: HỢP LỆ\n\nnetwork.log\nHASH MONG ĐỢI: 91AB-771C\nHASH HIỆN TẠI: 91AB-771C\nTRẠNG THÁI: HỢP LỆ\n\ncamera.log\nHASH MONG ĐỢI: 62CC-119A\nHASH HIỆN TẠI: 62CC-119A\nTRẠNG THÁI: HỢP LỆ"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "research",
+        "children": [
+          {
+            "type": "file",
+            "name": "phoenix.dat",
+            "content": {
+              "en": "PROJECT PHOENIX\n\nCLASSIFICATION:\nOMEGA\n\nPROJECT OWNER:\nDaniel Cross\n\nDESCRIPTION:\nAutonomous predictive model capable of\nforecasting infrastructure failures.\n\nCURRENT VERSION:\nPHOENIX-9\n\nWARNING:\nSource data must never leave\nResearch Network 7.\n\nAUTHORIZED USERS:\n\nDaniel Cross\nMaya Chen\nEthan Cole",
+              "vi": "DỰ ÁN PHOENIX\n\nPHÂN LOẠI:\nOMEGA\n\nCHỦ SỞ HỮU DỰ ÁN:\nDaniel Cross\n\nMÔ TẢ:\nMô hình dự đoán tự động có khả năng\ndự báo các sự cố hạ tầng.\n\nPHIÊN BẢN HIỆN TẠI:\nPHOENIX-9\n\nCẢNH BÁO:\nDữ liệu nguồn không được phép rời khỏi\nMạng Nghiên cứu 7.\n\nNGƯỜI DÙNG ĐƯỢC CẤP QUYỀN:\n\nDaniel Cross\nMaya Chen\nEthan Cole"
+            }
+          },
+          {
+            "type": "file",
+            "name": "phoenix.key",
+            "content": {
+              "en": "PHOENIX ENCRYPTION KEY\n\nKEY ID:\nPX-09-77-A\n\nCREATED:\n01:12\n\nLAST ROTATION:\n23:44\n\nROTATION OWNER:\nMaya Chen\n\nNOTE:\n\nAny archive created with this key\nmust be generated from an approved\nResearch Network workstation.",
+              "vi": "KHÓA MÃ HÓA PHOENIX\n\nID KHÓA:\nPX-09-77-A\n\nĐƯỢC TẠO:\n01:12\n\nLẦN XOAY KHÓA CUỐI:\n23:44\n\nNGƯỜI QUẢN LÝ XOAY KHÓA:\nMaya Chen\n\nGHI CHÚ:\n\nMọi archive được tạo bằng khóa này\nphải được tạo từ một máy trạm\nthuộc Mạng Nghiên cứu được phê duyệt."
+            }
+          },
+          {
+            "type": "file",
+            "name": "researchers.txt",
+            "content": {
+              "en": "PHOENIX RESEARCH TEAM\n\nDaniel Cross\nLead Researcher\n\nMaya Chen\nCryptography Engineer\n\nEthan Cole\nInfrastructure Engineer\n\nVictor Hale\nSecurity Administrator\n\nNora Bennett\nResearch Assistant",
+              "vi": "NHÓM NGHIÊN CỨU PHOENIX\n\nDaniel Cross\nTrưởng nhóm nghiên cứu\n\nMaya Chen\nKỹ sư mật mã\n\nEthan Cole\nKỹ sư hạ tầng\n\nVictor Hale\nQuản trị viên an ninh\n\nNora Bennett\nTrợ lý nghiên cứu"
+            }
+          },
+          {
+            "type": "file",
+            "name": "incident-notes.txt",
+            "content": {
+              "en": "INTERNAL INCIDENT NOTES\n\nDaniel reported unusual authentication\nevents at 18:32.\n\nMaya reported that the Phoenix key\nrotated unexpectedly at 23:44.\n\nEthan reported intermittent failures\non backup infrastructure.\n\nVictor requested emergency audit access\nat 00:12.\n\nNora reported seeing someone near\nResearch Network 7 at approximately\n01:55.\n\nNo incident was officially opened.",
+              "vi": "GHI CHÚ SỰ CỐ NỘI BỘ\n\nDaniel báo cáo các sự kiện xác thực\nbất thường lúc 18:32.\n\nMaya báo cáo khóa Phoenix\nxoay bất thường lúc 23:44.\n\nEthan báo cáo các lỗi gián đoạn\ntrên hạ tầng sao lưu.\n\nVictor yêu cầu quyền truy cập kiểm toán\nkhẩn cấp lúc 00:12.\n\nNora báo cáo đã nhìn thấy ai đó gần\nMạng Nghiên cứu 7 vào khoảng\n01:55.\n\nKhông có sự cố nào được chính thức mở."
+            }
+          },
+          {
+            "type": "file",
+            "name": "deleted-index.txt",
+            "content": {
+              "en": "RECOVERED DELETED INDEX\n\nDELETED:\nphoenix-export.tar\n\nCREATED:\n02:15:19\n\nDELETED:\n02:18:47\n\nRECOVERY STATUS:\nPARTIAL\n\nORIGINAL LOCATION:\n/tmp/.cache/archive/",
+              "vi": "CHỈ MỤC ĐÃ XÓA ĐƯỢC KHÔI PHỤC\n\nĐÃ XÓA:\nphoenix-export.tar\n\nĐƯỢC TẠO:\n02:15:19\n\nĐÃ XÓA:\n02:18:47\n\nTRẠNG THÁI KHÔI PHỤC:\nMỘT PHẦN\n\nVỊ TRÍ BAN ĐẦU:\n/tmp/.cache/archive/"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "network",
+        "children": [
+          {
+            "type": "file",
+            "name": "network.log",
+            "content": {
+              "en": "[01:57:02] DNS QUERY\nHOST: research-gateway.local\n\n[01:59:21] CONNECTION\nSOURCE: UNKNOWN-ENDPOINT\nDESTINATION: DC-WORKSTATION-07\nPORT: 3389\n\n[02:01:44] CONNECTION\nSOURCE: DC-WORKSTATION-07\nDESTINATION: research-gateway.local\nPORT: 8443\n\n[02:06:11] CONNECTION\nSOURCE: UNKNOWN-ENDPOINT\nDESTINATION: DC-WORKSTATION-07\nPORT: 3389\n\n[02:17:42] LARGE OUTBOUND TRANSFER\nSOURCE: DC-WORKSTATION-07\nDESTINATION: 10.44.19.88\nPORT: 443\n\n[02:18:03] TRANSFER COMPLETE\n\n[02:18:04] DESTINATION DISCONNECTED",
+              "vi": "[01:57:02] TRUY VẤN DNS\nHOST: research-gateway.local\n\n[01:59:21] KẾT NỐI\nNGUỒN: UNKNOWN-ENDPOINT\nĐÍCH: DC-WORKSTATION-07\nCỔNG: 3389\n\n[02:01:44] KẾT NỐI\nNGUỒN: DC-WORKSTATION-07\nĐÍCH: research-gateway.local\nCỔNG: 8443\n\n[02:06:11] KẾT NỐI\nNGUỒN: UNKNOWN-ENDPOINT\nĐÍCH: DC-WORKSTATION-07\nCỔNG: 3389\n\n[02:17:42] CHUYỂN DỮ LIỆU RA NGOÀI DUNG LƯỢNG LỚN\nNGUỒN: DC-WORKSTATION-07\nĐÍCH: 10.44.19.88\nCỔNG: 443\n\n[02:18:03] CHUYỂN DỮ LIỆU HOÀN TẤT\n\n[02:18:04] NGẮT KẾT NỐI ĐÍCH"
+            }
+          },
+          {
+            "type": "file",
+            "name": "dns.log",
+            "content": {
+              "en": "[01:56:51] QUERY:\nupdates-research.local\n\n[01:57:02] QUERY:\nresearch-gateway.local\n\n[01:57:05] QUERY:\ncdn-research.local\n\n[02:00:14] QUERY:\nsync-research.local\n\n[02:05:44] QUERY:\nresearch-gateway.local\n\n[02:17:40] QUERY:\nsecure-transfer.local",
+              "vi": "[01:56:51] TRUY VẤN:\nupdates-research.local\n\n[01:57:02] TRUY VẤN:\nresearch-gateway.local\n\n[01:57:05] TRUY VẤN:\ncdn-research.local\n\n[02:00:14] TRUY VẤN:\nsync-research.local\n\n[02:05:44] TRUY VẤN:\nresearch-gateway.local\n\n[02:17:40] TRUY VẤN:\nsecure-transfer.local"
+            }
+          },
+          {
+            "type": "file",
+            "name": "firewall.log",
+            "content": {
+              "en": "[01:59:22] ALLOW\nSRC: 10.44.12.77\nDST: 10.44.12.15\nPORT: 3389\n\n[02:06:12] ALLOW\nSRC: 10.44.12.77\nDST: 10.44.12.15\nPORT: 3389\n\n[02:17:42] ALLOW\nSRC: 10.44.12.15\nDST: 10.44.19.88\nPORT: 443\n\n[02:18:04] BLOCK\nSRC: 10.44.19.88\nDST: 10.44.12.15\nPORT: 443",
+              "vi": "[01:59:22] CHO PHÉP\nNGUỒN: 10.44.12.77\nĐÍCH: 10.44.12.15\nCỔNG: 3389\n\n[02:06:12] CHO PHÉP\nNGUỒN: 10.44.12.77\nĐÍCH: 10.44.12.15\nCỔNG: 3389\n\n[02:17:42] CHO PHÉP\nNGUỒN: 10.44.12.15\nĐÍCH: 10.44.19.88\nCỔNG: 443\n\n[02:18:04] CHẶN\nNGUỒN: 10.44.19.88\nĐÍCH: 10.44.12.15\nCỔNG: 443"
+            }
+          },
+          {
+            "type": "file",
+            "name": "dhcp.log",
+            "content": {
+              "en": "[01:58:59]\nIP: 10.44.12.77\nMAC: 88:1F:A1:77:19:42\nHOSTNAME: VICTOR-LAPTOP\n\n[02:05:59]\nIP: 10.44.12.77\nMAC: 88:1F:A1:77:19:42\nHOSTNAME: VICTOR-LAPTOP\n\n[02:18:21]\nIP RELEASED:\n10.44.12.77",
+              "vi": "[01:58:59]\nIP: 10.44.12.77\nMAC: 88:1F:A1:77:19:42\nTÊN THIẾT BỊ: VICTOR-LAPTOP\n\n[02:05:59]\nIP: 10.44.12.77\nMAC: 88:1F:A1:77:19:42\nTÊN THIẾT BỊ: VICTOR-LAPTOP\n\n[02:18:21]\nIP ĐƯỢC GIẢI PHÓNG:\n10.44.12.77"
+            }
+          },
+          {
+            "type": "file",
+            "name": "proxy.log",
+            "content": {
+              "en": "[01:59:40]\nCLIENT: 10.44.12.15\nUSER: daniel\nREQUEST: /remote/control\n\n[02:01:44]\nCLIENT: 10.44.12.15\nUSER: daniel\nREQUEST: /research/phoenix.dat\n\n[02:06:21]\nCLIENT: 10.44.12.15\nUSER: daniel\nREQUEST: /remote/control\n\n[02:15:20]\nCLIENT: 10.44.12.15\nUSER: daniel\nREQUEST: /archive/create\n\n[02:17:41]\nCLIENT: 10.44.12.15\nUSER: daniel\nREQUEST: /transfer/start",
+              "vi": "[01:59:40]\nCLIENT: 10.44.12.15\nUSER: daniel\nYÊU CẦU: /remote/control\n\n[02:01:44]\nCLIENT: 10.44.12.15\nUSER: daniel\nYÊU CẦU: /research/phoenix.dat\n\n[02:06:21]\nCLIENT: 10.44.12.15\nUSER: daniel\nYÊU CẦU: /remote/control\n\n[02:15:20]\nCLIENT: 10.44.12.15\nUSER: daniel\nYÊU CẦU: /archive/create\n\n[02:17:41]\nCLIENT: 10.44.12.15\nUSER: daniel\nYÊU CẦU: /transfer/start"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "devices",
+        "children": [
+          {
+            "type": "file",
+            "name": "usb.log",
+            "content": {
+              "en": "[02:14:02] USB CONNECTED\n\nVENDOR:\nUNKNOWN\n\nSERIAL:\nVX-7719\n\nDEVICE:\nUSB STORAGE\n\n[02:14:05]\nMOUNTED:\nUSB-ARCHIVE\n\n[02:18:47]\nUNMOUNTED\n\n[02:18:51]\nUSB REMOVED",
+              "vi": "[02:14:02] USB ĐƯỢC KẾT NỐI\n\nNHÀ SẢN XUẤT:\nUNKNOWN\n\nSỐ SERIAL:\nVX-7719\n\nTHIẾT BỊ:\nUSB STORAGE\n\n[02:14:05]\nĐÃ GẮN:\nUSB-ARCHIVE\n\n[02:18:47]\nĐÃ THÁO GẮN\n\n[02:18:51]\nUSB ĐƯỢC THÁO RA"
+            }
+          },
+          {
+            "type": "file",
+            "name": "usb-content.txt",
+            "content": {
+              "en": "USB ARCHIVE CONTENT\n\nphoenix-export.tar\naccess-script.bin\ncleanup.sh\n\nTIMESTAMP:\n02:15:19\n\nSOURCE:\nDC-WORKSTATION-07",
+              "vi": "NỘI DUNG USB\n\nphoenix-export.tar\naccess-script.bin\ncleanup.sh\n\nTHỜI GIAN:\n02:15:19\n\nNGUỒN:\nDC-WORKSTATION-07"
+            }
+          },
+          {
+            "type": "file",
+            "name": "device-registry.txt",
+            "content": {
+              "en": "REGISTERED DEVICES\n\nUSB-ARCHIVE\nSERIAL:\nVX-7719\nOWNER:\nUNREGISTERED\n\nLAST SEEN:\n02:18:51\n\nDEVICE VX-7719\n\nFIRST REGISTERED:\n17 DAYS AGO\n\nREGISTERED HOST:\nSECURITY-LAB-02\n\nREGISTRATION STATUS:\nREVOKED",
+              "vi": "THIẾT BỊ ĐÃ ĐĂNG KÝ\n\nUSB-ARCHIVE\nSERIAL:\nVX-7719\nCHỦ SỞ HỮU:\nCHƯA ĐĂNG KÝ\n\nLẦN CUỐI NHÌN THẤY:\n02:18:51\n\nTHIẾT BỊ VX-7719\n\nĐĂNG KÝ LẦN ĐẦU:\n17 NGÀY TRƯỚC\n\nMÁY CHỦ ĐĂNG KÝ:\nSECURITY-LAB-02\n\nTRẠNG THÁI ĐĂNG KÝ:\nĐÃ THU HỒI"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "access",
+        "children": [
+          {
+            "type": "file",
+            "name": "badge.log",
+            "content": {
+              "en": "[01:31:04]\nBADGE:\nDC-117\n\nOWNER:\nDANIEL CROSS\n\nDOOR:\nRESEARCH-LAB\n\nSTATUS:\nGRANTED\n\n[01:54:33]\nBADGE:\nVC-201\n\nOWNER:\nVICTOR HALE\n\nDOOR:\nSECURITY-LAB\n\nSTATUS:\nGRANTED\n\n[02:11:02]\nBADGE:\nDC-117\n\nOWNER:\nDANIEL CROSS\n\nDOOR:\nSERVER-ROOM-4\n\nSTATUS:\nGRANTED\n\n[02:19:08]\nBADGE:\nDC-117\n\nOWNER:\nDANIEL CROSS\n\nDOOR:\nSERVER-ROOM-4\n\nSTATUS:\nALARM",
+              "vi": "[01:31:04]\nTHẺ:\nDC-117\n\nCHỦ SỞ HỮU:\nDANIEL CROSS\n\nCỬA:\nRESEARCH-LAB\n\nTRẠNG THÁI:\nĐƯỢC CHO PHÉP\n\n[01:54:33]\nTHẺ:\nVC-201\n\nCHỦ SỞ HỮU:\nVICTOR HALE\n\nCỬA:\nSECURITY-LAB\n\nTRẠNG THÁI:\nĐƯỢC CHO PHÉP\n\n[02:11:02]\nTHẺ:\nDC-117\n\nCHỦ SỞ HỮU:\nDANIEL CROSS\n\nCỬA:\nSERVER-ROOM-4\n\nTRẠNG THÁI:\nĐƯỢC CHO PHÉP\n\n[02:19:08]\nTHẺ:\nDC-117\n\nCHỦ SỞ HỮU:\nDANIEL CROSS\n\nCỬA:\nSERVER-ROOM-4\n\nTRẠNG THÁI:\nBÁO ĐỘNG"
+            }
+          },
+          {
+            "type": "file",
+            "name": "door-controller.log",
+            "content": {
+              "en": "[02:10:59]\nSERVER ROOM 4\nLOCKED\n\n[02:11:02]\nBADGE ACCEPTED\nDC-117\n\n[02:11:03]\nDOOR OPEN\n\n[02:11:07]\nDOOR CLOSED\n\n[02:11:08]\nLOCK ENGAGED\n\n[02:19:08]\nINTERNAL MOTION DETECTED\n\n[02:19:08]\nEMERGENCY LOCKDOWN",
+              "vi": "[02:10:59]\nPHÒNG MÁY CHỦ 4\nĐÃ KHÓA\n\n[02:11:02]\nTHẺ ĐƯỢC CHẤP NHẬN\nDC-117\n\n[02:11:03]\nCỬA MỞ\n\n[02:11:07]\nCỬA ĐÓNG\n\n[02:11:08]\nKHÓA ĐƯỢC KÍCH HOẠT\n\n[02:19:08]\nPHÁT HIỆN CHUYỂN ĐỘNG BÊN TRONG\n\n[02:19:08]\nKHÓA KHẨN CẤP"
+            }
+          },
+          {
+            "type": "file",
+            "name": "badge-analysis.txt",
+            "content": {
+              "en": "BADGE FORENSIC ANALYSIS\n\nBADGE:\nDC-117\n\nOWNER:\nDaniel Cross\n\nPHYSICAL BADGE:\nLAST CONFIRMED IN DANIEL'S WALLET\nAT 00:41\n\nSERVER ACCESS:\n02:11:02\n\nWARNING:\n\nBadge authentication only confirms\nthe badge credential.\n\nIt does NOT confirm the identity\nof the person carrying it.\n\nCLONING INDICATOR:\nPOSSIBLE",
+              "vi": "PHÂN TÍCH PHÁP Y THẺ RA VÀO\n\nTHẺ:\nDC-117\n\nCHỦ SỞ HỮU:\nDaniel Cross\n\nTHẺ VẬT LÝ:\nLẦN CUỐI ĐƯỢC XÁC NHẬN TRONG VÍ CỦA DANIEL\nLÚC 00:41\n\nTRUY CẬP MÁY CHỦ:\n02:11:02\n\nCẢNH BÁO:\n\nXác thực thẻ chỉ xác nhận\nthông tin định danh của thẻ.\n\nNó KHÔNG xác nhận danh tính\ncủa người đang mang thẻ.\n\nDẤU HIỆU SAO CHÉP:\nCÓ THỂ"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "camera",
+        "children": [
+          {
+            "type": "file",
+            "name": "camera.log",
+            "content": {
+              "en": "[01:48:00]\nCAMERA R7-01\nDaniel enters Research Network 7.\n\n[01:52:14]\nCAMERA R7-01\nDaniel remains inside.\n\n[01:54:31]\nCAMERA S2-04\nVictor enters Security Lab.\n\n[01:58:02]\nCAMERA R7-01\nDaniel leaves Research Network 7.\n\n[02:00:18]\nCAMERA HALL-03\nPerson wearing dark jacket\nenters Research Corridor.\n\n[02:10:58]\nCAMERA SERVER-04\nPerson carrying Daniel's badge\napproaches Server Room 4.\n\n[02:11:03]\nCAMERA SERVER-04\nPerson enters.\n\n[02:18:45]\nCAMERA SERVER-04\nPerson exits.\n\n[02:19:08]\nCAMERA SERVER-04\nDaniel Cross discovered inside.",
+              "vi": "[01:48:00]\nCAMERA R7-01\nDaniel bước vào Mạng Nghiên cứu 7.\n\n[01:52:14]\nCAMERA R7-01\nDaniel vẫn ở bên trong.\n\n[01:54:31]\nCAMERA S2-04\nVictor bước vào Phòng An ninh.\n\n[01:58:02]\nCAMERA R7-01\nDaniel rời khỏi Mạng Nghiên cứu 7.\n\n[02:00:18]\nCAMERA HALL-03\nMột người mặc áo khoác tối màu\nbước vào hành lang nghiên cứu.\n\n[02:10:58]\nCAMERA SERVER-04\nMột người mang thẻ của Daniel\ntiếp cận Phòng Máy chủ 4.\n\n[02:11:03]\nCAMERA SERVER-04\nNgười này bước vào.\n\n[02:18:45]\nCAMERA SERVER-04\nNgười này rời đi.\n\n[02:19:08]\nCAMERA SERVER-04\nPhát hiện Daniel Cross bên trong."
+            }
+          },
+          {
+            "type": "file",
+            "name": "hallway.log",
+            "content": {
+              "en": "[01:57:51]\nHALLWAY CAMERA\n\nSUBJECT:\nUNKNOWN\n\nHEIGHT:\n~180 CM\n\nCLOTHING:\nDARK JACKET\n\n[02:03:21]\nSUBJECT:\nUNKNOWN\n\nDIRECTION:\nRESEARCH CORRIDOR -> SECURITY LAB\n\n[02:09:44]\nSUBJECT:\nUNKNOWN\n\nDIRECTION:\nSECURITY LAB -> SERVER CORRIDOR\n\n[02:18:47]\nSUBJECT:\nUNKNOWN\n\nDIRECTION:\nSERVER CORRIDOR -> EXIT",
+              "vi": "[01:57:51]\nCAMERA HÀNH LANG\n\nĐỐI TƯỢNG:\nKHÔNG XÁC ĐỊNH\n\nCHIỀU CAO:\n~180 CM\n\nTRANG PHỤC:\nÁO KHOÁC TỐI MÀU\n\n[02:03:21]\nĐỐI TƯỢNG:\nKHÔNG XÁC ĐỊNH\n\nHƯỚNG DI CHUYỂN:\nHÀNH LANG NGHIÊN CỨU -> PHÒNG AN NINH\n\n[02:09:44]\nĐỐI TƯỢNG:\nKHÔNG XÁC ĐỊNH\n\nHƯỚNG DI CHUYỂN:\nPHÒNG AN NINH -> HÀNH LANG MÁY CHỦ\n\n[02:18:47]\nĐỐI TƯỢNG:\nKHÔNG XÁC ĐỊNH\n\nHƯỚNG DI CHUYỂN:\nHÀNH LANG MÁY CHỦ -> LỐI RA"
+            }
+          },
+          {
+            "type": "file",
+            "name": "camera-analysis.txt",
+            "content": {
+              "en": "VIDEO ANALYSIS\n\nFRAME ENHANCEMENT:\n\nThe individual entering Server Room 4\ndoes NOT appear to be Daniel Cross.\n\nFace:\nOBSCURED\n\nHeight:\nAPPROXIMATELY 180 CM\n\nDaniel Cross:\nHEIGHT 174 CM\n\nVictor Hale:\nHEIGHT 181 CM\n\nEthan Cole:\nHEIGHT 179 CM\n\nMaya Chen:\nHEIGHT 166 CM",
+              "vi": "PHÂN TÍCH VIDEO\n\nTĂNG CƯỜNG KHUNG HÌNH:\n\nNgười bước vào Phòng Máy chủ 4\nKHÔNG có vẻ là Daniel Cross.\n\nKhuôn mặt:\nBỊ CHE KHUẤT\n\nChiều cao:\nKHOẢNG 180 CM\n\nDaniel Cross:\nCHIỀU CAO 174 CM\n\nVictor Hale:\nCHIỀU CAO 181 CM\n\nEthan Cole:\nCHIỀU CAO 179 CM\n\nMaya Chen:\nCHIỀU CAO 166 CM"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "emails",
+        "children": [
+          {
+            "type": "file",
+            "name": "inbox.txt",
+            "content": {
+              "en": "INBOX\n\n----------------------------------------\n\nFROM:\ndaniel.cross@company.local\n\nTIME:\n18:32\n\nSUBJECT:\nAuthentication Warning\n\nMESSAGE:\nSomeone is attempting to access\nmy account.\n\nI have not approved these requests.\n\n----------------------------------------\n\nFROM:\nvictor.hale@company.local\n\nTIME:\n00:12\n\nSUBJECT:\nEmergency Audit\n\nMESSAGE:\nI need temporary access to the\nPhoenix audit logs.\n\nDo not modify production systems.\n\n----------------------------------------\n\nFROM:\nmaya.chen@company.local\n\nTIME:\n23:44\n\nSUBJECT:\nKey Rotation\n\nMESSAGE:\nThe Phoenix encryption key rotated\nsuccessfully.\n\nPlease do not generate archives\nuntil the new key is validated.\n\n----------------------------------------\n\nFROM:\nethan.cole@company.local\n\nTIME:\n01:21\n\nSUBJECT:\nBackup Failure\n\nMESSAGE:\nThe backup cluster is behaving\nstrangely again.\n\nI will investigate in the morning.",
+              "vi": "HỘP THƯ ĐẾN\n\n----------------------------------------\n\nNGƯỜI GỬI:\ndaniel.cross@company.local\n\nTHỜI GIAN:\n18:32\n\nCHỦ ĐỀ:\nCảnh báo xác thực\n\nNỘI DUNG:\nCó người đang cố truy cập\ntài khoản của tôi.\n\nTôi chưa phê duyệt các yêu cầu này.\n\n----------------------------------------\n\nNGƯỜI GỬI:\nvictor.hale@company.local\n\nTHỜI GIAN:\n00:12\n\nCHỦ ĐỀ:\nKiểm toán khẩn cấp\n\nNỘI DUNG:\nTôi cần quyền truy cập tạm thời vào\nnhật ký kiểm toán Phoenix.\n\nKhông được chỉnh sửa hệ thống production.\n\n----------------------------------------\n\nNGƯỜI GỬI:\nmaya.chen@company.local\n\nTHỜI GIAN:\n23:44\n\nCHỦ ĐỀ:\nXoay khóa\n\nNỘI DUNG:\nKhóa mã hóa Phoenix đã được xoay\nthành công.\n\nVui lòng không tạo archive\ncho đến khi khóa mới được xác thực.\n\n----------------------------------------\n\nNGƯỜI GỬI:\nethan.cole@company.local\n\nTHỜI GIAN:\n01:21\n\nCHỦ ĐỀ:\nLỗi sao lưu\n\nNỘI DUNG:\nCụm máy chủ sao lưu lại hoạt động\nbất thường.\n\nTôi sẽ điều tra vào buổi sáng."
+            }
+          },
+          {
+            "type": "file",
+            "name": "sent.txt",
+            "content": {
+              "en": "SENT\n\n----------------------------------------\n\nFROM:\ndaniel.cross@company.local\n\nTO:\nsecurity@company.local\n\nTIME:\n18:35\n\nMESSAGE:\nPlease investigate repeated\nauthentication attempts against\nmy account.\n\n----------------------------------------\n\nFROM:\nvictor.hale@company.local\n\nTO:\ndaniel.cross@company.local\n\nTIME:\n00:19\n\nMESSAGE:\nUnderstood.\n\nDo not access Phoenix tonight.\n\n----------------------------------------\n\nFROM:\nmaya.chen@company.local\n\nTO:\ndaniel.cross@company.local\n\nTIME:\n23:46\n\nMESSAGE:\nThe key rotation completed.\n\nYour workstation should be safe.",
+              "vi": "ĐÃ GỬI\n\n----------------------------------------\n\nNGƯỜI GỬI:\ndaniel.cross@company.local\n\nĐẾN:\nsecurity@company.local\n\nTHỜI GIAN:\n18:35\n\nNỘI DUNG:\nVui lòng điều tra các lần thử\nxác thực lặp lại đối với\ntài khoản của tôi.\n\n----------------------------------------\n\nNGƯỜI GỬI:\nvictor.hale@company.local\n\nĐẾN:\ndaniel.cross@company.local\n\nTHỜI GIAN:\n00:19\n\nNỘI DUNG:\nĐã hiểu.\n\nTối nay đừng truy cập Phoenix.\n\n----------------------------------------\n\nNGƯỜI GỬI:\nmaya.chen@company.local\n\nĐẾN:\ndaniel.cross@company.local\n\nTHỜI GIAN:\n23:46\n\nNỘI DUNG:\nViệc xoay khóa đã hoàn tất.\n\nMáy trạm của bạn sẽ an toàn."
+            }
+          },
+          {
+            "type": "file",
+            "name": "deleted-mail.txt",
+            "content": {
+              "en": "RECOVERED DELETED MESSAGE\n\nFROM:\nunknown\n\nTO:\nvictor.hale@company.local\n\nTIME:\n01:49\n\nSUBJECT:\nPhoenix\n\nMESSAGE:\n\nThe old credential still works.\n\nUse the maintenance endpoint.\n\nDo not involve Daniel.\n\nDELETE AFTER READING.",
+              "vi": "TIN NHẮN ĐÃ XÓA ĐƯỢC KHÔI PHỤC\n\nNGƯỜI GỬI:\nunknown\n\nĐẾN:\nvictor.hale@company.local\n\nTHỜI GIAN:\n01:49\n\nCHỦ ĐỀ:\nPhoenix\n\nNỘI DUNG:\n\nThông tin xác thực cũ vẫn hoạt động.\n\nHãy sử dụng endpoint bảo trì.\n\nKhông được liên quan đến Daniel.\n\nXÓA SAU KHI ĐỌC."
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "users",
+        "children": [
+          {
+            "type": "file",
+            "name": "daniel.txt",
+            "content": {
+              "en": "USER PROFILE\n\nNAME:\nDaniel Cross\n\nROLE:\nLead Researcher\n\nHEIGHT:\n174 CM\n\nMFA:\nENABLED\n\nLAST PASSWORD CHANGE:\n12 DAYS AGO\n\nSECURITY NOTE:\nReported suspicious authentication\nevents at 18:32.",
+              "vi": "HỒ SƠ NGƯỜI DÙNG\n\nTÊN:\nDaniel Cross\n\nVAI TRÒ:\nTrưởng nhóm nghiên cứu\n\nCHIỀU CAO:\n174 CM\n\nMFA:\nĐÃ BẬT\n\nLẦN ĐỔI MẬT KHẨU CUỐI:\n12 NGÀY TRƯỚC\n\nGHI CHÚ AN NINH:\nĐã báo cáo các sự kiện xác thực\nđáng ngờ lúc 18:32."
+            }
+          },
+          {
+            "type": "file",
+            "name": "victor.txt",
+            "content": {
+              "en": "USER PROFILE\n\nNAME:\nVictor Hale\n\nROLE:\nSecurity Administrator\n\nHEIGHT:\n181 CM\n\nMFA:\nENABLED\n\nPRIVILEGED ACCESS:\nYES\n\nBADGE:\nVC-201\n\nKNOWN DEVICES:\nVICTOR-LAPTOP\n\nSECURITY NOTE:\nRequested emergency audit access\nat 00:12.",
+              "vi": "HỒ SƠ NGƯỜI DÙNG\n\nTÊN:\nVictor Hale\n\nVAI TRÒ:\nQuản trị viên an ninh\n\nCHIỀU CAO:\n181 CM\n\nMFA:\nĐÃ BẬT\n\nQUYỀN TRUY CẬP ĐẶC BIỆT:\nCÓ\n\nTHẺ:\nVC-201\n\nTHIẾT BỊ ĐÃ BIẾT:\nVICTOR-LAPTOP\n\nGHI CHÚ AN NINH:\nĐã yêu cầu quyền truy cập kiểm toán\nkhẩn cấp lúc 00:12."
+            }
+          },
+          {
+            "type": "file",
+            "name": "ethan.txt",
+            "content": {
+              "en": "USER PROFILE\n\nNAME:\nEthan Cole\n\nROLE:\nInfrastructure Engineer\n\nHEIGHT:\n179 CM\n\nMFA:\nENABLED\n\nPRIVILEGED ACCESS:\nLIMITED\n\nKNOWN DEVICES:\nETHAN-LAPTOP\n\nSECURITY NOTE:\nResponsible for backup systems.",
+              "vi": "HỒ SƠ NGƯỜI DÙNG\n\nTÊN:\nEthan Cole\n\nVAI TRÒ:\nKỹ sư hạ tầng\n\nCHIỀU CAO:\n179 CM\n\nMFA:\nĐÃ BẬT\n\nQUYỀN TRUY CẬP ĐẶC BIỆT:\nGIỚI HẠN\n\nTHIẾT BỊ ĐÃ BIẾT:\nETHAN-LAPTOP\n\nGHI CHÚ AN NINH:\nPhụ trách hệ thống sao lưu."
+            }
+          },
+          {
+            "type": "file",
+            "name": "maya.txt",
+            "content": {
+              "en": "USER PROFILE\n\nNAME:\nMaya Chen\n\nROLE:\nCryptography Engineer\n\nHEIGHT:\n166 CM\n\nMFA:\nENABLED\n\nPRIVILEGED ACCESS:\nRESEARCH\n\nSECURITY NOTE:\nOwns Phoenix key rotation process.",
+              "vi": "HỒ SƠ NGƯỜI DÙNG\n\nTÊN:\nMaya Chen\n\nVAI TRÒ:\nKỹ sư mật mã\n\nCHIỀU CAO:\n166 CM\n\nMFA:\nĐÃ BẬT\n\nQUYỀN TRUY CẬP ĐẶC BIỆT:\nRESEARCH\n\nGHI CHÚ AN NINH:\nPhụ trách quy trình xoay khóa Phoenix."
+            }
+          },
+          {
+            "type": "file",
+            "name": "service-accounts.txt",
+            "content": {
+              "en": "SERVICE ACCOUNTS\n\nsvc-backup\nPurpose:\nAutomated backup\n\nPrivilege:\nREAD RESEARCH\n\nLast password rotation:\n41 DAYS AGO\n\nsvc-archive\nPurpose:\nArchive generation\n\nPrivilege:\nREAD + WRITE RESEARCH\n\nLast password rotation:\n3 DAYS AGO\n\nWARNING:\n\nsvc-archive credential was exposed\nin an internal diagnostic script\n17 days ago.",
+              "vi": "TÀI KHOẢN DỊCH VỤ\n\nsvc-backup\nMục đích:\nSao lưu tự động\n\nQuyền:\nĐỌC RESEARCH\n\nLần xoay mật khẩu cuối:\n41 NGÀY TRƯỚC\n\nsvc-archive\nMục đích:\nTạo archive\n\nQuyền:\nĐỌC + GHI RESEARCH\n\nLần xoay mật khẩu cuối:\n3 NGÀY TRƯỚC\n\nCẢNH BÁO:\n\nThông tin xác thực của svc-archive\nđã bị lộ trong một script chẩn đoán nội bộ\n17 ngày trước."
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "scripts",
+        "children": [
+          {
+            "type": "file",
+            "name": "access-script.bin",
+            "content": {
+              "en": "BINARY FILE ANALYSIS\n\nFILE:\naccess-script.bin\n\nSIZE:\n18 KB\n\nCREATED:\n02:15:18\n\nFUNCTION:\n\nCreates remote session using\nstored service credentials.\n\nREFERENCES:\n\nsvc-archive\nremote-sync\nmaintenance endpoint\n\nOBFUSCATED SECTION:\n\n4D 41 49 4E 54 2D 37\n\nDECODED:\n\nMAINT-7",
+              "vi": "PHÂN TÍCH TỆP NHỊ PHÂN\n\nTỆP:\naccess-script.bin\n\nKÍCH THƯỚC:\n18 KB\n\nĐƯỢC TẠO:\n02:15:18\n\nCHỨC NĂNG:\n\nTạo phiên từ xa bằng\nthông tin xác thực dịch vụ được lưu trữ.\n\nTHAM CHIẾU:\n\nsvc-archive\nremote-sync\nmaintenance endpoint\n\nPHẦN ĐÃ LÀM RỐI:\n\n4D 41 49 4E 54 2D 37\n\nGIẢI MÃ:\n\nMAINT-7"
+            }
+          },
+          {
+            "type": "file",
+            "name": "cleanup.sh",
+            "content": {
+              "en": "#!/bin/sh\n\nkillall remote-sync\nrm /tmp/.cache/archive/phoenix-export.tar\nrm /var/log/remote-session.log\n\necho \"cleanup complete\"\n\nAUTHOR:\nunknown",
+              "vi": "#!/bin/sh\n\nkillall remote-sync\nrm /tmp/.cache/archive/phoenix-export.tar\nrm /var/log/remote-session.log\n\necho \"cleanup complete\"\n\nTÁC GIẢ:\nunknown"
+            }
+          },
+          {
+            "type": "file",
+            "name": "maintenance.txt",
+            "content": {
+              "en": "MAINTENANCE ENDPOINT\n\nENDPOINT:\nMAINT-7\n\nAUTHORIZED PURPOSE:\nEmergency infrastructure maintenance\n\nAUTHORIZED USERS:\n\nVictor Hale\nEthan Cole\n\nNOTE:\n\nAll sessions should generate\nremote-session.log\n\nEXCEPTION:\n\nLegacy sessions may bypass\nstandard authentication logging.",
+              "vi": "ENDPOINT BẢO TRÌ\n\nENDPOINT:\nMAINT-7\n\nMỤC ĐÍCH ĐƯỢC PHÉP:\nBảo trì hạ tầng khẩn cấp\n\nNGƯỜI DÙNG ĐƯỢC PHÉP:\n\nVictor Hale\nEthan Cole\n\nGHI CHÚ:\n\nMọi phiên làm việc phải tạo\nremote-session.log\n\nNGOẠI LỆ:\n\nCác phiên legacy có thể bỏ qua\nviệc ghi nhật ký xác thực tiêu chuẩn."
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "server",
+        "children": [
+          {
+            "type": "file",
+            "name": "remote-session.log",
+            "content": {
+              "en": "[01:58:57]\nREMOTE SESSION CREATED\n\nENDPOINT:\nMAINT-7\n\nACCOUNT:\nsvc-archive\n\nSOURCE:\n10.44.12.77\n\n[01:59:32]\nIMPERSONATION:\ndaniel\n\n[02:03:12]\nSESSION REAUTHENTICATED\n\n[02:06:12]\nREMOTE SESSION RECONNECTED\n\n[02:15:20]\nARCHIVE OPERATION STARTED\n\n[02:17:41]\nTRANSFER OPERATION STARTED\n\n[02:18:47]\nSESSION TERMINATED",
+              "vi": "[01:58:57]\nĐÃ TẠO PHIÊN TỪ XA\n\nENDPOINT:\nMAINT-7\n\nTÀI KHOẢN:\nsvc-archive\n\nNGUỒN:\n10.44.12.77\n\n[01:59:32]\nMẠO DANH:\ndaniel\n\n[02:03:12]\nPHIÊN ĐƯỢC XÁC THỰC LẠI\n\n[02:06:12]\nPHIÊN TỪ XA ĐƯỢC KẾT NỐI LẠI\n\n[02:15:20]\nBẮT ĐẦU THAO TÁC ARCHIVE\n\n[02:17:41]\nBẮT ĐẦU THAO TÁC CHUYỂN DỮ LIỆU\n\n[02:18:47]\nPHIÊN ĐÃ KẾT THÚC"
+            }
+          },
+          {
+            "type": "file",
+            "name": "process.log",
+            "content": {
+              "en": "[01:59:12]\nPROCESS:\nremote-sync\n\nPARENT:\nmaintenance-agent\n\n[01:59:13]\nCOMMAND:\n--user daniel\n\n[02:03:13]\nPROCESS:\narchive-worker\n\n[02:15:01]\nPRIVILEGE:\nSYSTEM\n\n[02:18:50]\nPROCESS:\narchive-worker TERMINATED",
+              "vi": "[01:59:12]\nTIẾN TRÌNH:\nremote-sync\n\nTIẾN TRÌNH CHA:\nmaintenance-agent\n\n[01:59:13]\nLỆNH:\n--user daniel\n\n[02:03:13]\nTIẾN TRÌNH:\narchive-worker\n\n[02:15:01]\nQUYỀN:\nSYSTEM\n\n[02:18:50]\nTIẾN TRÌNH:\narchive-worker ĐÃ KẾT THÚC"
+            }
+          },
+          {
+            "type": "file",
+            "name": "server-room.txt",
+            "content": {
+              "en": "SERVER ROOM 4\n\nLOCK STATUS:\nNORMAL\n\nAIR QUALITY:\nNORMAL\n\nTEMPERATURE:\nNORMAL\n\nMOTION SENSOR:\nACTIVE\n\n02:11:\nAUTHORIZED BADGE USED\n\n02:19:\nMOTION DETECTED\n\n02:19:\nEMERGENCY LOCKDOWN\n\nNO FORCED ENTRY DETECTED",
+              "vi": "PHÒNG MÁY CHỦ 4\n\nTRẠNG THÁI KHÓA:\nBÌNH THƯỜNG\n\nCHẤT LƯỢNG KHÔNG KHÍ:\nBÌNH THƯỜNG\n\nNHIỆT ĐỘ:\nBÌNH THƯỜNG\n\nCẢM BIẾN CHUYỂN ĐỘNG:\nĐANG HOẠT ĐỘNG\n\n02:11:\nTHẺ ĐƯỢC CẤP QUYỀN ĐƯỢC SỬ DỤNG\n\n02:19:\nPHÁT HIỆN CHUYỂN ĐỘNG\n\n02:19:\nKHÓA KHẨN CẤP\n\nKHÔNG PHÁT HIỆN ĐỘT NHẬP BẰNG VŨ LỰC"
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "forensics",
+        "children": [
+          {
+            "type": "file",
+            "name": "memory.txt",
+            "content": {
+              "en": "MEMORY FORENSICS\n\nHOST:\nDC-WORKSTATION-07\n\nCAPTURE:\n02:21\n\nSUSPICIOUS PROCESS:\n\nremote-sync\n\nPID:\n4412\n\nPARENT:\nmaintenance-agent\n\nCOMMAND LINE:\n\nremote-sync --user daniel\n--session legacy\n\nMEMORY STRINGS:\n\nMAINT-7\nsvc-archive\nVX-7719\n\nIMPORTANT:\n\nProcess contained an in-memory\ncredential token.\n\nToken owner:\nsvc-archive",
+              "vi": "PHÁP Y BỘ NHỚ\n\nMÁY CHỦ:\nDC-WORKSTATION-07\n\nTHU THẬP:\n02:21\n\nTIẾN TRÌNH ĐÁNG NGỜ:\n\nremote-sync\n\nPID:\n4412\n\nTIẾN TRÌNH CHA:\nmaintenance-agent\n\nDÒNG LỆNH:\n\nremote-sync --user daniel\n--session legacy\n\nCHUỖI TRONG BỘ NHỚ:\n\nMAINT-7\nsvc-archive\nVX-7719\n\nQUAN TRỌNG:\n\nTiến trình chứa một token\nxác thực trong bộ nhớ.\n\nChủ sở hữu token:\nsvc-archive"
+            }
+          },
+          {
+            "type": "file",
+            "name": "usb-forensics.txt",
+            "content": {
+              "en": "USB FORENSICS\n\nSERIAL:\nVX-7719\n\nDEVICE HASH:\nC81A-77D1\n\nPREVIOUS HOST:\nSECURITY-LAB-02\n\nLAST USER:\nVICTOR\n\nMOUNT HISTORY:\n\nSECURITY-LAB-02\n17 DAYS AGO\n\nDC-WORKSTATION-07\n02:14:02\n\nWARNING:\n\nDevice registration was revoked\n17 days ago.",
+              "vi": "PHÁP Y USB\n\nSERIAL:\nVX-7719\n\nHASH THIẾT BỊ:\nC81A-77D1\n\nMÁY CHỦ TRƯỚC ĐÓ:\nSECURITY-LAB-02\n\nNGƯỜI DÙNG CUỐI:\nVICTOR\n\nLỊCH SỬ GẮN KẾT:\n\nSECURITY-LAB-02\n17 NGÀY TRƯỚC\n\nDC-WORKSTATION-07\n02:14:02\n\nCẢNH BÁO:\n\nĐăng ký thiết bị đã bị thu hồi\n17 ngày trước."
+            }
+          },
+          {
+            "type": "file",
+            "name": "badge-forensics.txt",
+            "content": {
+              "en": "BADGE FORENSICS\n\nBADGE:\nDC-117\n\nORIGINAL OWNER:\nDANIEL CROSS\n\nCLONING ANALYSIS:\n\nRFID UID:\nMATCH\n\nCRYPTOGRAPHIC SIGNATURE:\nINVALID\n\nINTERPRETATION:\n\nThe credential identifier matches\nDaniel's badge.\n\nThe cryptographic signature does not.\n\nLIKELY:\nCLONED BADGE",
+              "vi": "PHÁP Y THẺ RA VÀO\n\nTHẺ:\nDC-117\n\nCHỦ SỞ HỮU BAN ĐẦU:\nDANIEL CROSS\n\nPHÂN TÍCH SAO CHÉP:\n\nRFID UID:\nTRÙNG KHỚP\n\nCHỮ KÝ MẬT MÃ:\nKHÔNG HỢP LỆ\n\nDIỄN GIẢI:\n\nMã định danh thông tin xác thực trùng với\nthẻ của Daniel.\n\nNhưng chữ ký mật mã thì không trùng.\n\nKHẢ NĂNG:\nTHẺ BỊ SAO CHÉP"
+            }
+          },
+          {
+            "type": "file",
+            "name": "transfer.txt",
+            "content": {
+              "en": "TRANSFER FORENSICS\n\nARCHIVE:\nphoenix-export.tar\n\nSIZE:\n4.8 GB\n\nHASH:\n91E7-AC44\n\nDESTINATION:\n10.44.19.88\n\nTRANSFER:\n02:17:42 - 02:18:03\n\nDESTINATION TYPE:\nEXTERNAL RESEARCH NODE\n\nKNOWN OWNER:\nUNKNOWN\n\nTLS:\nVALID\n\nSERVER CERTIFICATE:\nSECURE-TRANSFER.LOCAL\n\nNOTE:\n\nDestination server accepted\nthe archive but immediately\nclosed the connection.",
+              "vi": "PHÁP Y CHUYỂN DỮ LIỆU\n\nARCHIVE:\nphoenix-export.tar\n\nKÍCH THƯỚC:\n4.8 GB\n\nHASH:\n91E7-AC44\n\nĐÍCH:\n10.44.19.88\n\nCHUYỂN DỮ LIỆU:\n02:17:42 - 02:18:03\n\nLOẠI ĐÍCH:\nNODE NGHIÊN CỨU BÊN NGOÀI\n\nCHỦ SỞ HỮU ĐÃ BIẾT:\nUNKNOWN\n\nTLS:\nHỢP LỆ\n\nCHỨNG CHỈ MÁY CHỦ:\nSECURE-TRANSFER.LOCAL\n\nGHI CHÚ:\n\nMáy chủ đích đã nhận archive\nnhưng ngay lập tức\nđóng kết nối."
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "incident",
+        "children": [
+          {
+            "type": "file",
+            "name": "timeline.txt",
+            "content": {
+              "en": "PRELIMINARY TIMELINE\n\n18:32\nDaniel reports suspicious login attempts.\n\n18:35\nDaniel reports incident to Security.\n\n23:44\nPhoenix encryption key rotates.\n\n00:12\nVictor requests emergency audit access.\n\n01:49\nDeleted email references MAINT-7.\n\n01:54\nVictor enters Security Lab.\n\n01:58\nRemote maintenance session starts.\n\n01:59\nDaniel account impersonated.\n\n02:03\nBackup process changes to archive-worker.\n\n02:06\nRemote session reconnects.\n\n02:10\nCloned Daniel badge approaches Server Room.\n\n02:11\nServer Room accessed.\n\n02:14\nUnknown USB connected.\n\n02:15\nPhoenix archive created.\n\n02:17\nArchive transferred externally.\n\n02:18\nUSB removed.\n\n02:19\nDaniel found unconscious.",
+              "vi": "DÒNG THỜI GIAN SƠ BỘ\n\n18:32\nDaniel báo cáo các lần đăng nhập đáng ngờ.\n\n18:35\nDaniel báo cáo sự việc cho bộ phận An ninh.\n\n23:44\nKhóa mã hóa Phoenix được xoay.\n\n00:12\nVictor yêu cầu quyền kiểm toán khẩn cấp.\n\n01:49\nEmail đã xóa đề cập đến MAINT-7.\n\n01:54\nVictor bước vào Phòng An ninh.\n\n01:58\nPhiên bảo trì từ xa bắt đầu.\n\n01:59\nTài khoản Daniel bị mạo danh.\n\n02:03\nTiến trình sao lưu chuyển sang archive-worker.\n\n02:06\nPhiên từ xa kết nối lại.\n\n02:10\nThẻ Daniel bị sao chép tiếp cận Phòng Máy chủ.\n\n02:11\nPhòng Máy chủ được truy cập.\n\n02:14\nUSB không xác định được kết nối.\n\n02:15\nArchive Phoenix được tạo.\n\n02:17\nArchive được chuyển ra bên ngoài.\n\n02:18\nUSB bị tháo ra.\n\n02:19\nDaniel được phát hiện bất tỉnh."
+            }
+          },
+          {
+            "type": "file",
+            "name": "contradictions.txt",
+            "content": {
+              "en": "EVIDENCE CONTRADICTIONS\n\n1.\n\nAUTH.LOG CLAIMS:\n\nMFA BYPASS\n\nBut the authentication system\nnormally does not support MFA bypass.\n\n2.\n\nBADGE.LOG CLAIMS:\n\nDaniel's badge accessed Server Room.\n\nForensics indicate the badge\nwas cloned.\n\n3.\n\nAUDIT.LOG CLAIMS:\n\nDaniel created the archive.\n\nProcess logs show archive-worker\nperformed the operation.\n\n4.\n\nCAMERA.LOG SHOWS:\n\nPerson entering Server Room\ndoes not match Daniel's height.\n\n5.\n\nUSB FORENSICS:\n\nUSB was previously registered\nto Security Lab 02.\n\n6.\n\nNETWORK DHCP:\n\n10.44.12.77 belonged to\nVictor's laptop.\n\n7.\n\nREMOTE SESSION:\n\nMAINT-7 used svc-archive.\n\n8.\n\nDELETED EMAIL:\n\nSomeone instructed Victor to\nuse MAINT-7.",
+              "vi": "MÂU THUẪN TRONG BẰNG CHỨNG\n\n1.\n\nAUTH.LOG CHO RẰNG:\n\nBỎ QUA MFA\n\nNhưng hệ thống xác thực\nthông thường không hỗ trợ bỏ qua MFA.\n\n2.\n\nBADGE.LOG CHO RẰNG:\n\nThẻ của Daniel đã truy cập Phòng Máy chủ.\n\nPháp y cho thấy thẻ\nđã bị sao chép.\n\n3.\n\nAUDIT.LOG CHO RẰNG:\n\nDaniel đã tạo archive.\n\nNhật ký tiến trình cho thấy archive-worker\nmới thực hiện thao tác này.\n\n4.\n\nCAMERA.LOG CHO THẤY:\n\nNgười bước vào Phòng Máy chủ\nkhông có chiều cao giống Daniel.\n\n5.\n\nPHÁP Y USB:\n\nUSB trước đây được đăng ký\nvới Security Lab 02.\n\n6.\n\nDHCP MẠNG:\n\n10.44.12.77 thuộc về\nlaptop của Victor.\n\n7.\n\nPHIÊN TỪ XA:\n\nMAINT-7 sử dụng svc-archive.\n\n8.\n\nEMAIL ĐÃ XÓA:\n\nCó người hướng dẫn Victor\nsử dụng MAINT-7."
+            }
+          },
+          {
+            "type": "file",
+            "name": "final-analysis.txt",
+            "content": {
+              "en": "FORENSIC ANALYSIS\n\nThe incident contains three\ndistinct identities:\n\nIDENTITY A:\nDaniel Cross\n\nUsed as the impersonated account.\n\nIDENTITY B:\nVictor Hale\n\nPhysical access evidence connects\nVictor to the cloned badge,\nUSB device and maintenance endpoint.\n\nIDENTITY C:\nUNKNOWN OPERATOR\n\nUsed the external destination\n10.44.19.88.\n\nIMPORTANT:\n\nVictor appears to have performed\nthe physical operation.\n\nHowever, the transfer destination\nwas controlled by an unknown party.\n\nThe investigation must determine\nwhether Victor acted independently\nor under external direction.",
+              "vi": "PHÂN TÍCH PHÁP Y\n\nSự việc bao gồm ba\ndanh tính riêng biệt:\n\nDANH TÍNH A:\nDaniel Cross\n\nBị sử dụng làm tài khoản bị mạo danh.\n\nDANH TÍNH B:\nVictor Hale\n\nBằng chứng truy cập vật lý liên kết\nVictor với thẻ bị sao chép,\nthiết bị USB và endpoint bảo trì.\n\nDANH TÍNH C:\nNGƯỜI VẬN HÀNH KHÔNG XÁC ĐỊNH\n\nĐã sử dụng máy chủ đích bên ngoài\n10.44.19.88.\n\nQUAN TRỌNG:\n\nVictor có vẻ là người trực tiếp\nthực hiện hoạt động vật lý.\n\nTuy nhiên, máy chủ đích của vụ chuyển dữ liệu\nđược kiểm soát bởi một bên không xác định.\n\nCuộc điều tra phải xác định\nVictor hành động độc lập\nhay theo chỉ đạo từ bên ngoài."
+            }
+          }
+        ]
+      },
+      {
+        "type": "directory",
+        "name": "external",
+        "children": [
+          {
+            "type": "file",
+            "name": "destination.txt",
+            "content": {
+              "en": "EXTERNAL NODE\n\nIP:\n10.44.19.88\n\nHOSTNAME:\nNODE-OMEGA\n\nSTATUS:\nOFFLINE\n\nSERVER CERTIFICATE:\nSECURE-TRANSFER.LOCAL\n\nLAST CONNECTION:\n02:18:03\n\nREGISTERED ORGANIZATION:\nNONE\n\nGEOLOCATION:\nUNKNOWN\n\nNOTE:\n\nNode was created 6 days ago.\n\nNo corporate ownership found.",
+              "vi": "NODE BÊN NGOÀI\n\nIP:\n10.44.19.88\n\nTÊN MÁY CHỦ:\nNODE-OMEGA\n\nTRẠNG THÁI:\nOFFLINE\n\nCHỨNG CHỈ MÁY CHỦ:\nSECURE-TRANSFER.LOCAL\n\nKẾT NỐI CUỐI:\n02:18:03\n\nTỔ CHỨC ĐĂNG KÝ:\nKHÔNG CÓ\n\nVỊ TRÍ ĐỊA LÝ:\nKHÔNG XÁC ĐỊNH\n\nGHI CHÚ:\n\nNode được tạo 6 ngày trước.\n\nKhông tìm thấy quyền sở hữu\ncủa công ty."
+            }
+          },
+          {
+            "type": "file",
+            "name": "certificate.txt",
+            "content": {
+              "en": "CERTIFICATE ANALYSIS\n\nSUBJECT:\nsecure-transfer.local\n\nISSUER:\nInternal Development CA\n\nCREATED:\n6 DAYS AGO\n\nOWNER:\nUNASSIGNED\n\nCERTIFICATE SERIAL:\nOMEGA-77-19\n\nWARNING:\n\nCertificate was signed using\na development CA.\n\nProduction transfer systems\nmust use Corporate CA.",
+              "vi": "PHÂN TÍCH CHỨNG CHỈ\n\nĐỐI TƯỢNG:\nsecure-transfer.local\n\nNHÀ CẤP:\nInternal Development CA\n\nĐƯỢC TẠO:\n6 NGÀY TRƯỚC\n\nCHỦ SỞ HỮU:\nCHƯA GÁN\n\nSERIAL CHỨNG CHỈ:\nOMEGA-77-19\n\nCẢNH BÁO:\n\nChứng chỉ được ký bằng\nCA phát triển.\n\nHệ thống chuyển dữ liệu production\nphải sử dụng Corporate CA."
+            }
+          },
+          {
+            "type": "file",
+            "name": "connection-history.txt",
+            "content": {
+              "en": "CONNECTION HISTORY\n\nNODE-OMEGA\n\nDAY -6:\nCREATED\n\nDAY -5:\nNO CONNECTION\n\nDAY -4:\nNO CONNECTION\n\nDAY -3:\nCONNECTION TO:\nSECURITY-LAB-02\n\nDAY -2:\nNO CONNECTION\n\nDAY -1:\nCONNECTION TO:\n10.44.12.77\n\nTODAY:\nCONNECTION TO:\nDC-WORKSTATION-07",
+              "vi": "LỊCH SỬ KẾT NỐI\n\nNODE-OMEGA\n\nNGÀY -6:\nĐƯỢC TẠO\n\nNGÀY -5:\nKHÔNG CÓ KẾT NỐI\n\nNGÀY -4:\nKHÔNG CÓ KẾT NỐI\n\nNGÀY -3:\nKẾT NỐI VỚI:\nSECURITY-LAB-02\n\nNGÀY -2:\nKHÔNG CÓ KẾT NỐI\n\nNGÀY -1:\nKẾT NỐI VỚI:\n10.44.12.77\n\nHÔM NAY:\nKẾT NỐI VỚI:\nDC-WORKSTATION-07"
+            }
+          }
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "system-activity",
+        "title": {
+          "en": "System Activity Timeline",
+          "vi": "Dòng thời gian hoạt động hệ thống"
+        },
+        "description": {
+          "en": "The workstation shows Daniel becoming idle, then service and archive activity leading to the final transfer.",
+          "vi": "Máy trạm cho thấy Daniel chuyển sang trạng thái không hoạt động, sau đó xuất hiện hoạt động của tài khoản dịch vụ và archive dẫn tới vụ chuyển dữ liệu."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Start with the workstation timeline. Do not assume the account name identifies the operator.",
+          "vi": "Hãy bắt đầu từ dòng thời gian của máy trạm. Đừng mặc định tên tài khoản chính là người thực hiện."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/logs/system.log"
+        },
+        "highlight": {
+          "en": [
+            "USER SESSION IDLE",
+            "SERVICE ACCOUNT LOGIN",
+            "UNKNOWN-USB",
+            "ARCHIVE CREATED",
+            "OUTBOUND TRANSFER"
+          ],
+          "vi": [
+            "PHIÊN DANIEL KHÔNG HOẠT ĐỘNG",
+            "ĐĂNG NHẬP TÀI KHOẢN DỊCH VỤ",
+            "USB-ĐÁNG NGỜ",
+            "ARCHIVE ĐƯỢC TẠO",
+            "CHUYỂN DỮ LIỆU RA NGOÀI"
+          ]
+        },
+        "requiresEvidence": [],
+        "discovered": false
+      },
+      {
+        "id": "authentication-anomaly",
+        "title": {
+          "en": "Authentication Anomaly",
+          "vi": "Bất thường xác thực"
+        },
+        "description": {
+          "en": "'Daniel's account was used from an unknown endpoint with MFA bypass after his legitimate session became idle.'",
+          "vi": "Tài khoản của Daniel bị sử dụng từ một endpoint không xác định với MFA bị bỏ qua sau khi phiên hợp lệ của anh chuyển sang không hoạt động."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "'Compare the suspicious login with Daniel's legitimate login.'",
+          "vi": "So sánh lần đăng nhập đáng ngờ với lần đăng nhập hợp lệ của Daniel."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/logs/auth.log"
+        },
+        "highlight": {
+          "en": [
+            "01:42:13",
+            "01:59:31",
+            "MFA BYPASS",
+            "UNKNOWN-ENDPOINT"
+          ],
+          "vi": [
+            "01:42:13",
+            "01:59:31",
+            "BỎ QUA MFA",
+            "UNKNOWN-ENDPOINT"
+          ]
+        },
+        "requiresEvidence": [
+          "system-activity"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "network-trace",
+        "title": {
+          "en": "Remote Connection Trace",
+          "vi": "Truy dấu kết nối từ xa"
+        },
+        "description": {
+          "en": "'The suspicious endpoint connected to Daniel's workstation through remote access shortly after the authentication anomaly.'",
+          "vi": "Endpoint đáng ngờ kết nối tới máy trạm của Daniel qua truy cập từ xa ngay sau bất thường xác thực."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Follow the unknown endpoint to the device that actually generated the traffic.",
+          "vi": "Hãy truy endpoint không xác định về thiết bị thực sự tạo ra lưu lượng."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/network/network.log"
+        },
+        "highlight": {
+          "en": [
+            "UNKNOWN-ENDPOINT",
+            "10.44.12.77",
+            "3389",
+            "02:17:42"
+          ],
+          "vi": [
+            "UNKNOWN-ENDPOINT",
+            "10.44.12.77",
+            "3389",
+            "02:17:42"
+          ]
+        },
+        "requiresEvidence": [
+          "authentication-anomaly"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "dhcp-trace",
+        "title": {
+          "en": "DHCP Device Identification",
+          "vi": "Xác định thiết bị qua DHCP"
+        },
+        "description": {
+          "en": "DHCP maps 10.44.12.77 to VICTOR-LAPTOP, connecting the remote intrusion to a physical device.",
+          "vi": "DHCP ánh xạ 10.44.12.77 tới VICTOR-LAPTOP, nối vụ truy cập từ xa với một thiết bị vật lý cụ thể."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "An IP identifies a device, not automatically a person. Use the device identity as the next link.",
+          "vi": "IP xác định thiết bị, chưa tự động xác định con người. Hãy dùng danh tính thiết bị làm mắt xích tiếp theo."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/network/dhcp.log"
+        },
+        "highlight": {
+          "en": [
+            "10.44.12.77",
+            "VICTOR-LAPTOP"
+          ],
+          "vi": [
+            "10.44.12.77",
+            "VICTOR-LAPTOP"
+          ]
+        },
+        "requiresEvidence": [
+          "network-trace"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "maintenance-endpoint",
+        "title": {
+          "en": "Legacy Maintenance Endpoint",
+          "vi": "Endpoint bảo trì Legacy"
+        },
+        "description": {
+          "en": "MAINT-7 was an authorized legacy maintenance endpoint for Victor and Ethan and could create remote sessions with weaker logging.",
+          "vi": "MAINT-7 là endpoint bảo trì legacy được cấp cho Victor và Ethan, có thể tạo phiên từ xa với cơ chế ghi log yếu hơn."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "The remote session mentions MAINT-7. Find out who was allowed to use it.",
+          "vi": "Phiên từ xa nhắc tới MAINT-7. Hãy xác định ai được phép sử dụng nó."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/scripts/maintenance.txt"
+        },
+        "highlight": {
+          "en": [
+            "MAINT-7",
+            "Victor Hale",
+            "Ethan Cole",
+            "Legacy sessions"
+          ],
+          "vi": [
+            "MAINT-7",
+            "Victor Hale",
+            "Ethan Cole",
+            "Phiên Legacy"
+          ]
+        },
+        "requiresEvidence": [
+          "network-trace"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "service-account",
+        "title": {
+          "en": "Compromised Archive Service",
+          "vi": "Tài khoản dịch vụ Archive bị xâm phạm"
+        },
+        "description": {
+          "en": "svc-archive had READ + WRITE access to research data and its credential had been exposed before the incident.",
+          "vi": "svc-archive có quyền ĐỌC + GHI dữ liệu nghiên cứu và thông tin xác thực của nó từng bị lộ trước vụ việc."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Now that you know the maintenance path, identify the service account used by it.",
+          "vi": "Sau khi biết đường đi qua endpoint bảo trì, hãy xác định tài khoản dịch vụ được sử dụng."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/users/service-accounts.txt"
+        },
+        "highlight": {
+          "en": [
+            "svc-archive",
+            "READ + WRITE RESEARCH",
+            "credential was exposed"
+          ],
+          "vi": [
+            "svc-archive",
+            "ĐỌC + GHI RESEARCH",
+            "thông tin xác thực đã bị lộ"
+          ]
+        },
+        "requiresEvidence": [
+          "maintenance-endpoint"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "remote-session",
+        "title": {
+          "en": "Remote Session Evidence",
+          "vi": "Bằng chứng phiên từ xa"
+        },
+        "description": {
+          "en": "The server session shows svc-archive being used through MAINT-7 and then impersonating Daniel.",
+          "vi": "Phiên máy chủ cho thấy svc-archive được sử dụng qua MAINT-7 rồi mạo danh Daniel."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "'This is the bridge between the suspicious network connection and Daniel's account.'",
+          "vi": "Đây là cầu nối giữa kết nối mạng đáng ngờ và tài khoản Daniel."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/server/remote-session.log"
+        },
+        "highlight": {
+          "en": [
+            "MAINT-7",
+            "svc-archive",
+            "IMPERSONATION",
+            "daniel"
+          ],
+          "vi": [
+            "MAINT-7",
+            "svc-archive",
+            "MẠO DANH",
+            "daniel"
+          ]
+        },
+        "requiresEvidence": [
+          "service-account"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "process-forensics",
+        "title": {
+          "en": "Archive Process Forensics",
+          "vi": "Pháp y tiến trình tạo Archive"
+        },
+        "description": {
+          "en": "The remote process spawned archive-worker and elevated it to SYSTEM, explaining how the archive was actually created.",
+          "vi": "Tiến trình từ xa tạo archive-worker và nâng quyền lên SYSTEM, giải thích archive thực sự được tạo như thế nào."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "The audit log names Daniel, but process telemetry can identify the process that performed the operation.",
+          "vi": "Audit log ghi tên Daniel, nhưng telemetry tiến trình có thể xác định tiến trình thực hiện thao tác."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/server/process.log"
+        },
+        "highlight": {
+          "en": [
+            "remote-sync",
+            "archive-worker",
+            "PRIVILEGE: SYSTEM"
+          ],
+          "vi": [
+            "remote-sync",
+            "archive-worker",
+            "QUYỀN: SYSTEM"
+          ]
+        },
+        "requiresEvidence": [
+          "remote-session"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "memory-forensics",
+        "title": {
+          "en": "Memory Credential Evidence",
+          "vi": "Bằng chứng thông tin xác thực trong bộ nhớ"
+        },
+        "description": {
+          "en": "Memory from the suspicious process contains the same MAINT-7 and svc-archive references, independently confirming the execution path.",
+          "vi": "Bộ nhớ của tiến trình đáng ngờ chứa cùng các tham chiếu MAINT-7 và svc-archive, xác nhận độc lập đường thực thi."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Use memory as independent confirmation of what the process actually used.",
+          "vi": "Dùng bộ nhớ để xác nhận độc lập những gì tiến trình thực sự đã sử dụng."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/forensics/memory.txt"
+        },
+        "highlight": {
+          "en": [
+            "MAINT-7",
+            "svc-archive",
+            "Token owner"
+          ],
+          "vi": [
+            "MAINT-7",
+            "svc-archive",
+            "Chủ sở hữu token"
+          ]
+        },
+        "requiresEvidence": [
+          "process-forensics"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "usb-device",
+        "title": {
+          "en": "Suspicious USB Device",
+          "vi": "Thiết bị USB đáng ngờ"
+        },
+        "description": {
+          "en": "USB VX-7719 was connected shortly before the archive was created.",
+          "vi": "USB VX-7719 được kết nối ngay trước khi archive được tạo."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "The workstation timeline shows removable media. Inspect the device record.",
+          "vi": "Dòng thời gian máy trạm cho thấy có thiết bị rời. Hãy kiểm tra hồ sơ thiết bị."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/devices/usb.log"
+        },
+        "highlight": {
+          "en": [
+            "VX-7719",
+            "USB STORAGE",
+            "02:14:02"
+          ],
+          "vi": [
+            "VX-7719",
+            "USB STORAGE",
+            "02:14:02"
+          ]
+        },
+        "requiresEvidence": [
+          "system-activity"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "usb-history",
+        "title": {
+          "en": "USB Ownership History",
+          "vi": "Lịch sử sở hữu USB"
+        },
+        "description": {
+          "en": "Forensic device records connect VX-7719 to Security Lab 02 and identify Victor as its last user.",
+          "vi": "Hồ sơ pháp y thiết bị liên kết VX-7719 với Security Lab 02 và xác định Victor là người dùng cuối."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "A suspicious USB matters only when you can connect it to a person or location.",
+          "vi": "USB đáng ngờ chỉ có giá trị khi bạn liên kết được nó với người hoặc địa điểm."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/forensics/usb-forensics.txt"
+        },
+        "highlight": {
+          "en": [
+            "VX-7719",
+            "SECURITY-LAB-02",
+            "LAST USER: VICTOR"
+          ],
+          "vi": [
+            "VX-7719",
+            "SECURITY-LAB-02",
+            "NGƯỜI DÙNG CUỐI: VICTOR"
+          ]
+        },
+        "requiresEvidence": [
+          "usb-device"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "usb-content",
+        "title": {
+          "en": "Attack Toolkit on USB",
+          "vi": "Bộ công cụ trên USB"
+        },
+        "description": {
+          "en": "The USB contained the stolen archive plus access and cleanup scripts.",
+          "vi": "USB chứa archive bị đánh cắp cùng script truy cập và script xóa dấu vết."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Inspect the USB contents to see whether it carried more than the stolen data.",
+          "vi": "Kiểm tra nội dung USB để xem nó có chứa gì ngoài dữ liệu bị đánh cắp."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/devices/usb-content.txt"
+        },
+        "highlight": {
+          "en": [
+            "phoenix-export.tar",
+            "access-script.bin",
+            "cleanup.sh"
+          ],
+          "vi": [
+            "phoenix-export.tar",
+            "access-script.bin",
+            "cleanup.sh"
+          ]
+        },
+        "requiresEvidence": [
+          "usb-history"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "access-script",
+        "title": {
+          "en": "Remote Access Script",
+          "vi": "Script truy cập từ xa"
+        },
+        "description": {
+          "en": "The USB script references svc-archive, MAINT-7 and remote-sync—the same path seen in server telemetry.",
+          "vi": "Script trên USB tham chiếu svc-archive, MAINT-7 và remote-sync—đúng đường đi xuất hiện trong telemetry máy chủ."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Compare the script with the remote session and process evidence.",
+          "vi": "So sánh script với bằng chứng phiên từ xa và tiến trình."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/scripts/access-script.bin"
+        },
+        "highlight": {
+          "en": [
+            "svc-archive",
+            "MAINT-7",
+            "remote-sync"
+          ],
+          "vi": [
+            "svc-archive",
+            "MAINT-7",
+            "remote-sync"
+          ]
+        },
+        "requiresEvidence": [
+          "usb-content",
+          "remote-session"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "cleanup-script",
+        "title": {
+          "en": "Evidence Cleanup Script",
+          "vi": "Script xóa dấu vết"
+        },
+        "description": {
+          "en": "The cleanup script attempts to terminate remote-sync and delete the stolen archive and remote-session log.",
+          "vi": "Script dọn dẹp cố kết thúc remote-sync và xóa archive bị đánh cắp cùng log phiên từ xa."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Once you find the access tool, inspect what the operator planned to erase.",
+          "vi": "Sau khi tìm thấy công cụ truy cập, hãy kiểm tra những gì kẻ thực hiện định xóa."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/scripts/cleanup.sh"
+        },
+        "highlight": {
+          "en": [
+            "killall remote-sync",
+            "rm /tmp/.cache/archive/phoenix-export.tar",
+            "rm /var/log/remote-session.log"
+          ],
+          "vi": [
+            "killall remote-sync",
+            "rm /tmp/.cache/archive/phoenix-export.tar",
+            "rm /var/log/remote-session.log"
+          ]
+        },
+        "requiresEvidence": [
+          "access-script"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "badge-analysis",
+        "title": {
+          "en": "Cloned Security Badge",
+          "vi": "Thẻ an ninh bị sao chép"
+        },
+        "description": {
+          "en": "'Daniel's badge credential opened Server Room 4, but forensic analysis indicates the physical badge was cloned.'",
+          "vi": "Thông tin thẻ của Daniel mở được Phòng Máy chủ 4, nhưng pháp y cho thấy thẻ vật lý đã bị sao chép."
+        },
+        "type": "object",
+        "hint": {
+          "en": "The access system proves a credential was used, not who carried it.",
+          "vi": "Hệ thống ra vào chỉ chứng minh một credential được sử dụng, không chứng minh ai mang nó."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/forensics/badge-forensics.txt"
+        },
+        "highlight": {
+          "en": [
+            "DANIEL CROSS",
+            "CRYPTOGRAPHIC SIGNATURE: INVALID",
+            "CLONED BADGE"
+          ],
+          "vi": [
+            "DANIEL CROSS",
+            "CHỮ KÝ MẬT MÃ: KHÔNG HỢP LỆ",
+            "THẺ BỊ SAO CHÉP"
+          ]
+        },
+        "requiresEvidence": [],
+        "discovered": false
+      },
+      {
+        "id": "camera-evidence",
+        "title": {
+          "en": "Server Room Camera Evidence",
+          "vi": "Bằng chứng camera phòng máy chủ"
+        },
+        "description": {
+          "en": "Camera analysis shows the person entering Server Room 4 was not Daniel.",
+          "vi": "Phân tích camera cho thấy người bước vào Phòng Máy chủ 4 không phải Daniel."
+        },
+        "type": "photo",
+        "hint": {
+          "en": "Combine the cloned badge with the person actually seen on camera.",
+          "vi": "Kết hợp thẻ bị sao chép với người thực sự xuất hiện trên camera."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/camera/camera-analysis.txt"
+        },
+        "highlight": {
+          "en": [
+            "does NOT appear to be Daniel Cross",
+            "180 CM",
+            "Daniel Cross",
+            "174 CM"
+          ],
+          "vi": [
+            "KHÔNG có vẻ là Daniel Cross",
+            "180 CM",
+            "Daniel Cross",
+            "174 CM"
+          ]
+        },
+        "requiresEvidence": [
+          "badge-analysis"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "camera-timeline",
+        "title": {
+          "en": "Physical Surveillance Timeline",
+          "vi": "Dòng thời gian giám sát vật lý"
+        },
+        "description": {
+          "en": "Camera footage places Victor in the Security Lab and later shows a taller person entering and leaving Server Room 4.",
+          "vi": "Camera đặt Victor tại Phòng An ninh và sau đó ghi nhận một người cao hơn bước vào rồi rời Phòng Máy chủ 4."
+        },
+        "type": "photo",
+        "hint": {
+          "en": "Build the physical timeline independently, then compare it with the network timeline.",
+          "vi": "Tái dựng dòng thời gian vật lý trước, sau đó đối chiếu với dòng thời gian mạng."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/camera/camera.log"
+        },
+        "highlight": {
+          "en": [
+            "Victor enters Security Lab",
+            "'Person carrying Daniel's badge'",
+            "Person exits",
+            "Daniel Cross discovered"
+          ],
+          "vi": [
+            "Victor bước vào Phòng An ninh",
+            "Người mang thẻ của Daniel",
+            "Người này rời đi",
+            "Phát hiện Daniel Cross"
+          ]
+        },
+        "requiresEvidence": [
+          "camera-evidence"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "victor-profile",
+        "title": {
+          "en": "Victor Hale Profile",
+          "vi": "Hồ sơ Victor Hale"
+        },
+        "description": {
+          "en": "Victor is a security administrator, uses VICTOR-LAPTOP, has privileged access and is approximately the same height as the person in the server-room footage.",
+          "vi": "Victor là quản trị viên an ninh, sử dụng VICTOR-LAPTOP, có quyền đặc biệt và có chiều cao gần bằng người xuất hiện trong camera phòng máy chủ."
+        },
+        "type": "object",
+        "hint": {
+          "en": "'A physical match is not enough. Verify Victor's access and technical capability.'",
+          "vi": "Khớp hình thể vẫn chưa đủ. Hãy xác minh quyền truy cập và khả năng kỹ thuật của Victor."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/users/victor.txt"
+        },
+        "highlight": {
+          "en": [
+            "Victor Hale",
+            "181 CM",
+            "PRIVILEGED ACCESS",
+            "VICTOR-LAPTOP"
+          ],
+          "vi": [
+            "Victor Hale",
+            "181 CM",
+            "QUYỀN TRUY CẬP ĐẶC BIỆT",
+            "VICTOR-LAPTOP"
+          ]
+        },
+        "requiresEvidence": [
+          "dhcp-trace",
+          "camera-timeline"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "deleted-email",
+        "title": {
+          "en": "Deleted Maintenance Message",
+          "vi": "Tin nhắn bảo trì đã xóa"
+        },
+        "description": {
+          "en": "A recovered message directed Victor to use the old credential and MAINT-7 while keeping Daniel out of the operation.",
+          "vi": "Tin nhắn khôi phục cho thấy Victor được hướng dẫn dùng credential cũ và MAINT-7, đồng thời không liên quan Daniel."
+        },
+        "type": "document",
+        "hint": {
+          "en": "Now ask why Victor would use this maintenance path. Search the recovered communications.",
+          "vi": "Bây giờ hãy hỏi vì sao Victor lại dùng đường bảo trì này. Tìm các liên lạc đã được khôi phục."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/emails/deleted-mail.txt"
+        },
+        "highlight": {
+          "en": [
+            "victor.hale@company.local",
+            "old credential still works",
+            "MAINT-7",
+            "Do not involve Daniel"
+          ],
+          "vi": [
+            "victor.hale@company.local",
+            "thông tin xác thực cũ vẫn hoạt động",
+            "MAINT-7",
+            "Không được liên quan đến Daniel"
+          ]
+        },
+        "requiresEvidence": [
+          "victor-profile",
+          "maintenance-endpoint"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "external-node",
+        "title": {
+          "en": "Unknown External Node",
+          "vi": "Node bên ngoài không xác định"
+        },
+        "description": {
+          "en": "The Phoenix archive was transferred to NODE-OMEGA at 10.44.19.88, a recently created system with no corporate ownership.",
+          "vi": "Archive Phoenix được chuyển tới NODE-OMEGA tại 10.44.19.88, một hệ thống mới tạo và không có chủ sở hữu doanh nghiệp."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Follow the destination of the 02:17 transfer.",
+          "vi": "Hãy lần theo đích đến của vụ chuyển dữ liệu lúc 02:17."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/external/destination.txt"
+        },
+        "highlight": {
+          "en": [
+            "10.44.19.88",
+            "NODE-OMEGA",
+            "6 days ago",
+            "No corporate ownership found"
+          ],
+          "vi": [
+            "10.44.19.88",
+            "NODE-OMEGA",
+            "6 ngày trước",
+            "Không tìm thấy quyền sở hữu của công ty"
+          ]
+        },
+        "requiresEvidence": [
+          "network-trace"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "external-certificate",
+        "title": {
+          "en": "Suspicious External Certificate",
+          "vi": "Chứng chỉ máy chủ bên ngoài đáng ngờ"
+        },
+        "description": {
+          "en": "NODE-OMEGA uses a development certificate rather than the corporate production certificate.",
+          "vi": "NODE-OMEGA dùng chứng chỉ development thay vì chứng chỉ production của công ty."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Determine whether the destination looks like an approved production system.",
+          "vi": "Xác định xem máy chủ đích có phải hệ thống production được phê duyệt hay không."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/external/certificate.txt"
+        },
+        "highlight": {
+          "en": [
+            "Development CA",
+            "6 DAYS AGO",
+            "UNASSIGNED"
+          ],
+          "vi": [
+            "Development CA",
+            "6 NGÀY TRƯỚC",
+            "CHƯA GÁN"
+          ]
+        },
+        "requiresEvidence": [
+          "external-node"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "external-history",
+        "title": {
+          "en": "External Connection History",
+          "vi": "Lịch sử kết nối máy chủ bên ngoài"
+        },
+        "description": {
+          "en": "'NODE-OMEGA had prior connections to Security Lab 02 and Victor's laptop before the final transfer.'",
+          "vi": "NODE-OMEGA từng kết nối với Security Lab 02 và laptop của Victor trước vụ chuyển dữ liệu cuối cùng."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Trace NODE-OMEGA backward. The history may connect the external controller to the internal operation.",
+          "vi": "Truy ngược NODE-OMEGA. Lịch sử có thể nối người điều khiển bên ngoài với hoạt động nội bộ."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/external/connection-history.txt"
+        },
+        "highlight": {
+          "en": [
+            "SECURITY-LAB-02",
+            "10.44.12.77",
+            "DC-WORKSTATION-07"
+          ],
+          "vi": [
+            "SECURITY-LAB-02",
+            "10.44.12.77",
+            "DC-WORKSTATION-07"
+          ]
+        },
+        "requiresEvidence": [
+          "external-certificate",
+          "dhcp-trace"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "log-tampering",
+        "title": {
+          "en": "Tampered Authentication Log",
+          "vi": "Nhật ký xác thực bị chỉnh sửa"
+        },
+        "description": {
+          "en": "The integrity report proves auth.log was modified, so it cannot be treated as the sole source of truth.",
+          "vi": "Báo cáo toàn vẹn chứng minh auth.log đã bị sửa, vì vậy không thể dùng nó làm nguồn sự thật duy nhất."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Before trusting a suspicious login record, verify the log integrity.",
+          "vi": "Trước khi tin một bản ghi đăng nhập đáng ngờ, hãy kiểm tra tính toàn vẹn của log."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/logs/integrity.log"
+        },
+        "highlight": {
+          "en": [
+            "auth.log",
+            "STATUS: MODIFIED"
+          ],
+          "vi": [
+            "auth.log",
+            "TRẠNG THÁI: ĐÃ CHỈNH SỬA"
+          ]
+        },
+        "requiresEvidence": [
+          "authentication-anomaly"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "incident-contradictions",
+        "title": {
+          "en": "Evidence Contradictions",
+          "vi": "Mâu thuẫn trong bằng chứng"
+        },
+        "description": {
+          "en": "'Independent evidence shows that Daniel's account and badge were used, but Daniel was not the person performing the operation.'",
+          "vi": "Các nguồn bằng chứng độc lập cho thấy tài khoản và thẻ của Daniel bị sử dụng, nhưng Daniel không phải người thực hiện."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Compare account, process, network and camera evidence. Look for a consistent alternative explanation.",
+          "vi": "So sánh bằng chứng tài khoản, tiến trình, mạng và camera. Tìm một lời giải thích thay thế nhất quán."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/incident/contradictions.txt"
+        },
+        "highlight": {
+          "en": [
+            "MFA BYPASS",
+            "cloned",
+            "archive-worker",
+            "does not match Daniel",
+            "VICTOR-LAPTOP",
+            "MAINT-7"
+          ],
+          "vi": [
+            "BỎ QUA MFA",
+            "bị sao chép",
+            "archive-worker",
+            "không khớp với Daniel",
+            "VICTOR-LAPTOP",
+            "MAINT-7"
+          ]
+        },
+        "requiresEvidence": [
+          "log-tampering",
+          "process-forensics",
+          "camera-evidence",
+          "dhcp-trace"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "final-forensics",
+        "title": {
+          "en": "Final Forensic Analysis",
+          "vi": "Phân tích pháp y cuối cùng"
+        },
+        "description": {
+          "en": "The evidence separates Daniel as the impersonated account, Victor as the likely physical operator, and an unknown party controlling NODE-OMEGA.",
+          "vi": "Bằng chứng tách Daniel thành chủ tài khoản bị mạo danh, Victor là người có khả năng trực tiếp thực hiện, và một bên không xác định kiểm soát NODE-OMEGA."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Do not collapse the physical operator and external controller into one identity without evidence.",
+          "vi": "Đừng gộp người trực tiếp thực hiện và người điều khiển bên ngoài thành một danh tính nếu chưa có bằng chứng."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/incident/final-analysis.txt"
+        },
+        "highlight": {
+          "en": [
+            "IDENTITY A",
+            "IDENTITY B",
+            "IDENTITY C",
+            "Victor Hale",
+            "unknown party"
+          ],
+          "vi": [
+            "DANH TÍNH A",
+            "DANH TÍNH B",
+            "DANH TÍNH C",
+            "Victor Hale",
+            "bên không xác định"
+          ]
+        },
+        "requiresEvidence": [
+          "incident-contradictions",
+          "external-history",
+          "deleted-email"
+        ],
+        "discovered": false
+      },
+      {
+        "id": "final-timeline",
+        "title": {
+          "en": "Complete Incident Timeline",
+          "vi": "Dòng thời gian hoàn chỉnh của sự việc"
+        },
+        "description": {
+          "en": "The final timeline connects the account compromise, remote session, physical access, USB tooling, archive creation and external transfer.",
+          "vi": "Dòng thời gian cuối cùng liên kết việc chiếm quyền tài khoản, phiên từ xa, truy cập vật lý, công cụ USB, tạo archive và chuyển dữ liệu ra ngoài."
+        },
+        "type": "digital",
+        "hint": {
+          "en": "Only after the separate evidence chains agree should you reconstruct the whole operation.",
+          "vi": "Chỉ sau khi các chuỗi bằng chứng độc lập khớp nhau mới tái dựng toàn bộ hoạt động."
+        },
+        "discover": {
+          "type": "cat",
+          "path": "/incident/timeline.txt"
+        },
+        "highlight": {
+          "en": [
+            "18:32",
+            "01:49",
+            "01:58",
+            "01:59",
+            "02:11",
+            "02:14",
+            "02:17",
+            "02:19"
+          ],
+          "vi": [
+            "18:32",
+            "01:49",
+            "01:58",
+            "01:59",
+            "02:11",
+            "02:14",
+            "02:17",
+            "02:19"
+          ]
+        },
+        "requiresEvidence": [
+          "final-forensics",
+          "cleanup-script",
+          "camera-timeline",
+          "external-history"
+        ],
+        "discovered": false
+      }
+    ],
+    "tasks": [
+      {
+        "id": "reconstruct-digital-timeline",
+        "title": {
+          "en": "Reconstruct the digital timeline",
+          "vi": "Tái dựng dòng thời gian kỹ thuật số"
+        },
+        "description": {
+          "en": "'Establish the sequence from Daniel's idle session to the remote session, archive creation and final transfer.'",
+          "vi": "Xác lập chuỗi sự kiện từ khi phiên của Daniel không hoạt động đến phiên từ xa, tạo archive và chuyển dữ liệu."
+        },
+        "requiresEvidence": [
+          "system-activity",
+          "authentication-anomaly",
+          "remote-session",
+          "process-forensics"
+        ],
+        "completed": false
+      },
+      {
+        "id": "identify-attack-source",
+        "title": {
+          "en": "Identify the attack source",
+          "vi": "Xác định nguồn tấn công"
+        },
+        "description": {
+          "en": "Trace the suspicious connection from the unknown endpoint to the physical device that generated it.",
+          "vi": "Truy dấu kết nối đáng ngờ từ endpoint không xác định tới thiết bị vật lý đã tạo ra nó."
+        },
+        "requiresEvidence": [
+          "network-trace",
+          "dhcp-trace"
+        ],
+        "completed": false
+      },
+      {
+        "id": "identify-execution-path",
+        "title": {
+          "en": "Identify the execution path",
+          "vi": "Xác định đường thực thi"
+        },
+        "description": {
+          "en": "Determine how the attacker moved from the maintenance endpoint to svc-archive and then to the archive worker.",
+          "vi": "Xác định kẻ tấn công đi từ endpoint bảo trì tới svc-archive rồi tới archive-worker như thế nào."
+        },
+        "requiresEvidence": [
+          "maintenance-endpoint",
+          "service-account",
+          "remote-session",
+          "process-forensics",
+          "memory-forensics"
+        ],
+        "completed": false
+      },
+      {
+        "id": "trace-usb-device",
+        "title": {
+          "en": "Trace the suspicious USB",
+          "vi": "Truy dấu USB đáng ngờ"
+        },
+        "description": {
+          "en": "Connect the USB to its previous owner and determine whether it carried the tools used in the operation.",
+          "vi": "Liên kết USB với người từng sử dụng nó và xác định liệu nó có chứa công cụ được dùng trong vụ việc hay không."
+        },
+        "requiresEvidence": [
+          "usb-device",
+          "usb-history",
+          "usb-content",
+          "access-script"
+        ],
+        "completed": false
+      },
+      {
+        "id": "prove-physical-intrusion",
+        "title": {
+          "en": "Prove the physical intrusion",
+          "vi": "Chứng minh vụ xâm nhập vật lý"
+        },
+        "description": {
+          "en": "Prove Daniel did not enter Server Room 4 and determine why the person using his badge is linked to Victor.",
+          "vi": "Chứng minh Daniel không vào Phòng Máy chủ 4 và xác định vì sao người dùng thẻ của anh lại liên quan tới Victor."
+        },
+        "requiresEvidence": [
+          "badge-analysis",
+          "camera-evidence",
+          "camera-timeline",
+          "victor-profile"
+        ],
+        "completed": false
+      },
+      {
+        "id": "trace-motive",
+        "title": {
+          "en": "Trace the motive and instruction",
+          "vi": "Truy tìm động cơ và chỉ đạo"
+        },
+        "description": {
+          "en": "Find the communication that connects Victor to MAINT-7 and determine whether the operation was directed by someone else.",
+          "vi": "Tìm liên lạc kết nối Victor với MAINT-7 và xác định liệu hoạt động có được một bên khác chỉ đạo hay không."
+        },
+        "requiresEvidence": [
+          "victor-profile",
+          "deleted-email",
+          "external-history"
+        ],
+        "completed": false
+      },
+      {
+        "id": "trace-exfiltration",
+        "title": {
+          "en": "Trace the stolen research",
+          "vi": "Truy dấu dữ liệu bị đánh cắp"
+        },
+        "description": {
+          "en": "Identify the destination of the Phoenix archive and determine whether it was an authorized corporate system.",
+          "vi": "Xác định đích đến của archive Phoenix và xem đó có phải hệ thống được công ty cấp phép hay không."
+        },
+        "requiresEvidence": [
+          "external-node",
+          "external-certificate",
+          "external-history"
+        ],
+        "completed": false
+      },
+      {
+        "id": "separate-identities",
+        "title": {
+          "en": "Separate the three identities",
+          "vi": "Phân biệt ba danh tính"
+        },
+        "description": {
+          "en": "Separate Daniel as the impersonated account, Victor as the likely physical operator, and the unknown external controller.",
+          "vi": "Phân biệt Daniel là tài khoản bị mạo danh, Victor là người có khả năng trực tiếp thực hiện và bên điều khiển bên ngoài chưa xác định."
+        },
+        "requiresEvidence": [
+          "incident-contradictions",
+          "final-forensics"
+        ],
+        "completed": false
+      },
+      {
+        "id": "reconstruct-full-operation",
+        "title": {
+          "en": "Reconstruct the Ghost Protocol",
+          "vi": "Tái dựng Giao thức Bóng Ma"
+        },
+        "description": {
+          "en": "Combine the digital, physical and external evidence into one consistent account of the operation, including the attempted cleanup.",
+          "vi": "Kết hợp bằng chứng kỹ thuật số, vật lý và bên ngoài thành một diễn biến nhất quán, bao gồm cả nỗ lực xóa dấu vết."
+        },
+        "requiresEvidence": [
+          "log-tampering",
+          "cleanup-script",
+          "final-timeline"
+        ],
+        "completed": false
+      }
+    ]
+  }
+]

@@ -15,6 +15,7 @@ class DetectiveCase extends Model
         'id',
         'title',
         'description',
+        'scenario',
         'sort_order',
         'is_active',
     ];
@@ -24,6 +25,7 @@ class DetectiveCase extends Model
         return [
             'title' => 'array',
             'description' => 'array',
+            'scenario' => 'array',
             'sort_order' => 'integer',
             'is_active' => 'boolean',
         ];
