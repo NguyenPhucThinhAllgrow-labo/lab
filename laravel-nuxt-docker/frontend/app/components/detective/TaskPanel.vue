@@ -26,12 +26,12 @@ function getText(
 
 <template>
   <section
-    class="rounded-lg
-           border
-           border-zinc-800
-           bg-zinc-950
-           p-4"
-  >
+  class="rounded-lg
+         border
+         border-slate-700
+         bg-slate-900/80
+         p-4"
+>
     <div
       class="mb-4
              flex items-center
