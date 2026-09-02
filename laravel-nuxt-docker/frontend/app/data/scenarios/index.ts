@@ -12,10 +12,15 @@ import {
   case003,
 } from './cases/case003'
 
+import {
+  case004,
+} from './cases/case004'
+
 const scenarios: Scenario[] = [
   case001,
   case002,
-  case003
+  case003,
+  case004,
 ]
 
 export function getScenario(
