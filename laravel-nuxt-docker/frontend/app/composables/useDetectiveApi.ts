@@ -27,6 +27,7 @@ export interface DetectiveProgressPayload {
   current_directory: string
   discovered_evidence: string[]
   completed_tasks: string[]
+  unlocked_paths: string[]
   command_history: string[]
   terminal_lines: TerminalLine[]
   game_completed: boolean
@@ -49,6 +50,7 @@ export interface DetectiveProgress {
   current_directory: string
   discovered_evidence: string[] | null
   completed_tasks: string[] | null
+  unlocked_paths: string[] | null
   command_history: string[] | null
   terminal_lines: TerminalLine[] | null
   game_completed: boolean

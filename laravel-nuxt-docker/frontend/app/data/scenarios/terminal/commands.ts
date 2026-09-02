@@ -57,6 +57,15 @@ export const terminalCommands:
     },
 
     {
+      command: 'sudo',
+
+      description:
+        'Run a filesystem command with elevated access',
+
+      requiresArgument: true,
+    },
+
+    {
       command: 'history',
 
       description:

@@ -20,6 +20,8 @@ class SaveDetectiveProgressRequest extends FormRequest
             'discovered_evidence.*' => ['string', 'max:100', 'distinct'],
             'completed_tasks' => ['sometimes', 'array', 'max:100'],
             'completed_tasks.*' => ['string', 'max:100', 'distinct'],
+            'unlocked_paths' => ['sometimes', 'array', 'max:100'],
+            'unlocked_paths.*' => ['string', 'max:500', 'starts_with:/', 'distinct'],
             'command_history' => ['sometimes', 'array', 'max:200'],
             'command_history.*' => ['string', 'max:1000'],
             'terminal_lines' => ['sometimes', 'array', 'max:500'],

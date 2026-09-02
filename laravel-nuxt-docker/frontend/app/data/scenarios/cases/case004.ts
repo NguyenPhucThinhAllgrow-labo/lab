@@ -7,49 +7,65 @@ export const case004: Scenario = {
     vi: 'VỤ ÁN 004 — TÍN HIỆU CUỐI CÙNG',
   },
   description: {
-    en: 'Investigative journalist Ethan Ward is found murdered in his apartment. His encrypted source archive is missing, a police evidence account appears in the access logs, and a second victim may still be alive. Enter the joint investigation system, separate planted evidence from reliable telemetry, identify the offender and locate him before the final signal disappears.',
-    vi: 'Nhà báo điều tra Ethan Ward được phát hiện tử vong trong căn hộ. Kho dữ liệu nguồn tin đã mã hóa biến mất, nhật ký truy cập lại mang tên một tài khoản vật chứng của cảnh sát, và có thể vẫn còn một nạn nhân thứ hai đang sống. Hãy truy cập hệ thống điều tra liên ngành, tách dấu vết ngụy tạo khỏi dữ liệu đáng tin, xác định hung thủ và tìm ra vị trí của hắn trước khi tín hiệu cuối cùng biến mất.',
+    en: 'You arrive at apartment 17B as the police forensic investigator. Investigative journalist Ethan Ward is dead beside his unlocked laptop, the encrypted source drive is missing, and a second victim may still be alive. Examine the laptop at the scene through a read-only forensic bridge, correlate its artifacts with authorized police systems, identify the offender and locate him before the final signal disappears.',
+    vi: 'Bạn đến căn hộ 17B với vai trò chuyên viên điều tra pháp y của cảnh sát. Nhà báo Ethan Ward tử vong cạnh chiếc laptop đang mở khóa, ổ nguồn tin mã hóa đã biến mất và có thể vẫn còn một nạn nhân thứ hai đang sống. Hãy điều tra chiếc laptop ngay tại hiện trường qua cầu nối pháp y chỉ đọc, đối chiếu dấu vết với các hệ thống cảnh sát được cấp quyền, xác định hung thủ và tìm ra vị trí của hắn trước khi tín hiệu cuối cùng biến mất.',
   },
   initialDirectory: '/',
   intro: {
     en: [
       'POLICE JOINT INVESTIGATION TERMINAL // CASE 004',
       '------------------------------------------------',
-      '06:42 — Crime scene secured, apartment 17B.',
+      '06:42 — You arrive and secure crime scene 17B.',
       'Victim: Ethan Ward, investigative journalist.',
       'Estimated time of death: 01:10–01:35.',
       '',
-      'A laptop is unlocked. The encrypted source drive is gone.',
+      "Ethan's laptop is awake beside the victim. The encrypted source drive is gone.",
+      'You attach a police read-only forensic bridge to the laptop.',
+      'The original disk remains write-blocked while you investigate it on scene.',
       'A message suggests his editor, Claire Bennett, was taken alive.',
       'Someone used a police evidence account to erase records.',
       '',
-      'You are the police forensic investigator assigned on scene.',
+      'This terminal combines the laptop image with authorized police data mounts.',
+      'Read /README.txt to identify the source of each top-level folder.',
       'Preserve separate chains of digital, physical and telecom evidence.',
       'Find the false trail. Identify the offender. Locate and arrest him.',
       '',
       'CAUTION: clocks disagree and one location record was forged.',
-      'Use ls, cd, cat, find, pwd, history and hint.',
+      'Restricted records require sudo. Reading a sealed file opens a password prompt.',
+      'Use help to review all available commands.',
     ],
     vi: [
       'HỆ THỐNG ĐIỀU TRA LIÊN NGÀNH // VỤ ÁN 004',
       '------------------------------------------------',
-      '06:42 — Phong tỏa hiện trường, căn hộ 17B.',
+      '06:42 — Bạn tới và phong tỏa hiện trường căn hộ 17B.',
       'Nạn nhân: Ethan Ward, nhà báo điều tra.',
       'Thời gian tử vong ước tính: 01:10–01:35.',
       '',
-      'Một laptop đang mở khóa. Ổ nguồn tin mã hóa đã biến mất.',
+      'Laptop của Ethan đang hoạt động cạnh nạn nhân. Ổ nguồn tin mã hóa đã biến mất.',
+      'Bạn gắn cầu nối pháp y chỉ đọc của cảnh sát vào laptop.',
+      'Ổ đĩa gốc được chặn ghi trong suốt quá trình điều tra tại hiện trường.',
       'Một tin nhắn cho thấy biên tập viên Claire Bennett bị bắt đi khi còn sống.',
       'Có kẻ đã dùng tài khoản kho vật chứng cảnh sát để xóa dữ liệu.',
       '',
-      'Bạn là chuyên viên điều tra pháp y của cảnh sát tại hiện trường.',
+      'Terminal này kết hợp ảnh laptop với các nguồn dữ liệu cảnh sát được cấp quyền.',
+      'Đọc /README.txt để biết nguồn của từng thư mục cấp cao.',
       'Hãy giữ độc lập các chuỗi chứng cứ số, vật lý và viễn thông.',
       'Phá dấu vết giả. Xác định hung thủ. Định vị và bắt giữ hắn.',
       '',
       'CẢNH BÁO: các đồng hồ lệch nhau và một bản ghi vị trí đã bị làm giả.',
-      'Dùng ls, cd, cat, find, pwd, history và hint.',
+      'Hồ sơ hạn chế cần sudo. Khi đọc tệp niêm phong, hệ thống sẽ yêu cầu mật mã.',
+      'Dùng help để xem toàn bộ lệnh khả dụng.',
     ],
   },
   filesystem: [
+    {
+      type: 'file',
+      name: 'README.txt',
+      content: {
+        en: `ON-SCENE FORENSIC WORKSPACE\nTarget device: Ethan Ward laptop EW-LAPTOP-01\nAcquisition: live read-only bridge; original disk write-blocked\n\n/laptop  — files and artifacts read from Ethan's laptop\n/scene   — observations entered by the on-scene police team\n/police  — restricted remote police records; sudo authorization required\n/network — authorized network-provider returns\n/city    — municipal camera, parking and map returns\n/telecom — emergency telecom returns\n/analysis — investigator-generated correlations and warrant material\n\nThese mount points are evidence sources in the police field terminal. Only /laptop represents data stored on the victim's computer.`,
+        vi: `KHÔNG GIAN PHÁP Y TẠI HIỆN TRƯỜNG\nThiết bị mục tiêu: laptop Ethan Ward EW-LAPTOP-01\nThu thập: cầu nối trực tiếp chỉ đọc; ổ gốc bị chặn ghi\n\n/laptop  — tệp và dấu vết đọc từ laptop của Ethan\n/scene   — quan sát do tổ cảnh sát hiện trường nhập\n/police  — hồ sơ cảnh sát từ xa bị hạn chế; cần quyền sudo\n/network — dữ liệu nhà cung cấp mạng trả về theo thẩm quyền\n/city    — dữ liệu camera, bãi xe và bản đồ đô thị\n/telecom — dữ liệu viễn thông khẩn cấp\n/analysis — kết quả đối chiếu và tài liệu xin lệnh do điều tra viên tạo\n\nCác điểm mount này là nguồn chứng cứ trong terminal hiện trường của cảnh sát. Chỉ /laptop là dữ liệu thực sự nằm trên máy tính nạn nhân.`,
+      },
+    },
     {
       type: 'directory', name: 'scene', children: [
         { type: 'file', name: 'first-response.txt', content: {
@@ -61,13 +77,13 @@ export const case004: Scenario = {
           vi: `PHÁP Y SƠ BỘ\nKhoảng tử vong: 01:10–01:35 GIỜ THỰC\nCặn thuốc an thần trong chiếc cốc đã rửa\nDấu găng tay bán phần: ngón cái phải, bị ngắt bởi vết sẹo\nVảy sơn alkyd xanh và sợi đay trên lan can\nĐiện thoại nạn nhân ngừng di chuyển lúc 01:12; đồng hồ ghi nhận giằng co lúc 01:14`,
         } },
         { type: 'file', name: 'chain-of-custody.txt', content: {
-          en: `ITEMS SEALED\nMK-LAPTOP-01 — imaged 07:03, SHA256 verified\nCUP-B — sealed 07:11\nPAINT-RAIL — sealed 07:18\nSTUB-P4187 — sealed 07:21\nNOTE: conclusions must not rely solely on mutable apartment logs`,
-          vi: `VẬT CHỨNG ĐÃ NIÊM PHONG\nMK-LAPTOP-01 — tạo ảnh lúc 07:03, SHA256 hợp lệ\nCUP-B — niêm phong 07:11\nPAINT-RAIL — niêm phong 07:18\nSTUB-P4187 — niêm phong 07:21\nLƯU Ý: không được kết luận chỉ từ nhật ký có thể sửa tại căn hộ`,
+          en: `ITEMS SEALED\nEW-LAPTOP-01 — live bridge attached 07:03; image SHA256 verified\nCUP-B — sealed 07:11\nPAINT-RAIL — sealed 07:18\nSTUB-P4187 — sealed 07:21\nWARRANT VAULT CODE FORMAT: archive name + sealed parking-stub number\nNOTE: conclusions must not rely solely on mutable apartment logs`,
+          vi: `VẬT CHỨNG ĐÃ NIÊM PHONG\nEW-LAPTOP-01 — gắn cầu nối lúc 07:03; SHA256 ảnh đĩa hợp lệ\nCUP-B — niêm phong 07:11\nPAINT-RAIL — niêm phong 07:18\nSTUB-P4187 — niêm phong 07:21\nĐỊNH DẠNG MÃ KHO LỆNH: tên archive + số cuống vé đỗ xe đã niêm phong\nLƯU Ý: không được kết luận chỉ từ nhật ký có thể sửa tại căn hộ`,
         } },
       ],
     },
     {
-      type: 'directory', name: 'device', children: [
+      type: 'directory', name: 'laptop', children: [
         { type: 'file', name: 'timeline.log', content: {
           en: `[00:41:08] encrypted archive ORPHEUS mounted\n[00:52:31] message received from CLAIRE-BENNETT\n[01:03:44] smart-lock guest token accepted\n[01:12:07] phone stationary\n[01:14:22] wearable: impact / elevated heart rate\n[01:19:50] ORPHEUS unmounted\n[01:22:13] browser session opened: evidence.metro-police.local\n[01:27:09] cleanup task executed\nCLOCK SOURCE: NTP VERIFIED; OFFSET +00:00`,
           vi: `[00:41:08] gắn kho mã hóa ORPHEUS\n[00:52:31] nhận tin nhắn từ CLAIRE-BENNETT\n[01:03:44] chấp nhận token khách của khóa thông minh\n[01:12:07] điện thoại đứng yên\n[01:14:22] thiết bị đeo: va chạm / nhịp tim tăng\n[01:19:50] tháo ORPHEUS\n[01:22:13] mở phiên trình duyệt: evidence.metro-police.local\n[01:27:09] chạy tác vụ dọn dẹp\nNGUỒN GIỜ: NTP ĐÃ XÁC MINH; ĐỘ LỆCH +00:00`,
@@ -83,7 +99,7 @@ export const case004: Scenario = {
       ],
     },
     {
-      type: 'directory', name: 'police', children: [
+      type: 'directory', name: 'police', access: { type: 'sudo' }, children: [
         { type: 'file', name: 'account-audit.log', content: {
           en: `ACCOUNT AUDIT — lucas.reed\n00:38 biometric entry: Central Evidence Building\n00:44 workstation EVID-03 unlocked with smart card\n01:00–02:04 body camera continuous; Officer Lucas Reed processing locker 6\n01:21 password login from 10.23.8.44; MFA recovery code RC-04\nRC-04 was printed for supervisor Grant Mercer on 14 May\nConclusion: Lucas Reed's account was compromised; verified alibi excludes him as apartment operator`,
           vi: `KIỂM TOÁN TÀI KHOẢN — lucas.reed\n00:38 sinh trắc vào Tòa nhà Vật chứng Trung tâm\n00:44 mở máy EVID-03 bằng thẻ thông minh\n01:00–02:04 camera áo liên tục; cán bộ Lucas Reed xử lý tủ số 6\n01:21 đăng nhập mật khẩu từ 10.23.8.44; mã khôi phục MFA RC-04\nRC-04 được in cho giám sát viên Grant Mercer ngày 14/05\nKết luận: tài khoản Lucas Reed bị chiếm dụng; ngoại phạm đã xác minh loại anh khỏi người thao tác tại căn hộ`,
@@ -148,7 +164,14 @@ export const case004: Scenario = {
           en: `FALSE-TRAIL ASSESSMENT\nLucas Reed: credential stolen; continuous verified alibi\nCentral Library: VPN exit and spoofed GPS, contradicted by radio sector and access restrictions\nClaire's 01:06 message: desktop key used after abduction; not proof of safety\nBedroom clock: 17-minute drift; excluded\nReliable independent anchors: NTP device, wearable, sealed parking stub, immutable road sensor, cellular bearings`,
           vi: `ĐÁNH GIÁ DẤU VẾT GIẢ\nLucas Reed: credential bị đánh cắp; ngoại phạm liên tục đã xác minh\nThư viện Trung tâm: điểm ra VPN và GPS giả; mâu thuẫn vùng vô tuyến và hạn chế ra vào\nTin nhắn 01:06 của Claire: dùng khóa máy bàn sau khi bị bắt; không chứng minh an toàn\nĐồng hồ phòng ngủ: lệch 17 phút; loại bỏ\nMốc độc lập đáng tin: thiết bị NTP, đồng hồ đeo, vé đỗ xe niêm phong, cảm biến đường bất biến, giao hội di động`,
         } },
-        { type: 'file', name: 'arrest-dossier.txt', content: {
+        { type: 'file', name: 'arrest-dossier.txt', access: {
+          type: 'password',
+          password: 'ORPHEUS-4187',
+          prompt: {
+            en: 'Warrant vault challenge: combine the archive name with the sealed parking-stub number.',
+            vi: 'Xác minh kho lệnh: ghép tên archive với số cuống vé đỗ xe đã niêm phong.',
+          },
+        }, content: {
           en: `OPERATIONAL DOSSIER — PROBABLE CAUSE ESTABLISHED\nSuspect: GRANT MERCER\nVehicle: 51H-742.19\nOffenses: homicide, abduction, evidence-system intrusion, obstruction\nTarget: NORTHSTAR WAREHOUSE 6, east loading bay\nLive victim: CLAIRE BENNETT; beacon consistent with interior office\nRisks: former police radio knowledge; may monitor open channels\nTactical instruction: encrypted channel TAC-6; medical team stage south; preserve FIELDKIT-MERCER and ORPHEUS drive\nSTATUS 02:18: warrant authorized — ARREST TEAM DISPATCHED`,
           vi: `HỒ SƠ TÁC CHIẾN — ĐÃ ĐỦ CĂN CỨ\nNghi phạm: GRANT MERCER\nPhương tiện: 51H-742.19\nTội danh: giết người, bắt cóc, xâm nhập hệ thống vật chứng, cản trở điều tra\nMục tiêu: KHO NORTHSTAR SỐ 6, cửa bốc hàng phía đông\nNạn nhân còn sống: CLAIRE BENNETT; beacon phù hợp văn phòng bên trong\nRủi ro: từng làm cảnh sát, biết hệ thống vô tuyến; có thể nghe kênh mở\nChỉ thị chiến thuật: kênh mã hóa TAC-6; y tế chờ phía nam; bảo toàn FIELDKIT-MERCER và ổ ORPHEUS\nTRẠNG THÁI 02:18: lệnh bắt đã phê chuẩn — ĐỘI BẮT GIỮ XUẤT PHÁT`,
         } },
@@ -162,8 +185,8 @@ export const case004: Scenario = {
   evidence: [
     { id: 'scene-baseline', title: { en: 'Secured Scene Baseline', vi: 'Mốc hiện trường đã bảo toàn' }, description: { en: 'The scene contains a missing drive, a second cup, a drifting clock and parking stub P-4187.', vi: 'Hiện trường có ổ dữ liệu biến mất, chiếc cốc thứ hai, đồng hồ lệch và vé đỗ xe P-4187.' }, type: 'object', hint: { en: 'Begin with the first responder record and note what can mislead the timeline.', vi: 'Bắt đầu từ biên bản phản ứng đầu tiên và lưu ý yếu tố có thể làm sai dòng thời gian.' }, discover: { type: 'cat', path: '/scene/first-response.txt' }, highlight: { en: ['two cups', 'P-4187', '17-minute drift'], vi: ['hai chiếc cốc', 'P-4187', 'lệch 17 phút'] }, requiresEvidence: [], discovered: false },
     { id: 'forensic-window', title: { en: 'Independent Homicide Window', vi: 'Khoảng gây án độc lập' }, description: { en: 'Toxicology, wearable data and trace materials establish the true homicide window and offender traces.', vi: 'Độc chất, thiết bị đeo và vi vết xác lập khoảng gây án thực cùng dấu vết hung thủ.' }, type: 'object', hint: { en: 'Use biological and wearable evidence instead of the bedroom clock.', vi: 'Dùng chứng cứ sinh học và thiết bị đeo thay cho đồng hồ phòng ngủ.' }, discover: { type: 'cat', path: '/scene/forensics.txt' }, highlight: { en: ['01:10–01:35 TRUE TIME', 'right thumb', 'Blue alkyd paint', 'jute fibers'], vi: ['01:10–01:35 GIỜ THỰC', 'ngón cái phải', 'sơn alkyd xanh', 'sợi đay'] }, requiresEvidence: ['scene-baseline'], discovered: false },
-    { id: 'device-timeline', title: { en: 'NTP Device Timeline', vi: 'Dòng thời gian thiết bị NTP' }, description: { en: 'A verified device clock anchors the struggle, drive removal and evidence-system access.', vi: 'Đồng hồ thiết bị đã xác minh neo thời điểm giằng co, tháo ổ và truy cập hệ thống vật chứng.' }, type: 'digital', hint: { en: 'Find a clock source whose offset is verified.', vi: 'Tìm nguồn giờ có độ lệch đã được xác minh.' }, discover: { type: 'cat', path: '/device/timeline.log' }, highlight: { en: ['NTP VERIFIED', '01:14:22', '01:19:50', '01:22:13'], vi: ['NTP ĐÃ XÁC MINH', '01:14:22', '01:19:50', '01:22:13'] }, requiresEvidence: ['scene-baseline'], discovered: false },
-    { id: 'claire-abducted', title: { en: 'Claire Bennett Abduction Signal', vi: 'Tín hiệu Claire Bennett bị bắt cóc' }, description: { en: 'The reassuring message was sent with a desktop key; an unsent draft places Claire near river cranes and a 15-minute bell.', vi: 'Tin báo an toàn được gửi bằng khóa máy bàn; bản nháp chưa gửi đặt Claire gần cần cẩu ven sông và chuông 15 phút.' }, type: 'document', hint: { en: 'Verify which device signed each message.', vi: 'Xác minh thiết bị ký từng tin nhắn.' }, discover: { type: 'cat', path: '/device/messages-recovered.txt' }, highlight: { en: ['desktop key', 'not Claire\'s phone', 'Blue truck', 'River cranes', 'fifteen minutes'], vi: ['khóa máy bàn', 'không phải khóa điện thoại', 'Xe tải xanh', 'Cần cẩu ven sông', 'mười lăm phút'] }, requiresEvidence: ['device-timeline'], discovered: false },
+    { id: 'device-timeline', title: { en: 'NTP Laptop Timeline', vi: 'Dòng thời gian NTP của laptop' }, description: { en: "Ethan's verified laptop clock anchors the struggle, drive removal and evidence-system access.", vi: 'Đồng hồ laptop của Ethan đã xác minh neo thời điểm giằng co, tháo ổ và truy cập hệ thống vật chứng.' }, type: 'digital', hint: { en: "Inspect the victim laptop for a clock source whose offset is verified.", vi: 'Kiểm tra laptop nạn nhân để tìm nguồn giờ có độ lệch đã được xác minh.' }, discover: { type: 'cat', path: '/laptop/timeline.log' }, highlight: { en: ['NTP VERIFIED', '01:14:22', '01:19:50', '01:22:13'], vi: ['NTP ĐÃ XÁC MINH', '01:14:22', '01:19:50', '01:22:13'] }, requiresEvidence: ['scene-baseline'], discovered: false },
+    { id: 'claire-abducted', title: { en: 'Claire Bennett Abduction Signal', vi: 'Tín hiệu Claire Bennett bị bắt cóc' }, description: { en: 'The reassuring message was sent with a desktop key; an unsent draft recovered from the laptop places Claire near river cranes and a 15-minute bell.', vi: 'Tin báo an toàn được gửi bằng khóa máy bàn; bản nháp khôi phục từ laptop đặt Claire gần cần cẩu ven sông và chuông 15 phút.' }, type: 'document', hint: { en: 'Verify which device signed each message recovered from the laptop.', vi: 'Xác minh thiết bị ký từng tin nhắn khôi phục từ laptop.' }, discover: { type: 'cat', path: '/laptop/messages-recovered.txt' }, highlight: { en: ['desktop key', 'not Claire\'s phone', 'Blue truck', 'River cranes', 'fifteen minutes'], vi: ['khóa máy bàn', 'không phải khóa điện thoại', 'Xe tải xanh', 'Cần cẩu ven sông', 'mười lăm phút'] }, requiresEvidence: ['device-timeline'], discovered: false },
     { id: 'account-compromise', title: { en: 'Compromised Police Account', vi: 'Tài khoản cảnh sát bị chiếm dụng' }, description: { en: 'Officer Lucas Reed has a continuous verified alibi; recovery code RC-04 instead points toward former supervisor Grant Mercer.', vi: 'Lucas Reed có ngoại phạm liên tục đã xác minh; mã RC-04 lại dẫn tới cựu giám sát Grant Mercer.' }, type: 'digital', hint: { en: 'An account name is not an operator. Audit MFA and the officer’s physical presence.', vi: 'Tên tài khoản không phải người thao tác. Kiểm tra MFA và sự hiện diện vật lý của cán bộ.' }, discover: { type: 'cat', path: '/police/account-audit.log' }, highlight: { en: ['body camera continuous', 'RC-04', 'Grant Mercer', 'compromised'], vi: ['camera áo liên tục', 'RC-04', 'Grant Mercer', 'bị chiếm dụng'] }, requiresEvidence: ['device-timeline'], discovered: false },
     { id: 'fieldkit-trace', title: { en: 'Retired Field Kit Trace', vi: 'Truy dấu bộ thiết bị cũ' }, description: { en: 'The apartment network maps the evidence-system access to an unreturned police field kit assigned to Grant Mercer.', vi: 'Mạng căn hộ ánh xạ truy cập hệ thống vật chứng tới bộ thiết bị cảnh sát chưa hoàn trả cấp cho Grant Mercer.' }, type: 'digital', hint: { en: 'Resolve 10.23.8.44 to a device and asset owner.', vi: 'Ánh xạ 10.23.8.44 tới thiết bị và người nhận tài sản.' }, discover: { type: 'cat', path: '/network/dhcp.log' }, highlight: { en: ['10.23.8.44', 'FIELDKIT-MERCER', 'Grant Mercer', 'never returned'], vi: ['10.23.8.44', 'FIELDKIT-MERCER', 'Grant Mercer', 'chưa hoàn trả'] }, requiresEvidence: ['account-compromise'], discovered: false },
     { id: 'suspect-profile', title: { en: 'Grant Mercer Capability Match', vi: 'Hồ sơ năng lực Grant Mercer' }, description: { en: 'Mercer matches the thumb scar, owns the traced vehicle, knew GPS and evidence systems, and retained River District access.', vi: 'Mercer khớp sẹo ngón cái, sở hữu xe bị truy dấu, hiểu GPS và hệ thống vật chứng, đồng thời từng có quyền tại Quận Ven Sông.' }, type: 'document', hint: { en: 'Compare forensic traces with personnel records, technical capability and vehicle ownership.', vi: 'Đối chiếu vi vết với hồ sơ nhân sự, năng lực kỹ thuật và quyền sở hữu xe.' }, discover: { type: 'cat', path: '/police/personnel.txt' }, highlight: { en: ['22 mm scar', '51H-742.19', 'GPS simulation', 'River District'], vi: ['sẹo dài 22 mm', '51H-742.19', 'giả lập GPS', 'Quận Ven Sông'] }, requiresEvidence: ['forensic-window', 'fieldkit-trace'], discovered: false },

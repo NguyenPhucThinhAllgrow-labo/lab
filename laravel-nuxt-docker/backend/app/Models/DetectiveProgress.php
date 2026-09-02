@@ -14,6 +14,7 @@ class DetectiveProgress extends Model
         'current_directory' => '/',
         'discovered_evidence' => '[]',
         'completed_tasks' => '[]',
+        'unlocked_paths' => '[]',
         'command_history' => '[]',
         'terminal_lines' => '[]',
         'game_completed' => false,
@@ -30,6 +31,7 @@ class DetectiveProgress extends Model
         'current_directory',
         'discovered_evidence',
         'completed_tasks',
+        'unlocked_paths',
         'command_history',
         'terminal_lines',
         'game_completed',
@@ -44,6 +46,7 @@ class DetectiveProgress extends Model
         return [
             'discovered_evidence' => 'array',
             'completed_tasks' => 'array',
+            'unlocked_paths' => 'array',
             'command_history' => 'array',
             'terminal_lines' => 'array',
             'game_completed' => 'boolean',

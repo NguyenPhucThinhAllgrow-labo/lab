@@ -52,9 +52,16 @@ class DetectiveApiTest extends TestCase
             'current_directory' => '/logs',
             'discovered_evidence' => ['system-activity'],
             'completed_tasks' => ['inspect-logs'],
+            'unlocked_paths' => ['/analysis/arrest-dossier.txt'],
             'command_history' => ['ls', 'cd logs', 'cat system.log'],
             'terminal_lines' => [
                 ['id' => 1, 'type' => 'command', 'text' => 'cat system.log'],
+                [
+                    'id' => 2,
+                    'type' => 'output',
+                    'text' => '     ├── system.log — Event log',
+                    'highlights' => [['start' => 9, 'end' => 19]],
+                ],
             ],
             'game_completed' => false,
         ];
@@ -62,7 +69,10 @@ class DetectiveApiTest extends TestCase
         $this->putJson("/api/detective/cases/{$case->id}/progress", $payload)
             ->assertOk()
             ->assertJsonPath('data.current_directory', '/logs')
-            ->assertJsonPath('data.discovered_evidence.0', 'system-activity');
+            ->assertJsonPath('data.discovered_evidence.0', 'system-activity')
+            ->assertJsonPath('data.unlocked_paths.0', '/analysis/arrest-dossier.txt')
+            ->assertJsonPath('data.terminal_lines.1.text', '     ├── system.log — Event log')
+            ->assertJsonPath('data.terminal_lines.1.highlights.0.start', 9);
 
         $this->getJson("/api/detective/cases/{$case->id}/progress")
             ->assertOk()

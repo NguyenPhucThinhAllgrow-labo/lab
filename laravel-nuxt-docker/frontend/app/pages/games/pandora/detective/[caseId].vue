@@ -12,6 +12,7 @@ import Terminal from '~/components/detective/Terminal.vue'
 import CommandBar from '~/components/detective/CommandBar.vue'
 import TaskPanel from '~/components/detective/TaskPanel.vue'
 import EvidencePanel from '~/components/detective/EvidencePanel.vue'
+import PasswordPrompt from '~/components/detective/PasswordPrompt.vue'
 
 /*
  * --------------------------------------------------
@@ -122,6 +123,9 @@ function createProgressPayload(): DetectiveProgressPayload {
           task.completed,
         )
         .map(task => task.id),
+    unlocked_paths: [
+      ...game.state.unlockedPaths,
+    ],
     command_history: [
       ...game.state.commandHistory,
     ],
@@ -257,6 +261,7 @@ watch(
     directory: game.state.currentDirectory,
     evidence: game.state.evidence.map(item => item.discovered),
     tasks: game.state.tasks.map(task => task.completed),
+    unlockedPaths: [...game.state.unlockedPaths],
     commands: game.state.commandHistory.length,
     terminal: game.state.terminal.length,
     completed: game.state.gameCompleted,
@@ -372,6 +377,15 @@ function handlePanelShortcut(
   }
 
   const target = event.target
+
+  if (
+    event.key === 'Escape' &&
+    game.state.passwordPrompt
+  ) {
+    event.preventDefault()
+    game.cancelPasswordPrompt()
+    return
+  }
 
   if (
     event.key === 'Escape' &&
@@ -792,6 +806,16 @@ async function handleCommandBarInput(
     </div>
 
     <Teleport to="body">
+      <PasswordPrompt
+        v-if="game.state.passwordPrompt"
+        :path="game.state.passwordPrompt.path"
+        :prompt="game.state.passwordPrompt.prompt"
+        :incorrect="game.state.passwordPrompt.incorrect"
+        :locale="game.state.locale"
+        @submit="game.submitPassword"
+        @cancel="game.cancelPasswordPrompt"
+      />
+
       <div
         v-if="resetConfirmationOpen"
         class="fixed inset-0 z-[100]

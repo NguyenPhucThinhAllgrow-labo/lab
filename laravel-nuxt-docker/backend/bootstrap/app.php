@@ -15,6 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Treat requests from the Nuxt SPA as first-party Sanctum requests.
         $middleware->statefulApi();
+
+        // Terminal output intentionally contains leading indentation. Trimming
+        // it would invalidate the persisted highlight character offsets.
+        $middleware->trimStrings(except: [
+            'terminal_lines.*.text',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

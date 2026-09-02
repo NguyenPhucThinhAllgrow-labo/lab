@@ -23,6 +23,15 @@ interface DetectiveGameState {
 
   tasks: Task[]
 
+  unlockedPaths: string[]
+
+  passwordPrompt: {
+    path: string
+    prompt: string
+    privileged: boolean
+    incorrect: boolean
+  } | null
+
   commandHistory: string[]
 
   gameCompleted: boolean
@@ -83,6 +92,10 @@ export function useDetectiveGame(
           }),
         ),
 
+      unlockedPaths: [],
+
+      passwordPrompt: null,
+
       commandHistory: [],
 
       gameCompleted: false,
@@ -92,12 +105,62 @@ export function useDetectiveGame(
 
   let lineId = 0
 
+  function normalizeRestoredTerminalLine(
+    line: TerminalLine,
+  ): TerminalLine {
+    const restored = {
+      ...line,
+      highlights: line.highlights?.map(
+        highlight => ({ ...highlight }),
+      ),
+    }
+
+    if (!restored.highlights?.length) {
+      return restored
+    }
+
+    /*
+     * Older saved guide lines were trimmed by Laravel while their highlight
+     * offsets kept the original indentation. Rebuild the filename range from
+     * the tree line itself so existing progress repairs automatically on F5.
+     */
+    const guideMatch = restored.text.match(
+      /^(\s*[├└]── )(.+?)( — )/u,
+    )
+
+    if (guideMatch) {
+      const prefix = guideMatch[1] ?? ''
+      const name = guideMatch[2] ?? ''
+
+      restored.highlights = [{
+        start: prefix.length,
+        end: prefix.length + name.length,
+      }]
+
+      return restored
+    }
+
+    restored.highlights = restored.highlights
+      .filter(
+        highlight =>
+          Number.isInteger(highlight.start) &&
+          Number.isInteger(highlight.end) &&
+          highlight.start >= 0 &&
+          highlight.end > highlight.start &&
+          highlight.end <= restored.text.length,
+      )
+      .sort((a, b) => a.start - b.start)
+
+    return restored
+  }
+
   function restoreProgress(
     progress: {
       locale: SupportedLocale
       current_directory: string
       discovered_evidence: string[] | null
       completed_tasks: string[] | null
+      unlocked_paths?: string[] | null
       command_history: string[] | null
       terminal_lines: TerminalLine[] | null
       game_completed: boolean
@@ -135,13 +198,18 @@ export function useDetectiveGame(
         completedIds.has(task.id)
     })
 
+    state.unlockedPaths = (
+      progress.unlocked_paths ?? []
+    ).map(path => normalizePath(path))
+    state.passwordPrompt = null
+
     state.commandHistory = [
       ...(progress.command_history ?? []),
     ]
 
     state.terminal =
       (progress.terminal_lines ?? []).map(
-        line => ({ ...line }),
+        line => normalizeRestoredTerminalLine(line),
       )
 
     state.gameCompleted =
@@ -180,6 +248,8 @@ export function useDetectiveGame(
       }))
 
     state.commandHistory = []
+    state.unlockedPaths = []
+    state.passwordPrompt = null
     state.gameCompleted = false
     state.locale = 'en'
     state.terminal = []
@@ -386,6 +456,152 @@ export function useDetectiveGame(
     }
 
     return node
+  }
+
+  function getPathNodes(
+    path: string,
+  ): Array<{
+    node: FileNode
+    path: string
+  }> {
+    const parts = normalizePath(path)
+      .split('/')
+      .filter(Boolean)
+    const result: Array<{
+      node: FileNode
+      path: string
+    }> = []
+    let children = scenario.filesystem
+    let currentPath = ''
+
+    for (const part of parts) {
+      const node = children.find(
+        item => item.name === part,
+      )
+
+      if (!node) {
+        return []
+      }
+
+      currentPath += `/${part}`
+      result.push({
+        node,
+        path: currentPath,
+      })
+      children =
+        node.type === 'directory'
+          ? node.children ?? []
+          : []
+    }
+
+    return result
+  }
+
+  function isPasswordPathUnlocked(
+    protectedPath: string,
+  ): boolean {
+    return state.unlockedPaths.some(
+      path =>
+        normalizePath(path) ===
+        normalizePath(protectedPath),
+    )
+  }
+
+  function getDeniedAccess(
+    path: string,
+    privileged = false,
+  ) {
+    for (const item of getPathNodes(path)) {
+      if (
+        item.node.access?.type === 'sudo' &&
+        !privileged
+      ) {
+        return {
+          type: 'sudo' as const,
+          path: item.path,
+          node: item.node,
+        }
+      }
+
+      if (
+        item.node.access?.type === 'password' &&
+        !isPasswordPathUnlocked(item.path)
+      ) {
+        return {
+          type: 'password' as const,
+          path: item.path,
+          node: item.node,
+        }
+      }
+    }
+
+    return null
+  }
+
+  function canAccessPath(
+    path: string,
+    privileged = false,
+  ): boolean {
+    return !getDeniedAccess(
+      path,
+      privileged,
+    )
+  }
+
+  function ensurePathAccess(
+    path: string,
+    privileged = false,
+    openPasswordPrompt = false,
+  ): boolean {
+    const denied = getDeniedAccess(
+      path,
+      privileged,
+    )
+
+    if (!denied) {
+      return true
+    }
+
+    addLine(
+      'error',
+      `${getTranslation('accessDenied')}: ${path}`,
+    )
+
+    if (denied.type === 'sudo') {
+      addLine(
+        'system',
+        getTranslation('sudoRequired'),
+      )
+    } else {
+      const prompt = denied.node.access
+        ?.type === 'password'
+        ? denied.node.access.prompt
+        : undefined
+
+      if (openPasswordPrompt) {
+        state.passwordPrompt = {
+          path: denied.path,
+          prompt: prompt
+            ? text(prompt)
+            : getTranslation(
+                'passwordRequired',
+              ),
+          privileged,
+          incorrect: false,
+        }
+      } else {
+        addLine(
+          'system',
+          prompt
+            ? text(prompt)
+            : getTranslation(
+                'passwordRequired',
+              ),
+        )
+      }
+    }
+
+    return false
   }
 
   /*
@@ -761,6 +977,7 @@ export function useDetectiveGame(
 
   function commandLs(
     args: string[],
+    privileged = false,
   ) {
     const longFormat =
       args[0] === '-l'
@@ -806,8 +1023,20 @@ export function useDetectiveGame(
       return
     }
 
+    if (!ensurePathAccess(path, privileged)) {
+      return
+    }
+
     const children =
-      directory.children ?? []
+      (directory.children ?? []).filter(
+        child =>
+          canAccessPath(
+            path === '/'
+              ? `/${child.name}`
+              : `${path}/${child.name}`,
+            privileged,
+          ),
+      )
 
     if (!children.length) {
       return
@@ -998,6 +1227,7 @@ export function useDetectiveGame(
 
   function commandCd(
     args: string[],
+    privileged = false,
   ) {
     if (!args.length) {
       state.currentDirectory =
@@ -1058,6 +1288,10 @@ export function useDetectiveGame(
       return
     }
 
+    if (!ensurePathAccess(path, privileged)) {
+      return
+    }
+
     state.currentDirectory =
       path
   }
@@ -1070,6 +1304,7 @@ export function useDetectiveGame(
 
   function commandCat(
     args: string[],
+    privileged = false,
   ) {
     if (!args.length) {
       addLine(
@@ -1134,6 +1369,10 @@ export function useDetectiveGame(
       return
     }
 
+    if (!ensurePathAccess(path, privileged, true)) {
+      return
+    }
+
     const content =
       node.content
         ? text(
@@ -1185,6 +1424,7 @@ export function useDetectiveGame(
 
   function commandFind(
     args: string[],
+    privileged = false,
   ) {
     const query =
       args.join(' ').trim()
@@ -1213,6 +1453,10 @@ export function useDetectiveGame(
           basePath === '/'
             ? `/${node.name}`
             : `${basePath}/${node.name}`
+
+        if (!canAccessPath(nodePath, privileged)) {
+          continue
+        }
 
         if (
           node.name
@@ -1269,6 +1513,91 @@ export function useDetectiveGame(
         result,
       )
     }
+  }
+
+  /*
+   * --------------------------------------------------
+   * COMMAND: SUDO / PASSWORD PROMPT
+   * --------------------------------------------------
+   */
+
+  function commandSudo(
+    args: string[],
+  ) {
+    const nestedCommand =
+      args[0]?.toLowerCase()
+    const nestedArgs = args.slice(1)
+
+    if (!nestedCommand) {
+      addLine(
+        'error',
+        getTranslation('sudoMissingCommand'),
+      )
+      return
+    }
+
+    switch (nestedCommand) {
+      case 'ls':
+        commandLs(nestedArgs, true)
+        break
+      case 'cd':
+        commandCd(nestedArgs, true)
+        break
+      case 'cat':
+        commandCat(nestedArgs, true)
+        break
+      case 'find':
+        commandFind(nestedArgs, true)
+        break
+      case 'guide':
+        commandGuide(nestedArgs, true)
+        break
+      default:
+        addLine(
+          'error',
+          `${getTranslation('sudoUnsupportedCommand')}: ${nestedCommand}`,
+        )
+    }
+  }
+
+  function submitPassword(
+    password: string,
+  ): boolean {
+    const request = state.passwordPrompt
+
+    if (!request) {
+      return false
+    }
+
+    const node = getNode(request.path)
+
+    if (
+      node?.access?.type !== 'password' ||
+      password !== node.access.password
+    ) {
+      request.incorrect = true
+      return false
+    }
+
+    if (!isPasswordPathUnlocked(request.path)) {
+      state.unlockedPaths.push(request.path)
+    }
+
+    const path = request.path
+    const privileged = request.privileged
+    state.passwordPrompt = null
+
+    addLine(
+      'success',
+      `${getTranslation('pathUnlocked')}: ${path}`,
+    )
+    commandCat([path], privileged)
+
+    return true
+  }
+
+  function cancelPasswordPrompt() {
+    state.passwordPrompt = null
   }
 
   /*
@@ -1352,6 +1681,13 @@ export function useDetectiveGame(
           'workstation',
           'owner',
           'history',
+        ],
+        laptop: [
+          'laptop',
+          'victim device',
+          'artifact',
+          'timeline',
+          'message',
         ],
         usb: [
           'USB',
@@ -1473,6 +1809,13 @@ export function useDetectiveGame(
           'máy trạm',
           'chủ sở hữu',
           'lịch sử',
+        ],
+        laptop: [
+          'laptop',
+          'máy nạn nhân',
+          'dấu vết',
+          'dòng thời gian',
+          'tin nhắn',
         ],
         usb: [
           'USB',
@@ -1680,6 +2023,7 @@ export function useDetectiveGame(
 
   function commandGuide(
     args: string[],
+    privileged = false,
   ) {
     if (args.length > 1) {
       addLine(
@@ -1703,6 +2047,7 @@ export function useDetectiveGame(
             node =>
               node.type ===
                 'directory' &&
+              canAccessPath(`/${node.name}`, privileged) &&
               node.name.toLowerCase() ===
                 requestedFolder,
           )
@@ -1724,13 +2069,17 @@ export function useDetectiveGame(
 
     const guideNodes = selectedFolder
       ? [selectedFolder]
-      : scenario.filesystem
+      : scenario.filesystem.filter(
+          node =>
+            canAccessPath(`/${node.name}`, privileged),
+        )
     const descriptions: Record<
       SupportedLocale,
       Record<string, string>
     > = {
       en: {
         logs: 'System, authentication and activity timelines.',
+        laptop: "Read-only artifacts from Ethan Ward's laptop.",
         documents: 'Work documents, reports and personnel records.',
         research: 'Protected research files and project data.',
         network: 'Connections, traffic, DNS and remote access traces.',
@@ -1753,6 +2102,7 @@ export function useDetectiveGame(
 
       vi: {
         logs: 'Dòng thời gian hệ thống, xác thực và hoạt động.',
+        laptop: 'Dấu vết chỉ đọc từ laptop của Ethan Ward.',
         documents: 'Tài liệu công việc, báo cáo và hồ sơ nhân sự.',
         research: 'Tệp nghiên cứu được bảo vệ và dữ liệu dự án.',
         network: 'Kết nối, lưu lượng, DNS và dấu vết truy cập từ xa.',
@@ -1933,9 +2283,17 @@ export function useDetectiveGame(
       prefix = '     ',
       basePath = '',
     ) {
-      nodes.forEach((node, index) => {
+      const visibleNodes = nodes.filter(
+        node =>
+          canAccessPath(
+            `${basePath}/${node.name}`,
+            privileged,
+          ),
+      )
+
+      visibleNodes.forEach((node, index) => {
         const last =
-          index === nodes.length - 1
+          index === visibleNodes.length - 1
 
         const branch =
           last ? '└──' : '├──'
@@ -2301,6 +2659,21 @@ requestedLocale
       fileContainsSuspiciousInformation:
         'The file contains suspicious information, but you need more evidence before establishing',
 
+      sudoRequired:
+        'Elevated access required. Retry with: sudo <command> <path>',
+
+      passwordRequired:
+        'This path is password protected.',
+
+      sudoMissingCommand:
+        'sudo: missing command',
+
+      sudoUnsupportedCommand:
+        'sudo: unsupported command',
+
+      pathUnlocked:
+        'PATH UNLOCKED',
+
       currentLanguage:
         'Current language',
 
@@ -2405,6 +2778,21 @@ requestedLocale
       fileContainsSuspiciousInformation:
         'Tệp chứa thông tin đáng ngờ, nhưng bạn cần thêm bằng chứng trước khi xác lập',
 
+      sudoRequired:
+        'Cần quyền nâng cao. Hãy thử lại với: sudo <lệnh> <đường-dẫn>',
+
+      passwordRequired:
+        'Đường dẫn này được bảo vệ bằng mật mã.',
+
+      sudoMissingCommand:
+        'sudo: thiếu lệnh cần chạy',
+
+      sudoUnsupportedCommand:
+        'sudo: lệnh không được hỗ trợ',
+
+      pathUnlocked:
+        'ĐÃ MỞ KHÓA ĐƯỜNG DẪN',
+
       currentLanguage:
         'Ngôn ngữ hiện tại',
 
@@ -2456,6 +2844,7 @@ requestedLocale
         cd: 'Change directory',
         cat: 'Read file',
         find: 'Find files',
+        sudo: 'Run ls, cd, cat, find or guide with elevated access',
         history: 'Show command history',
         whoami: 'Show current user',
         hint: 'Get an investigation hint',
@@ -2472,6 +2861,7 @@ requestedLocale
         cd: 'Chuyển thư mục',
         cat: 'Đọc nội dung tệp',
         find: 'Tìm tệp',
+        sudo: 'Chạy ls, cd, cat, find hoặc guide với quyền nâng cao',
         history: 'Hiển thị lịch sử lệnh',
         whoami: 'Hiển thị người dùng hiện tại',
         hint: 'Nhận gợi ý điều tra',
@@ -2677,6 +3067,10 @@ requestedLocale
         return []
       }
 
+      if (!canAccessPath(state.currentDirectory)) {
+        return []
+      }
+
       const searchName =
         value.toLowerCase()
 
@@ -2684,11 +3078,16 @@ requestedLocale
         directory.children ?? []
       )
         .filter(child =>
+          canAccessPath(
+            state.currentDirectory === '/'
+              ? `/${child.name}`
+              : `${state.currentDirectory}/${child.name}`,
+          ) &&
           child.name
-            .toLowerCase()
-            .startsWith(
-              searchName,
-            ),
+              .toLowerCase()
+              .startsWith(
+                searchName,
+              ),
         )
         .map(child => {
           if (
@@ -2744,6 +3143,10 @@ requestedLocale
       return []
     }
 
+    if (!canAccessPath(directoryPath)) {
+      return []
+    }
+
     const normalizedSearch =
       searchName.toLowerCase()
 
@@ -2751,11 +3154,16 @@ requestedLocale
       directory.children ?? []
     )
       .filter(child =>
+        canAccessPath(
+          directoryPath === '/'
+            ? `/${child.name}`
+            : `${directoryPath}/${child.name}`,
+        ) &&
         child.name
-          .toLowerCase()
-          .startsWith(
-            normalizedSearch,
-          ),
+            .toLowerCase()
+            .startsWith(
+              normalizedSearch,
+            ),
       )
       .map(child => {
         const suffix =
@@ -2858,6 +3266,10 @@ requestedLocale
 
       case 'find':
         commandFind(args)
+        break
+
+      case 'sudo':
+        commandSudo(args)
         break
 
       case 'history':
@@ -3012,6 +3424,10 @@ function initialize() {
     restoreProgress,
 
     resetGame,
+
+    submitPassword,
+
+    cancelPasswordPrompt,
 
     text,
   }

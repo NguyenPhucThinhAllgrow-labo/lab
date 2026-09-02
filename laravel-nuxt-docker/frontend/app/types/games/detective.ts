@@ -33,6 +33,21 @@ export interface FileNode {
   content?: LocalizedText
 
   children?: FileNode[]
+
+  /*
+   * Optional access control inherited by descendants.
+   * Sudo nodes require a one-command elevation. Password nodes remain
+   * accessible for the rest of the run after a successful unlock.
+   */
+  access?:
+    | {
+        type: 'sudo'
+      }
+    | {
+        type: 'password'
+        password: string
+        prompt?: LocalizedText
+      }
 }
 
 /*

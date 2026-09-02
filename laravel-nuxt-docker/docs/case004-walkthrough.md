@@ -4,7 +4,15 @@
 
 Case 004 có độ khó cao và sử dụng chế độ giao nhiệm vụ tuần tự. Người chơi phải đối chiếu ba chuỗi chứng cứ độc lập: hiện trường vật lý, pháp y hệ thống và dữ liệu viễn thông. Một số dữ liệu là dấu vết giả; đặc biệt không được xem tên tài khoản, vị trí GPS hoặc thời gian hiển thị trên camera là sự thật nếu chưa kiểm chứng.
 
+Người chơi là chuyên viên pháp y cảnh sát trực tiếp đến căn hộ 17B. Tại đây, người chơi gắn cầu nối chỉ đọc vào laptop `EW-LAPTOP-01` của Ethan Ward và điều tra máy ngay tại hiện trường. Terminal hiển thị `/laptop` là dữ liệu thật trên laptop; các thư mục `/scene`, `/police`, `/network`, `/city`, `/telecom` và `/analysis` là nguồn nghiệp vụ được mount vào cùng không gian điều tra, không phải thư mục nằm trên máy của Ethan.
+
 Các lệnh dưới đây dùng đường dẫn tuyệt đối nên có thể chạy từ bất kỳ thư mục nào. Nếu muốn chơi lại từ đầu, nhấn **Reset game** và xác nhận xóa tiến trình hiện tại.
+
+Đọc mô tả workspace trước khi bắt đầu:
+
+```bash
+cat /README.txt
+```
 
 ## 1. Bảo toàn và chuẩn hóa hiện trường
 
@@ -12,8 +20,9 @@ Các lệnh dưới đây dùng đường dẫn tuyệt đối nên có thể ch
 
 ```bash
 cat /scene/first-response.txt
+cat /scene/chain-of-custody.txt
 cat /scene/forensics.txt
-cat /device/timeline.log
+cat /laptop/timeline.log
 ```
 
 Kết luận cần nhận ra:
@@ -21,6 +30,7 @@ Kết luận cần nhận ra:
 - Ổ nguồn tin mã hóa `ORPHEUS` đã biến mất.
 - Có hai chiếc cốc; chiếc đã rửa vẫn còn cặn thuốc an thần.
 - Vé đỗ xe `P-4187` là vật chứng vật lý quan trọng.
+- Biên bản bảo quản cho biết mã kho lệnh được tạo bằng tên archive và số cuống vé đã niêm phong.
 - Đồng hồ phòng ngủ lệch 17 phút nên không thể dùng làm mốc thời gian.
 - Đồng hồ đeo ghi nhận giằng co lúc `01:14:22`, nằm trong khoảng tử vong `01:10–01:35` theo giờ thực.
 - Dòng thời gian laptop dùng NTP đã xác minh: giằng co lúc 01:14, tháo ổ ORPHEUS lúc 01:19 và truy cập hệ thống vật chứng lúc 01:22.
@@ -29,10 +39,13 @@ Ba evidence đầu tiên hoàn thành nhiệm vụ bảo toàn và chuẩn hóa 
 
 ## 2. Bác bỏ danh tính cảnh sát bị gài
 
-Kiểm tra tài khoản xuất hiện trong phiên truy cập rồi truy địa chỉ mạng về thiết bị thật:
+Thư mục `/police` là hồ sơ hạn chế nên bị ẩn khỏi `ls` và `find` thông thường. Dùng quyền nâng cao để đọc kiểm toán tài khoản, rồi truy địa chỉ mạng về thiết bị thật:
 
 ```bash
-cat /police/account-audit.log
+sudo guide police
+sudo ls /police
+sudo ls -l /police
+sudo cat /police/account-audit.log
 cat /network/dhcp.log
 ```
 
@@ -50,8 +63,8 @@ Tên tài khoản chỉ chứng minh credential nào được sử dụng, khôn
 Đối chiếu hồ sơ Mercer, hồ sơ tham nhũng Orpheus và tuyến phương tiện:
 
 ```bash
-cat /police/personnel.txt
-cat /police/corruption-case.txt
+sudo cat /police/personnel.txt
+sudo cat /police/corruption-case.txt
 cat /city/parking.log
 ```
 
@@ -89,7 +102,7 @@ Evidence tổng hợp của nhiệm vụ này còn cần dòng thời gian đã 
 Xác minh tin nhắn được gửi từ thiết bị nào, sau đó lần theo beacon điện thoại của Claire:
 
 ```bash
-cat /device/messages-recovered.txt
+cat /laptop/messages-recovered.txt
 cat /telecom/claire-phone.log
 ```
 
@@ -147,7 +160,13 @@ Các địa điểm còn lại bị loại vì thiếu cần cẩu, sai chu kỳ
 
 ## 7. Phê chuẩn bắt giữ và giải cứu
 
-Sau khi nghi phạm, động cơ, thủ đoạn đánh lạc hướng, tuyến xe và vị trí mục tiêu đã hội tụ, mở hồ sơ tác chiến:
+Sau khi nghi phạm, động cơ, thủ đoạn đánh lạc hướng, tuyến xe và vị trí mục tiêu đã hội tụ, hồ sơ tác chiến vẫn được niêm phong bằng mật mã. Từ biên bản bảo quản:
+
+- Tên archive là `ORPHEUS`.
+- Số cuống vé niêm phong là `4187`.
+- Mã kho lệnh theo định dạng được cung cấp là `ORPHEUS-4187`.
+
+Đọc hồ sơ. Terminal sẽ tự mở popup yêu cầu mật mã; nhập `ORPHEUS-4187`. Khi xác thực đúng, popup đóng và nội dung file được hiển thị ngay:
 
 ```bash
 cat /analysis/arrest-dossier.txt
@@ -175,16 +194,18 @@ Dùng block sau để kiểm thử nhanh một lượt chơi mới theo đúng t
 
 ```bash
 cat /scene/first-response.txt
+cat /README.txt
+cat /scene/chain-of-custody.txt
 cat /scene/forensics.txt
-cat /device/timeline.log
-cat /police/account-audit.log
+cat /laptop/timeline.log
+sudo cat /police/account-audit.log
 cat /network/dhcp.log
-cat /police/personnel.txt
-cat /police/corruption-case.txt
+sudo cat /police/personnel.txt
+sudo cat /police/corruption-case.txt
 cat /city/parking.log
 cat /network/vpn.log
 cat /telecom/suspect-phone.log
-cat /device/messages-recovered.txt
+cat /laptop/messages-recovered.txt
 cat /telecom/claire-phone.log
 cat /analysis/clock-normalization.txt
 cat /analysis/false-trails.txt
