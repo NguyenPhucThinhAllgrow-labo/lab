@@ -15,6 +15,7 @@ import TaskPanel from '~/components/detective/TaskPanel.vue'
 import EvidencePanel from '~/components/detective/EvidencePanel.vue'
 import PasswordPrompt from '~/components/detective/PasswordPrompt.vue'
 import CaseTimelineModal from '~/components/detective/CaseTimelineModal.vue'
+import OperationalReportModal from '~/components/detective/OperationalReportModal.vue'
 
 /*
  * --------------------------------------------------
@@ -72,6 +73,8 @@ const progressReady = ref(false)
 const resettingGame = ref(false)
 const resetConfirmationOpen = ref(false)
 const timelineOpen = ref(false)
+const operationalReportOpen = ref(false)
+const operationalReportSuccess = ref(false)
 const terminalLightTheme = ref(false)
 const terminalResetKey = ref(0)
 const elapsedSeconds = ref(0)
@@ -134,11 +137,18 @@ const visibleTimelineEvents = computed<ScenarioTimelineEvent[]>(() => {
   )
 
   if (scenario.timeline?.length) {
-    return scenario.timeline.filter(event =>
-      (event.requiresEvidence ?? []).every(id =>
+    return scenario.timeline.filter(event => {
+      if (
+        event.requiresGameCompletion &&
+        !game.state.gameCompleted
+      ) {
+        return false
+      }
+
+      return (event.requiresEvidence ?? []).every(id =>
         discoveredIds.has(id),
-      ),
-    )
+      )
+    })
   }
 
   return game.state.evidence
@@ -159,6 +169,27 @@ const visibleTimelineEvents = computed<ScenarioTimelineEvent[]>(() => {
 const timelineTotalEvents = computed(() =>
   scenario.timeline?.length ?? scenario.evidence.length,
 )
+
+const operationalReportAvailable = computed(() => {
+  return game.isOperationalReportAvailable()
+})
+
+function confirmOperationalReport() {
+  if (game.completeOperationalReport()) {
+    operationalReportSuccess.value = true
+  }
+}
+
+function openOperationalReport() {
+  operationalReportSuccess.value =
+    game.state.gameCompleted
+  operationalReportOpen.value = true
+}
+
+function closeOperationalReport() {
+  operationalReportOpen.value = false
+  operationalReportSuccess.value = false
+}
 
 function createProgressPayload(): DetectiveProgressPayload {
   return {
@@ -301,6 +332,8 @@ async function resetGame() {
     evidenceHistory.value = []
     taskHistory.value = []
     terminalInput.value = ''
+    operationalReportOpen.value = false
+    operationalReportSuccess.value = false
     collapseExpandedPanels()
     progressStatus.value =
       user.value ? 'saved' : 'local'
@@ -460,6 +493,15 @@ function handlePanelShortcut(
   ) {
     event.preventDefault()
     cancelGameReset()
+    return
+  }
+
+  if (
+    event.key === 'Escape' &&
+    operationalReportOpen.value
+  ) {
+    event.preventDefault()
+    closeOperationalReport()
     return
   }
 
@@ -642,8 +684,8 @@ async function handleCommandBarInput(
       :class="
         multiplePanelsExpanded
           ? allPanelsExpanded
-            ? 'fixed inset-4 z-50 max-w-none grid-cols-2 grid-rows-2 gap-4 overflow-hidden bg-zinc-950 p-4 md:inset-8 lg:grid-cols-2'
-            : 'fixed inset-4 z-50 max-w-none grid-cols-2 grid-rows-1 gap-4 overflow-hidden bg-zinc-950 p-4 md:inset-8 lg:grid-cols-2'
+            ? 'fixed inset-4 z-50 max-w-none grid-cols-[repeat(2,minmax(0,1fr))] grid-rows-2 gap-4 overflow-hidden bg-zinc-950 p-4 md:inset-8 lg:grid-cols-[repeat(2,minmax(0,1fr))]'
+            : 'fixed inset-4 z-50 max-w-none grid-cols-[repeat(2,minmax(0,1fr))] grid-rows-1 gap-4 overflow-hidden bg-zinc-950 p-4 md:inset-8 lg:grid-cols-[repeat(2,minmax(0,1fr))]'
           : ''
       "
     >
@@ -857,9 +899,9 @@ async function handleCommandBarInput(
         <div
           :class="
             allPanelsExpanded
-              ? 'col-start-1 row-start-1 min-h-0'
+              ? 'col-start-1 row-start-1 min-h-0 min-w-0 w-full'
               : multiplePanelsExpanded && expandedPanels.task
-                ? 'order-1 min-h-0'
+                ? 'order-1 min-h-0 min-w-0 w-full'
                 : multiplePanelsExpanded
                   ? 'hidden'
                   : ''
@@ -881,8 +923,14 @@ async function handleCommandBarInput(
             :grouped="
               multiplePanelsExpanded
             "
+            :operational-report-available="
+              operationalReportAvailable
+            "
             @toggle-expand="
               togglePanel('task')
+            "
+            @create-operational-report="
+              openOperationalReport
             "
           />
         </div>
@@ -890,9 +938,9 @@ async function handleCommandBarInput(
         <div
           :class="
             allPanelsExpanded
-              ? 'col-start-2 row-start-1 min-h-0'
+              ? 'col-start-2 row-start-1 min-h-0 min-w-0 w-full'
               : multiplePanelsExpanded && expandedPanels.evidence
-                ? 'order-2 min-h-0'
+                ? 'order-2 min-h-0 min-w-0 w-full'
                 : multiplePanelsExpanded
                   ? 'hidden'
                   : ''
@@ -926,10 +974,20 @@ async function handleCommandBarInput(
       <CaseTimelineModal
         v-if="timelineOpen"
         :events="visibleTimelineEvents"
+        :evidence="game.state.evidence"
         :total-events="timelineTotalEvents"
         :locale="game.state.locale"
         @change-locale="game.state.locale = $event"
         @close="timelineOpen = false"
+      />
+
+      <OperationalReportModal
+        v-if="operationalReportOpen && scenario.operationalReport"
+        :locale="game.state.locale"
+        :report="scenario.operationalReport"
+        :success="operationalReportSuccess"
+        @close="closeOperationalReport"
+        @confirm="confirmOperationalReport"
       />
 
       <PasswordPrompt

@@ -24,6 +24,16 @@ Sau đó đọc mô tả workspace để biết mỗi thư mục lấy dữ li�
 cat /README.txt
 ```
 
+### Tệp gây nhiễu
+
+Case có thêm một số thư mục và tệp không thuộc chuỗi chứng cứ chính. Chúng chứa những chi tiết dễ khiến người chơi đi sai hướng, nhưng có thể bị loại trừ khi kiểm tra thời gian, nguồn dữ liệu và đặc điểm nhận dạng:
+
+- `/laptop/personal/expenses-august.csv` và `/laptop/personal/weekend-notes.txt`: dữ liệu cá nhân cũ của Ethan; các tệp đã được tạo hoặc lưu trữ nhiều tháng trước vụ án.
+- `/network/legacy/expired-leases.log` và `/network/legacy/router-diagnostics.txt`: dữ liệu mạng hết hạn hoặc bản tự kiểm tra diễn ra ngoài khung giờ gây án.
+- `/city/maintenance/river-road-works.txt` và `/city/maintenance/camera-test.log`: hồ sơ bảo trì diễn ra sau vụ án; chiếc xe màu xanh trong tệp kiểm tra thuộc Camera 09, không phải xe nghi phạm xuất hiện ở Camera 12.
+
+Các tệp này không mở khóa evidence hay hoàn thành task. Mục đích của chúng là buộc người chơi kiểm chứng một dữ kiện trước khi đưa nó vào kết luận.
+
 ## 1. Bảo toàn và chuẩn hóa hiện trường
 
 Đọc biên bản hiện trường trước, sau đó đối chiếu kết quả pháp y với dòng thời gian NTP của thiết bị:
@@ -53,6 +63,7 @@ Kết luận cần nhận ra:
 - Đồng hồ trong phòng ngủ là đồng hồ có kết nối mạng. Nhật ký đồng bộ của bộ điều khiển nhà thông minh cho thấy nó chạy chậm 17 phút so với giờ mạng chuẩn, nên không thể dùng trực tiếp làm mốc thời gian.
 - Đồng hồ đeo ghi nhận giằng co lúc `01:14:22`, nằm trong khoảng tử vong `01:10–01:35` theo giờ thực.
 - Dòng thời gian laptop dùng NTP đã xác minh: giằng co lúc 01:14 và tháo ổ ORPHEUS lúc 01:19. Laptop không chứa bản ghi truy cập hệ thống cảnh sát.
+- Bản sao thông báo của khóa thông minh cho biết Ethan đã tạo mã khách `EW-INTERVIEW-04` lúc 00:41 cho Grant Mercer, với ghi chú “phỏng vấn nguồn tin ORPHEUS”. Mercer dùng mã này mở cửa chính lúc 01:03, nên căn hộ không có dấu hiệu bị đột nhập.
 
 Ba evidence đầu tiên hoàn thành nhiệm vụ bảo toàn và chuẩn hóa hiện trường.
 
@@ -187,35 +198,24 @@ Chỉ **Kho Northstar số 6** đáp ứng đồng thời tất cả điều ki�
 
 Các địa điểm còn lại bị loại vì thiếu cần cẩu, sai chu kỳ chuông, không có sợi đay hoặc không cho xe tải vào ban đêm.
 
-## 7. Phê chuẩn bắt giữ và giải cứu
+## 7. Lập văn bản tác chiến và kết thúc vụ án
 
-Sau khi nghi phạm, động cơ, thủ đoạn đánh lạc hướng, tuyến xe và vị trí mục tiêu đã hội tụ, hồ sơ tác chiến vẫn được niêm phong bằng mật mã. Từ biên bản bảo quản:
-
-- Tên archive là `ORPHEUS`.
-- Số cuống vé niêm phong là `4187`.
-- Mã kho lệnh theo định dạng được cung cấp là `ORPHEUS-4187`.
-
-Đọc hồ sơ. Terminal sẽ tự mở popup yêu cầu mật mã; nhập `ORPHEUS-4187`. Khi xác thực đúng, popup đóng và nội dung file được hiển thị ngay:
+Sau khi hoàn thành toàn bộ `6/6` task — trong đó bước cuối là **Xác định chính xác địa điểm cần đột kích** — bảng Nhiệm vụ xuất hiện nút **Lập văn bản tác chiến**. Tệp dưới đây chỉ là mẫu tham khảo, không cần mật mã hoặc `sudo`:
 
 ```bash
 cat /analysis/arrest-dossier.txt
 ```
 
-Hồ sơ xác lập đủ căn cứ:
+Nhấn **Lập văn bản tác chiến** và điền kết luận từ những bằng chứng đã thu thập:
 
-- Nghi phạm: **Grant Mercer**.
-- Mục tiêu: **Kho Northstar số 6**, cửa bốc hàng phía đông.
-- Nạn nhân cần giải cứu: **Claire Bennett**, nhiều khả năng ở văn phòng bên trong.
-- Đội bắt giữ dùng kênh mã hóa `TAC-6` vì Mercer hiểu hệ thống radio cảnh sát.
-- Cần bảo toàn `FIELDKIT-MERCER` và ổ `ORPHEUS` khi thu giữ.
+- Nghi phạm: `Grant Mercer`.
+- Biển số phương tiện: `51H-742.19`.
+- Mục tiêu: `Kho Northstar số 6` hoặc `Northstar Warehouse 6`.
+- Nạn nhân cần giải cứu: `Claire Bennett`.
 
-Đọc báo cáo sau hành động để hoàn thành case:
+Các tội danh, rủi ro và chỉ thị dành cho TAC-6 đã được hệ thống điền sẵn. Nhấn **Đồng ý và triển khai**. Nếu cả bốn kết luận khớp với chứng cứ, hồ sơ được phê duyệt, đội TAC-6 xuất phát và game hoàn thành; nếu sai, biểu mẫu đánh dấu những trường cần kiểm tra lại.
 
-```bash
-cat /analysis/resolution.txt
-```
-
-Claire được giải cứu còn sống, Grant Mercer bị bắt cạnh xe `51H-742.19`, còn FIELDKIT và ổ ORPHEUS được thu giữ theo lệnh. Chuỗi bảo quản chứng cứ được duy trì và không có phát súng nào.
+Sau khi hoàn thành, nhấn lại **Lập văn bản tác chiến** sẽ mở thẳng thông báo triển khai thành công thay vì yêu cầu nhập lại kết luận.
 
 ## Danh sách command rút gọn
 
@@ -243,7 +243,6 @@ cat /analysis/false-trails.txt
 pwd
 cat /city/industrial-map.txt
 cat /analysis/arrest-dossier.txt
-cat /analysis/resolution.txt
 ```
 
 ## Lời giải cuối cùng

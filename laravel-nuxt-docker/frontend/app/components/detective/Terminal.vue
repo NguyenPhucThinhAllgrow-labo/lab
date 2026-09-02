@@ -680,15 +680,48 @@ watch(
  * ==================================================
  */
 
-function submit() {
-  /*
-   * Không cho submit trong lúc
-   * terminal đang typing.
-   */
-
-  if (isTyping.value) {
+function finishPendingOutputImmediately() {
+  if (!isTyping.value && !typingLine.value && !typingQueue.length) {
     return
   }
+
+  /*
+   * Invalidate the active animation, then render every line that was already
+   * waiting before the user's command. This keeps the transcript complete
+   * while allowing Enter to execute the command without waiting.
+   */
+  typingGeneration += 1
+  cancelTypingAnimation?.()
+
+  const pendingLines = [
+    ...(typingLine.value
+      ? [typingLine.value]
+      : []),
+    ...typingQueue,
+  ]
+
+  typingQueue = []
+
+  if (pendingLines.length) {
+    displayedLines.value = [
+      ...displayedLines.value,
+      ...pendingLines,
+    ]
+  }
+
+  typingLine.value = null
+  typingText.value = ''
+  isTyping.value = false
+
+  nextTick(scrollToBottom)
+}
+
+function submit() {
+  /*
+   * Enter always submits. If output is still being animated, finish the
+   * existing transcript immediately before executing the new command.
+   */
+  finishPendingOutputImmediately()
 
   /*
    * input là computed lấy từ prop của component cha. Ở thời điểm

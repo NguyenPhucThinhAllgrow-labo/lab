@@ -128,6 +128,17 @@ export interface ScenarioTimelineEvent {
     | 'response'
 
   requiresEvidence?: string[]
+
+  requiresGameCompletion?: boolean
+}
+
+export interface ScenarioOperationalReport {
+  answers: {
+    suspect: string[]
+    vehicle: string[]
+    target: string[]
+    victim: string[]
+  }
 }
 
 /*
@@ -148,6 +159,13 @@ export interface Scenario {
   intro: LocalizedTextArray
 
   timeline?: ScenarioTimelineEvent[]
+
+  /*
+   * When present, completing every investigation task unlocks a final
+   * player-authored operational report. The case is solved only after the
+   * report is validated.
+   */
+  operationalReport?: ScenarioOperationalReport
 
   filesystem: FileNode[]
 

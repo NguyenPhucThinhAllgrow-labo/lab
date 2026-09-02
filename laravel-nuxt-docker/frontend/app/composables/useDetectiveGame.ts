@@ -212,8 +212,27 @@ export function useDetectiveGame(
         line => normalizeRestoredTerminalLine(line),
       )
 
+    const containsRemovedCompletedTask = [
+      ...completedIds,
+    ].some(
+      completedId =>
+        !state.tasks.some(
+          task => task.id === completedId,
+        ),
+    )
+
+    /*
+     * A case may replace an old automatic final task with an operational
+     * report. Legacy saves still contain the removed task ID and a completed
+     * flag; reopen those saves at the report step so the new action is not
+     * hidden. New report completions contain only current task IDs.
+     */
     state.gameCompleted =
-      progress.game_completed
+      progress.game_completed &&
+      !(
+        scenario.operationalReport &&
+        containsRemovedCompletedTask
+      )
 
     lineId = Math.max(
       0,
@@ -549,6 +568,32 @@ export function useDetectiveGame(
     return !getDeniedAccess(
       path,
       privileged,
+    )
+  }
+
+  /*
+   * Password-protected files are visible so the player can discover and try
+   * to open them. Sudo-protected paths remain hidden until a privileged
+   * listing is requested. Visibility never grants permission to read.
+   */
+  function canRevealPath(
+    path: string,
+    privileged = false,
+  ): boolean {
+    if (normalizePath(path) === '/') {
+      return true
+    }
+
+    const pathNodes = getPathNodes(path)
+
+    if (!pathNodes.length) {
+      return false
+    }
+
+    return pathNodes.every(
+      item =>
+        item.node.access?.type !== 'sudo' ||
+        privileged,
     )
   }
 
@@ -912,28 +957,12 @@ export function useDetectiveGame(
     }
   }
 
-  function checkGameCompletion() {
-    const allTasksCompleted =
-      state.tasks.length > 0 &&
-      state.tasks.every(
-        task =>
-          task.completed,
-      )
-
-    if (
-      !allTasksCompleted
-    ) {
+  function finalizeGameCompletion() {
+    if (state.gameCompleted) {
       return
     }
 
-    if (
-      state.gameCompleted
-    ) {
-      return
-    }
-
-    state.gameCompleted =
-      true
+    state.gameCompleted = true
 
     addLine(
       'success',
@@ -957,6 +986,57 @@ export function useDetectiveGame(
     addLine(
       'success',
       '========================================',
+    )
+  }
+
+  function checkGameCompletion() {
+    const allTasksCompleted =
+      state.tasks.length > 0 &&
+      state.tasks.every(
+        task =>
+          task.completed,
+      )
+
+    if (
+      !allTasksCompleted
+    ) {
+      return
+    }
+
+    if (scenario.operationalReport) {
+      return
+    }
+
+    finalizeGameCompletion()
+  }
+
+  function completeOperationalReport(): boolean {
+    if (!scenario.operationalReport) {
+      return false
+    }
+
+    const allTasksCompleted =
+      state.tasks.length > 0 &&
+      state.tasks.every(
+        task => task.completed,
+      )
+
+    if (!allTasksCompleted) {
+      return false
+    }
+
+    finalizeGameCompletion()
+
+    return true
+  }
+
+  function isOperationalReportAvailable(): boolean {
+    return Boolean(
+      scenario.operationalReport &&
+      state.tasks.length > 0 &&
+      state.tasks.every(
+        task => task.completed,
+      ),
     )
   }
 
@@ -1034,7 +1114,7 @@ export function useDetectiveGame(
     const children =
       (directory.children ?? []).filter(
         child =>
-          canAccessPath(
+          canRevealPath(
             path === '/'
               ? `/${child.name}`
               : `${path}/${child.name}`,
@@ -1458,7 +1538,7 @@ export function useDetectiveGame(
             ? `/${node.name}`
             : `${basePath}/${node.name}`
 
-        if (!canAccessPath(nodePath, privileged)) {
+        if (!canRevealPath(nodePath, privileged)) {
           continue
         }
 
@@ -2130,7 +2210,7 @@ export function useDetectiveGame(
       ? [selectedFolder]
       : scenario.filesystem.filter(
           node =>
-            canAccessPath(`/${node.name}`, privileged),
+            canRevealPath(`/${node.name}`, privileged),
         )
     const descriptions: Record<
       SupportedLocale,
@@ -2344,7 +2424,7 @@ export function useDetectiveGame(
     ) {
       const visibleNodes = nodes.filter(
         node =>
-          canAccessPath(
+          canRevealPath(
             `${basePath}/${node.name}`,
             privileged,
           ),
@@ -3237,7 +3317,7 @@ requestedLocale
         directory.children ?? []
       )
         .filter(child =>
-          canAccessPath(
+          canRevealPath(
             state.currentDirectory === '/'
               ? `/${child.name}`
               : `${state.currentDirectory}/${child.name}`,
@@ -3314,7 +3394,7 @@ requestedLocale
       directory.children ?? []
     )
       .filter(child =>
-        canAccessPath(
+        canRevealPath(
           directoryPath === '/'
             ? `/${child.name}`
             : `${directoryPath}/${child.name}`,
@@ -3581,6 +3661,10 @@ function initialize() {
     checkTasks,
 
     checkGameCompletion,
+
+    completeOperationalReport,
+
+    isOperationalReportAvailable,
 
     restoreProgress,
 

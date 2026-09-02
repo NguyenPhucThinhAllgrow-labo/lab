@@ -2760,10 +2760,10 @@
         "Read /CASE-BRIEF.txt for the initial facts, known people and investigation objectives.",
         "Read /README.txt to identify the source of each top-level folder.",
         "Preserve separate chains of digital, physical and telecom evidence.",
-        "Find the false trail. Identify the offender. Locate and arrest him.",
+        "Find the false trail. Identify the offender. Locate the hostage and authorize a lawful tactical deployment.",
         "",
         "CAUTION: clocks disagree and one location record was forged.",
-        "Restricted records require sudo. Reading a sealed file opens a password prompt.",
+        "Restricted police records require sudo.",
         "Use help to review all available commands."
       ],
       "vi": [
@@ -2786,12 +2786,31 @@
         "Đọc /CASE-BRIEF.txt để nắm tình tiết ban đầu, người liên quan và mục tiêu điều tra.",
         "Đọc /README.txt để biết mỗi thư mục lấy dữ liệu từ đâu.",
         "Hãy đối chiếu độc lập chứng cứ số, chứng cứ tại hiện trường và dữ liệu viễn thông.",
-        "Loại bỏ các dấu vết đánh lạc hướng, xác định hung thủ, tìm vị trí của hắn và tiến hành bắt giữ.",
+        "Loại bỏ các dấu vết đánh lạc hướng, xác định hung thủ, tìm nơi Claire bị giam giữ và phê duyệt triển khai đội chiến thuật theo đúng pháp luật.",
         "",
         "CẢNH BÁO: các đồng hồ lệch nhau và một bản ghi vị trí đã bị làm giả.",
-        "Hồ sơ hạn chế cần sudo. Khi đọc tệp niêm phong, hệ thống sẽ yêu cầu mật mã.",
+        "Hồ sơ cảnh sát bị hạn chế cần dùng sudo để truy cập.",
         "Dùng help để xem toàn bộ lệnh khả dụng."
       ]
+    },
+    "operationalReport": {
+      "answers": {
+        "suspect": [
+          "Grant Mercer"
+        ],
+        "vehicle": [
+          "51H-742.19",
+          "51H74219"
+        ],
+        "target": [
+          "Kho Northstar số 6",
+          "Northstar Warehouse 6",
+          "Warehouse 6"
+        ],
+        "victim": [
+          "Claire Bennett"
+        ]
+      }
     },
     "timeline": [
       {
@@ -2847,8 +2866,8 @@
           "vi": "Mã truy cập dành cho khách được sử dụng"
         },
         "description": {
-          "en": "Ethan's smart lock grants entry without forced access.",
-          "vi": "Khóa thông minh mở cửa bằng mã hợp lệ, vì vậy hiện trường không có dấu hiệu cạy phá."
+          "en": "Guest code EW-INTERVIEW-04, created by Ethan at 00:41 for Grant Mercer and labeled \"ORPHEUS source interview\", opens the front door without forced access.",
+          "vi": "Mã khách EW-INTERVIEW-04 do Ethan tạo lúc 00:41 cho Grant Mercer, với ghi chú “phỏng vấn nguồn tin ORPHEUS”, đã mở cửa chính mà không cần cạy phá."
         },
         "requiresEvidence": [
           "device-timeline"
@@ -2991,31 +3010,14 @@
         "time": "08:18",
         "category": "response",
         "title": {
-          "en": "Arrest and rescue authorized",
-          "vi": "Phê chuẩn bắt giữ và giải cứu"
+          "en": "Operational deployment approved",
+          "vi": "Phê duyệt triển khai tác chiến"
         },
         "description": {
-          "en": "TAC-6 is dispatched to Northstar Warehouse 6.",
-          "vi": "Đội TAC-6 được điều tới Kho Northstar số 6."
+          "en": "Your validated dossier authorizes TAC-6 to deploy to Northstar Warehouse 6.",
+          "vi": "Hồ sơ tác chiến hợp lệ của bạn phê duyệt việc điều đội TAC-6 tới Kho Northstar số 6."
         },
-        "requiresEvidence": [
-          "arrest-authorized"
-        ]
-      },
-      {
-        "time": "08:31",
-        "category": "response",
-        "title": {
-          "en": "Claire rescued, Mercer arrested",
-          "vi": "Giải cứu Claire, bắt giữ Mercer"
-        },
-        "description": {
-          "en": "Claire is recovered alive and Mercer is arrested.",
-          "vi": "Claire được giải cứu còn sống và Mercer bị bắt."
-        },
-        "requiresEvidence": [
-          "case-resolved"
-        ]
+        "requiresGameCompletion": true
       }
     ],
     "filesystem": [
@@ -3023,8 +3025,8 @@
         "type": "file",
         "name": "CASE-BRIEF.txt",
         "content": {
-          "en": "CASE 004 — INITIAL BRIEFING\nStatus at 06:42\n\nYOUR WORKING ENVIRONMENT\nYou are operating PFT-04, a police mobile forensic workstation brought to apartment 17B. This terminal is the computer receiving your commands; you are not logged directly into the victim's laptop.\nEthan's laptop has been assigned evidence ID EW-LAPTOP-01 and connected to PFT-04 through a write-blocking forensic bridge. Its data appears only under /laptop and is read-only.\nThe other top-level folders, including /scene, /police, /network, /city, /telecom and /analysis, are separate police or authorized external evidence sources mounted into the same workspace. Those folders were not stored on Ethan's laptop. Read /README.txt for the exact origin of each source.\n\nINCIDENT SUMMARY\nPolice respond to apartment 17B and find investigative journalist Ethan Ward dead beside his unlocked laptop. There is no forced entry. An encrypted removable drive used for confidential source material is missing. Recovered messages indicate editor Claire Bennett may have been abducted and could still be alive. Someone also used a police evidence-system account from the apartment and attempted to erase an ORPHEUS-related lookup.\n\nPEOPLE KNOWN AT ARRIVAL\nETHAN WARD — deceased victim; investigative journalist. He was investigating public emergency-radio contracts and kept confidential source documents on an encrypted drive.\nCLAIRE BENNETT — Ethan's editor and professional contact. Her whereabouts are unknown. A message says she is safe, but investigators have not verified who sent it.\nUNKNOWN OFFENDER — may have entered without forcing the door, removed the encrypted drive, accessed a police system and created misleading digital records. Identity and location are unknown.\n\nTERMS\nPFT-04 — the police mobile forensic workstation you are currently operating.\nORPHEUS — the name Ethan assigned to the missing encrypted drive and its confidential document archive. Its contents are not yet established.\nEW-LAPTOP-01 — evidence identifier assigned to Ethan's laptop; its read-only data is mounted at /laptop.\nCASE-BRIEF — facts known before forensic examination; it is not a final conclusion.\n\nINVESTIGATION OBJECTIVES\n1. Establish a reliable time of death and event sequence.\n2. Determine who used the police account; do not assume the account owner was the operator.\n3. Identify why ORPHEUS was stolen and connect the offender through independent evidence.\n4. Verify whether Claire is alive and locate her.\n5. Obtain lawful arrest authority, rescue Claire and preserve all evidence.",
-          "vi": "VỤ ÁN 004 — HỒ SƠ NHẬP VỤ\nThông tin cảnh sát biết lúc 06:42\n\nMÔI TRƯỜNG BẠN ĐANG THAO TÁC\nBạn đang sử dụng PFT-04, máy trạm pháp y di động được cảnh sát mang tới căn hộ 17B. Đây mới là máy tính nhận các lệnh bạn nhập; bạn không đăng nhập trực tiếp vào laptop của nạn nhân.\nLaptop của Ethan được gán mã vật chứng EW-LAPTOP-01 và nối với PFT-04 qua thiết bị chặn ghi chuyên dụng. Dữ liệu của chiếc laptop chỉ xuất hiện trong thư mục /laptop và chỉ có thể đọc.\nCác thư mục cấp cao còn lại như /scene, /police, /network, /city, /telecom và /analysis là những nguồn chứng cứ riêng của cảnh sát hoặc đơn vị bên ngoài đã cấp quyền, được gắn chung vào máy trạm. Chúng không phải dữ liệu từng nằm trên laptop của Ethan. Đọc /README.txt để biết chính xác nguồn gốc từng thư mục.\n\nTÓM TẮT SỰ VIỆC\nCảnh sát tới căn hộ 17B và phát hiện nhà báo điều tra Ethan Ward đã tử vong bên cạnh chiếc laptop vẫn đang mở. Cửa ra vào không có dấu hiệu bị cạy phá. Một ổ đĩa rời được mã hóa, vốn dùng để lưu tài liệu từ nguồn tin bí mật, đã biến mất. Tin nhắn còn lại cho thấy biên tập viên Claire Bennett có thể đã bị bắt cóc và vẫn còn sống. Ngoài ra, có người đã sử dụng một tài khoản thuộc hệ thống vật chứng của cảnh sát ngay từ căn hộ rồi tìm cách xóa lịch sử tra cứu liên quan đến ORPHEUS.\n\nNHỮNG NGƯỜI ĐÃ BIẾT KHI BẮT ĐẦU ĐIỀU TRA\nETHAN WARD — nạn nhân đã tử vong; là nhà báo chuyên điều tra. Ethan đang tìm hiểu các hợp đồng vô tuyến khẩn cấp của thành phố và lưu tài liệu mật trên một ổ đĩa mã hóa.\nCLAIRE BENNETT — biên tập viên và người làm việc trực tiếp với Ethan. Hiện chưa rõ cô đang ở đâu. Có một tin nhắn nói rằng Claire đã an toàn, nhưng cảnh sát chưa xác minh được ai thực sự gửi nó.\nKẺ GÂY ÁN CHƯA RÕ DANH TÍNH — có thể đã vào căn hộ mà không cần phá cửa, lấy ổ đĩa mã hóa, truy cập hệ thống cảnh sát và tạo ra các dấu vết số đánh lạc hướng. Chưa xác định được danh tính hoặc vị trí.\n\nTHUẬT NGỮ CẦN BIẾT\nPFT-04 — máy trạm pháp y di động của cảnh sát mà bạn đang trực tiếp sử dụng.\nORPHEUS — tên Ethan đặt cho ổ đĩa mã hóa bị mất và kho tài liệu mật chứa trên đó. Khi bắt đầu vụ án, cảnh sát chưa biết chính xác các tài liệu này nói về điều gì.\nEW-LAPTOP-01 — mã vật chứng cảnh sát gán cho laptop của Ethan; dữ liệu chỉ đọc của máy được gắn tại /laptop.\nHỒ SƠ NHẬP VỤ — chỉ ghi những sự thật đã biết trước khi khám nghiệm; không phải kết luận cuối cùng.\n\nMỤC TIÊU ĐIỀU TRA\n1. Xác định thời gian tử vong và thứ tự sự việc bằng các nguồn giờ đáng tin cậy.\n2. Xác định ai thực sự sử dụng tài khoản cảnh sát; không mặc định chủ tài khoản là người thao tác.\n3. Tìm lý do ORPHEUS bị lấy và liên kết hung thủ bằng nhiều nguồn chứng cứ độc lập.\n4. Xác minh Claire còn sống hay không và tìm nơi cô bị giam giữ.\n5. Xin lệnh bắt hợp pháp, giải cứu Claire và bảo toàn toàn bộ vật chứng."
+          "en": "CASE 004 — INITIAL BRIEFING\nStatus at 06:42\n\nYOUR WORKING ENVIRONMENT\nYou are operating PFT-04, a police mobile forensic workstation brought to apartment 17B. This terminal is the computer receiving your commands; you are not logged directly into the victim's laptop.\nEthan's laptop has been assigned evidence ID EW-LAPTOP-01 and connected to PFT-04 through a write-blocking forensic bridge. Its data appears only under /laptop and is read-only.\nThe other top-level folders, including /scene, /police, /network, /city, /telecom and /analysis, are separate police or authorized external evidence sources mounted into the same workspace. Those folders were not stored on Ethan's laptop. Read /README.txt for the exact origin of each source.\n\nINCIDENT SUMMARY\nPolice respond to apartment 17B and find investigative journalist Ethan Ward dead beside his unlocked laptop. There is no forced entry. An encrypted removable drive used for confidential source material is missing. Recovered messages indicate editor Claire Bennett may have been abducted and could still be alive. Someone also used a police evidence-system account from the apartment and attempted to erase an ORPHEUS-related lookup.\n\nPEOPLE KNOWN AT ARRIVAL\nETHAN WARD — deceased victim; investigative journalist. He was investigating public emergency-radio contracts and kept confidential source documents on an encrypted drive.\nCLAIRE BENNETT — Ethan's editor and professional contact. Her whereabouts are unknown. A message says she is safe, but investigators have not verified who sent it.\nUNKNOWN OFFENDER — may have entered without forcing the door, removed the encrypted drive, accessed a police system and created misleading digital records. Identity and location are unknown.\n\nTERMS\nPFT-04 — the police mobile forensic workstation you are currently operating.\nORPHEUS — the name Ethan assigned to the missing encrypted drive and its confidential document archive. Its contents are not yet established.\nEW-LAPTOP-01 — evidence identifier assigned to Ethan's laptop; its read-only data is mounted at /laptop.\nCASE-BRIEF — facts known before forensic examination; it is not a final conclusion.\n\nINVESTIGATION OBJECTIVES\n1. Establish a reliable time of death and event sequence.\n2. Determine who used the police account; do not assume the account owner was the operator.\n3. Identify why ORPHEUS was stolen and connect the offender through independent evidence.\n4. Verify whether Claire is alive and locate her.\n5. Complete the operational dossier, authorize a lawful TAC-6 deployment and preserve all evidence.",
+          "vi": "VỤ ÁN 004 — HỒ SƠ NHẬP VỤ\nThông tin cảnh sát biết lúc 06:42\n\nMÔI TRƯỜNG BẠN ĐANG THAO TÁC\nBạn đang sử dụng PFT-04, máy trạm pháp y di động được cảnh sát mang tới căn hộ 17B. Đây mới là máy tính nhận các lệnh bạn nhập; bạn không đăng nhập trực tiếp vào laptop của nạn nhân.\nLaptop của Ethan được gán mã vật chứng EW-LAPTOP-01 và nối với PFT-04 qua thiết bị chặn ghi chuyên dụng. Dữ liệu của chiếc laptop chỉ xuất hiện trong thư mục /laptop và chỉ có thể đọc.\nCác thư mục cấp cao còn lại như /scene, /police, /network, /city, /telecom và /analysis là những nguồn chứng cứ riêng của cảnh sát hoặc đơn vị bên ngoài đã cấp quyền, được gắn chung vào máy trạm. Chúng không phải dữ liệu từng nằm trên laptop của Ethan. Đọc /README.txt để biết chính xác nguồn gốc từng thư mục.\n\nTÓM TẮT SỰ VIỆC\nCảnh sát tới căn hộ 17B và phát hiện nhà báo điều tra Ethan Ward đã tử vong bên cạnh chiếc laptop vẫn đang mở. Cửa ra vào không có dấu hiệu bị cạy phá. Một ổ đĩa rời được mã hóa, vốn dùng để lưu tài liệu từ nguồn tin bí mật, đã biến mất. Tin nhắn còn lại cho thấy biên tập viên Claire Bennett có thể đã bị bắt cóc và vẫn còn sống. Ngoài ra, có người đã sử dụng một tài khoản thuộc hệ thống vật chứng của cảnh sát ngay từ căn hộ rồi tìm cách xóa lịch sử tra cứu liên quan đến ORPHEUS.\n\nNHỮNG NGƯỜI ĐÃ BIẾT KHI BẮT ĐẦU ĐIỀU TRA\nETHAN WARD — nạn nhân đã tử vong; là nhà báo chuyên điều tra. Ethan đang tìm hiểu các hợp đồng vô tuyến khẩn cấp của thành phố và lưu tài liệu mật trên một ổ đĩa mã hóa.\nCLAIRE BENNETT — biên tập viên và người làm việc trực tiếp với Ethan. Hiện chưa rõ cô đang ở đâu. Có một tin nhắn nói rằng Claire đã an toàn, nhưng cảnh sát chưa xác minh được ai thực sự gửi nó.\nKẺ GÂY ÁN CHƯA RÕ DANH TÍNH — có thể đã vào căn hộ mà không cần phá cửa, lấy ổ đĩa mã hóa, truy cập hệ thống cảnh sát và tạo ra các dấu vết số đánh lạc hướng. Chưa xác định được danh tính hoặc vị trí.\n\nTHUẬT NGỮ CẦN BIẾT\nPFT-04 — máy trạm pháp y di động của cảnh sát mà bạn đang trực tiếp sử dụng.\nORPHEUS — tên Ethan đặt cho ổ đĩa mã hóa bị mất và kho tài liệu mật chứa trên đó. Khi bắt đầu vụ án, cảnh sát chưa biết chính xác các tài liệu này nói về điều gì.\nEW-LAPTOP-01 — mã vật chứng cảnh sát gán cho laptop của Ethan; dữ liệu chỉ đọc của máy được gắn tại /laptop.\nHỒ SƠ NHẬP VỤ — chỉ ghi những sự thật đã biết trước khi khám nghiệm; không phải kết luận cuối cùng.\n\nMỤC TIÊU ĐIỀU TRA\n1. Xác định thời gian tử vong và thứ tự sự việc bằng các nguồn giờ đáng tin cậy.\n2. Xác định ai thực sự sử dụng tài khoản cảnh sát; không mặc định chủ tài khoản là người thao tác.\n3. Tìm lý do ORPHEUS bị lấy và liên kết hung thủ bằng nhiều nguồn chứng cứ độc lập.\n4. Xác minh Claire còn sống hay không và tìm nơi cô bị giam giữ.\n5. Hoàn thiện hồ sơ tác chiến, phê duyệt triển khai đội TAC-6 theo đúng pháp luật và bảo toàn toàn bộ vật chứng."
         }
       },
       {
@@ -3059,8 +3061,8 @@
             "type": "file",
             "name": "chain-of-custody.txt",
             "content": {
-              "en": "ITEMS SEALED\nEW-LAPTOP-01 — live bridge attached 07:03; image SHA256 verified\nCUP-B — sealed 07:11\nPAINT-RAIL — sealed 07:18\nSTUB-P4187 — sealed 07:21\nWARRANT VAULT CODE FORMAT: archive name + sealed parking-stub number\nNOTE: conclusions must not rely solely on mutable apartment logs",
-              "vi": "DANH SÁCH VẬT CHỨNG ĐÃ NIÊM PHONG\nEW-LAPTOP-01 — kết nối thiết bị đọc dữ liệu lúc 07:03; mã SHA-256 xác nhận bản sao pháp y không bị thay đổi\nCUP-B — chiếc cốc đã rửa, niêm phong lúc 07:11\nPAINT-RAIL — mẫu sơn và sợi trên lan can, niêm phong lúc 07:18\nSTUB-P4187 — cuống vé đỗ xe P-4187, niêm phong lúc 07:21\nQUY TẮC TẠO MẬT MÃ MỞ HỒ SƠ XIN LỆNH BẮT: tên ổ đĩa mật + số trên cuống vé đã niêm phong\nLƯU Ý: không được kết luận chỉ dựa vào nhật ký trong căn hộ vì các nhật ký này có thể bị chỉnh sửa"
+              "en": "ITEMS SEALED\nEW-LAPTOP-01 — live bridge attached 07:03; image SHA256 verified\nCUP-B — sealed 07:11\nPAINT-RAIL — sealed 07:18\nSTUB-P4187 — sealed 07:21\nNOTE: conclusions must not rely solely on mutable apartment logs",
+              "vi": "DANH SÁCH VẬT CHỨNG ĐÃ NIÊM PHONG\nEW-LAPTOP-01 — kết nối thiết bị đọc dữ liệu lúc 07:03; mã SHA-256 xác nhận bản sao pháp y không bị thay đổi\nCUP-B — chiếc cốc đã rửa, niêm phong lúc 07:11\nPAINT-RAIL — mẫu sơn và sợi trên lan can, niêm phong lúc 07:18\nSTUB-P4187 — cuống vé đỗ xe P-4187, niêm phong lúc 07:21\nLƯU Ý: không được kết luận chỉ dựa vào nhật ký trong căn hộ vì các nhật ký này có thể bị chỉnh sửa"
             }
           }
         ]
@@ -3073,8 +3075,8 @@
             "type": "file",
             "name": "timeline.log",
             "content": {
-              "en": "LAPTOP FORENSIC TIMELINE — EW-LAPTOP-01\nThis file was reconstructed from records stored locally on Ethan's laptop.\n[00:41:08] SOURCE operating-system storage log: encrypted drive ORPHEUS connected and opened\n[00:52:31] SOURCE desktop messaging app: message received from account CLAIRE-BENNETT\n[01:03:44] SOURCE smart-home app notification cache: apartment door opened with a valid temporary guest code\n[01:12:07] SOURCE paired-phone sync cache: Ethan's phone stopped moving\n[01:14:22] SOURCE paired-wearable sync cache: impact, sudden movement and elevated heart rate indicate a struggle\n[01:19:50] SOURCE operating-system storage log: ORPHEUS disconnected from laptop\nTIME BASIS: laptop synchronized to verified NTP network time; measured offset +00:00\nNOTE: lock, phone and wearable events are synchronized copies stored by paired applications. Police-system access was performed from a separate device and is recorded only in restricted police and apartment-network logs.",
-              "vi": "DÒNG THỜI GIAN PHÁP Y TRÊN LAPTOP — EW-LAPTOP-01\nTệp này được dựng lại từ những bản ghi đang lưu cục bộ trên laptop của Ethan.\n[00:41:08] NGUỒN: nhật ký ổ đĩa của hệ điều hành — ổ mã hóa ORPHEUS được kết nối và mở\n[00:52:31] NGUỒN: ứng dụng nhắn tin trên laptop — nhận tin từ tài khoản CLAIRE-BENNETT\n[01:03:44] NGUỒN: bản sao thông báo của ứng dụng nhà thông minh — cửa căn hộ được mở bằng mã tạm thời hợp lệ dành cho khách\n[01:12:07] NGUỒN: dữ liệu đồng bộ từ điện thoại đã ghép nối — điện thoại của Ethan ngừng di chuyển\n[01:14:22] NGUỒN: dữ liệu đồng bộ từ đồng hồ đeo tay — va chạm, chuyển động đột ngột và nhịp tim tăng cho thấy có giằng co\n[01:19:50] NGUỒN: nhật ký ổ đĩa của hệ điều hành — ổ ORPHEUS bị ngắt khỏi laptop\nCƠ SỞ THỜI GIAN: laptop đã đồng bộ với máy chủ giờ mạng NTP được xác minh; độ lệch đo được là +00:00\nLƯU Ý: sự kiện của khóa cửa, điện thoại và đồng hồ đeo tay là các bản sao do ứng dụng ghép nối lưu trên laptop. Việc truy cập hệ thống cảnh sát được thực hiện từ một thiết bị khác và chỉ xuất hiện trong hồ sơ cảnh sát cùng nhật ký mạng căn hộ."
+              "en": "LAPTOP FORENSIC TIMELINE — EW-LAPTOP-01\nThis file was reconstructed from records stored locally on Ethan's laptop.\n[00:41:08] SOURCE operating-system storage log: encrypted drive ORPHEUS connected and opened\n[00:52:31] SOURCE desktop messaging app: message received from account CLAIRE-BENNETT\n[01:03:44] SOURCE smart-home app notification cache: guest code EW-INTERVIEW-04, created by Ethan Ward at 00:41, opened the front door. Recipient: Grant Mercer. Meeting note: \"ORPHEUS source interview\"\n[01:12:07] SOURCE paired-phone sync cache: Ethan's phone stopped moving\n[01:14:22] SOURCE paired-wearable sync cache: impact, sudden movement and elevated heart rate indicate a struggle\n[01:19:50] SOURCE operating-system storage log: ORPHEUS disconnected from laptop\nTIME BASIS: laptop synchronized to verified NTP network time; measured offset +00:00\nNOTE: lock, phone and wearable events are synchronized copies stored by paired applications. Police-system access was performed from a separate device and is recorded only in restricted police and apartment-network logs.",
+              "vi": "DÒNG THỜI GIAN PHÁP Y TRÊN LAPTOP — EW-LAPTOP-01\nTệp này được dựng lại từ những bản ghi đang lưu cục bộ trên laptop của Ethan.\n[00:41:08] NGUỒN: nhật ký ổ đĩa của hệ điều hành — ổ mã hóa ORPHEUS được kết nối và mở\n[00:52:31] NGUỒN: ứng dụng nhắn tin trên laptop — nhận tin từ tài khoản CLAIRE-BENNETT\n[01:03:44] NGUỒN: bản sao thông báo của ứng dụng nhà thông minh — mã khách EW-INTERVIEW-04 do Ethan Ward tạo lúc 00:41 đã mở cửa chính. Người nhận mã: Grant Mercer. Ghi chú cuộc gặp: “phỏng vấn nguồn tin ORPHEUS”\n[01:12:07] NGUỒN: dữ liệu đồng bộ từ điện thoại đã ghép nối — điện thoại của Ethan ngừng di chuyển\n[01:14:22] NGUỒN: dữ liệu đồng bộ từ đồng hồ đeo tay — va chạm, chuyển động đột ngột và nhịp tim tăng cho thấy có giằng co\n[01:19:50] NGUỒN: nhật ký ổ đĩa của hệ điều hành — ổ ORPHEUS bị ngắt khỏi laptop\nCƠ SỞ THỜI GIAN: laptop đã đồng bộ với máy chủ giờ mạng NTP được xác minh; độ lệch đo được là +00:00\nLƯU Ý: sự kiện của khóa cửa, điện thoại và đồng hồ đeo tay là các bản sao do ứng dụng ghép nối lưu trên laptop. Việc truy cập hệ thống cảnh sát được thực hiện từ một thiết bị khác và chỉ xuất hiện trong hồ sơ cảnh sát cùng nhật ký mạng căn hộ."
             }
           },
           {
@@ -3092,6 +3094,28 @@
               "en": "ETHAN HOME-NETWORK MONITOR — LOCAL COPY\nConfiguration: apartment router forwards new-device and destination-domain metadata to Ethan's laptop\nPrivacy limit: records device identity and destination domain only; encrypted traffic contents are not captured\n\n[01:02:51] NEW DEVICE joined TOWER-17-FLOOR\nAddress: 10.23.8.44\nMAC: 7C:91:22:AF:18:04\nHostname announced by device: FIELDKIT-MERCER\n[01:21:41] 10.23.8.44 opened encrypted connection to evidence.metro-police.local\n[01:28:14] 10.23.8.44 disconnected\n\nNOTE: This log proves a separate device used the apartment network. It does not reveal which police account was used inside the encrypted session. Confirm the device through the router log and the account through restricted police records.",
               "vi": "NHẬT KÝ GIÁM SÁT MẠNG CỦA ETHAN — BẢN SAO LƯU TRÊN LAPTOP\nCấu hình: router căn hộ tự động chuyển thông tin về thiết bị mới và tên miền truy cập sang laptop của Ethan\nGiới hạn: chỉ ghi nhận danh tính thiết bị và tên miền đích; không đọc được nội dung kết nối đã mã hóa\n\n[01:02:51] THIẾT BỊ MỚI kết nối Wi-Fi TOWER-17-FLOOR\nĐịa chỉ mạng: 10.23.8.44\nĐịa chỉ MAC: 7C:91:22:AF:18:04\nTên do thiết bị tự khai báo: FIELDKIT-MERCER\n[01:21:41] 10.23.8.44 mở kết nối mã hóa tới evidence.metro-police.local\n[01:28:14] 10.23.8.44 ngắt kết nối\n\nLƯU Ý: bản ghi này chứng minh có một thiết bị riêng sử dụng mạng căn hộ. Nó không cho biết tài khoản cảnh sát nào được dùng bên trong phiên đã mã hóa. Cần đối chiếu router để xác nhận thiết bị và hồ sơ hạn chế của cảnh sát để xác định tài khoản."
             }
+          },
+          {
+            "type": "directory",
+            "name": "personal",
+            "children": [
+              {
+                "type": "file",
+                "name": "expenses-august.csv",
+                "content": {
+                  "en": "date,merchant,amount,note\n2025-08-03,Metro Coffee,8.40,interview\n2025-08-08,Blue River Taxi,31.20,newsroom to home\n2025-08-16,Harbor Hardware,17.95,desk lamp cable\nNOTE: personal expense export; last modified five months before the incident",
+                  "vi": "ngày,đơn vị,số tiền,ghi chú\n2025-08-03,Metro Coffee,8.40,phỏng vấn\n2025-08-08,Blue River Taxi,31.20,từ tòa soạn về nhà\n2025-08-16,Harbor Hardware,17.95,dây đèn bàn\nLƯU Ý: bảng chi tiêu cá nhân; chỉnh sửa lần cuối năm tháng trước vụ án"
+                }
+              },
+              {
+                "type": "file",
+                "name": "weekend-notes.txt",
+                "content": {
+                  "en": "WEEKEND NOTES — archived draft\nCall building manager about balcony seal.\nReturn borrowed camera battery to Claire.\nBlue delivery van blocks the alley most Saturdays.\nMetadata: created 12 July; archived 19 July. No edits during the incident window.",
+                  "vi": "GHI CHÚ CUỐI TUẦN — BẢN NHÁP ĐÃ LƯU TRỮ\nGọi quản lý tòa nhà về gioăng cửa ban công.\nTrả pin máy ảnh đã mượn cho Claire.\nMột xe giao hàng màu xanh thường chắn con hẻm vào thứ Bảy.\nMetadata: tạo ngày 12/07, lưu trữ ngày 19/07; không chỉnh sửa trong khoảng xảy ra vụ án."
+                }
+              }
+            ]
           }
         ]
       },
@@ -3147,6 +3171,28 @@
               "en": "[01:29:02] FIELDKIT-MERCER -> municipal maintenance VPN\nCredential: contractor/river-cam-04\nExit shown publicly: 203.0.113.71 CENTRAL LIBRARY\nTunnel ingress radio sector: RIVER-3\nDevice certificate expired but accepted by legacy gateway",
               "vi": "[01:29:02] FIELDKIT-MERCER kết nối vào VPN bảo trì của thành phố\nTài khoản sử dụng: contractor/river-cam-04\nĐịa chỉ IP công khai của VPN: 203.0.113.71 — THƯ VIỆN TRUNG TÂM\nTuy nhiên, tín hiệu vô tuyến đầu vào cho thấy thiết bị thực sự kết nối từ khu vực RIVER-3\nChứng chỉ của thiết bị đã hết hạn nhưng cổng VPN cũ vẫn chấp nhận"
             }
+          },
+          {
+            "type": "directory",
+            "name": "legacy",
+            "children": [
+              {
+                "type": "file",
+                "name": "expired-leases.log",
+                "content": {
+                  "en": "[SEVEN DAYS BEFORE INCIDENT]\n10.23.8.31 — CLAIRE-TABLET — lease released 18:22\n10.23.8.36 — FLOOR17-PRINTER — lease released 20:04\n10.23.8.41 — DELIVERY-SCANNER — lease released 20:19\nRETENTION NOTE: expired historical leases; none were active on the incident date",
+                  "vi": "[BẢY NGÀY TRƯỚC VỤ ÁN]\n10.23.8.31 — CLAIRE-TABLET — trả địa chỉ lúc 18:22\n10.23.8.36 — FLOOR17-PRINTER — trả địa chỉ lúc 20:04\n10.23.8.41 — DELIVERY-SCANNER — trả địa chỉ lúc 20:19\nLƯU Ý LƯU TRỮ: đây là các lease cũ đã hết hạn; không thiết bị nào hoạt động trong ngày xảy ra vụ án"
+                }
+              },
+              {
+                "type": "file",
+                "name": "router-diagnostics.txt",
+                "content": {
+                  "en": "ROUTER SELF-TEST\nLast scheduled test: 23:30, day before incident\nPacket loss: 0.2%\nClock offset: +00:00.3\nResult: PASS\nThis diagnostic contains no client activity from the homicide window.",
+                  "vi": "TỰ KIỂM TRA ROUTER\nLần kiểm tra định kỳ gần nhất: 23:30, ngày trước vụ án\nTỷ lệ mất gói: 0,2%\nĐộ lệch đồng hồ: +00:00.3\nKết quả: ĐẠT\nBản chẩn đoán này không chứa hoạt động thiết bị trong khoảng xảy ra án mạng."
+                }
+              }
+            ]
           }
         ]
       },
@@ -3177,6 +3223,28 @@
               "en": "RIVER-3 SECTOR CANDIDATES\nA. Old Ferry Depot — no cranes; church bell 30-minute cycle\nB. Northstar Warehouse 6 — two blue gantry cranes; freight warning bell 15-minute cycle; jute storage\nC. Central Library — VPN exit only; no truck access after 22:00\nD. East Pump Station — blue epoxy surfaces; no jute; continuous siren",
               "vi": "CÁC ĐIỂM TRONG VÙNG RIVER-3\nA. Bến Phà Cũ — không có cần cẩu; chuông nhà thờ mỗi 30 phút\nB. Kho Northstar số 6 — hai cần cẩu giàn xanh; chuông cảnh báo hàng hóa mỗi 15 phút; kho sợi đay\nC. Thư viện Trung tâm — chỉ là điểm ra VPN; cấm xe tải sau 22:00\nD. Trạm Bơm Đông — bề mặt epoxy xanh; không có sợi đay; còi liên tục"
             }
+          },
+          {
+            "type": "directory",
+            "name": "maintenance",
+            "children": [
+              {
+                "type": "file",
+                "name": "river-road-works.txt",
+                "content": {
+                  "en": "PUBLIC WORKS NOTICE\nRiver Road lane inspection scheduled 09:00–14:00 on the incident date.\nCrew vehicles: two orange utility trucks.\nNo overnight closure and no work crew deployed before 08:45.",
+                  "vi": "THÔNG BÁO CÔNG TRÌNH CÔNG CỘNG\nKiểm tra làn đường trên đường Ven Sông dự kiến từ 09:00 đến 14:00 trong ngày xảy ra vụ án.\nPhương tiện của đội thi công: hai xe công vụ màu cam.\nKhông đóng đường ban đêm và không có tổ công tác nào được triển khai trước 08:45."
+                }
+              },
+              {
+                "type": "file",
+                "name": "camera-test.log",
+                "content": {
+                  "en": "[08:46] RIVER CAMERA 09 color calibration started\n[08:49] test vehicle BLUE-VAN-CAL passed frame\n[08:52] calibration completed\nNOTE: maintenance test occurred more than seven hours after the suspect vehicle crossed River Road and concerns Camera 09, not Camera 12.",
+                  "vi": "[08:46] CAMERA VEN SÔNG 09 bắt đầu cân chỉnh màu\n[08:49] xe thử nghiệm BLUE-VAN-CAL đi qua khung hình\n[08:52] hoàn tất cân chỉnh\nLƯU Ý: phép thử diễn ra hơn bảy giờ sau khi xe nghi phạm đi qua đường Ven Sông và thuộc Camera 09, không phải Camera 12."
+                }
+              }
+            ]
           }
         ]
       },
@@ -3225,25 +3293,9 @@
           {
             "type": "file",
             "name": "arrest-dossier.txt",
-            "access": {
-              "type": "password",
-              "password": "ORPHEUS-4187",
-              "prompt": {
-                "en": "Warrant vault challenge: combine the archive name with the sealed parking-stub number.",
-                "vi": "Mật mã mở hồ sơ xin lệnh bắt được tạo bằng cách ghép tên ổ đĩa mật với số trên cuống vé đỗ xe đã niêm phong."
-              }
-            },
             "content": {
-              "en": "OPERATIONAL DOSSIER — PROBABLE CAUSE ESTABLISHED\nSuspect: GRANT MERCER\nVehicle: 51H-742.19\nOffenses: homicide, abduction, evidence-system intrusion, obstruction\nTarget: NORTHSTAR WAREHOUSE 6, east loading bay\nLive victim: CLAIRE BENNETT; beacon consistent with interior office\nRisks: former police radio knowledge; may monitor open channels\nTactical instruction: encrypted channel TAC-6; medical team stage south; preserve FIELDKIT-MERCER and ORPHEUS drive\nSTATUS 08:18: warrant authorized — ARREST TEAM DISPATCHED",
-              "vi": "HỒ SƠ TÁC CHIẾN — ĐÃ ĐỦ CĂN CỨ\nNghi phạm: GRANT MERCER\nPhương tiện: xe mang biển số 51H-742.19\nTội danh: giết người, bắt cóc, xâm nhập hệ thống vật chứng và cản trở điều tra\nMục tiêu: KHO NORTHSTAR SỐ 6, cửa bốc hàng phía đông\nNạn nhân cần giải cứu: CLAIRE BENNETT; hướng phát tín hiệu khẩn cấp phù hợp với khu văn phòng bên trong kho\nRủi ro: Mercer từng là cảnh sát và hiểu hệ thống vô tuyến, do đó có thể nghe lén các kênh liên lạc không mã hóa\nChỉ thị: đội TAC-6 dùng kênh mã hóa; tổ y tế chờ ở phía nam; khi bắt giữ phải bảo toàn bộ máy tính FIELDKIT-MERCER và ổ đĩa ORPHEUS làm vật chứng\nTRẠNG THÁI 08:18: lệnh bắt đã phê chuẩn — ĐỘI BẮT GIỮ XUẤT PHÁT"
-            }
-          },
-          {
-            "type": "file",
-            "name": "resolution.txt",
-            "content": {
-              "en": "AFTER-ACTION 08:31\nClaire Bennett recovered alive from office, Warehouse 6.\nGrant Mercer arrested at east loading bay beside vehicle 51H-742.19.\nORPHEUS drive and FIELDKIT-MERCER seized under warrant.\nBlue paint on vehicle matches warehouse crane and scene flakes by laboratory comparison.\nNo shots fired. Evidence chain preserved.",
-              "vi": "KẾT QUẢ 08:31\nGiải cứu Claire Bennett còn sống tại văn phòng Kho số 6.\nBắt Grant Mercer tại cửa bốc hàng phía đông cạnh xe 51H-742.19.\nThu giữ ổ ORPHEUS và FIELDKIT-MERCER theo lệnh.\nSơn xanh trên xe khớp cần cẩu nhà kho và vảy sơn hiện trường qua giám định phòng thí nghiệm.\nKhông nổ súng. Chuỗi bảo quản chứng cứ nguyên vẹn."
+              "en": "OPERATIONAL DOSSIER TEMPLATE\nComplete this report from the collected evidence after the tactical target has been established.\n\nSuspect: [INVESTIGATOR INPUT REQUIRED]\nVehicle registration: [INVESTIGATOR INPUT REQUIRED]\nOffenses: homicide, abduction, evidence-system intrusion and obstruction\nTarget: [INVESTIGATOR INPUT REQUIRED], east loading bay\nVictim to rescue: [INVESTIGATOR INPUT REQUIRED]\nStatus: AWAITING INVESTIGATOR APPROVAL\n\nUse the Prepare operational report button in the Investigation panel.",
+              "vi": "MẪU HỒ SƠ TÁC CHIẾN\nHoàn thiện văn bản này từ các bằng chứng đã thu thập sau khi xác định chính xác mục tiêu đột kích.\n\nNghi phạm: [ĐIỀU TRA VIÊN CẦN NHẬP]\nBiển số phương tiện: [ĐIỀU TRA VIÊN CẦN NHẬP]\nTội danh: giết người, bắt cóc, xâm nhập hệ thống vật chứng và cản trở điều tra\nMục tiêu: [ĐIỀU TRA VIÊN CẦN NHẬP], cửa bốc hàng phía đông\nNạn nhân cần giải cứu: [ĐIỀU TRA VIÊN CẦN NHẬP]\nTrạng thái: CHỜ ĐIỀU TRA VIÊN PHÊ CHUẨN\n\nSử dụng nút Lập văn bản tác chiến trong bảng Nhiệm vụ."
             }
           }
         ]
@@ -3596,13 +3648,13 @@
           "vi": "Tuyến xe tới Quận Ven Sông"
         },
         "description": {
-          "en": "The sealed stub and cameras place Mercer’s sedan at the scene and then eastbound toward River-3.",
-          "vi": "Vé niêm phong và camera đặt sedan của Mercer tại hiện trường rồi đi về River-3."
+          "en": "The sealed parking stub and city cameras prove that Mercer’s sedan was at apartment 17B, then left toward River-3—the area where Claire was taken.",
+          "vi": "Cuống vé đỗ xe đã niêm phong và camera thành phố chứng minh sedan của Mercer có mặt tại căn hộ 17B, sau đó rời đi về RIVER-3 — khu vực Claire bị đưa tới."
         },
         "type": "photo",
         "hint": {
-          "en": "Connect parking stub P-4187 to a plate and outbound route.",
-          "vi": "Cuống vé tại hiện trường có một mã định danh. Dữ liệu giao thông thành phố có thể nối mã này với một phương tiện và hướng rời khỏi hiện trường."
+          "en": "ORPHEUS establishes why Mercer might act, but motive does not prove he was at the crime scene. Use parking stub P-4187 and city traffic records to connect his vehicle to apartment 17B and trace where it went next.",
+          "vi": "ORPHEUS mới chỉ cho thấy vì sao Mercer có thể gây án; động cơ không chứng minh hắn đã có mặt tại hiện trường. Hãy dùng cuống vé P-4187 và dữ liệu giao thông thành phố để nối xe của hắn với căn hộ 17B, rồi xác định chiếc xe đã đi đâu tiếp theo."
         },
         "discover": {
           "type": "cat",
@@ -3782,8 +3834,8 @@
       {
         "id": "target-location",
         "title": {
-          "en": "Northstar Warehouse 6",
-          "vi": "Xác định nơi giam giữ: Kho Northstar số 6"
+          "en": "Determine the Holding Location",
+          "vi": "Xác định nơi giam giữ"
         },
         "description": {
           "en": "Only Warehouse 6 matches the river cranes, 15-minute bell, jute fibers, Northstar link and live-beacon radius.",
@@ -3859,87 +3911,6 @@
           "vpn-deception",
           "gps-spoof",
           "clock-correction"
-        ],
-        "discovered": false
-      },
-      {
-        "id": "arrest-authorized",
-        "title": {
-          "en": "Arrest and Rescue Authorized",
-          "vi": "Đủ căn cứ bắt Mercer và giải cứu Claire"
-        },
-        "description": {
-          "en": "Converging evidence establishes probable cause against Grant Mercer and directs TAC-6 to Warehouse 6.",
-          "vi": "Nhiều nguồn chứng cứ độc lập cùng chỉ tới Grant Mercer và Kho Northstar số 6, đủ căn cứ để cấp lệnh bắt và điều đội TAC-6 giải cứu Claire."
-        },
-        "type": "document",
-        "hint": {
-          "en": "Open the operational dossier only after suspect, deception, route and target all converge.",
-          "vi": "Hồ sơ xin lệnh bắt bị khóa. Quy tắc tạo mật mã nằm trong tài liệu bảo quản vật chứng và cần kết hợp hai manh mối bạn đã gặp từ đầu vụ án."
-        },
-        "discover": {
-          "type": "cat",
-          "path": "/analysis/arrest-dossier.txt"
-        },
-        "highlight": {
-          "en": [
-            "GRANT MERCER",
-            "NORTHSTAR WAREHOUSE 6",
-            "CLAIRE BENNETT",
-            "warrant authorized",
-            "ARREST TEAM DISPATCHED"
-          ],
-          "vi": [
-            "GRANT MERCER",
-            "KHO NORTHSTAR SỐ 6",
-            "CLAIRE BENNETT",
-            "lệnh bắt đã phê chuẩn",
-            "ĐỘI BẮT GIỮ XUẤT PHÁT"
-          ]
-        },
-        "requiresEvidence": [
-          "target-location",
-          "false-trail-analysis",
-          "motive",
-          "vehicle-route"
-        ],
-        "discovered": false
-      },
-      {
-        "id": "case-resolved",
-        "title": {
-          "en": "Suspect Arrested, Victim Rescued",
-          "vi": "Bắt nghi phạm, giải cứu nạn nhân"
-        },
-        "description": {
-          "en": "Claire is rescued alive, Mercer is arrested, and the stolen archive and field kit are recovered with the evidence chain intact.",
-          "vi": "Claire được giải cứu, Mercer bị bắt, ổ dữ liệu và bộ thiết bị được thu hồi với chuỗi chứng cứ nguyên vẹn."
-        },
-        "type": "object",
-        "hint": {
-          "en": "Read the after-action report after dispatching the arrest team.",
-          "vi": "Sau khi lệnh bắt được phê chuẩn, hãy tìm báo cáo được tạo sau chiến dịch để xác nhận kết quả và tình trạng các vật chứng quan trọng."
-        },
-        "discover": {
-          "type": "cat",
-          "path": "/analysis/resolution.txt"
-        },
-        "highlight": {
-          "en": [
-            "recovered alive",
-            "Grant Mercer arrested",
-            "ORPHEUS",
-            "Evidence chain preserved"
-          ],
-          "vi": [
-            "Giải cứu Claire Bennett còn sống",
-            "Bắt Grant Mercer",
-            "ORPHEUS",
-            "Chuỗi bảo quản chứng cứ nguyên vẹn"
-          ]
-        },
-        "requiresEvidence": [
-          "arrest-authorized"
         ],
         "discovered": false
       }
@@ -4067,26 +4038,6 @@
         "requiresEvidence": [
           "target-location",
           "false-trail-analysis"
-        ],
-        "completed": false
-      },
-      {
-        "id": "arrest-and-rescue",
-        "title": {
-          "en": "Authorize arrest and rescue",
-          "vi": "Thực hiện lệnh bắt và giải cứu Claire"
-        },
-        "description": {
-          "en": "Build probable cause, dispatch safely and preserve the final evidence.",
-          "vi": "Điều đội chiến thuật tới đúng mục tiêu, bắt Mercer hợp pháp và thu giữ đầy đủ vật chứng."
-        },
-        "reason": {
-          "en": "The final action must rescue Claire, arrest Mercer lawfully and preserve the Orpheus drive and field kit for prosecution.",
-          "vi": "Mục tiêu cuối cùng là giải cứu Claire, bắt Mercer theo đúng lệnh và thu giữ nguyên vẹn ổ ORPHEUS cùng bộ máy tính FIELDKIT-MERCER để phục vụ truy tố."
-        },
-        "requiresEvidence": [
-          "arrest-authorized",
-          "case-resolved"
         ],
         "completed": false
       }

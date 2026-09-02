@@ -15,10 +15,13 @@ const props = defineProps<{
   expanded?: boolean
 
   grouped?: boolean
+
+  operationalReportAvailable?: boolean
 }>()
 
 const emit = defineEmits<{
   toggleExpand: []
+  createOperationalReport: []
 }>()
 
 const explainedTaskId = ref<string | null>(null)
@@ -330,7 +333,47 @@ function getDiscoveredCount(
             </div>
           </div>
         </div>
+
       </div>
+    </div>
+
+    <div
+      v-if="operationalReportAvailable"
+      class="mt-4 shrink-0 border-t
+             border-cyan-900/70 pt-4"
+    >
+      <div
+        class="mb-2 text-center font-mono
+               text-[9px] uppercase
+               tracking-[0.12em] text-emerald-300"
+      >
+        {{
+          locale === 'vi'
+            ? 'Đã đủ thông tin kết luận'
+            : 'Conclusion evidence complete'
+        }}
+      </div>
+
+      <button
+        type="button"
+        class="w-full rounded-md border
+               border-cyan-500
+               bg-cyan-950/60 px-4 py-3
+               font-mono text-[11px]
+               font-semibold uppercase
+               tracking-[0.12em]
+               text-cyan-100 shadow-lg
+               shadow-cyan-950/40 transition
+               hover:border-cyan-300
+               hover:bg-cyan-900/70"
+        @click="emit('createOperationalReport')"
+      >
+        {{
+          locale === 'vi'
+            ? 'Lập văn bản tác chiến'
+            : 'Prepare operational report'
+        }}
+      </button>
     </div>
   </section>
 </template>

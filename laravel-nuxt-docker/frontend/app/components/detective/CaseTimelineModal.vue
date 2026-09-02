@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type {
+  Evidence,
   ScenarioTimelineEvent,
   SupportedLocale,
 } from '~/types/games/detective'
 
 const props = defineProps<{
   events: ScenarioTimelineEvent[]
+  evidence: Evidence[]
   totalEvents: number
   locale: SupportedLocale
 }>()
@@ -16,6 +18,25 @@ const emit = defineEmits<{
 }>()
 
 const languages: SupportedLocale[] = ['en', 'vi']
+
+const sortedEvents = computed(() =>
+  props.events
+    .map((event, index) => ({ event, index }))
+    .sort((left, right) => {
+      const timeDifference = timeValue(left.event.time) - timeValue(right.event.time)
+      return timeDifference || left.index - right.index
+    })
+    .map(item => item.event),
+)
+
+const remainingEvents = computed(() =>
+  Math.max(0, props.totalEvents - props.events.length),
+)
+
+const progressPercent = computed(() => {
+  if (!props.totalEvents) return 0
+  return Math.round((props.events.length / props.totalEvents) * 100)
+})
 
 function text(value: { en: string; vi: string }) {
   return value[props.locale] ?? value.en
@@ -28,6 +49,22 @@ function markerClass(category?: ScenarioTimelineEvent['category']) {
     trace: 'border-amber-500 bg-amber-950 text-amber-300',
     response: 'border-emerald-500 bg-emerald-950 text-emerald-300',
   }[category ?? 'trace']
+}
+
+function timeValue(value: string) {
+  const match = value.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+  if (!match) return Number.MAX_SAFE_INTEGER
+
+  return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3] ?? 0)
+}
+
+function evidenceBasis(event: ScenarioTimelineEvent) {
+  const requiredIds = event.requiresEvidence ?? []
+
+  return requiredIds
+    .map(id => props.evidence.find(item => item.id === id))
+    .filter((item): item is Evidence => Boolean(item))
+    .map(item => text(item.title))
 }
 </script>
 
@@ -96,6 +133,30 @@ function markerClass(category?: ScenarioTimelineEvent['category']) {
         </div>
       </header>
 
+      <div class="shrink-0 border-b border-slate-800 bg-black/25 px-5 py-3 md:px-8">
+        <div class="flex items-center justify-between gap-4 font-mono text-[10px] uppercase tracking-wider">
+          <span class="text-cyan-400">
+            {{ locale === 'vi' ? 'Tiến độ tái dựng' : 'Reconstruction progress' }} · {{ progressPercent }}%
+          </span>
+          <span class="text-slate-500">
+            {{ remainingEvents }} {{ locale === 'vi' ? 'mốc chưa xác minh' : 'unverified events' }}
+          </span>
+        </div>
+        <div class="mt-2 h-1 overflow-hidden rounded-full bg-slate-800">
+          <div
+            class="h-full rounded-full bg-cyan-500 transition-all duration-500"
+            :style="{ width: `${progressPercent}%` }"
+          />
+        </div>
+        <p class="mt-2 text-xs leading-5 text-slate-500">
+          {{
+            locale === 'vi'
+              ? 'Các giờ bên dưới là thời điểm sự kiện xảy ra trong vụ án, không phải lúc bạn tìm thấy bằng chứng. Mốc mới chỉ xuất hiện sau khi có đủ căn cứ xác minh.'
+              : 'Times below show when events occurred in the case, not when you discovered the evidence. A new event appears only after its supporting evidence is verified.'
+          }}
+        </p>
+      </div>
+
       <div class="timeline-scrollbar overflow-y-auto px-5 py-6 md:px-8">
         <div
           v-if="!events.length"
@@ -116,7 +177,7 @@ function markerClass(category?: ScenarioTimelineEvent['category']) {
 
         <ol v-else class="relative ml-8 border-l border-slate-700/80">
           <li
-            v-for="(event, index) in events"
+            v-for="(event, index) in sortedEvents"
             :key="`${event.time}-${index}`"
             class="relative pb-7 pl-9 last:pb-0"
           >
@@ -136,6 +197,21 @@ function markerClass(category?: ScenarioTimelineEvent['category']) {
               <p class="mt-2 text-xs leading-5 text-slate-400">
                 {{ text(event.description) }}
               </p>
+              <div
+                v-if="evidenceBasis(event).length"
+                class="mt-3 border-t border-slate-800 pt-3 font-mono text-[10px] leading-5 text-slate-500"
+              >
+                <span class="text-cyan-600">
+                  {{ locale === 'vi' ? 'Căn cứ xác minh:' : 'Verified by:' }}
+                </span>
+                {{ evidenceBasis(event).join(' · ') }}
+              </div>
+              <div
+                v-else-if="event.requiresGameCompletion"
+                class="mt-3 border-t border-slate-800 pt-3 font-mono text-[10px] text-emerald-600"
+              >
+                {{ locale === 'vi' ? 'Kết quả triển khai tác chiến' : 'Operational deployment result' }}
+              </div>
             </article>
           </li>
         </ol>
@@ -146,10 +222,10 @@ function markerClass(category?: ScenarioTimelineEvent['category']) {
                border-t border-slate-800 px-5 py-3
                font-mono text-[10px] text-slate-500"
       >
-        <span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-slate-500" />{{ locale === 'vi' ? 'Trước sự việc' : 'Before' }}</span>
-        <span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-red-500" />{{ locale === 'vi' ? 'Sự việc' : 'Incident' }}</span>
-        <span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-amber-500" />{{ locale === 'vi' ? 'Dấu vết' : 'Trace' }}</span>
-        <span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />{{ locale === 'vi' ? 'Phản ứng' : 'Response' }}</span>
+        <span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-slate-500" />{{ locale === 'vi' ? 'Bối cảnh trước vụ án' : 'Case background' }}</span>
+        <span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-red-500" />{{ locale === 'vi' ? 'Hành vi tại hiện trường' : 'Incident action' }}</span>
+        <span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-amber-500" />{{ locale === 'vi' ? 'Di chuyển và dấu vết' : 'Movement and trace' }}</span>
+        <span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />{{ locale === 'vi' ? 'Ứng phó của cảnh sát' : 'Police response' }}</span>
       </footer>
     </section>
   </div>
