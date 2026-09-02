@@ -107,9 +107,27 @@ export interface Task {
 
   description: LocalizedText
 
+  reason?: LocalizedText
+
   requiresEvidence: string[]
 
   completed?: boolean
+}
+
+export interface ScenarioTimelineEvent {
+  time: string
+
+  title: LocalizedText
+
+  description: LocalizedText
+
+  category?:
+    | 'before'
+    | 'incident'
+    | 'trace'
+    | 'response'
+
+  requiresEvidence?: string[]
 }
 
 /*
@@ -128,6 +146,8 @@ export interface Scenario {
   initialDirectory: string
 
   intro: LocalizedTextArray
+
+  timeline?: ScenarioTimelineEvent[]
 
   filesystem: FileNode[]
 

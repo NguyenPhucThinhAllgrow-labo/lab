@@ -224,6 +224,8 @@ export function useDetectiveGame(
   }
 
   function resetGame() {
+    const currentLocale = state.locale
+
     state.currentDirectory =
       normalizePath(
         scenario.initialDirectory ||
@@ -251,7 +253,9 @@ export function useDetectiveGame(
     state.unlockedPaths = []
     state.passwordPrompt = null
     state.gameCompleted = false
-    state.locale = 'en'
+    // Reset investigation progress without discarding the language
+    // explicitly selected by the player.
+    state.locale = currentLocale
     state.terminal = []
     lineId = 0
 
@@ -1934,6 +1938,48 @@ export function useDetectiveGame(
     args: string[],
   ) {
     if (!args.length) {
+      const activeTask = state.tasks.find(
+        task => !task.completed,
+      )
+
+      /*
+       * Build the complete dependency branch for the active task. A task may
+       * require evidence that is still locked behind several other pieces of
+       * evidence, so looking only at task.requiresEvidence is not enough.
+       */
+      const taskEvidenceIds = new Set<string>()
+      const directTaskEvidenceIds = new Set(
+        activeTask?.requiresEvidence ?? [],
+      )
+
+      function collectEvidenceDependencies(
+        evidenceId: string,
+      ) {
+        if (taskEvidenceIds.has(evidenceId)) {
+          return
+        }
+
+        taskEvidenceIds.add(evidenceId)
+
+        const evidence = state.evidence.find(
+          item => item.id === evidenceId,
+        )
+
+        for (
+          const requiredId of
+            evidence?.requiresEvidence ?? []
+        ) {
+          collectEvidenceDependencies(requiredId)
+        }
+      }
+
+      for (
+        const evidenceId of
+          activeTask?.requiresEvidence ?? []
+      ) {
+        collectEvidenceDependencies(evidenceId)
+      }
+
       const availableEvidence =
         state.evidence.filter(
           evidence =>
@@ -1957,10 +2003,23 @@ export function useDetectiveGame(
       }
 
       const evidence =
-        availableEvidence[0]
+        availableEvidence.find(item =>
+          directTaskEvidenceIds.has(item.id),
+        ) ?? availableEvidence.find(item =>
+          taskEvidenceIds.has(item.id),
+        ) ?? availableEvidence[0]
 
       if (!evidence) {
         return
+      }
+
+      if (activeTask) {
+        addLine(
+          'system',
+          state.locale === 'vi'
+            ? `Mục tiêu hiện tại: ${text(activeTask.title)}`
+            : `Current objective: ${text(activeTask.title)}`,
+        )
       }
 
       showEvidenceHint(evidence)
@@ -2944,6 +3003,105 @@ requestedLocale
     }
 
     /*
+     * SUDO AUTOCOMPLETE
+     *
+     * Keep the nested command in each suggestion so the terminal can
+     * replace everything after "sudo" in one operation.
+     */
+
+    if (command === 'sudo') {
+      const sudoCommands = [
+        'ls',
+        'cd',
+        'cat',
+        'find',
+        'guide',
+      ]
+
+      if (!argument.includes(' ')) {
+        return sudoCommands.filter(item =>
+          item.startsWith(
+            argument.toLowerCase(),
+          ),
+        )
+      }
+
+      const sudoMatch = argument.match(
+        /^(ls|cd|cat|find|guide)\s+(.*)$/i,
+      )
+
+      if (!sudoMatch) {
+        return []
+      }
+
+      const nestedCommand =
+        sudoMatch[1]?.toLowerCase()
+      const nestedArgument =
+        sudoMatch[2] ?? ''
+
+      if (!nestedCommand) {
+        return []
+      }
+
+      if (nestedCommand === 'guide') {
+        if (nestedArgument.includes(' ')) {
+          return []
+        }
+
+        const hasLeadingSlash =
+          nestedArgument.startsWith('/')
+        const query = nestedArgument
+          .replace(/^\/+/, '')
+          .toLowerCase()
+
+        return scenario.filesystem
+          .filter(node =>
+            node.type === 'directory' &&
+            node.name.toLowerCase()
+              .startsWith(query),
+          )
+          .map(node =>
+            `${nestedCommand} ${hasLeadingSlash ? '/' : ''}${node.name}`,
+          )
+      }
+
+      if (
+        nestedCommand === 'ls' &&
+        nestedArgument.startsWith('-')
+      ) {
+        if (!nestedArgument.includes(' ')) {
+          return '-l'.startsWith(nestedArgument)
+            ? ['ls -l']
+            : []
+        }
+
+        const longMatch = nestedArgument.match(
+          /^-l\s+(\S*)$/,
+        )
+
+        if (!longMatch) {
+          return []
+        }
+
+        return getPathSuggestions(
+          longMatch[1] ?? '',
+          true,
+        ).map(entry => `ls -l ${entry}`)
+      }
+
+      if (nestedArgument.includes(' ')) {
+        return []
+      }
+
+      return getPathSuggestions(
+        nestedArgument,
+        true,
+      ).map(entry =>
+        `${nestedCommand} ${entry}`,
+      )
+    }
+
+    /*
      * LANG AUTOCOMPLETE
      */
 
@@ -3051,6 +3209,7 @@ requestedLocale
 
   function getPathSuggestions(
     inputPath: string,
+    privileged = false,
   ): string[] {
     const value =
       inputPath
@@ -3067,7 +3226,7 @@ requestedLocale
         return []
       }
 
-      if (!canAccessPath(state.currentDirectory)) {
+      if (!canAccessPath(state.currentDirectory, privileged)) {
         return []
       }
 
@@ -3082,6 +3241,7 @@ requestedLocale
             state.currentDirectory === '/'
               ? `/${child.name}`
               : `${state.currentDirectory}/${child.name}`,
+            privileged,
           ) &&
           child.name
               .toLowerCase()
@@ -3143,7 +3303,7 @@ requestedLocale
       return []
     }
 
-    if (!canAccessPath(directoryPath)) {
+    if (!canAccessPath(directoryPath, privileged)) {
       return []
     }
 
@@ -3158,6 +3318,7 @@ requestedLocale
           directoryPath === '/'
             ? `/${child.name}`
             : `${directoryPath}/${child.name}`,
+          privileged,
         ) &&
         child.name
             .toLowerCase()

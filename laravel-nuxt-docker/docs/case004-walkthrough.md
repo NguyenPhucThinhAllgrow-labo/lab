@@ -2,13 +2,23 @@
 
 > Cảnh báo: tài liệu này chứa toàn bộ lời giải của **Tín hiệu cuối cùng**.
 
-Case 004 có độ khó cao và sử dụng chế độ giao nhiệm vụ tuần tự. Người chơi phải đối chiếu ba chuỗi chứng cứ độc lập: hiện trường vật lý, pháp y hệ thống và dữ liệu viễn thông. Một số dữ liệu là dấu vết giả; đặc biệt không được xem tên tài khoản, vị trí GPS hoặc thời gian hiển thị trên camera là sự thật nếu chưa kiểm chứng.
+Case 004 có độ khó cao và sử dụng chế độ giao nhiệm vụ tuần tự. Người chơi phải đối chiếu ba nhóm chứng cứ độc lập: vật chứng tại hiện trường, dấu vết số trên thiết bị và dữ liệu viễn thông. Một số dữ liệu đã bị hung thủ cố ý làm giả; vì vậy tên tài khoản, tọa độ GPS và giờ hiển thị trên camera đều phải được kiểm tra bằng một nguồn khác.
 
 Người chơi là chuyên viên pháp y cảnh sát trực tiếp đến căn hộ 17B. Tại đây, người chơi gắn cầu nối chỉ đọc vào laptop `EW-LAPTOP-01` của Ethan Ward và điều tra máy ngay tại hiện trường. Terminal hiển thị `/laptop` là dữ liệu thật trên laptop; các thư mục `/scene`, `/police`, `/network`, `/city`, `/telecom` và `/analysis` là nguồn nghiệp vụ được mount vào cùng không gian điều tra, không phải thư mục nằm trên máy của Ethan.
 
 Các lệnh dưới đây dùng đường dẫn tuyệt đối nên có thể chạy từ bất kỳ thư mục nào. Nếu muốn chơi lại từ đầu, nhấn **Reset game** và xác nhận xóa tiến trình hiện tại.
 
-Đọc mô tả workspace trước khi bắt đầu:
+Nhấn phím **M** ở ngoài ô nhập terminal để mở dòng thời gian vụ án. Ban đầu, bảng chỉ hiển thị những mốc mà điều tra viên đã đủ dữ kiện để tái dựng; các sự kiện mới sẽ xuất hiện dần khi evidence liên quan được khám phá. Nhấn **M** lần nữa, nhấn **Esc** hoặc nút đóng để quay lại màn hình điều tra.
+
+Tính năng này áp dụng cho mọi case. Case có timeline được biên soạn riêng sẽ dùng điều kiện `requiresEvidence` của từng sự kiện; case không khai báo timeline sẽ tự tạo các mốc `E01`, `E02`, ... từ evidence đã khám phá, vì vậy các case mới vẫn có timeline mặc định.
+
+Trước khi điều tra, đọc hồ sơ nhập vụ để nắm tóm tắt sự việc, vai trò của Ethan Ward và Claire Bennett, ý nghĩa ban đầu của ORPHEUS và các mục tiêu cần hoàn thành. Hồ sơ chỉ chứa thông tin cảnh sát biết lúc đến hiện trường, không tiết lộ hung thủ:
+
+```bash
+cat /CASE-BRIEF.txt
+```
+
+Sau đó đọc mô tả workspace để biết mỗi thư mục lấy dữ liệu từ đâu:
 
 ```bash
 cat /README.txt
@@ -25,21 +35,38 @@ cat /scene/forensics.txt
 cat /laptop/timeline.log
 ```
 
+`/laptop/timeline.log` không phải nhật ký do một thiết bị duy nhất tạo ra. Đây là dòng thời gian pháp y được dựng từ các bản ghi đang lưu trên laptop:
+
+- Việc kết nối hoặc tháo ổ ORPHEUS và lịch sử trình duyệt do chính hệ điều hành laptop ghi lại.
+- Sự kiện mở cửa là bản sao thông báo mà ứng dụng quản lý nhà thông minh đã lưu trên laptop.
+- Trạng thái điện thoại và đồng hồ đeo tay là dữ liệu do các ứng dụng ghép nối đồng bộ về laptop.
+- Mỗi dòng trong tệp đều ghi rõ `NGUỒN`, nhờ đó người chơi biết bản ghi ban đầu đến từ đâu.
+
+Do đó, sự kiện mở khóa nằm trong `/laptop` vì laptop giữ một bản sao thông báo, không phải vì chiếc laptop trực tiếp điều khiển hoặc tạo nhật ký gốc của ổ khóa.
+
 Kết luận cần nhận ra:
 
 - Ổ nguồn tin mã hóa `ORPHEUS` đã biến mất.
 - Có hai chiếc cốc; chiếc đã rửa vẫn còn cặn thuốc an thần.
 - Vé đỗ xe `P-4187` là vật chứng vật lý quan trọng.
 - Biên bản bảo quản cho biết mã kho lệnh được tạo bằng tên archive và số cuống vé đã niêm phong.
-- Đồng hồ phòng ngủ lệch 17 phút nên không thể dùng làm mốc thời gian.
+- Đồng hồ trong phòng ngủ là đồng hồ có kết nối mạng. Nhật ký đồng bộ của bộ điều khiển nhà thông minh cho thấy nó chạy chậm 17 phút so với giờ mạng chuẩn, nên không thể dùng trực tiếp làm mốc thời gian.
 - Đồng hồ đeo ghi nhận giằng co lúc `01:14:22`, nằm trong khoảng tử vong `01:10–01:35` theo giờ thực.
-- Dòng thời gian laptop dùng NTP đã xác minh: giằng co lúc 01:14, tháo ổ ORPHEUS lúc 01:19 và truy cập hệ thống vật chứng lúc 01:22.
+- Dòng thời gian laptop dùng NTP đã xác minh: giằng co lúc 01:14 và tháo ổ ORPHEUS lúc 01:19. Laptop không chứa bản ghi truy cập hệ thống cảnh sát.
 
 Ba evidence đầu tiên hoàn thành nhiệm vụ bảo toàn và chuẩn hóa hiện trường.
 
-## 2. Bác bỏ danh tính cảnh sát bị gài
+## 2. Điều tra vụ sử dụng trái phép tài khoản cảnh sát
 
-Thư mục `/police` là hồ sơ hạn chế nên bị ẩn khỏi `ls` và `find` thông thường. Dùng quyền nâng cao để đọc kiểm toán tài khoản, rồi truy địa chỉ mạng về thiết bị thật:
+Sau khi task đầu hoàn thành, hãy tiếp tục tìm dấu vết ngay trên laptop của Ethan. Ethan đã cấu hình router chuyển thông tin về các thiết bị mới trong mạng nhà sang laptop của mình:
+
+```bash
+cat /laptop/network-monitor.log
+```
+
+Nhật ký cho thấy một thiết bị riêng mang tên `FIELDKIT-MERCER`, địa chỉ `10.23.8.44`, đã kết nối Wi-Fi căn hộ rồi truy cập tên miền `evidence.metro-police.local`. Vì kết nối được mã hóa, laptop chỉ nhìn thấy thiết bị và tên miền đích; nó không thể biết tài khoản nào được dùng bên trong hệ thống cảnh sát.
+
+Thư mục `/police` là hồ sơ hạn chế nên bị ẩn khỏi `ls` và `find` thông thường. Dùng quyền nâng cao để đọc bản ghi do máy chủ hệ thống vật chứng tạo ra, rồi truy địa chỉ mạng về thiết bị thật:
 
 ```bash
 sudo guide police
@@ -56,7 +83,9 @@ Kết luận:
 - Mã này từng được in cho cựu giám sát viên **Grant Mercer**.
 - IP `10.23.8.44` thuộc `FIELDKIT-MERCER`, bộ thiết bị cảnh sát cũ được cấp cho Mercer nhưng chưa hoàn trả.
 
-Tên tài khoản chỉ chứng minh credential nào được sử dụng, không chứng minh danh tính người trực tiếp thao tác.
+Phiên truy cập hệ thống cảnh sát không diễn ra trên laptop của Ethan. Laptop chỉ giữ bản sao nhật ký giám sát mạng, qua đó cung cấp đầu mối ban đầu. Máy chủ cảnh sát lưu tài khoản, hành động xóa và IP nguồn; router căn hộ lưu thiết bị được cấp IP đó. Đối chiếu cả ba nguồn mới chứng minh thiết bị riêng tại hiện trường đã sử dụng tài khoản của Lucas.
+
+Tên tài khoản chỉ cho biết thông tin đăng nhập của ai đã được sử dụng; nó không chứng minh chủ tài khoản là người trực tiếp thao tác.
 
 ## 3. Xác định hung thủ và động cơ
 
@@ -91,8 +120,8 @@ cat /telecom/suspect-phone.log
 Không được kết luận Mercer ở Thư viện Trung tâm:
 
 - Thư viện chỉ là điểm ra công khai của VPN.
-- Điểm vào tunnel nằm ở vùng vô tuyến `RIVER-3`.
-- GPS trên máy rác báo Thư viện nhưng không vượt qua chứng thực và có dấu hiệu chèn vị trí.
+- Kết nối VPN đi ra Internet tại Thư viện, nhưng tín hiệu vô tuyến cho thấy thiết bị bắt đầu kết nối từ khu vực `RIVER-3`.
+- GPS trên điện thoại dùng một lần báo vị trí Thư viện, nhưng phần mềm kiểm tra phát hiện tọa độ đã bị chèn giả.
 - Cùng thiết bị đó bám trạm `RIVER-3` rồi gọi tới máy cổng Northstar.
 
 Evidence tổng hợp của nhiệm vụ này còn cần dòng thời gian đã hiệu chỉnh. Vì vậy hãy tiếp tục truy nạn nhân trước khi đọc báo cáo loại dấu vết giả.
@@ -111,7 +140,7 @@ Kết luận:
 - Tin “tôi an toàn ở nhà” lúc 01:06 được ký bằng `CB-DESK-2`, không phải khóa điện thoại `CB-PHONE-9` của Claire.
 - Bản nháp chưa gửi mô tả xe tải xanh, cần cẩu ven sông và tiếng chuông mỗi 15 phút.
 - Điện thoại Claire di chuyển từ khu trung tâm tới `RIVER-3`.
-- Beacon khẩn cấp thu hẹp vị trí còn sống xuống bán kính 180 m quanh dãy kho 4–7.
+- “Beacon” là tín hiệu khẩn cấp công suất thấp do điện thoại Claire phát ra khi không lấy được GPS. Hai trạm di động đo hướng phát và khoanh vùng điện thoại trong bán kính 180 m quanh dãy kho số 4 đến số 7.
 
 Đối chiếu tuyến xe và beacon trên một dòng thời gian chuẩn:
 
@@ -119,7 +148,7 @@ Kết luận:
 cat /analysis/clock-normalization.txt
 ```
 
-Camera River chậm sáu phút. Sau hiệu chỉnh, cảm biến giao thông ghi xe tới River-3 lúc 01:52 và beacon Claire bắt đầu lúc 01:54. Hai nguồn dữ liệu độc lập khớp nhau.
+Đồng hồ Camera 12 chạy chậm sáu phút. Một cảm biến giao thông riêng biệt, không cho phép sửa bản ghi sau khi tạo, ghi nhận xe tới RIVER-3 lúc 01:52 theo giờ chuẩn. Hai phút sau, điện thoại Claire bắt đầu phát tín hiệu khẩn cấp. Hai nguồn dữ liệu độc lập vì vậy khớp nhau.
 
 Lúc này có thể hoàn tất việc bác bỏ toàn bộ dấu vết giả:
 
@@ -193,11 +222,13 @@ Claire được giải cứu còn sống, Grant Mercer bị bắt cạnh xe `51H
 Dùng block sau để kiểm thử nhanh một lượt chơi mới theo đúng thứ tự mở khóa:
 
 ```bash
-cat /scene/first-response.txt
+cat /CASE-BRIEF.txt
 cat /README.txt
+cat /scene/first-response.txt
 cat /scene/chain-of-custody.txt
 cat /scene/forensics.txt
 cat /laptop/timeline.log
+cat /laptop/network-monitor.log
 sudo cat /police/account-audit.log
 cat /network/dhcp.log
 sudo cat /police/personnel.txt
@@ -219,4 +250,4 @@ cat /analysis/resolution.txt
 
 Grant Mercer giết nhà báo Ethan Ward để chiếm ổ ORPHEUS, vì kho dữ liệu chứa bằng chứng Mercer tham gia đường dây rút ruột hợp đồng vô tuyến thông qua Northstar Logistics. Hắn bắt cóc biên tập viên Claire Bennett, đánh cắp tài khoản của Lucas Reed bằng mã khôi phục MFA và sử dụng `FIELDKIT-MERCER` để xóa dấu vết trong hệ thống cảnh sát.
 
-Mercer tạo hai lớp vị trí giả: kết nối qua VPN có điểm ra tại Thư viện Trung tâm và chèn GPS giả trên điện thoại rác. Tuy nhiên, vùng vô tuyến `RIVER-3`, vé đỗ xe, camera tuyến đường, beacon của Claire, cuộc gọi tới cổng Northstar, sợi đay, vảy sơn xanh và mô tả cần cẩu hội tụ tại Kho Northstar số 6. Sau khi hiệu chỉnh sai lệch đồng hồ camera, toàn bộ chuỗi thời gian trở nên nhất quán, đủ căn cứ để phát lệnh bắt và giải cứu nạn nhân.
+Mercer tạo hai lớp vị trí giả: kết nối qua VPN có điểm ra tại Thư viện Trung tâm và chèn GPS giả trên điện thoại dùng một lần. Tuy nhiên, vùng vô tuyến `RIVER-3`, vé đỗ xe, camera tuyến đường, tín hiệu khẩn cấp của Claire, cuộc gọi tới cổng Northstar, sợi đay, vảy sơn xanh và mô tả cần cẩu đều hội tụ tại Kho Northstar số 6. Sau khi hiệu chỉnh sai lệch đồng hồ camera, toàn bộ chuỗi thời gian trở nên nhất quán, đủ căn cứ để phát lệnh bắt và giải cứu nạn nhân.

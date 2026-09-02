@@ -2,6 +2,9 @@
 import type {
   TerminalLine,
 } from '~/types/games/terminal'
+import type {
+  SupportedLocale,
+} from '~/types/games/detective'
 
 const props = defineProps<{
   lines: TerminalLine[]
@@ -17,6 +20,10 @@ const props = defineProps<{
   autocompleteEntries: string[]
 
   expanded?: boolean
+
+  lightTheme?: boolean
+
+  locale: SupportedLocale
 }>()
 
 const emit = defineEmits<{
@@ -26,6 +33,10 @@ const emit = defineEmits<{
     value: string,
   ]
 }>()
+
+const lightTheme = computed(() =>
+  props.lightTheme ?? false,
+)
 
 /*
  * ==================================================
@@ -38,6 +49,9 @@ const terminalRef =
 
 const inputRef =
   ref<HTMLInputElement | null>(null)
+
+const promptRef =
+  ref<HTMLElement | null>(null)
 
 /*
  * ==================================================
@@ -62,6 +76,41 @@ const autocompleteIndex =
 
 const showAutocomplete =
   ref(false)
+
+const autocompletePlacement =
+  ref<'top' | 'bottom'>('top')
+
+const autocompleteStyle =
+  ref<Record<string, string>>({})
+
+function updateAutocompletePosition() {
+  const prompt = promptRef.value
+
+  if (!prompt || !showAutocomplete.value) {
+    return
+  }
+
+  const rect = prompt.getBoundingClientRect()
+  const estimatedHeight = Math.min(
+    256,
+    38 + autocompleteEntries.value.length * 36,
+  )
+  const spaceBelow =
+    window.innerHeight - rect.bottom - 12
+  const openBelow =
+    spaceBelow >= estimatedHeight
+
+  autocompletePlacement.value =
+    openBelow ? 'bottom' : 'top'
+
+  autocompleteStyle.value = {
+    left: `${rect.left}px`,
+    width: `${Math.min(rect.width, 576)}px`,
+    ...(openBelow
+      ? { top: `${rect.bottom + 8}px` }
+      : { bottom: `${window.innerHeight - rect.top + 8}px` }),
+  }
+}
 
 /*
  * ==================================================
@@ -131,6 +180,11 @@ const TYPING_SPEED = 0
 
 let typingFrame:
   number | null = null
+
+let typingGeneration = 0
+
+let cancelTypingAnimation:
+  (() => void) | null = null
 
 /*
  * Queue output.
@@ -254,6 +308,7 @@ function getTypingSpeed(
 async function typeLine(
   line: TerminalLine,
 ) {
+  const generation = typingGeneration
   const text =
     line.text ?? ''
 
@@ -304,6 +359,27 @@ async function typeLine(
 
   await new Promise<void>(
     resolve => {
+      let settled = false
+
+      const finish = () => {
+        if (settled) {
+          return
+        }
+
+        settled = true
+        cancelTypingAnimation = null
+        resolve()
+      }
+
+      cancelTypingAnimation = () => {
+        if (typingFrame !== null) {
+          cancelAnimationFrame(typingFrame)
+          typingFrame = null
+        }
+
+        finish()
+      }
+
       const start =
         performance.now()
 
@@ -351,7 +427,7 @@ async function typeLine(
 
           typingFrame = null
 
-          resolve()
+          finish()
 
           return
         }
@@ -368,6 +444,10 @@ async function typeLine(
         )
     },
   )
+
+  if (generation !== typingGeneration) {
+    return
+  }
 
   /*
    * ================================================
@@ -433,6 +513,28 @@ async function processTypingQueue() {
 watch(
   () => props.lines,
   newLines => {
+    const knownLines = [
+      ...displayedLines.value,
+      ...(typingLine.value
+        ? [typingLine.value]
+        : []),
+      ...typingQueue,
+    ]
+
+    const knownPrefixChanged =
+      knownLines.some(
+        (line, index) => {
+          const incoming = newLines[index]
+
+          return (
+            !incoming ||
+            incoming.id !== line.id ||
+            incoming.type !== line.type ||
+            incoming.text !== line.text
+          )
+        },
+      )
+
     /*
      * ================================================
      * GAME RESET
@@ -441,21 +543,16 @@ watch(
 
     if (
       newLines.length <
-      displayedLines.value.length
+        knownLines.length ||
+      knownPrefixChanged
     ) {
+      typingGeneration += 1
+
       /*
        * Cancel animation.
        */
 
-      if (
-        typingFrame !== null
-      ) {
-        cancelAnimationFrame(
-          typingFrame,
-        )
-
-        typingFrame = null
-      }
+      cancelTypingAnimation?.()
 
       /*
        * Clear queue.
@@ -483,7 +580,7 @@ watch(
         ...newLines,
       )
 
-      processTypingQueue()
+      void processTypingQueue()
 
       return
     }
@@ -568,6 +665,7 @@ watch(
     ) {
       nextTick(() => {
         scrollToBottom()
+        updateAutocompletePosition()
       })
     }
   },
@@ -1115,6 +1213,20 @@ function handleKeydown(
  */
 
 onBeforeUnmount(() => {
+  typingGeneration += 1
+  cancelTypingAnimation?.()
+
+  window.removeEventListener(
+    'resize',
+    updateAutocompletePosition,
+  )
+
+  window.removeEventListener(
+    'scroll',
+    updateAutocompletePosition,
+    true,
+  )
+
   /*
    * Cancel animation frame.
    */
@@ -1153,6 +1265,17 @@ onBeforeUnmount(() => {
  */
 
 onMounted(() => {
+  window.addEventListener(
+    'resize',
+    updateAutocompletePosition,
+  )
+
+  window.addEventListener(
+    'scroll',
+    updateAutocompletePosition,
+    true,
+  )
+
   focusInput()
 })
 </script>
@@ -1160,22 +1283,24 @@ onMounted(() => {
 <template>
   <div
     ref="terminalRef"
-    class="terminal-scrollbar-hidden
+    class="terminal-scrollbar-hidden relative
            overflow-y-auto
            rounded-t-lg
            border
-           border-zinc-800
-           bg-black
            p-5
+           pt-12
            font-mono
            text-sm
            shadow-2xl
            shadow-black/40"
-    :class="
+    :class="[
       props.expanded
         ? 'min-h-0 flex-1'
-        : 'h-[560px]'
-    "
+        : 'h-[560px]',
+      props.lightTheme
+        ? 'border-slate-300 bg-slate-50'
+        : 'border-zinc-800 bg-black',
+    ]"
     @click="focusInput"
   >
     <!-- ========================================= -->
@@ -1195,22 +1320,46 @@ onMounted(() => {
              whitespace-pre-wrap
              leading-5"
       :class="[{
+        'text-green-700':
+          lightTheme && line.type === 'system',
+
         'text-green-500':
+          !lightTheme &&
           line.type === 'system',
 
+        'text-cyan-700':
+          lightTheme && line.type === 'command',
+
         'text-cyan-400':
+          !lightTheme &&
           line.type === 'command',
 
+        'text-slate-800':
+          lightTheme && line.type === 'output',
+
         'text-zinc-300':
+          !lightTheme &&
           line.type === 'output',
 
+        'text-red-700':
+          lightTheme && line.type === 'error',
+
         'text-red-500':
+          !lightTheme &&
           line.type === 'error',
 
+        'text-amber-700':
+          lightTheme && line.type === 'warning',
+
         'text-yellow-400':
+          !lightTheme &&
           line.type === 'warning',
 
+        'font-bold text-green-700':
+          lightTheme && line.type === 'success',
+
         'font-bold text-green-400':
+          !lightTheme &&
           line.type === 'success',
       }, getIntroFrameClass(line, lineIndex)]"
     >
@@ -1223,12 +1372,10 @@ onMounted(() => {
       >
         <mark
           v-if="part.highlight"
-          class="rounded
-                 bg-yellow-400/25
-                 px-1
-                 text-yellow-300
-                 ring-1
-                 ring-yellow-500/50"
+          class="rounded px-1 ring-1"
+          :class="lightTheme
+            ? 'bg-amber-200 text-amber-950 ring-amber-400'
+            : 'bg-yellow-400/25 text-yellow-300 ring-yellow-500/50'"
         >
           {{ part.text }}
         </mark>
@@ -1249,19 +1396,39 @@ onMounted(() => {
              whitespace-pre-wrap
              leading-5"
       :class="{
+        'text-green-700':
+          lightTheme && typingLine.type === 'system',
+
         'text-green-500':
+          !lightTheme &&
           typingLine.type === 'system',
 
+        'text-slate-800':
+          lightTheme && typingLine.type === 'output',
+
         'text-zinc-300':
+          !lightTheme &&
           typingLine.type === 'output',
 
+        'text-red-700':
+          lightTheme && typingLine.type === 'error',
+
         'text-red-500':
+          !lightTheme &&
           typingLine.type === 'error',
 
+        'text-amber-700':
+          lightTheme && typingLine.type === 'warning',
+
         'text-yellow-400':
+          !lightTheme &&
           typingLine.type === 'warning',
 
+        'font-bold text-green-700':
+          lightTheme && typingLine.type === 'success',
+
         'font-bold text-green-400':
+          !lightTheme &&
           typingLine.type === 'success',
       }"
     >
@@ -1282,17 +1449,72 @@ onMounted(() => {
       />
     </div>
 
-    <!-- ========================================= -->
-    <!-- PROMPT -->
-    <!-- ========================================= -->
+    <!-- Reserve space so the sticky prompt never covers the last output or
+         the line currently being typed. -->
+    <div
+      class="h-12"
+      aria-hidden="true"
+    />
 
-    <form
-      class="mt-2 flex items-center gap-2"
-      @submit.prevent="submit"
-    >
+    <div class="sticky bottom-0 z-20">
+      <!-- AUTOCOMPLETE: opens above the command prompt -->
+      <Teleport to="body">
+      <div
+        v-if="showAutocomplete && autocompleteEntries.length"
+        class="fixed z-[130] max-h-64 overflow-y-auto rounded-md
+               border shadow-2xl"
+        :style="autocompleteStyle"
+        :data-placement="autocompletePlacement"
+        :class="lightTheme
+          ? 'border-slate-300 bg-white shadow-slate-400/30'
+          : 'border-zinc-700 bg-zinc-950 shadow-black/70'"
+      >
+        <div
+          class="flex items-center justify-between border-b px-3 py-2
+                 text-[9px] uppercase tracking-[0.2em]"
+          :class="lightTheme
+            ? 'border-slate-200 text-slate-500'
+            : 'border-zinc-800 text-zinc-500'"
+        >
+          <span>{{ props.locale === 'vi' ? 'Gợi ý lệnh' : 'Autocomplete' }}</span>
+          <span class="normal-case tracking-normal">
+            ↑↓ {{ props.locale === 'vi' ? 'chọn' : 'select' }} · Tab {{ props.locale === 'vi' ? 'điền' : 'apply' }}
+          </span>
+        </div>
+
+        <button
+          v-for="(entry, index) in autocompleteEntries"
+          :key="entry"
+          type="button"
+          class="flex w-full items-center justify-between px-3 py-2
+                 text-left font-mono text-xs"
+          :class="index === autocompleteIndex
+            ? lightTheme
+              ? 'bg-green-100 text-green-800'
+              : 'bg-green-950/50 text-green-300'
+            : lightTheme
+              ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100'"
+          @mousedown.prevent="selectAutocomplete(entry)"
+        >
+          <span>{{ entry }}</span>
+          <span v-if="entry.endsWith('/')" class="text-[9px] opacity-60">DIR</span>
+        </button>
+      </div>
+      </Teleport>
+
+      <!-- COMMAND PROMPT -->
+      <form
+        ref="promptRef"
+        class="flex items-center gap-2 rounded-md border px-3 py-2 shadow-lg"
+        :class="lightTheme
+          ? 'border-slate-300 bg-slate-50/95 shadow-slate-300/30'
+          : 'border-zinc-800 bg-black/95 shadow-black/60'"
+        @submit.prevent="submit"
+      >
       <span
-        class="shrink-0
-               text-green-500"
+        class="shrink-0"
+        :class="lightTheme ? 'text-green-800' : 'text-green-500'"
       >
         detective@{{
           props.scenarioId
@@ -1300,15 +1522,15 @@ onMounted(() => {
       </span>
 
       <span
-        class="shrink-0
-               text-cyan-400"
+        class="shrink-0"
+        :class="lightTheme ? 'text-cyan-800' : 'text-cyan-400'"
       >
         {{ props.currentDirectory }}
       </span>
 
       <span
-        class="shrink-0
-               text-zinc-500"
+        class="shrink-0"
+        :class="lightTheme ? 'text-slate-500' : 'text-zinc-500'"
       >
         $
       </span>
@@ -1328,9 +1550,9 @@ onMounted(() => {
                p-0
                font-mono
                text-sm
-               text-green-400
                outline-none
                placeholder:text-zinc-800"
+        :class="lightTheme ? 'text-green-800' : 'text-green-400'"
         placeholder="type command..."
         @keydown="handleKeydown"
       />
@@ -1345,84 +1567,7 @@ onMounted(() => {
                animate-pulse
                bg-green-500"
       />
-    </form>
-
-    <!-- ========================================= -->
-    <!-- AUTOCOMPLETE -->
-    <!-- ========================================= -->
-
-    <div
-      v-if="
-        showAutocomplete &&
-        autocompleteEntries.length
-      "
-      class="my-3
-             max-w-lg
-             overflow-hidden
-             rounded-md
-             border
-             border-zinc-800
-             bg-zinc-950"
-    >
-      <div
-        class="flex items-center
-               justify-between
-               border-b
-               border-zinc-900
-               px-3 py-2
-               text-[9px]
-               uppercase
-               tracking-[0.2em]
-               text-zinc-600"
-      >
-        <span>Autocomplete</span>
-
-        <span
-          class="normal-case
-                 tracking-normal
-                 text-zinc-700"
-        >
-          ↑↓ select · Tab apply
-        </span>
-      </div>
-
-      <button
-        v-for="(
-          entry,
-          index
-        ) in autocompleteEntries"
-        :key="entry"
-        type="button"
-        class="flex w-full
-               items-center
-               justify-between
-               px-3 py-2
-               text-left
-               font-mono
-               text-xs"
-        :class="
-          index === autocompleteIndex
-            ? 'bg-green-950/40 text-green-400'
-            : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300'
-        "
-        @mousedown.prevent="
-          selectAutocomplete(entry)
-        "
-      >
-        <span>
-          {{ entry }}
-        </span>
-
-        <span
-          v-if="
-            entry.endsWith('/')
-          "
-          class="text-[9px]
-                 text-zinc-700"
-        >
-          DIR
-        </span>
-      </button>
+      </form>
     </div>
   </div>
 </template>

@@ -21,6 +21,25 @@ const emit = defineEmits<{
   toggleExpand: []
 }>()
 
+const explainedTaskId = ref<string | null>(null)
+
+function toggleTaskExplanation(task: Task) {
+  explainedTaskId.value =
+    explainedTaskId.value === task.id
+      ? null
+      : task.id
+}
+
+function getTaskReason(task: Task) {
+  if (task.reason) {
+    return getText(task.reason)
+  }
+
+  return props.locale === 'vi'
+    ? `Nhiệm vụ này cần thiết để xác lập: ${getText(task.description)}`
+    : `This task is required to establish: ${getText(task.description)}`
+}
+
 function getText(
   value: {
     en: string
@@ -157,7 +176,8 @@ function getDiscoveredCount(
           <div
             class="flex gap-3"
           >
-            <div
+            <button
+              type="button"
               class="flex h-5
                     w-5 shrink-0
                     items-center
@@ -171,13 +191,20 @@ function getDiscoveredCount(
                   ? 'border-emerald-500 text-emerald-300'
                   : 'border-amber-600 text-amber-300'
               "
+              :title="
+                locale === 'vi'
+                  ? 'Giải thích nhiệm vụ'
+                  : 'Explain this task'
+              "
+              :aria-expanded="explainedTaskId === task.id"
+              @click="toggleTaskExplanation(task)"
             >
               {{
                 task.completed
                   ? '✓'
                   : '!'
               }}
-            </div>
+            </button>
 
             <div class="min-w-0 flex-1">
               <div
@@ -222,6 +249,21 @@ function getDiscoveredCount(
                       text-stone-300"
               >
                 {{ getText(task.description) }}
+              </div>
+
+              <div
+                v-if="explainedTaskId === task.id"
+                class="mt-3 rounded-md border border-amber-700/50
+                       bg-amber-950/35 p-3"
+              >
+                <div class="font-mono text-[9px] uppercase
+                            tracking-[0.14em] text-amber-300">
+                  {{ locale === 'vi' ? 'Vì sao có nhiệm vụ này?' : 'Why does this task exist?' }}
+                </div>
+                <p class="mt-1.5 text-[10px] leading-5 text-stone-200">
+                  {{ getTaskReason(task) }}
+                </p>
+
               </div>
 
               <div

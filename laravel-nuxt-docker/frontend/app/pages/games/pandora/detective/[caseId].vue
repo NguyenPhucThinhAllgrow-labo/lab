@@ -5,6 +5,7 @@ import type {
 } from '~/composables/useDetectiveApi'
 import type {
   Scenario,
+  ScenarioTimelineEvent,
 } from '~/types/games/detective'
 
 import ScenarioHeader from '~/components/detective/ScenarioHeader.vue'
@@ -13,6 +14,7 @@ import CommandBar from '~/components/detective/CommandBar.vue'
 import TaskPanel from '~/components/detective/TaskPanel.vue'
 import EvidencePanel from '~/components/detective/EvidencePanel.vue'
 import PasswordPrompt from '~/components/detective/PasswordPrompt.vue'
+import CaseTimelineModal from '~/components/detective/CaseTimelineModal.vue'
 
 /*
  * --------------------------------------------------
@@ -69,6 +71,9 @@ const {
 const progressReady = ref(false)
 const resettingGame = ref(false)
 const resetConfirmationOpen = ref(false)
+const timelineOpen = ref(false)
+const terminalLightTheme = ref(false)
+const terminalResetKey = ref(0)
 const elapsedSeconds = ref(0)
 const evidenceHistory = ref<DetectiveTimelineEntry[]>([])
 const taskHistory = ref<DetectiveTimelineEntry[]>([])
@@ -88,6 +93,21 @@ let clockTimer:
   ReturnType<typeof setInterval> |
   null = null
 
+const TERMINAL_THEME_KEY =
+  'detective-terminal-theme'
+
+function toggleTerminalTheme() {
+  terminalLightTheme.value =
+    !terminalLightTheme.value
+
+  localStorage.setItem(
+    TERMINAL_THEME_KEY,
+    terminalLightTheme.value
+      ? 'light'
+      : 'dark',
+  )
+}
+
 const formattedElapsedTime = computed(() => {
   const hours = Math.floor(elapsedSeconds.value / 3600)
   const minutes = Math.floor((elapsedSeconds.value % 3600) / 60)
@@ -104,6 +124,40 @@ const headerTitle = computed(() =>
 
 const headerDescription = computed(() =>
   game.text(scenario.description),
+)
+
+const visibleTimelineEvents = computed<ScenarioTimelineEvent[]>(() => {
+  const discoveredIds = new Set(
+    game.state.evidence
+      .filter(item => item.discovered)
+      .map(item => item.id),
+  )
+
+  if (scenario.timeline?.length) {
+    return scenario.timeline.filter(event =>
+      (event.requiresEvidence ?? []).every(id =>
+        discoveredIds.has(id),
+      ),
+    )
+  }
+
+  return game.state.evidence
+    .map((evidence, index) => ({
+      evidence,
+      index,
+    }))
+    .filter(item => item.evidence.discovered)
+    .map(({ evidence, index }) => ({
+      time: `E${String(index + 1).padStart(2, '0')}`,
+      category: 'trace' as const,
+      title: evidence.title,
+      description: evidence.description,
+      requiresEvidence: [evidence.id],
+    }))
+})
+
+const timelineTotalEvents = computed(() =>
+  scenario.timeline?.length ?? scenario.evidence.length,
 )
 
 function createProgressPayload(): DetectiveProgressPayload {
@@ -239,6 +293,10 @@ async function resetGame() {
     }
 
     game.resetGame()
+    // Recreate the terminal so its output queue is empty and the intro
+    // animation always starts again, even when the new intro has the same
+    // number of lines and uses the same locale.
+    terminalResetKey.value += 1
     elapsedSeconds.value = 0
     evidenceHistory.value = []
     taskHistory.value = []
@@ -389,6 +447,15 @@ function handlePanelShortcut(
 
   if (
     event.key === 'Escape' &&
+    timelineOpen.value
+  ) {
+    event.preventDefault()
+    timelineOpen.value = false
+    return
+  }
+
+  if (
+    event.key === 'Escape' &&
     resetConfirmationOpen.value
   ) {
     event.preventDefault()
@@ -419,6 +486,16 @@ function handlePanelShortcut(
 
   const key = event.key.toLowerCase()
 
+  if (
+    key === 'm' &&
+    !game.state.passwordPrompt &&
+    !resetConfirmationOpen.value
+  ) {
+    event.preventDefault()
+    timelineOpen.value = !timelineOpen.value
+    return
+  }
+
   if (key === 'q') {
     event.preventDefault()
     togglePanel('task')
@@ -437,6 +514,11 @@ function handlePanelShortcut(
 }
 
 onMounted(() => {
+  terminalLightTheme.value =
+    localStorage.getItem(
+      TERMINAL_THEME_KEY,
+    ) === 'light'
+
   window.addEventListener(
     'keydown',
     handlePanelShortcut,
@@ -533,6 +615,18 @@ async function handleCommandBarInput(
       "
     />
 
+    <button
+      type="button"
+      class="fixed bottom-5 right-5 z-40 rounded-lg border
+             border-cyan-700/70 bg-slate-950/95 px-3 py-2
+             font-mono text-xs text-cyan-300 shadow-xl
+             transition hover:bg-cyan-950/80"
+      title="Open case timeline (M)"
+      @click="timelineOpen = true"
+    >
+      [M] {{ game.state.locale === 'vi' ? 'Dòng sự kiện' : 'Timeline' }}
+    </button>
+
     <!-- ==========================================
          MAIN LAYOUT
          ========================================== -->
@@ -574,6 +668,23 @@ async function handleCommandBarInput(
       >
         <button
           type="button"
+          class="absolute left-3 top-3 z-10 rounded border px-2.5 py-1
+                 font-mono text-[10px] transition"
+          :class="terminalLightTheme
+            ? 'border-amber-400 bg-white text-amber-700 hover:bg-amber-50'
+            : 'border-slate-700 bg-zinc-950 text-slate-300 hover:bg-slate-900'"
+          :title="terminalLightTheme
+            ? game.state.locale === 'vi' ? 'Chuyển sang chế độ ban đêm' : 'Switch to dark mode'
+            : game.state.locale === 'vi' ? 'Chuyển sang chế độ ban ngày' : 'Switch to light mode'"
+          @click="toggleTerminalTheme"
+        >
+          {{ terminalLightTheme
+            ? game.state.locale === 'vi' ? '☾ Ban đêm' : '☾ Dark mode'
+            : game.state.locale === 'vi' ? '☀ Ban ngày' : '☀ Light mode' }}
+        </button>
+
+        <button
+          type="button"
           class="absolute right-3 top-3
                  z-10 rounded border
                  border-green-800/70
@@ -598,6 +709,7 @@ async function handleCommandBarInput(
         </button>
 
         <Terminal
+          :key="terminalResetKey"
           ref="terminalRef"
           :expanded="
             expandedPanels.terminal
@@ -611,6 +723,8 @@ async function handleCommandBarInput(
           :scenario-id="
             scenario.id
           "
+          :light-theme="terminalLightTheme"
+          :locale="game.state.locale"
           :input-value="
             terminalInput
           "
@@ -788,6 +902,9 @@ async function handleCommandBarInput(
             :evidence="
               game.state.evidence
             "
+            :filesystem="
+              scenario.filesystem
+            "
             :locale="
               game.state.locale
             "
@@ -806,6 +923,15 @@ async function handleCommandBarInput(
     </div>
 
     <Teleport to="body">
+      <CaseTimelineModal
+        v-if="timelineOpen"
+        :events="visibleTimelineEvents"
+        :total-events="timelineTotalEvents"
+        :locale="game.state.locale"
+        @change-locale="game.state.locale = $event"
+        @close="timelineOpen = false"
+      />
+
       <PasswordPrompt
         v-if="game.state.passwordPrompt"
         :path="game.state.passwordPrompt.path"
