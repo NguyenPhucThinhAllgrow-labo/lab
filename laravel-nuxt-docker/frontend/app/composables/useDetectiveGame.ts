@@ -1499,6 +1499,193 @@ export function useDetectiveGame(
     )
   }
 
+  function readableFile(
+    command: string,
+    inputPath: string,
+    privileged = false,
+  ): { path: string; content: string } | null {
+    const path = resolvePath(state.currentDirectory, inputPath)
+    const node = getNode(path)
+
+    if (!node) {
+      addLine('error', `${command}: ${inputPath}: ${getTranslation('noSuchFileOrDirectory')}`)
+      return null
+    }
+
+    if (node.type === 'directory') {
+      addLine('error', `${command}: ${inputPath}: ${getTranslation('isDirectory')}`)
+      return null
+    }
+
+    if (!ensurePathAccess(path, privileged, true)) {
+      return null
+    }
+
+    return {
+      path,
+      content: node.content ? text(node.content) : '',
+    }
+  }
+
+  function commandGrep(args: string[], privileged = false) {
+    if (args.length !== 2) {
+      addLine('error', state.locale === 'vi'
+        ? 'Cách dùng: grep <mẫu> <tệp>'
+        : 'Usage: grep <pattern> <file>')
+      return
+    }
+
+    const [pattern, inputPath] = args
+    if (!pattern || !inputPath) return
+
+    const file = readableFile('grep', inputPath, privileged)
+    if (!file) return
+
+    let matcher: RegExp
+    try {
+      matcher = new RegExp(pattern, 'gi')
+    } catch {
+      addLine('error', state.locale === 'vi' ? 'grep: mẫu tìm kiếm không hợp lệ' : 'grep: invalid search pattern')
+      return
+    }
+
+    const matches = file.content
+      .split('\n')
+      .map((line, index) => ({ line, number: index + 1 }))
+      .filter(item => {
+        matcher.lastIndex = 0
+        return matcher.test(item.line)
+      })
+
+    if (!matches.length) {
+      addLine('output', state.locale === 'vi' ? 'grep: không tìm thấy dòng phù hợp' : 'grep: no matching lines')
+      return
+    }
+
+    for (const match of matches) {
+      const output = `${String(match.number).padStart(4)}: ${match.line}`
+      addLine('output', output, createHighlights(output, [pattern]))
+    }
+  }
+
+  function commandHeadOrTail(
+    command: 'head' | 'tail',
+    args: string[],
+    privileged = false,
+  ) {
+    let count = 10
+    let inputPath = args[0]
+
+    if (args[0] === '-n') {
+      count = Number(args[1])
+      inputPath = args[2]
+    }
+
+    const expectedArguments = args[0] === '-n' ? 3 : 1
+
+    if (
+      args.length !== expectedArguments ||
+      !inputPath ||
+      !Number.isInteger(count) ||
+      count < 1 ||
+      count > 100
+    ) {
+      addLine('error', state.locale === 'vi'
+        ? `Cách dùng: ${command} [-n 1..100] <tệp>`
+        : `Usage: ${command} [-n 1..100] <file>`)
+      return
+    }
+
+    const file = readableFile(command, inputPath, privileged)
+    if (!file) return
+
+    const lines = file.content.split('\n')
+    const selected = command === 'head' ? lines.slice(0, count) : lines.slice(-count)
+    addLine('output', selected.join('\n'))
+  }
+
+  function commandStat(args: string[], privileged = false) {
+    if (args.length !== 1 || !args[0]) {
+      addLine('error', state.locale === 'vi' ? 'Cách dùng: stat <tệp>' : 'Usage: stat <file>')
+      return
+    }
+
+    const file = readableFile('stat', args[0], privileged)
+    if (!file) return
+
+    const bytes = new TextEncoder().encode(file.content).length
+    const lines = file.content ? file.content.split('\n').length : 0
+    addLine('output', [
+      `File: ${file.path}`,
+      `Type: regular forensic file`,
+      `Size: ${bytes} bytes`,
+      `Lines: ${lines}`,
+      `Access: read-only`,
+    ].join('\n'))
+  }
+
+  function commandDiff(args: string[], privileged = false) {
+    if (args.length !== 2 || !args[0] || !args[1]) {
+      addLine('error', state.locale === 'vi' ? 'Cách dùng: diff <tệp-1> <tệp-2>' : 'Usage: diff <file-1> <file-2>')
+      return
+    }
+
+    const left = readableFile('diff', args[0], privileged)
+    const right = readableFile('diff', args[1], privileged)
+    if (!left || !right) return
+
+    const leftLines = left.content.split('\n')
+    const rightLines = right.content.split('\n')
+    const total = Math.max(leftLines.length, rightLines.length)
+    const output: string[] = [`--- ${left.path}`, `+++ ${right.path}`]
+
+    for (let index = 0; index < total; index += 1) {
+      const before = leftLines[index]
+      const after = rightLines[index]
+      if (before === after) continue
+      if (before !== undefined) output.push(`- ${String(index + 1).padStart(4)} ${before}`)
+      if (after !== undefined) output.push(`+ ${String(index + 1).padStart(4)} ${after}`)
+    }
+
+    addLine('output', output.length === 2
+      ? `${left.path} ${state.locale === 'vi' ? 'và' : 'and'} ${right.path}: ${state.locale === 'vi' ? 'không có khác biệt' : 'no differences'}`
+      : output.join('\n'))
+  }
+
+  function commandStrings(args: string[], privileged = false) {
+    if (args.length !== 1 || !args[0]) {
+      addLine('error', state.locale === 'vi' ? 'Cách dùng: strings <tệp>' : 'Usage: strings <file>')
+      return
+    }
+
+    const file = readableFile('strings', args[0], privileged)
+    if (!file) return
+
+    const strings = file.content.match(/[\p{L}\p{N}][\p{L}\p{N}\p{P}\p{Zs}]{3,}/gu) ?? []
+    addLine('output', strings.length
+      ? strings.map(value => value.trim()).filter(Boolean).join('\n')
+      : state.locale === 'vi' ? 'strings: không tìm thấy chuỗi có thể đọc' : 'strings: no readable strings found')
+  }
+
+  function commandChecksum(args: string[], privileged = false) {
+    if (args.length !== 1 || !args[0]) {
+      addLine('error', state.locale === 'vi' ? 'Cách dùng: checksum <tệp>' : 'Usage: checksum <file>')
+      return
+    }
+
+    const file = readableFile('checksum', args[0], privileged)
+    if (!file) return
+
+    // Stable FNV-1a fingerprint for the simulated forensic filesystem.
+    let hash = 0x811c9dc5
+    for (const byte of new TextEncoder().encode(file.content)) {
+      hash ^= byte
+      hash = Math.imul(hash, 0x01000193) >>> 0
+    }
+
+    addLine('output', `FNV1A32 ${hash.toString(16).padStart(8, '0')}  ${file.path}`)
+  }
+
   /*
    * --------------------------------------------------
    * COMMAND: FIND
@@ -1628,6 +1815,27 @@ export function useDetectiveGame(
         break
       case 'cat':
         commandCat(nestedArgs, true)
+        break
+      case 'grep':
+        commandGrep(nestedArgs, true)
+        break
+      case 'head':
+        commandHeadOrTail('head', nestedArgs, true)
+        break
+      case 'tail':
+        commandHeadOrTail('tail', nestedArgs, true)
+        break
+      case 'stat':
+        commandStat(nestedArgs, true)
+        break
+      case 'diff':
+        commandDiff(nestedArgs, true)
+        break
+      case 'strings':
+        commandStrings(nestedArgs, true)
+        break
+      case 'checksum':
+        commandChecksum(nestedArgs, true)
         break
       case 'find':
         commandFind(nestedArgs, true)
@@ -2982,7 +3190,14 @@ requestedLocale
         cd: 'Change directory',
         cat: 'Read file',
         find: 'Find files',
-        sudo: 'Run ls, cd, cat, find or guide with elevated access',
+        grep: 'Search matching lines inside a file',
+        head: 'Read the first lines of a file',
+        tail: 'Read the last lines of a file',
+        stat: 'Inspect forensic file metadata',
+        diff: 'Compare two files line by line',
+        strings: 'Extract readable strings from a file',
+        checksum: 'Calculate a stable forensic fingerprint',
+        sudo: 'Run filesystem investigation commands with elevated access',
         history: 'Show command history',
         whoami: 'Show current user',
         hint: 'Get an investigation hint',
@@ -2999,7 +3214,14 @@ requestedLocale
         cd: 'Chuyển thư mục',
         cat: 'Đọc nội dung tệp',
         find: 'Tìm tệp',
-        sudo: 'Chạy ls, cd, cat, find hoặc guide với quyền nâng cao',
+        grep: 'Tìm các dòng phù hợp trong tệp',
+        head: 'Đọc các dòng đầu của tệp',
+        tail: 'Đọc các dòng cuối của tệp',
+        stat: 'Xem metadata pháp chứng của tệp',
+        diff: 'So sánh hai tệp theo từng dòng',
+        strings: 'Trích xuất chuỗi có thể đọc từ tệp',
+        checksum: 'Tính dấu vân tay ổn định của tệp',
+        sudo: 'Chạy các lệnh điều tra filesystem với quyền nâng cao',
         history: 'Hiển thị lịch sử lệnh',
         whoami: 'Hiển thị người dùng hiện tại',
         hint: 'Nhận gợi ý điều tra',
@@ -3093,6 +3315,13 @@ requestedLocale
         'ls',
         'cd',
         'cat',
+        'grep',
+        'head',
+        'tail',
+        'stat',
+        'diff',
+        'strings',
+        'checksum',
         'find',
         'guide',
       ]
@@ -3106,7 +3335,7 @@ requestedLocale
       }
 
       const sudoMatch = argument.match(
-        /^(ls|cd|cat|find|guide)\s+(.*)$/i,
+        /^(ls|cd|cat|grep|head|tail|stat|diff|strings|checksum|find|guide)\s+(.*)$/i,
       )
 
       if (!sudoMatch) {
@@ -3264,7 +3493,12 @@ requestedLocale
     if (
       command !== 'cd' &&
       command !== 'cat' &&
-      command !== 'ls'
+      command !== 'ls' &&
+      command !== 'head' &&
+      command !== 'tail' &&
+      command !== 'stat' &&
+      command !== 'strings' &&
+      command !== 'checksum'
     ) {
       return []
     }
@@ -3502,6 +3736,34 @@ requestedLocale
 
       case 'cat':
         commandCat(args)
+        break
+
+      case 'grep':
+        commandGrep(args)
+        break
+
+      case 'head':
+        commandHeadOrTail('head', args)
+        break
+
+      case 'tail':
+        commandHeadOrTail('tail', args)
+        break
+
+      case 'stat':
+        commandStat(args)
+        break
+
+      case 'diff':
+        commandDiff(args)
+        break
+
+      case 'strings':
+        commandStrings(args)
+        break
+
+      case 'checksum':
+        commandChecksum(args)
         break
 
       case 'find':

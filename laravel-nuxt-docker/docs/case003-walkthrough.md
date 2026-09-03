@@ -6,6 +6,29 @@ Case 003 sử dụng chế độ giao nhiệm vụ tuần tự. Cảnh sát ch�
 
 Nếu muốn chơi lại từ đầu, nhấn **Reset game** và xác nhận xóa tiến trình hiện tại.
 
+## Các lệnh phân tích mới
+
+Không cần đọc mù toàn bộ tệp bằng `cat`. Có thể khoanh vùng và đối chiếu dữ liệu trước:
+
+```bash
+grep "02:17" /logs/system.log
+head -n 8 /network/network.log
+tail -n 10 /logs/auth.log
+stat /server/process.log
+strings /scripts/access-script.bin
+diff /users/daniel.txt /users/victor.txt
+checksum /external/certificate.txt
+```
+
+- `grep` tìm những dòng chứa thời gian, địa chỉ, tài khoản hoặc từ khóa cần kiểm tra.
+- `head` và `tail` đọc một phần đầu/cuối của log dài.
+- `stat` xem kích thước, số dòng và trạng thái chỉ đọc của tệp.
+- `strings` tách phần văn bản có thể đọc khỏi script hoặc artifact.
+- `diff` chỉ ra khác biệt giữa hai hồ sơ hoặc hai bản log.
+- `checksum` tạo dấu vân tay ổn định để đối chiếu tệp.
+
+Các lệnh phân tích giúp hình thành giả thuyết; dùng `cat` khi cần đọc toàn bộ tệp và chính thức thu thập evidence của case.
+
 ## 1. Tái dựng dòng thời gian kỹ thuật số
 
 Đọc hoạt động hệ thống trước, sau đó lần theo quá trình xác thực, kết nối từ xa và tiến trình tạo archive:

@@ -48,6 +48,48 @@ export const terminalCommands:
     },
 
     {
+      command: 'grep',
+      description: 'Search text inside a file',
+      requiresArgument: true,
+    },
+
+    {
+      command: 'head',
+      description: 'Read the first lines of a file',
+      requiresArgument: true,
+    },
+
+    {
+      command: 'tail',
+      description: 'Read the last lines of a file',
+      requiresArgument: true,
+    },
+
+    {
+      command: 'stat',
+      description: 'Inspect file metadata',
+      requiresArgument: true,
+    },
+
+    {
+      command: 'diff',
+      description: 'Compare two files',
+      requiresArgument: true,
+    },
+
+    {
+      command: 'strings',
+      description: 'Extract readable strings from a file',
+      requiresArgument: true,
+    },
+
+    {
+      command: 'checksum',
+      description: 'Calculate a forensic file checksum',
+      requiresArgument: true,
+    },
+
+    {
       command: 'find',
 
       description:
