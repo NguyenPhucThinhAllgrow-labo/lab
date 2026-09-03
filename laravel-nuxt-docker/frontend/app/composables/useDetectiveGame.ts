@@ -23,6 +23,8 @@ interface DetectiveGameState {
 
   tasks: Task[]
 
+  linkedEvidence: Record<string, string[]>
+
   unlockedPaths: string[]
 
   passwordPrompt: {
@@ -92,6 +94,8 @@ export function useDetectiveGame(
           }),
         ),
 
+      linkedEvidence: {},
+
       unlockedPaths: [],
 
       passwordPrompt: null,
@@ -160,6 +164,7 @@ export function useDetectiveGame(
       current_directory: string
       discovered_evidence: string[] | null
       completed_tasks: string[] | null
+      linked_evidence?: Record<string, string[]> | null
       unlocked_paths?: string[] | null
       command_history: string[] | null
       terminal_lines: TerminalLine[] | null
@@ -197,6 +202,22 @@ export function useDetectiveGame(
       task.completed =
         completedIds.has(task.id)
     })
+
+    state.linkedEvidence = {}
+
+    for (const task of state.tasks) {
+      const savedIds = progress.linked_evidence?.[task.id] ?? []
+      state.linkedEvidence[task.id] = savedIds.filter(id =>
+        task.requiresEvidence.includes(id) && discoveredIds.has(id),
+      )
+
+      // Preserve completed tasks created before manual evidence linking.
+      if (task.completed && !state.linkedEvidence[task.id]?.length) {
+        state.linkedEvidence[task.id] = task.requiresEvidence.filter(id =>
+          discoveredIds.has(id),
+        )
+      }
+    }
 
     state.unlockedPaths = (
       progress.unlocked_paths ?? []
@@ -267,6 +288,8 @@ export function useDetectiveGame(
         completed:
           task.completed ?? false,
       }))
+
+    state.linkedEvidence = {}
 
     state.commandHistory = []
     state.unlockedPaths = []
@@ -841,20 +864,22 @@ export function useDetectiveGame(
     evidence.discovered =
       true
 
+    const evidenceNumber = String(
+      state.evidence.findIndex(item => item.id === evidence.id) + 1,
+    ).padStart(2, '0')
+
     addLine(
       'success',
       `${getTranslation(
         'evidenceDiscovered',
-      )}: ${text(
-        evidence.title,
-      )}`,
+      )}: Evidence ${evidenceNumber}`,
     )
 
     addLine(
-      'success',
-      `→ ${text(
-        evidence.description,
-      )}`,
+      'system',
+      state.locale === 'vi'
+        ? '→ Chưa phân loại. Hãy đối chiếu evidence này với nhiệm vụ hiện tại trong panel [E] và [Q].'
+        : '→ Unclassified. Compare this evidence with the current assignment in panels [E] and [Q].',
     )
 
   }
@@ -910,31 +935,41 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function checkTasks() {
-    // Police assignments are sequential: only the first unfinished task is
-    // active. This also prevents overlapping evidence from completing several
-    // future objectives at the same moment.
-    const task = state.tasks.find(
-      item => !item.completed,
-    )
+  function linkEvidenceToTask(
+    taskId: string,
+    evidenceId: string,
+  ): boolean {
+    const task = state.tasks.find(item => item.id === taskId)
+    const activeTask = state.tasks.find(item => !item.completed)
+    const evidence = state.evidence.find(item => item.id === evidenceId)
 
-    if (!task) {
-      return
+    if (!task || !evidence?.discovered || activeTask?.id !== task.id) {
+      return false
     }
 
-    const completed =
-      task.requiresEvidence.every(
-        evidenceId =>
-          state.evidence.some(
-            evidence =>
-              evidence.id ===
-                evidenceId &&
-              evidence.discovered,
-          ),
+    if (!task.requiresEvidence.includes(evidenceId)) {
+      return false
+    }
+
+    const linked = state.linkedEvidence[task.id] ?? []
+
+    if (!linked.includes(evidenceId)) {
+      state.linkedEvidence[task.id] = [...linked, evidenceId]
+
+      addLine(
+        'success',
+        `${state.locale === 'vi' ? 'EVIDENCE ĐÃ XÁC NHẬN' : 'EVIDENCE VERIFIED'}: ${text(evidence.title)}`,
       )
 
-    if (!completed) {
-      return
+      addLine('success', `→ ${text(evidence.description)}`)
+    }
+
+    const completed = task.requiresEvidence.every(id =>
+      state.linkedEvidence[task.id]?.includes(id),
+    )
+
+    if (!completed || task.completed) {
+      return true
     }
 
     task.completed = true
@@ -954,6 +989,10 @@ export function useDetectiveGame(
         task.description,
       )}`,
     )
+
+    checkGameCompletion()
+
+    return true
   }
 
   function finalizeGameCompletion() {
@@ -3820,8 +3859,6 @@ requestedLocale
         break
     }
 
-    checkTasks()
-
     checkGameCompletion()
   }
 
@@ -3919,7 +3956,7 @@ function initialize() {
 
     getDirectory,
 
-    checkTasks,
+    linkEvidenceToTask,
 
     checkGameCompletion,
 

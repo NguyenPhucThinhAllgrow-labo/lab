@@ -17,12 +17,24 @@ const props = defineProps<{
   grouped?: boolean
 
   operationalReportAvailable?: boolean
+
+  linkedEvidence: Record<string, string[]>
+
+  selectedEvidence: Evidence[]
+
+  linkFeedback?: {
+    success: boolean
+    message: string
+  } | null
+
+  linkingMode?: boolean
 }>()
 
 const emit = defineEmits<{
   toggleExpand: []
   createOperationalReport: []
   reviewTaskSummary: [taskId: string]
+  linkEvidence: [taskId: string, evidenceIds: string[]]
 }>()
 
 const explainedTaskId = ref<string | null>(null)
@@ -75,28 +87,28 @@ function getText(
   )
 }
 
-function getTaskEvidence(
-  task: Task,
-) {
-  return task.requiresEvidence
-    .map(id =>
-      props.evidence.find(
-        item => item.id === id,
-      ),
-    )
-    .filter(
-      (item): item is Evidence =>
-        Boolean(item),
-    )
-}
-
 function getDiscoveredCount(
   task: Task,
 ) {
-  return getTaskEvidence(task)
-    .filter(item =>
-      item.discovered,
-    ).length
+  return props.linkedEvidence[task.id]?.length ?? 0
+}
+
+function getLinkedTaskEvidence(task: Task) {
+  const linkedIds = props.linkedEvidence[task.id] ?? []
+
+  return linkedIds
+    .map(id => props.evidence.find(item => item.id === id))
+    .filter((item): item is Evidence => Boolean(item))
+}
+
+function getRequiredTaskEvidence(task: Task) {
+  return task.requiresEvidence
+    .map(id => props.evidence.find(item => item.id === id))
+    .filter((item): item is Evidence => Boolean(item))
+}
+
+function isEvidenceLinked(task: Task, evidenceId: string) {
+  return props.linkedEvidence[task.id]?.includes(evidenceId) ?? false
 }
 </script>
 
@@ -310,7 +322,6 @@ function getDiscoveredCount(
               </div>
 
               <div
-                v-if="getTaskEvidence(activeTask).length"
                 class="mt-3 space-y-1.5
                        border-t
                        border-stone-600/60
@@ -332,13 +343,52 @@ function getDiscoveredCount(
                 </div>
 
                 <div
-                  v-for="item in getTaskEvidence(activeTask)"
+                  v-if="!linkingMode"
+                  class="mb-2.5 rounded border border-dashed border-cyan-800/60 bg-cyan-950/20 px-2 py-2 text-center font-mono text-[9px] leading-4 text-cyan-400"
+                >
+                  {{ locale === 'vi'
+                    ? 'Nhấn [Q] và [E] để mở chế độ đối chiếu task–evidence'
+                    : 'Press [Q] and [E] to open task–evidence linking mode' }}
+                </div>
+
+                <button
+                  v-else-if="selectedEvidence.length"
+                  type="button"
+                  class="mb-2.5 w-full rounded border border-cyan-600/70 bg-cyan-950/40 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-900/50"
+                  @click="emit('linkEvidence', activeTask.id, selectedEvidence.map(item => item.id))"
+                >
+                  {{ locale === 'vi'
+                    ? `Đối chiếu ${selectedEvidence.length} evidence đang chọn`
+                    : `Link ${selectedEvidence.length} selected evidence` }}
+                </button>
+
+                <div
+                  v-if="linkFeedback"
+                  class="mb-2.5 rounded border px-2.5 py-2 font-mono text-[9px] leading-4"
+                  :class="linkFeedback.success
+                    ? 'border-emerald-700/60 bg-emerald-950/30 text-emerald-300'
+                    : 'border-red-800/60 bg-red-950/25 text-red-300'"
+                >
+                  {{ linkFeedback.message }}
+                </div>
+
+                <div
+                  v-else
+                  class="mb-2.5 rounded border border-dashed border-stone-600 px-2 py-2 text-center font-mono text-[9px] text-stone-400"
+                >
+                  {{ locale === 'vi'
+                    ? 'Chọn một evidence trong panel [E] để đối chiếu'
+                    : 'Select evidence in panel [E] to link it' }}
+                </div>
+
+                <div
+                  v-for="item in getRequiredTaskEvidence(activeTask)"
                   :key="item.id"
                   class="flex items-center
                          gap-2 rounded
                          border px-2 py-1.5"
                   :class="
-                    item.discovered
+                    isEvidenceLinked(activeTask, item.id)
                       ? 'border-emerald-700/50 bg-emerald-950/30'
                       : 'border-stone-600/50 bg-stone-900/30'
                   "
@@ -350,25 +400,26 @@ function getDiscoveredCount(
                            rounded-full border
                            font-mono text-[8px]"
                     :class="
-                      item.discovered
+                      isEvidenceLinked(activeTask, item.id)
                         ? 'border-emerald-600 text-emerald-300'
                         : 'border-stone-600 text-stone-500'
                     "
                   >
-                    {{ item.discovered ? '✓' : '?' }}
+                    {{ isEvidenceLinked(activeTask, item.id) ? '✓' : '?' }}
                   </span>
 
                   <span
                     class="truncate text-[10px]"
                     :class="
-                      item.discovered
+                      isEvidenceLinked(activeTask, item.id)
                         ? 'text-emerald-200'
-                        : 'text-stone-400'
+                        : 'text-amber-100/80'
                     "
                   >
                     {{ getText(item.title) }}
                   </span>
                 </div>
+
               </div>
             </div>
           </div>
@@ -412,7 +463,7 @@ function getDiscoveredCount(
                   <span class="truncate">{{ getText(task.title) }}</span>
                 </span>
                 <span class="shrink-0 font-mono text-[9px] text-emerald-600">
-                  {{ getTaskEvidence(task).length }}
+                  {{ getLinkedTaskEvidence(task).length }}
                   {{ locale === 'vi' ? 'bằng chứng' : 'evidence' }} ▾
                 </span>
               </summary>
@@ -423,11 +474,11 @@ function getDiscoveredCount(
                 </div>
 
                 <div
-                  v-if="getTaskEvidence(task).length"
+                  v-if="getLinkedTaskEvidence(task).length"
                   class="space-y-1.5"
                 >
                   <div
-                    v-for="item in getTaskEvidence(task)"
+                    v-for="item in getLinkedTaskEvidence(task)"
                     :key="item.id"
                     class="flex items-start gap-2 rounded border border-emerald-900/50 bg-black/20 px-2 py-1.5"
                   >

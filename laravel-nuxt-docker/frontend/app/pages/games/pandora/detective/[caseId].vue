@@ -82,6 +82,8 @@ const operationalReportSuccess = ref(false)
 const completedTaskNotice = ref<Task | null>(null)
 const terminalLightTheme = ref(false)
 const terminalResetKey = ref(0)
+const selectedEvidenceIds = ref<string[]>([])
+const evidenceLinkFeedback = ref<{ success: boolean; message: string } | null>(null)
 const elapsedSeconds = ref(0)
 const evidenceHistory = ref<DetectiveTimelineEntry[]>([])
 const taskHistory = ref<DetectiveTimelineEntry[]>([])
@@ -108,6 +110,45 @@ let taskNoticeTimer:
 const TERMINAL_THEME_KEY =
   'detective-terminal-theme'
 
+const localProgressKey = computed(() =>
+  `detective-progress:${caseId.value}`,
+)
+
+function readLocalProgress(): DetectiveProgressPayload | null {
+  try {
+    const stored = localStorage.getItem(localProgressKey.value)
+    if (!stored) return null
+
+    const progress = JSON.parse(stored) as DetectiveProgressPayload
+    return progress && Array.isArray(progress.discovered_evidence)
+      ? progress
+      : null
+  } catch {
+    localStorage.removeItem(localProgressKey.value)
+    return null
+  }
+}
+
+function writeLocalProgress(progress: DetectiveProgressPayload) {
+  try {
+    localStorage.setItem(localProgressKey.value, JSON.stringify(progress))
+  } catch {
+    // Preserve core state even if verbose terminal output fills the quota.
+    localStorage.setItem(localProgressKey.value, JSON.stringify({
+      ...progress,
+      command_history: progress.command_history.slice(-100),
+      terminal_lines: progress.terminal_lines.slice(-150),
+    }))
+  }
+}
+
+function applyProgress(progress: DetectiveProgressPayload) {
+  game.restoreProgress(progress)
+  elapsedSeconds.value = progress.elapsed_seconds ?? 0
+  evidenceHistory.value = progress.evidence_history ?? []
+  taskHistory.value = progress.task_history ?? []
+}
+
 function toggleTerminalTheme() {
   terminalLightTheme.value =
     !terminalLightTheme.value
@@ -129,6 +170,51 @@ const formattedElapsedTime = computed(() => {
     .map(value => String(value).padStart(2, '0'))
     .join(':')
 })
+
+const selectedEvidence = computed(() =>
+  game.state.evidence.filter(item => selectedEvidenceIds.value.includes(item.id)),
+)
+
+const verifiedEvidenceIds = computed(() => [
+  ...new Set(Object.values(game.state.linkedEvidence).flat()),
+])
+
+function selectEvidenceForLink(evidenceId: string) {
+  if (!evidenceLinkingMode.value) return
+
+  selectedEvidenceIds.value = selectedEvidenceIds.value.includes(evidenceId)
+    ? selectedEvidenceIds.value.filter(id => id !== evidenceId)
+    : [...selectedEvidenceIds.value, evidenceId]
+  evidenceLinkFeedback.value = null
+}
+
+function linkSelectedEvidence(taskId: string, evidenceIds: string[]) {
+  if (!evidenceLinkingMode.value) return
+
+  let linkedCount = 0
+
+  for (const evidenceId of evidenceIds) {
+    if (game.linkEvidenceToTask(taskId, evidenceId)) {
+      linkedCount += 1
+    }
+  }
+
+  const rejectedCount = evidenceIds.length - linkedCount
+  const taskCompleted = game.state.tasks
+    .find(task => task.id === taskId)
+    ?.completed ?? false
+
+  evidenceLinkFeedback.value = rejectedCount > 0 && !taskCompleted
+    ? {
+        success: false,
+        message: game.state.locale === 'vi'
+          ? `${rejectedCount} evidence không phù hợp với nhiệm vụ hiện tại.`
+          : `${rejectedCount} evidence does not support the current assignment.`,
+      }
+    : null
+
+  selectedEvidenceIds.value = []
+}
 
 const headerTitle = computed(() =>
   game.text(scenario.title),
@@ -258,6 +344,9 @@ function createProgressPayload(): DetectiveProgressPayload {
           task.completed,
         )
         .map(task => task.id),
+    linked_evidence: Object.fromEntries(
+      Object.entries(game.state.linkedEvidence).map(([taskId, ids]) => [taskId, [...ids]]),
+    ),
     unlocked_paths: [
       ...game.state.unlockedPaths,
     ],
@@ -277,11 +366,21 @@ function createProgressPayload(): DetectiveProgressPayload {
 }
 
 async function loadRemoteProgress() {
-  if (!authInitialized.value) {
-    await fetchUser()
+  const localProgress = readLocalProgress()
+
+  try {
+    if (!authInitialized.value) {
+      await fetchUser()
+    }
+  } catch {
+    if (localProgress) applyProgress(localProgress)
+    progressStatus.value = 'local'
+    progressReady.value = true
+    return
   }
 
   if (!user.value) {
+    if (localProgress) applyProgress(localProgress)
     progressStatus.value = 'local'
     progressReady.value = true
     return
@@ -298,21 +397,30 @@ async function loadRemoteProgress() {
       elapsedSeconds.value = progress.elapsed_seconds ?? 0
       evidenceHistory.value = progress.evidence_history ?? []
       taskHistory.value = progress.task_history ?? []
+      writeLocalProgress(createProgressPayload())
+    } else if (localProgress) {
+      applyProgress(localProgress)
     }
 
-    progressStatus.value = 'saved'
+    progressStatus.value = progress ? 'saved' : 'local'
   } catch {
-    progressStatus.value = 'error'
+    if (localProgress) applyProgress(localProgress)
+    progressStatus.value = 'local'
   } finally {
     progressReady.value = true
   }
 }
 
 async function persistProgress() {
-  if (
-    !progressReady.value ||
-    !user.value
-  ) {
+  if (!progressReady.value) {
+    return
+  }
+
+  const payload = createProgressPayload()
+  writeLocalProgress(payload)
+
+  if (!user.value) {
+    progressStatus.value = 'local'
     return
   }
 
@@ -321,20 +429,18 @@ async function persistProgress() {
   try {
     await detectiveApi.saveProgress(
       caseId.value,
-      createProgressPayload(),
+      payload,
     )
 
     progressStatus.value = 'saved'
   } catch {
-    progressStatus.value = 'error'
+    // The local snapshot remains available even when the API is offline.
+    progressStatus.value = 'local'
   }
 }
 
 function scheduleProgressSave() {
-  if (
-    !progressReady.value ||
-    !user.value
-  ) {
+  if (!progressReady.value) {
     return
   }
 
@@ -373,6 +479,8 @@ async function resetGame() {
       )
     }
 
+    localStorage.removeItem(localProgressKey.value)
+
     game.resetGame()
     // Recreate the terminal so its output queue is empty and the intro
     // animation always starts again, even when the new intro has the same
@@ -382,6 +490,8 @@ async function resetGame() {
     evidenceHistory.value = []
     taskHistory.value = []
     terminalInput.value = ''
+    selectedEvidenceIds.value = []
+    evidenceLinkFeedback.value = null
     operationalReportOpen.value = false
     operationalReportSuccess.value = false
     personProfilesOpen.value = false
@@ -404,6 +514,8 @@ watch(
     directory: game.state.currentDirectory,
     evidence: game.state.evidence.map(item => item.discovered),
     tasks: game.state.tasks.map(task => task.completed),
+    linkedEvidence: Object.entries(game.state.linkedEvidence)
+      .map(([taskId, ids]) => [taskId, [...ids]]),
     unlockedPaths: [...game.state.unlockedPaths],
     commands: game.state.commandHistory.length,
     terminal: game.state.terminal.length,
@@ -496,6 +608,17 @@ const expandedPanelCount = computed(
 const multiplePanelsExpanded = computed(
   () => expandedPanelCount.value >= 2,
 )
+
+const evidenceLinkingMode = computed(() =>
+  expandedPanels.task && expandedPanels.evidence,
+)
+
+watch(evidenceLinkingMode, enabled => {
+  if (!enabled) {
+    selectedEvidenceIds.value = []
+    evidenceLinkFeedback.value = null
+  }
+})
 
 function collapseExpandedPanels() {
   expandedPanels.terminal = false
@@ -647,7 +770,7 @@ onMounted(() => {
     if (progressReady.value && !game.state.gameCompleted) {
       elapsedSeconds.value += 1
 
-      if (user.value && elapsedSeconds.value % 30 === 0) {
+      if (elapsedSeconds.value % 30 === 0) {
         void persistProgress()
       }
     }
@@ -655,6 +778,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (progressReady.value) {
+    writeLocalProgress(createProgressPayload())
+  }
+
   window.removeEventListener(
     'keydown',
     handlePanelShortcut,
@@ -1014,10 +1141,15 @@ async function handleCommandBarInput(
             :operational-report-available="
               operationalReportAvailable
             "
+            :linked-evidence="game.state.linkedEvidence"
+            :selected-evidence="selectedEvidence"
+            :link-feedback="evidenceLinkFeedback"
+            :linking-mode="evidenceLinkingMode"
             @toggle-expand="
               togglePanel('task')
             "
             @review-task-summary="reviewTaskSummary"
+            @link-evidence="linkSelectedEvidence"
             @create-operational-report="
               openOperationalReport
             "
@@ -1051,9 +1183,13 @@ async function handleCommandBarInput(
             :grouped="
               multiplePanelsExpanded
             "
+            :verified-evidence-ids="verifiedEvidenceIds"
+            :selected-evidence-ids="selectedEvidenceIds"
+            :linking-mode="evidenceLinkingMode"
             @toggle-expand="
               togglePanel('evidence')
             "
+            @select-evidence="selectEvidenceForLink"
           />
         </div>
       </aside>

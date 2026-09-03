@@ -9,7 +9,7 @@ class DetectiveCompletionHistory extends Model
 {
     protected $fillable = [
         'run_id', 'user_id', 'case_id', 'elapsed_seconds',
-        'evidence_history', 'task_history', 'command_history',
+        'evidence_history', 'task_history', 'linked_evidence', 'command_history',
         'statistics', 'started_at', 'completed_at',
     ];
 
@@ -18,6 +18,7 @@ class DetectiveCompletionHistory extends Model
         return [
             'evidence_history' => 'array',
             'task_history' => 'array',
+            'linked_evidence' => 'array',
             'command_history' => 'array',
             'statistics' => 'array',
             'started_at' => 'datetime',

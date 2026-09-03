@@ -15,10 +15,17 @@ const props = defineProps<{
   expanded?: boolean
 
   grouped?: boolean
+
+  verifiedEvidenceIds: string[]
+
+  selectedEvidenceIds: string[]
+
+  linkingMode?: boolean
 }>()
 
 const emit = defineEmits<{
   toggleExpand: []
+  selectEvidence: [evidenceId: string]
 }>()
 
 const expandedEvidenceIds = ref<string[]>([])
@@ -116,6 +123,17 @@ function getFileContent(evidence: Evidence): string {
 
 function isFileExpanded(evidenceId: string): boolean {
   return expandedEvidenceIds.value.includes(evidenceId)
+}
+
+function isVerified(evidenceId: string) {
+  return props.verifiedEvidenceIds.includes(evidenceId)
+}
+
+function evidenceLabel(item: Evidence) {
+  if (isVerified(item.id)) return getText(item.title)
+
+  const index = props.evidence.findIndex(evidence => evidence.id === item.id)
+  return `${props.locale === 'vi' ? 'Evidence' : 'Evidence'} ${String(index + 1).padStart(2, '0')}`
 }
 
 function toggleFileViewer(item: Evidence) {
@@ -217,34 +235,34 @@ function toggleFileViewer(item: Evidence) {
       <div
         v-for="item in discovered"
         :key="item.id"
-        class="rounded-md
-               border
-               border-green-600/60
-               bg-green-900/30
-               p-3"
+        class="rounded-md border p-3 transition"
+        :class="selectedEvidenceIds.includes(item.id)
+          ? 'border-cyan-400 bg-cyan-950/40 ring-1 ring-cyan-500/40'
+          : isVerified(item.id)
+            ? 'border-green-600/60 bg-green-900/30'
+            : 'border-slate-500/70 bg-slate-700/45'"
       >
         <div
           class="flex items-center
                  gap-2"
         >
           <span
-            class="font-mono
-                   text-xs
-                   text-green-300"
+            class="font-mono text-xs"
+            :class="isVerified(item.id) ? 'text-green-300' : 'text-slate-300'"
           >
-            ✓
+            {{ isVerified(item.id) ? '✓' : '?' }}
           </span>
 
           <span
-            class="text-xs
-                   font-medium
-                   text-green-300"
+            class="text-xs font-medium"
+            :class="isVerified(item.id) ? 'text-green-300' : 'text-slate-100'"
           >
-            {{ getText(item.title) }}
+            {{ evidenceLabel(item) }}
           </span>
         </div>
 
         <div
+          v-if="isVerified(item.id)"
           class="mt-2
                  pl-5
                  text-[10px]
@@ -252,6 +270,12 @@ function toggleFileViewer(item: Evidence) {
                  text-slate-200"
         >
           {{ getText(item.description) }}
+        </div>
+
+        <div v-else class="mt-2 pl-5 text-[10px] leading-5 text-slate-300">
+          {{ locale === 'vi'
+            ? 'Evidence chưa được phân loại. Chọn và đối chiếu với nhiệm vụ hiện tại.'
+            : 'Unclassified evidence. Select it and compare it with the current task.' }}
         </div>
 
         <div
@@ -265,7 +289,23 @@ function toggleFileViewer(item: Evidence) {
           {{ item.discover.path }}
         </div>
 
-        <div class="mt-3 flex justify-end pl-5">
+        <div class="mt-3 flex flex-wrap justify-end gap-2 pl-5">
+          <button
+            type="button"
+            class="rounded border px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-40"
+            :class="selectedEvidenceIds.includes(item.id)
+              ? 'border-cyan-400 bg-cyan-900/60 text-cyan-100'
+              : 'border-slate-500 bg-slate-800/70 text-slate-200 hover:border-cyan-500 hover:text-cyan-300'"
+            :disabled="!linkingMode"
+            @click="emit('selectEvidence', item.id)"
+          >
+            {{ !linkingMode
+              ? (locale === 'vi' ? 'Mở [Q] + [E]' : 'Open [Q] + [E]')
+              : selectedEvidenceIds.includes(item.id)
+                ? (locale === 'vi' ? 'Đang chọn' : 'Selected')
+                : (locale === 'vi' ? 'Chọn đối chiếu' : 'Select to link') }}
+          </button>
+
           <button
             type="button"
             class="rounded border

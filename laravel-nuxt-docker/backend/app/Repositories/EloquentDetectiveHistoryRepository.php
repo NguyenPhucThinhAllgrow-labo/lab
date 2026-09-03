@@ -20,6 +20,7 @@ class EloquentDetectiveHistoryRepository implements DetectiveHistoryRepositoryIn
                 'elapsed_seconds' => $progress->elapsed_seconds,
                 'evidence_history' => $progress->evidence_history ?? [],
                 'task_history' => $progress->task_history ?? [],
+                'linked_evidence' => $progress->linked_evidence ?? [],
                 'command_history' => $progress->command_history ?? [],
                 'statistics' => [
                     'evidence_count' => count($progress->evidence_history ?? []),

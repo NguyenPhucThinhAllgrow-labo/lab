@@ -18,6 +18,7 @@ class DetectiveProgressService
         'current_directory',
         'discovered_evidence',
         'completed_tasks',
+        'linked_evidence',
         'unlocked_paths',
         'command_history',
         'terminal_lines',

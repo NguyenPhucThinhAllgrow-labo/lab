@@ -4,6 +4,22 @@
 
 Case 003 sử dụng chế độ giao nhiệm vụ tuần tự. Cảnh sát chỉ giao nhiệm vụ tiếp theo sau khi nhiệm vụ hiện tại hoàn thành. Các lệnh bên dưới dùng đường dẫn tuyệt đối nên có thể thực hiện từ bất kỳ thư mục nào trong terminal.
 
+Evidence được tìm thấy chưa tự động hoàn thành nhiệm vụ. Sau mỗi chặng, nhấn **Q** và **E** để mở đồng thời hai panel, chọn từng Evidence trong panel Evidence rồi nhấn **Đối chiếu evidence đang chọn** ở task hiện tại. Evidence đúng mới lộ tên thật và được gắn vào task; evidence sai không làm tăng tiến độ.
+
+Các Evidence cần nối cho từng task trong lượt giải chuẩn:
+
+| Task | Evidence cần đối chiếu |
+| --- | --- |
+| 1 | Evidence 01, 02, 07, 08 |
+| 2 | Evidence 03, 04 |
+| 3 | Evidence 05, 06, 07, 08, 09 |
+| 4 | Evidence 10, 11, 12, 13 |
+| 5 | Evidence 15, 16, 17, 18 |
+| 6 | Evidence 18, 19, 22 |
+| 7 | Evidence 20, 21, 22 |
+| 8 | Evidence 23, 24, 25 |
+| 9 | Evidence 14, 23, 26 |
+
 Nếu muốn chơi lại từ đầu, nhấn **Reset game** và xác nhận xóa tiến trình hiện tại.
 
 ## Các lệnh phân tích mới
@@ -49,7 +65,7 @@ Kết luận cần nhận ra:
 - Một endpoint lạ bỏ qua MFA rồi truy cập máy trạm từ xa.
 - `svc-archive`, `remote-sync` và `archive-worker` được dùng để tạo archive Phoenix.
 
-Sau `process.log`, nhiệm vụ đầu tiên hoàn thành và cảnh sát giao nhiệm vụ xác định nguồn tấn công.
+Sau `process.log`, mở hai panel và đối chiếu Evidence 01, 02, 07, 08. Khi cả bốn liên kết đúng, cảnh sát mới giao nhiệm vụ xác định nguồn tấn công.
 
 ## 2. Xác định nguồn tấn công
 
@@ -57,7 +73,7 @@ Sau `process.log`, nhiệm vụ đầu tiên hoàn thành và cảnh sát giao n
 cat /network/dhcp.log
 ```
 
-DHCP ánh xạ địa chỉ `10.44.12.77` tới `VICTOR-LAPTOP`. Vì `network-trace` đã được thu thập ở nhiệm vụ trước, lệnh này hoàn thành nhiệm vụ thứ hai.
+DHCP ánh xạ địa chỉ `10.44.12.77` tới `VICTOR-LAPTOP`. Đối chiếu Evidence 03 và 04 với task thứ hai để hoàn thành nhiệm vụ.
 
 ## 3. Xác định đường thực thi
 
@@ -120,13 +136,7 @@ Kết luận:
 
 ## 7. Truy dấu dữ liệu bị đánh cắp
 
-Ba evidence của nhiệm vụ này đã được thu thập khi hoàn thành nhiệm vụ thứ sáu. Chạy một lệnh vô hại để hệ thống đánh giá task vừa được cảnh sát giao:
-
-```bash
-pwd
-```
-
-Nhiệm vụ hoàn thành vì đích đến, chứng chỉ và lịch sử kết nối của NODE-OMEGA đều đã được xác lập.
+Ba evidence của nhiệm vụ này đã được thu thập ở chặng trước, nhưng task không tự hoàn thành. Hãy đối chiếu Evidence 20, 21 và 22 với task mới được giao.
 
 ## 8. Phân biệt ba danh tính
 
@@ -181,7 +191,6 @@ cat /emails/deleted-mail.txt
 cat /external/destination.txt
 cat /external/certificate.txt
 cat /external/connection-history.txt
-pwd
 cat /logs/integrity.log
 cat /incident/contradictions.txt
 cat /incident/final-analysis.txt
