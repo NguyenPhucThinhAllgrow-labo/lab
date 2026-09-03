@@ -1,9 +1,30 @@
 .hacker-workspace {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-variant-ligatures: none;
+  letter-spacing: 0.012em;
+  text-rendering: geometricPrecision;
+  text-shadow: 0 0 10px rgb(16 185 129 / 10%);
   background-image:
     linear-gradient(rgb(16 185 129 / 2.5%) 1px, transparent 1px),
     linear-gradient(90deg, rgb(16 185 129 / 2.5%) 1px, transparent 1px),
     radial-gradient(circle at 50% 0%, rgb(6 78 59 / 18%), transparent 46%);
   background-size: 32px 32px, 32px 32px, 100% 100%;
+}
+
+.hacker-workspace :deep(button),
+.hacker-workspace :deep(input),
+.hacker-workspace :deep(textarea),
+.hacker-workspace :deep(select) {
+  font-family: inherit;
+  font-variant-ligatures: none;
+}
+
+.hacker-workspace :deep(h1),
+.hacker-workspace :deep(h2),
+.hacker-workspace :deep(h3),
+.hacker-workspace :deep([class*="uppercase"]) {
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 12px rgb(16 185 129 / 24%);
 }
 
 .hacker-workspace::after {
@@ -48,4 +69,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .detective-border-runner::before { animation: none; }
+}
+
+.animations-paused :deep(*) {
+  animation-play-state: paused !important;
 }

@@ -32,11 +32,22 @@ export interface DetectiveProgressPayload {
   command_history: string[]
   hint_count: number
   hint_penalty: number
+  hint_history: DetectiveHintUsage[]
+  incorrect_link_attempts: number
   terminal_lines: TerminalLine[]
   game_completed: boolean
   elapsed_seconds: number
   evidence_history: DetectiveTimelineEntry[]
   task_history: DetectiveTimelineEntry[]
+}
+
+export interface DetectiveHintUsage {
+  task_id: string | null
+  evidence_id: string
+  level: number
+  penalty: number
+  elapsed_seconds: number
+  recorded_at: string
 }
 
 export interface DetectiveTimelineEntry {
@@ -58,6 +69,8 @@ export interface DetectiveProgress {
   command_history: string[] | null
   hint_count: number
   hint_penalty: number
+  hint_history: DetectiveHintUsage[] | null
+  incorrect_link_attempts: number
   terminal_lines: TerminalLine[] | null
   game_completed: boolean
   elapsed_seconds: number
@@ -82,6 +95,10 @@ export interface DetectiveCompletionHistory {
     hint_count: number
     hint_penalty: number
     score: number
+    rank: 'S' | 'A' | 'B' | 'C'
+    incorrect_link_attempts: number
+    hints_by_level: Record<string, number>
+    hint_history: DetectiveHintUsage[]
     average_seconds_per_evidence: number | null
   }
   started_at: string

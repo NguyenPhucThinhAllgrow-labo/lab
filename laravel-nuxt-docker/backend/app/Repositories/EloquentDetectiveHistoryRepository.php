@@ -12,6 +12,17 @@ class EloquentDetectiveHistoryRepository implements DetectiveHistoryRepositoryIn
 {
     public function record(DetectiveProgress $progress): DetectiveCompletionHistory
     {
+        $score = max(0, 100 - $progress->hint_penalty - ($progress->incorrect_link_attempts * 2));
+        $rank = match (true) {
+            $score >= 90 => 'S',
+            $score >= 75 => 'A',
+            $score >= 55 => 'B',
+            default => 'C',
+        };
+        $hintsByLevel = collect($progress->hint_history ?? [])
+            ->countBy(fn (array $hint): string => (string) ($hint['level'] ?? 1))
+            ->all();
+
         return DetectiveCompletionHistory::query()->firstOrCreate(
             ['run_id' => $progress->run_id],
             [
@@ -28,7 +39,11 @@ class EloquentDetectiveHistoryRepository implements DetectiveHistoryRepositoryIn
                     'command_count' => count($progress->command_history ?? []),
                     'hint_count' => $progress->hint_count,
                     'hint_penalty' => $progress->hint_penalty,
-                    'score' => max(0, 100 - $progress->hint_penalty),
+                    'hints_by_level' => $hintsByLevel,
+                    'hint_history' => $progress->hint_history ?? [],
+                    'incorrect_link_attempts' => $progress->incorrect_link_attempts,
+                    'score' => $score,
+                    'rank' => $rank,
                     'average_seconds_per_evidence' => count($progress->evidence_history ?? [])
                         ? round($progress->elapsed_seconds / count($progress->evidence_history), 2)
                         : null,

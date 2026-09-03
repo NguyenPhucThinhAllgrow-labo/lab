@@ -8,7 +8,25 @@ const props = defineProps<{
   locale: SupportedLocale
   report: ScenarioOperationalReport
   success?: boolean
+  score?: number
+  rank?: string
+  elapsedSeconds?: number
+  hintHistory?: Array<{ level: number }>
+  commandCount?: number
+  incorrectLinkAttempts?: number
+  evidenceCount?: number
+  taskCount?: number
 }>()
+
+const formattedTime = computed(() => {
+  const seconds = props.elapsedSeconds ?? 0
+  return [Math.floor(seconds / 3600), Math.floor((seconds % 3600) / 60), seconds % 60]
+    .map(value => String(value).padStart(2, '0')).join(':')
+})
+
+function hintsAtLevel(level: number) {
+  return props.hintHistory?.filter(item => item.level === level).length ?? 0
+}
 
 const emit = defineEmits<{
   close: []
@@ -114,6 +132,30 @@ function fieldInvalid(field: ReportField): boolean {
       </div>
 
       <div class="space-y-4 px-6 py-6 text-center">
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="rounded border border-emerald-800 bg-black/40 p-3">
+            <div class="text-[9px] uppercase text-emerald-600">{{ locale === 'vi' ? 'Xếp hạng' : 'Rank' }}</div>
+            <div class="mt-1 text-3xl font-black text-emerald-300">{{ rank ?? 'C' }}</div>
+          </div>
+          <div class="rounded border border-cyan-900 bg-black/40 p-3">
+            <div class="text-[9px] uppercase text-cyan-600">{{ locale === 'vi' ? 'Điểm' : 'Score' }}</div>
+            <div class="mt-1 text-lg font-bold text-cyan-300">{{ score ?? 0 }}/100</div>
+          </div>
+          <div class="rounded border border-slate-800 bg-black/40 p-3">
+            <div class="text-[9px] uppercase text-slate-500">{{ locale === 'vi' ? 'Thời gian' : 'Time' }}</div>
+            <div class="mt-1 text-sm text-slate-200">{{ formattedTime }}</div>
+          </div>
+          <div class="rounded border border-amber-900 bg-black/40 p-3">
+            <div class="text-[9px] uppercase text-amber-600">Commands</div>
+            <div class="mt-1 text-lg text-amber-300">{{ commandCount ?? 0 }}</div>
+          </div>
+        </div>
+
+        <div class="rounded border border-slate-800 bg-black/30 px-4 py-3 font-mono text-[10px] text-slate-300">
+          HINT L1: {{ hintsAtLevel(1) }} · L2: {{ hintsAtLevel(2) }} · L3: {{ hintsAtLevel(3) }} ·
+          {{ locale === 'vi' ? 'NỐI SAI' : 'WRONG LINKS' }}: {{ incorrectLinkAttempts ?? 0 }} ·
+          EVIDENCE: {{ evidenceCount ?? 0 }} · TASK: {{ taskCount ?? 0 }}
+        </div>
         <p class="text-sm font-semibold text-slate-100">
           {{
             locale === 'vi'

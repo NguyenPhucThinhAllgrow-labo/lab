@@ -20,6 +20,8 @@ const props = defineProps<{
 
   selectedEvidenceIds: string[]
 
+  rejectedEvidenceIds?: string[]
+
   linkingMode?: boolean
 }>()
 
@@ -237,9 +239,11 @@ function toggleFileViewer(item: Evidence) {
       <div
         v-for="item in discovered"
         :key="item.id"
-        class="rounded-md border p-3 transition"
-        :class="selectedEvidenceIds.includes(item.id)
-          ? 'border-cyan-400 bg-cyan-950/40 ring-1 ring-cyan-500/40'
+        class="relative rounded-md border p-3 transition"
+        :class="rejectedEvidenceIds?.includes(item.id)
+          ? 'evidence-rejected border-red-500 bg-red-950/40'
+          : selectedEvidenceIds.includes(item.id)
+            ? 'evidence-link-selected border-cyan-400 bg-cyan-950/40 ring-1 ring-cyan-500/40'
           : isVerified(item.id)
             ? 'border-green-600/60 bg-green-900/30'
             : 'border-slate-500/70 bg-slate-700/45'"

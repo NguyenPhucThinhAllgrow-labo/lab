@@ -19,6 +19,15 @@
   animation: detective-border-spin 5s linear infinite;
 }
 
+.task-panel-active .detective-border-runner {
+  filter: drop-shadow(0 0 5px rgb(52 211 153 / 70%));
+}
+
+.task-panel-verified .detective-border-runner::before {
+  animation: none;
+  background: rgb(52 211 153 / 75%);
+}
+
 @keyframes detective-border-spin {
   to { transform: rotate(1turn); }
 }

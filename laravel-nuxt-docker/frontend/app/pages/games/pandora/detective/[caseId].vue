@@ -87,6 +87,9 @@ const evidenceLinkFeedback = ref<{ success: boolean; message: string } | null>(n
 const elapsedSeconds = ref(0)
 const evidenceHistory = ref<DetectiveTimelineEntry[]>([])
 const taskHistory = ref<DetectiveTimelineEntry[]>([])
+const incorrectLinkAttempts = ref(0)
+const rejectedEvidenceIds = ref<string[]>([])
+const documentVisible = ref(true)
 const progressStatus = ref<
   | 'loading'
   | 'saving'
@@ -147,6 +150,7 @@ function applyProgress(progress: DetectiveProgressPayload) {
   elapsedSeconds.value = progress.elapsed_seconds ?? 0
   evidenceHistory.value = progress.evidence_history ?? []
   taskHistory.value = progress.task_history ?? []
+  incorrectLinkAttempts.value = progress.incorrect_link_attempts ?? 0
 }
 
 function toggleTerminalTheme() {
@@ -161,6 +165,10 @@ function toggleTerminalTheme() {
   )
 }
 
+function handleVisibilityChange() {
+  documentVisible.value = !document.hidden
+}
+
 const formattedElapsedTime = computed(() => {
   const hours = Math.floor(elapsedSeconds.value / 3600)
   const minutes = Math.floor((elapsedSeconds.value % 3600) / 60)
@@ -172,7 +180,13 @@ const formattedElapsedTime = computed(() => {
 })
 
 const investigationScore = computed(() =>
-  Math.max(0, 100 - game.state.hintPenalty),
+  Math.max(0, 100 - game.state.hintPenalty - incorrectLinkAttempts.value * 2),
+)
+
+const investigationRank = computed(() =>
+  investigationScore.value >= 90 ? 'S'
+    : investigationScore.value >= 75 ? 'A'
+      : investigationScore.value >= 55 ? 'B' : 'C',
 )
 
 const selectedEvidence = computed(() =>
@@ -196,14 +210,24 @@ function linkSelectedEvidence(taskId: string, evidenceIds: string[]) {
   if (!evidenceLinkingMode.value) return
 
   let linkedCount = 0
+  const rejectedIds: string[] = []
 
   for (const evidenceId of evidenceIds) {
     if (game.linkEvidenceToTask(taskId, evidenceId)) {
       linkedCount += 1
+    } else {
+      rejectedIds.push(evidenceId)
     }
   }
 
   const rejectedCount = evidenceIds.length - linkedCount
+  if (rejectedCount) {
+    incorrectLinkAttempts.value += rejectedCount
+    rejectedEvidenceIds.value = rejectedIds
+    window.setTimeout(() => {
+      rejectedEvidenceIds.value = []
+    }, 700)
+  }
   const taskCompleted = game.state.tasks
     .find(task => task.id === taskId)
     ?.completed ?? false
@@ -359,6 +383,8 @@ function createProgressPayload(): DetectiveProgressPayload {
     ],
     hint_count: game.state.hintCount,
     hint_penalty: game.state.hintPenalty,
+    hint_history: game.state.hintHistory.map(item => ({ ...item })),
+    incorrect_link_attempts: incorrectLinkAttempts.value,
     terminal_lines:
       game.state.terminal.map(
         line => ({ ...line }),
@@ -403,6 +429,7 @@ async function loadRemoteProgress() {
       elapsedSeconds.value = progress.elapsed_seconds ?? 0
       evidenceHistory.value = progress.evidence_history ?? []
       taskHistory.value = progress.task_history ?? []
+      incorrectLinkAttempts.value = progress.incorrect_link_attempts ?? 0
       writeLocalProgress(createProgressPayload())
     } else if (localProgress) {
       applyProgress(localProgress)
@@ -495,6 +522,8 @@ async function resetGame() {
     elapsedSeconds.value = 0
     evidenceHistory.value = []
     taskHistory.value = []
+    incorrectLinkAttempts.value = 0
+    rejectedEvidenceIds.value = []
     terminalInput.value = ''
     selectedEvidenceIds.value = []
     evidenceLinkFeedback.value = null
@@ -526,6 +555,8 @@ watch(
     commands: game.state.commandHistory.length,
     hints: game.state.hintCount,
     hintPenalty: game.state.hintPenalty,
+    hintHistory: game.state.hintHistory.length,
+    incorrectLinks: incorrectLinkAttempts.value,
     terminal: game.state.terminal.length,
     completed: game.state.gameCompleted,
     evidenceEvents: evidenceHistory.value.length,
@@ -762,6 +793,8 @@ function handlePanelShortcut(
 }
 
 onMounted(() => {
+  documentVisible.value = !document.hidden
+  document.addEventListener('visibilitychange', handleVisibilityChange)
   terminalLightTheme.value =
     localStorage.getItem(
       TERMINAL_THEME_KEY,
@@ -786,6 +819,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
   if (progressReady.value) {
     writeLocalProgress(createProgressPayload())
   }
@@ -829,7 +863,13 @@ const autocompleteEntries = computed(() =>
 function executeCommand(
   command: string,
 ) {
+  const hintsBefore = game.state.hintHistory.length
   game.execute(command)
+
+  if (game.state.hintHistory.length > hintsBefore) {
+    const usage = game.state.hintHistory.at(-1)
+    if (usage) usage.elapsed_seconds = elapsedSeconds.value
+  }
 
   terminalInput.value = ''
 }
@@ -856,6 +896,7 @@ async function handleCommandBarInput(
     class="hacker-workspace min-h-screen
            bg-[#020706]
            text-zinc-200"
+    :class="{ 'animations-paused': !documentVisible }"
   >
     <!-- ==========================================
          SCENARIO HEADER
@@ -1043,8 +1084,8 @@ async function handleCommandBarInput(
           <div
             class="rounded border border-emerald-900/70 bg-emerald-950/20 px-2.5 py-1 font-mono text-[10px] tracking-[0.12em] text-emerald-300"
             :title="game.state.locale === 'vi'
-              ? `${game.state.hintCount} gợi ý · trừ ${game.state.hintPenalty} điểm`
-              : `${game.state.hintCount} hints · ${game.state.hintPenalty} point penalty`"
+              ? `${game.state.hintCount} gợi ý · ${incorrectLinkAttempts} lần nối sai · trừ ${game.state.hintPenalty + incorrectLinkAttempts * 2} điểm`
+              : `${game.state.hintCount} hints · ${incorrectLinkAttempts} wrong links · ${game.state.hintPenalty + incorrectLinkAttempts * 2} point penalty`"
           >
             {{ game.state.locale === 'vi' ? 'Điểm' : 'Score' }}:
             {{ investigationScore }}/100
@@ -1169,6 +1210,7 @@ async function handleCommandBarInput(
             "
             :verified-evidence-ids="verifiedEvidenceIds"
             :selected-evidence-ids="selectedEvidenceIds"
+            :rejected-evidence-ids="rejectedEvidenceIds"
             :linking-mode="evidenceLinkingMode"
             @toggle-expand="
               togglePanel('evidence')
@@ -1210,6 +1252,14 @@ async function handleCommandBarInput(
         :locale="game.state.locale"
         :report="scenario.operationalReport"
         :success="operationalReportSuccess"
+        :score="investigationScore"
+        :rank="investigationRank"
+        :elapsed-seconds="elapsedSeconds"
+        :hint-history="game.state.hintHistory"
+        :command-count="game.state.commandHistory.length"
+        :incorrect-link-attempts="incorrectLinkAttempts"
+        :evidence-count="discoveredEvidenceIds.length"
+        :task-count="game.state.tasks.filter(task => task.completed).length"
         @close="closeOperationalReport"
         @confirm="confirmOperationalReport"
       />

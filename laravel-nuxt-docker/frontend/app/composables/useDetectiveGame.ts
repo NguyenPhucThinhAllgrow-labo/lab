@@ -40,6 +40,15 @@ interface DetectiveGameState {
 
   hintPenalty: number
 
+  hintHistory: Array<{
+    task_id: string | null
+    evidence_id: string
+    level: number
+    penalty: number
+    elapsed_seconds: number
+    recorded_at: string
+  }>
+
   gameCompleted: boolean
 
   locale: SupportedLocale
@@ -110,6 +119,8 @@ export function useDetectiveGame(
 
       hintPenalty: 0,
 
+      hintHistory: [],
+
       gameCompleted: false,
 
       locale: 'en',
@@ -121,6 +132,13 @@ export function useDetectiveGame(
     string,
     { evidenceId: string; level: number }
   >()
+
+  let pendingHintConfirmation: {
+    evidenceId: string
+    level: number
+    taskId: string | null
+    progressKey: string
+  } | null = null
 
   function normalizeRestoredTerminalLine(
     line: TerminalLine,
@@ -182,6 +200,7 @@ export function useDetectiveGame(
       command_history: string[] | null
       hint_count?: number | null
       hint_penalty?: number | null
+      hint_history?: DetectiveGameState['hintHistory'] | null
       terminal_lines: TerminalLine[] | null
       game_completed: boolean
     },
@@ -244,6 +263,7 @@ export function useDetectiveGame(
     ]
     state.hintCount = Math.max(0, progress.hint_count ?? 0)
     state.hintPenalty = Math.max(0, progress.hint_penalty ?? 0)
+    state.hintHistory = [...(progress.hint_history ?? [])]
 
     state.terminal =
       (progress.terminal_lines ?? []).map(
@@ -311,6 +331,7 @@ export function useDetectiveGame(
     state.commandHistory = []
     state.hintCount = 0
     state.hintPenalty = 0
+    state.hintHistory = []
     state.unlockedPaths = []
     state.passwordPrompt = null
     state.gameCompleted = false
@@ -320,6 +341,7 @@ export function useDetectiveGame(
     state.terminal = []
     lineId = 0
     hintProgress.clear()
+    pendingHintConfirmation = null
 
     showIntro()
   }
@@ -1999,6 +2021,7 @@ export function useDetectiveGame(
   function showEvidenceHint(
     evidence: Evidence,
     level = 1,
+    taskId: string | null = null,
   ) {
     const folder = evidence.discover.path
       .split('/')
@@ -2272,6 +2295,14 @@ export function useDetectiveGame(
 
     state.hintCount += 1
     state.hintPenalty += penalty
+    state.hintHistory.push({
+      task_id: taskId,
+      evidence_id: evidence.id,
+      level: normalizedLevel,
+      penalty,
+      elapsed_seconds: 0,
+      recorded_at: new Date().toISOString(),
+    })
 
     const hintLabel = state.locale === 'vi'
       ? `GỢI Ý CẤP ${normalizedLevel}/3`
@@ -2434,12 +2465,24 @@ export function useDetectiveGame(
           : 1
       )
 
-      hintProgress.set(progressKey, {
-        evidenceId: evidence.id,
-        level,
-      })
+      if (level >= 2) {
+        pendingHintConfirmation = {
+          evidenceId: evidence.id,
+          level,
+          taskId: activeTask?.id ?? null,
+          progressKey,
+        }
+        addLine(
+          'warning',
+          state.locale === 'vi'
+            ? `Gợi ý cấp ${level} sẽ trừ ${level === 2 ? 5 : 10} điểm. Gõ "confirm hint ${level}" để xác nhận.`
+            : `Level ${level} costs ${level === 2 ? 5 : 10} points. Type "confirm hint ${level}" to continue.`,
+        )
+        return
+      }
 
-      showEvidenceHint(evidence, level)
+      hintProgress.set(progressKey, { evidenceId: evidence.id, level })
+      showEvidenceHint(evidence, level, activeTask?.id ?? null)
 
       return
     }
@@ -2488,7 +2531,53 @@ export function useDetectiveGame(
       return
     }
 
-    showEvidenceHint(evidence, requestedLevel ?? 1)
+    const level = requestedLevel ?? 1
+    if (level >= 2) {
+      pendingHintConfirmation = {
+        evidenceId: evidence.id,
+        level,
+        taskId: null,
+        progressKey: 'general',
+      }
+      addLine(
+        'warning',
+        state.locale === 'vi'
+          ? `Gợi ý cấp ${level} sẽ trừ ${level === 2 ? 5 : 10} điểm. Gõ "confirm hint ${level}" để xác nhận.`
+          : `Level ${level} costs ${level === 2 ? 5 : 10} points. Type "confirm hint ${level}" to continue.`,
+      )
+      return
+    }
+    showEvidenceHint(evidence, level)
+  }
+
+  function commandConfirm(args: string[]) {
+    const level = Number(args[1])
+    if (
+      args[0]?.toLowerCase() !== 'hint' ||
+      !pendingHintConfirmation ||
+      level !== pendingHintConfirmation.level
+    ) {
+      addLine('error', state.locale === 'vi'
+        ? 'Không có gợi ý tương ứng đang chờ xác nhận.'
+        : 'No matching hint is awaiting confirmation.')
+      return
+    }
+
+    const evidence = state.evidence.find(item =>
+      item.id === pendingHintConfirmation?.evidenceId,
+    )
+    if (!evidence || evidence.discovered) {
+      pendingHintConfirmation = null
+      return
+    }
+
+    const confirmation = pendingHintConfirmation
+    pendingHintConfirmation = null
+    hintProgress.set(confirmation.progressKey, {
+      evidenceId: evidence.id,
+      level: confirmation.level,
+    })
+    showEvidenceHint(evidence, confirmation.level, confirmation.taskId)
   }
 
   /*
@@ -3331,6 +3420,7 @@ requestedLocale
         history: 'Show command history',
         whoami: 'Show current user',
         hint: 'Get a progressive hint (levels 1–3)',
+        confirm: 'Confirm a point-costing action',
         guide: 'Explain investigation folders',
         help: 'Show available commands',
         lang: 'Change terminal language',
@@ -3355,6 +3445,7 @@ requestedLocale
         history: 'Hiển thị lịch sử lệnh',
         whoami: 'Hiển thị người dùng hiện tại',
         hint: 'Nhận gợi ý điều tra theo cấp 1–3',
+        confirm: 'Xác nhận thao tác bị trừ điểm',
         guide: 'Giải thích chức năng các thư mục điều tra',
         help: 'Hiển thị các lệnh khả dụng',
         lang: 'Thay đổi ngôn ngữ terminal',
@@ -3542,6 +3633,14 @@ requestedLocale
     /*
      * LANG AUTOCOMPLETE
      */
+
+    if (command === 'confirm') {
+      if (!pendingHintConfirmation) return []
+      const confirmation = `hint ${pendingHintConfirmation.level}`
+      return confirmation.startsWith(argument.toLowerCase())
+        ? [confirmation]
+        : []
+    }
 
     if (
       command === 'lang'
@@ -3924,6 +4023,10 @@ requestedLocale
 
       case 'hint':
         commandHint(args)
+        break
+
+      case 'confirm':
+        commandConfirm(args)
         break
 
       case 'guide':

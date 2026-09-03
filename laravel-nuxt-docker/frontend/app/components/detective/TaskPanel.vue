@@ -57,6 +57,12 @@ const hiddenTaskCount = computed(() => {
   return Math.max(0, props.tasks.length - activeIndex - 1)
 })
 
+const lockedTasks = computed(() => {
+  if (!activeTask.value) return []
+  const activeIndex = props.tasks.findIndex(task => task.id === activeTask.value?.id)
+  return props.tasks.slice(activeIndex + 1).filter(task => !task.completed)
+})
+
 function toggleTaskExplanation(task: Task) {
   explainedTaskId.value =
     explainedTaskId.value === task.id
@@ -121,13 +127,14 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
            p-4
            shadow-lg
            shadow-[0_0_30px_rgba(16,185,129,0.08)]"
-    :class="
+    :class="[
       expanded && !grouped
         ? 'fixed inset-4 z-50 flex flex-col bg-[#030b08] md:inset-8'
         : expanded
           ? 'relative flex h-full min-h-0 flex-col'
-          : 'relative'
-    "
+          : 'relative',
+      activeTask ? 'task-panel-active' : 'task-panel-verified',
+    ]"
   >
     <span class="detective-border-runner" aria-hidden="true" />
 
@@ -429,6 +436,15 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
                 : `${hiddenTaskCount} further assignments awaiting police authorization`
             }}
           </div>
+          <div class="mt-2 space-y-1 text-left">
+            <div
+              v-for="(task, index) in lockedTasks"
+              :key="task.id"
+              class="truncate font-mono text-[9px] text-stone-600"
+            >
+              [LOCKED] {{ locale === 'vi' ? 'CHỈ THỊ' : 'ASSIGNMENT' }} {{ String(index + 2).padStart(2, '0') }}
+            </div>
+          </div>
         </div>
 
         <details v-if="completedTasks.length" class="rounded-md border border-stone-800 bg-black/20">
@@ -443,7 +459,7 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
             >
               <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-2.5 py-2 text-[10px] text-emerald-300 transition hover:bg-emerald-950/40">
                 <span class="flex min-w-0 items-center gap-2">
-                  <span class="shrink-0 font-mono">✓</span>
+                  <span class="shrink-0 font-mono">[VERIFIED] ✓</span>
                   <span class="truncate">{{ getText(task.title) }}</span>
                 </span>
                 <span class="shrink-0 font-mono text-[9px] text-emerald-600">

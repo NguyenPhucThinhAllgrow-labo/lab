@@ -135,6 +135,15 @@ export const terminalCommands:
     },
 
     {
+      command: 'confirm',
+
+      description:
+        'Confirm a point-costing hint',
+
+      requiresArgument: true,
+    },
+
+    {
       command: 'guide',
 
       description:

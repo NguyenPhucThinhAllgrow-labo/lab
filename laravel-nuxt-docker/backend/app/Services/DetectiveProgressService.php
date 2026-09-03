@@ -23,6 +23,8 @@ class DetectiveProgressService
         'command_history',
         'hint_count',
         'hint_penalty',
+        'hint_history',
+        'incorrect_link_attempts',
         'terminal_lines',
         'game_completed',
         'elapsed_seconds',
