@@ -26,6 +26,9 @@ class EloquentDetectiveHistoryRepository implements DetectiveHistoryRepositoryIn
                     'evidence_count' => count($progress->evidence_history ?? []),
                     'task_count' => count($progress->task_history ?? []),
                     'command_count' => count($progress->command_history ?? []),
+                    'hint_count' => $progress->hint_count,
+                    'hint_penalty' => $progress->hint_penalty,
+                    'score' => max(0, 100 - $progress->hint_penalty),
                     'average_seconds_per_evidence' => count($progress->evidence_history ?? [])
                         ? round($progress->elapsed_seconds / count($progress->evidence_history), 2)
                         : null,

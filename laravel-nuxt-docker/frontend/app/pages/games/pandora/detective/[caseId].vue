@@ -171,6 +171,10 @@ const formattedElapsedTime = computed(() => {
     .join(':')
 })
 
+const investigationScore = computed(() =>
+  Math.max(0, 100 - game.state.hintPenalty),
+)
+
 const selectedEvidence = computed(() =>
   game.state.evidence.filter(item => selectedEvidenceIds.value.includes(item.id)),
 )
@@ -353,6 +357,8 @@ function createProgressPayload(): DetectiveProgressPayload {
     command_history: [
       ...game.state.commandHistory,
     ],
+    hint_count: game.state.hintCount,
+    hint_penalty: game.state.hintPenalty,
     terminal_lines:
       game.state.terminal.map(
         line => ({ ...line }),
@@ -518,6 +524,8 @@ watch(
       .map(([taskId, ids]) => [taskId, [...ids]]),
     unlockedPaths: [...game.state.unlockedPaths],
     commands: game.state.commandHistory.length,
+    hints: game.state.hintCount,
+    hintPenalty: game.state.hintPenalty,
     terminal: game.state.terminal.length,
     completed: game.state.gameCompleted,
     evidenceEvents: evidenceHistory.value.length,
@@ -909,7 +917,7 @@ async function handleCommandBarInput(
            ======================================== -->
 
       <section
-        class="min-w-0"
+        class="flex min-w-0 flex-col"
         :class="
           expandedPanels.terminal &&
           expandedPanelCount === 1
@@ -923,7 +931,11 @@ async function handleCommandBarInput(
                 : 'relative'
         "
       >
-        <button
+        <div
+          class="relative min-h-0"
+          :class="expandedPanels.terminal ? 'flex flex-1 flex-col' : ''"
+        >
+          <button
           type="button"
           class="absolute left-3 top-3 z-10 rounded border px-2.5 py-1
                  font-mono text-[10px] transition"
@@ -938,9 +950,9 @@ async function handleCommandBarInput(
           {{ terminalLightTheme
             ? game.state.locale === 'vi' ? '☾ Ban đêm' : '☾ Dark mode'
             : game.state.locale === 'vi' ? '☀ Ban ngày' : '☀ Light mode' }}
-        </button>
+          </button>
 
-        <button
+          <button
           type="button"
           class="absolute right-3 top-3
                  z-10 rounded border
@@ -963,9 +975,9 @@ async function handleCommandBarInput(
               ? '−'
               : '+'
           }}
-        </button>
+          </button>
 
-        <Terminal
+          <Terminal
           :key="terminalResetKey"
           ref="terminalRef"
           :expanded="
@@ -1000,7 +1012,8 @@ async function handleCommandBarInput(
           @update:input-value="
             terminalInput = $event
           "
-        />
+          />
+        </div>
 
         <CommandBar
           :commands="
@@ -1013,64 +1026,38 @@ async function handleCommandBarInput(
             handleCommandBarInput
           "
         />
-      </section>
 
-      <!-- ========================================
-           TASK + EVIDENCE
-           ======================================== -->
-
-      <aside
-        class="space-y-5"
-        :class="
-          multiplePanelsExpanded
-            ? 'contents'
-            : ''
-        "
-      >
         <div
-          class="flex items-center
-                 justify-between gap-3"
-          :class="
-            multiplePanelsExpanded
-              ? 'hidden'
-              : ''
-          "
+          class="order-first mb-3 flex flex-wrap items-center justify-between gap-3 rounded border border-slate-800/80 bg-black/40 px-3 py-2"
+          :class="multiplePanelsExpanded ? 'hidden' : ''"
         >
           <div
-            class="rounded border
-                   border-cyan-900/70
-                   bg-cyan-950/20
-                   px-2.5 py-1
-                   font-mono text-[10px]
-                   tracking-[0.12em]
-                   text-cyan-300"
+            class="rounded border border-cyan-900/70 bg-cyan-950/20 px-2.5 py-1 font-mono text-[10px] tracking-[0.12em] text-cyan-300"
             title="Elapsed investigation time"
           >
             ⏱ {{ formattedElapsedTime }}
           </div>
 
           <div
-            class="flex items-center
-                 gap-2
-                 font-mono text-[9px]
-                 uppercase
-                 tracking-[0.12em]"
+            class="rounded border border-emerald-900/70 bg-emerald-950/20 px-2.5 py-1 font-mono text-[10px] tracking-[0.12em] text-emerald-300"
+            :title="game.state.locale === 'vi'
+              ? `${game.state.hintCount} gợi ý · trừ ${game.state.hintPenalty} điểm`
+              : `${game.state.hintCount} hints · ${game.state.hintPenalty} point penalty`"
+          >
+            {{ game.state.locale === 'vi' ? 'Điểm' : 'Score' }}:
+            {{ investigationScore }}/100
+          </div>
+
+          <div
+            class="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.12em]"
             :class="{
-              'text-amber-400':
-                progressStatus === 'loading' ||
-                progressStatus === 'saving',
-              'text-emerald-400':
-                progressStatus === 'saved',
-              'text-zinc-600':
-                progressStatus === 'local',
-              'text-red-400':
-                progressStatus === 'error',
+              'text-amber-400': progressStatus === 'loading' || progressStatus === 'saving',
+              'text-emerald-400': progressStatus === 'saved',
+              'text-zinc-600': progressStatus === 'local',
+              'text-red-400': progressStatus === 'error',
             }"
           >
-            <span
-              class="h-1.5 w-1.5
-                     rounded-full bg-current"
-            />
+            <span class="h-1.5 w-1.5 rounded-full bg-current" />
             {{
               progressStatus === 'loading'
                 ? 'Loading progress'
@@ -1086,31 +1073,26 @@ async function handleCommandBarInput(
 
           <button
             type="button"
-            class="rounded border
-                   border-red-900/70
-                   px-2.5 py-1
-                   font-mono text-[9px]
-                   uppercase
-                   tracking-[0.1em]
-                   text-red-400 transition
-                   hover:bg-red-950/40
-                   disabled:cursor-not-allowed
-                   disabled:opacity-40"
-            :disabled="
-              resettingGame ||
-              progressStatus === 'loading' ||
-              progressStatus === 'saving'
-            "
+            class="rounded border border-red-900/70 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-red-400 transition hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-40"
+            :disabled="resettingGame || progressStatus === 'loading' || progressStatus === 'saving'"
             @click="requestGameReset"
           >
-            {{
-              resettingGame
-                ? 'Resetting...'
-                : 'Reset game'
-            }}
+            {{ resettingGame ? 'Resetting...' : 'Reset game' }}
           </button>
         </div>
+      </section>
 
+      <!-- ========================================
+           TASK + EVIDENCE
+           ======================================== -->
+
+      <aside
+        :class="
+          multiplePanelsExpanded
+            ? 'contents'
+            : 'space-y-5'
+        "
+      >
         <div
           :class="
             allPanelsExpanded

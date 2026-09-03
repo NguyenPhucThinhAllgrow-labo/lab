@@ -30,6 +30,8 @@ export interface DetectiveProgressPayload {
   linked_evidence: Record<string, string[]>
   unlocked_paths: string[]
   command_history: string[]
+  hint_count: number
+  hint_penalty: number
   terminal_lines: TerminalLine[]
   game_completed: boolean
   elapsed_seconds: number
@@ -54,6 +56,8 @@ export interface DetectiveProgress {
   linked_evidence: Record<string, string[]> | null
   unlocked_paths: string[] | null
   command_history: string[] | null
+  hint_count: number
+  hint_penalty: number
   terminal_lines: TerminalLine[] | null
   game_completed: boolean
   elapsed_seconds: number
@@ -75,6 +79,9 @@ export interface DetectiveCompletionHistory {
     evidence_count: number
     task_count: number
     command_count: number
+    hint_count: number
+    hint_penalty: number
+    score: number
     average_seconds_per_evidence: number | null
   }
   started_at: string

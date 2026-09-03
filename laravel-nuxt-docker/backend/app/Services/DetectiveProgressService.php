@@ -21,6 +21,8 @@ class DetectiveProgressService
         'linked_evidence',
         'unlocked_paths',
         'command_history',
+        'hint_count',
+        'hint_penalty',
         'terminal_lines',
         'game_completed',
         'elapsed_seconds',

@@ -36,6 +36,10 @@ interface DetectiveGameState {
 
   commandHistory: string[]
 
+  hintCount: number
+
+  hintPenalty: number
+
   gameCompleted: boolean
 
   locale: SupportedLocale
@@ -101,6 +105,10 @@ export function useDetectiveGame(
       passwordPrompt: null,
 
       commandHistory: [],
+
+      hintCount: 0,
+
+      hintPenalty: 0,
 
       gameCompleted: false,
 
@@ -172,6 +180,8 @@ export function useDetectiveGame(
       linked_evidence?: Record<string, string[]> | null
       unlocked_paths?: string[] | null
       command_history: string[] | null
+      hint_count?: number | null
+      hint_penalty?: number | null
       terminal_lines: TerminalLine[] | null
       game_completed: boolean
     },
@@ -232,6 +242,8 @@ export function useDetectiveGame(
     state.commandHistory = [
       ...(progress.command_history ?? []),
     ]
+    state.hintCount = Math.max(0, progress.hint_count ?? 0)
+    state.hintPenalty = Math.max(0, progress.hint_penalty ?? 0)
 
     state.terminal =
       (progress.terminal_lines ?? []).map(
@@ -297,6 +309,8 @@ export function useDetectiveGame(
     state.linkedEvidence = {}
 
     state.commandHistory = []
+    state.hintCount = 0
+    state.hintPenalty = 0
     state.unlockedPaths = []
     state.passwordPrompt = null
     state.gameCompleted = false
@@ -2252,11 +2266,24 @@ export function useDetectiveGame(
     }
 
     const normalizedLevel = Math.min(3, Math.max(1, level))
+    const penalty = ({ 1: 2, 2: 5, 3: 10 } as const)[
+      normalizedLevel as 1 | 2 | 3
+    ]
+
+    state.hintCount += 1
+    state.hintPenalty += penalty
+
     const hintLabel = state.locale === 'vi'
       ? `GỢI Ý CẤP ${normalizedLevel}/3`
       : `HINT LEVEL ${normalizedLevel}/3`
 
     const lines = [`${hintLabel}: ${text(evidence.hint)}`]
+
+    lines.push(
+      state.locale === 'vi'
+        ? `→ Chi phí: -${penalty} điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
+        : `→ Cost: -${penalty} points · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`,
+    )
 
     if (normalizedLevel >= 2) {
       lines.push(

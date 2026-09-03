@@ -27,6 +27,8 @@ class SaveDetectiveProgressRequest extends FormRequest
             'unlocked_paths.*' => ['string', 'max:500', 'starts_with:/', 'distinct'],
             'command_history' => ['sometimes', 'array', 'max:200'],
             'command_history.*' => ['string', 'max:1000'],
+            'hint_count' => ['sometimes', 'integer', 'min:0', 'max:100000'],
+            'hint_penalty' => ['sometimes', 'integer', 'min:0', 'max:1000000'],
             'terminal_lines' => ['sometimes', 'array', 'max:500'],
             'terminal_lines.*' => ['array'],
             'game_completed' => ['sometimes', 'boolean'],
