@@ -6,6 +6,7 @@ import type {
 import type {
   Scenario,
   ScenarioTimelineEvent,
+  Task,
 } from '~/types/games/detective'
 
 import ScenarioHeader from '~/components/detective/ScenarioHeader.vue'
@@ -16,6 +17,8 @@ import EvidencePanel from '~/components/detective/EvidencePanel.vue'
 import PasswordPrompt from '~/components/detective/PasswordPrompt.vue'
 import CaseTimelineModal from '~/components/detective/CaseTimelineModal.vue'
 import OperationalReportModal from '~/components/detective/OperationalReportModal.vue'
+import PersonProfilesModal from '~/components/detective/PersonProfilesModal.vue'
+import TaskCompletionNotice from '~/components/detective/TaskCompletionNotice.vue'
 
 /*
  * --------------------------------------------------
@@ -73,8 +76,10 @@ const progressReady = ref(false)
 const resettingGame = ref(false)
 const resetConfirmationOpen = ref(false)
 const timelineOpen = ref(false)
+const personProfilesOpen = ref(false)
 const operationalReportOpen = ref(false)
 const operationalReportSuccess = ref(false)
+const completedTaskNotice = ref<Task | null>(null)
 const terminalLightTheme = ref(false)
 const terminalResetKey = ref(0)
 const elapsedSeconds = ref(0)
@@ -94,6 +99,10 @@ let saveTimer:
 
 let clockTimer:
   ReturnType<typeof setInterval> |
+  null = null
+
+let taskNoticeTimer:
+  ReturnType<typeof setTimeout> |
   null = null
 
 const TERMINAL_THEME_KEY =
@@ -169,6 +178,47 @@ const visibleTimelineEvents = computed<ScenarioTimelineEvent[]>(() => {
 const timelineTotalEvents = computed(() =>
   scenario.timeline?.length ?? scenario.evidence.length,
 )
+
+const discoveredEvidenceIds = computed(() =>
+  game.state.evidence
+    .filter(item => item.discovered)
+    .map(item => item.id),
+)
+
+const nextTaskAfterNotice = computed(() => {
+  if (!completedTaskNotice.value) return undefined
+
+  const completedIndex = game.state.tasks.findIndex(
+    task => task.id === completedTaskNotice.value?.id,
+  )
+
+  return game.state.tasks
+    .slice(completedIndex + 1)
+    .find(task => !task.completed)
+})
+
+function showTaskCompletionNotice(task: Task) {
+  completedTaskNotice.value = task
+
+  if (taskNoticeTimer) clearTimeout(taskNoticeTimer)
+  taskNoticeTimer = setTimeout(() => {
+    completedTaskNotice.value = null
+    taskNoticeTimer = null
+  }, 12000)
+}
+
+function closeTaskCompletionNotice() {
+  completedTaskNotice.value = null
+  if (taskNoticeTimer) {
+    clearTimeout(taskNoticeTimer)
+    taskNoticeTimer = null
+  }
+}
+
+function reviewTaskSummary(taskId: string) {
+  const task = game.state.tasks.find(item => item.id === taskId)
+  if (task?.completed) showTaskCompletionNotice(task)
+}
 
 const operationalReportAvailable = computed(() => {
   return game.isOperationalReportAvailable()
@@ -334,6 +384,8 @@ async function resetGame() {
     terminalInput.value = ''
     operationalReportOpen.value = false
     operationalReportSuccess.value = false
+    personProfilesOpen.value = false
+    closeTaskCompletionNotice()
     collapseExpandedPanels()
     progressStatus.value =
       user.value ? 'saved' : 'local'
@@ -393,6 +445,9 @@ watch(
           elapsed_seconds: elapsedSeconds.value,
           recorded_at: new Date().toISOString(),
         })
+
+        const completedTask = game.state.tasks.find(item => item.id === task.id)
+        if (completedTask) showTaskCompletionNotice(completedTask)
       }
     }
   },
@@ -489,6 +544,15 @@ function handlePanelShortcut(
 
   if (
     event.key === 'Escape' &&
+    personProfilesOpen.value
+  ) {
+    event.preventDefault()
+    personProfilesOpen.value = false
+    return
+  }
+
+  if (
+    event.key === 'Escape' &&
     resetConfirmationOpen.value
   ) {
     event.preventDefault()
@@ -535,6 +599,17 @@ function handlePanelShortcut(
   ) {
     event.preventDefault()
     timelineOpen.value = !timelineOpen.value
+    return
+  }
+
+  if (
+    key === 'p' &&
+    scenario.people?.length &&
+    !game.state.passwordPrompt &&
+    !resetConfirmationOpen.value
+  ) {
+    event.preventDefault()
+    personProfilesOpen.value = !personProfilesOpen.value
     return
   }
 
@@ -591,6 +666,10 @@ onBeforeUnmount(() => {
 
   if (clockTimer) {
     clearInterval(clockTimer)
+  }
+
+  if (taskNoticeTimer) {
+    clearTimeout(taskNoticeTimer)
   }
 })
 
@@ -657,17 +736,26 @@ async function handleCommandBarInput(
       "
     />
 
-    <button
-      type="button"
-      class="fixed bottom-5 right-5 z-40 rounded-lg border
-             border-cyan-700/70 bg-slate-950/95 px-3 py-2
-             font-mono text-xs text-cyan-300 shadow-xl
-             transition hover:bg-cyan-950/80"
-      title="Open case timeline (M)"
-      @click="timelineOpen = true"
-    >
-      [M] {{ game.state.locale === 'vi' ? 'Dòng sự kiện' : 'Timeline' }}
-    </button>
+    <div class="fixed bottom-5 right-5 z-40 flex flex-wrap justify-end gap-2">
+      <button
+        v-if="scenario.people?.length"
+        type="button"
+        class="rounded-lg border border-violet-700/70 bg-slate-950/95 px-3 py-2 font-mono text-xs text-violet-300 shadow-xl transition hover:bg-violet-950/80"
+        :title="game.state.locale === 'vi' ? 'Mở hồ sơ nhân vật (P)' : 'Open person profiles (P)'"
+        @click="personProfilesOpen = true"
+      >
+        [P] {{ game.state.locale === 'vi' ? 'Đối tượng' : 'People' }}
+      </button>
+
+      <button
+        type="button"
+        class="rounded-lg border border-cyan-700/70 bg-slate-950/95 px-3 py-2 font-mono text-xs text-cyan-300 shadow-xl transition hover:bg-cyan-950/80"
+        title="Open case timeline (M)"
+        @click="timelineOpen = true"
+      >
+        [M] {{ game.state.locale === 'vi' ? 'Dòng sự kiện' : 'Timeline' }}
+      </button>
+    </div>
 
     <!-- ==========================================
          MAIN LAYOUT
@@ -929,6 +1017,7 @@ async function handleCommandBarInput(
             @toggle-expand="
               togglePanel('task')
             "
+            @review-task-summary="reviewTaskSummary"
             @create-operational-report="
               openOperationalReport
             "
@@ -979,6 +1068,22 @@ async function handleCommandBarInput(
         :locale="game.state.locale"
         @change-locale="game.state.locale = $event"
         @close="timelineOpen = false"
+      />
+
+      <PersonProfilesModal
+        v-if="personProfilesOpen && scenario.people?.length"
+        :people="scenario.people"
+        :discovered-evidence-ids="discoveredEvidenceIds"
+        :locale="game.state.locale"
+        @close="personProfilesOpen = false"
+      />
+
+      <TaskCompletionNotice
+        v-if="completedTaskNotice"
+        :task="completedTaskNotice"
+        :next-task="nextTaskAfterNotice"
+        :locale="game.state.locale"
+        @close="closeTaskCompletionNotice"
       />
 
       <OperationalReportModal

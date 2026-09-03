@@ -100,6 +100,84 @@ export const case003: Scenario = {
     ],
   },
 
+  people: [
+    {
+      id: 'daniel-cross',
+      name: 'Daniel Cross',
+      role: { en: 'Lead researcher and victim', vi: 'Trưởng nhóm nghiên cứu, nạn nhân' },
+      summary: {
+        en: 'Found unconscious in Server Room 4; his account and badge appear throughout the incident records.',
+        vi: 'Được phát hiện bất tỉnh trong Phòng máy chủ 4; tài khoản và thẻ của anh xuất hiện trong nhiều bản ghi sự cố.',
+      },
+      details: [
+        {
+          label: { en: 'Account compromise', vi: 'Tài khoản bị xâm nhập' },
+          value: {
+            en: 'Authentication evidence indicates that Daniel’s identity was used from another endpoint.',
+            vi: 'Bằng chứng xác thực cho thấy danh tính Daniel đã bị sử dụng từ một thiết bị đầu cuối khác.',
+          },
+          requiresEvidence: ['authentication-anomaly'],
+        },
+        {
+          label: { en: 'Physical contradiction', vi: 'Mâu thuẫn vật lý' },
+          value: {
+            en: 'Independent badge and camera evidence shows that the person moving through the facility was not Daniel.',
+            vi: 'Dữ liệu thẻ và camera độc lập cho thấy người di chuyển trong cơ sở không phải Daniel.',
+          },
+          requiresEvidence: ['camera-timeline'],
+        },
+      ],
+    },
+    {
+      id: 'victor-hale',
+      name: 'Victor Hale',
+      role: { en: 'Security administrator', vi: 'Quản trị viên an ninh' },
+      summary: {
+        en: 'A privileged employee whose access and equipment become relevant as the physical evidence develops.',
+        vi: 'Nhân viên có đặc quyền, với quyền truy cập và thiết bị trở nên đáng chú ý khi chuỗi chứng cứ vật lý được làm rõ.',
+      },
+      requiresEvidence: ['victor-profile'],
+      details: [
+        {
+          label: { en: 'Physical operation', vi: 'Hoạt động tại hiện trường' },
+          value: {
+            en: 'Profile, camera and endpoint records connect Victor to the cloned badge, USB device and maintenance endpoint.',
+            vi: 'Hồ sơ, camera và bản ghi thiết bị nối Victor với thẻ sao chép, USB và endpoint bảo trì.',
+          },
+          requiresEvidence: ['incident-contradictions'],
+        },
+        {
+          label: { en: 'Recovered message', vi: 'Tin nhắn được khôi phục' },
+          value: {
+            en: 'A deleted message instructed Victor to use an old credential and keep Daniel uninvolved.',
+            vi: 'Một tin nhắn đã xóa yêu cầu Victor dùng thông tin xác thực cũ và không để Daniel liên quan.',
+          },
+          requiresEvidence: ['deleted-email'],
+        },
+      ],
+    },
+    {
+      id: 'external-operator',
+      name: 'Unknown operator',
+      role: { en: 'External controller', vi: 'Người điều khiển bên ngoài' },
+      summary: {
+        en: 'An unidentified party associated with the external transfer destination.',
+        vi: 'Một bên chưa xác định có liên hệ với đích chuyển dữ liệu bên ngoài.',
+      },
+      requiresEvidence: ['external-node'],
+      details: [
+        {
+          label: { en: 'Control infrastructure', vi: 'Hạ tầng điều khiển' },
+          value: {
+            en: 'Certificate and command history tie NODE-OMEGA to the external phase of the operation.',
+            vi: 'Chứng thư và lịch sử lệnh nối NODE-OMEGA với giai đoạn bên ngoài của chiến dịch.',
+          },
+          requiresEvidence: ['external-history'],
+        },
+      ],
+    },
+  ],
+
   /*
    * --------------------------------------------------
    * FILESYSTEM

@@ -46,6 +46,91 @@
         "Gõ \"help\" để xem các lệnh khả dụng."
       ]
     },
+    "people": [
+      {
+        "id": "alex-morgan",
+        "name": "Alex Morgan",
+        "role": {
+          "en": "Missing employee",
+          "vi": "Nhân viên mất tích"
+        },
+        "summary": {
+          "en": "Owner of the unlocked workstation and a member of the confidential Nightfall project.",
+          "vi": "Chủ máy trạm bị bỏ lại trong trạng thái mở khóa và là thành viên của dự án mật Nightfall."
+        },
+        "details": [
+          {
+            "label": {
+              "en": "Last known activity",
+              "vi": "Hoạt động cuối cùng"
+            },
+            "value": {
+              "en": "His session was locked at 23:50, shortly after an unknown USB device was connected.",
+              "vi": "Phiên của Alex bị khóa lúc 23:50, ngay sau khi một USB không xác định được kết nối."
+            },
+            "requiresEvidence": [
+              "terminal-log"
+            ]
+          },
+          {
+            "label": {
+              "en": "Planned meeting",
+              "vi": "Cuộc hẹn đã lên kế hoạch"
+            },
+            "value": {
+              "en": "Alex agreed to meet an unknown sender alone at parking level B2.",
+              "vi": "Alex đồng ý gặp riêng một người gửi chưa xác định tại tầng B2 của bãi đỗ xe."
+            },
+            "requiresEvidence": [
+              "sent-message"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "marcus-reed",
+        "name": "Marcus Reed",
+        "role": {
+          "en": "Person of interest",
+          "vi": "Đối tượng cần điều tra"
+        },
+        "summary": {
+          "en": "An internal user who had requested access to the Nightfall project.",
+          "vi": "Một người dùng nội bộ từng yêu cầu quyền truy cập dự án Nightfall."
+        },
+        "requiresEvidence": [
+          "project-document"
+        ],
+        "details": [
+          {
+            "label": {
+              "en": "Project access",
+              "vi": "Quyền truy cập dự án"
+            },
+            "value": {
+              "en": "Marcus requested the Nightfall documentation, but Alex refused.",
+              "vi": "Marcus yêu cầu tài liệu Nightfall nhưng Alex đã từ chối."
+            },
+            "requiresEvidence": [
+              "project-document"
+            ]
+          },
+          {
+            "label": {
+              "en": "Recovered identity",
+              "vi": "Danh tính được khôi phục"
+            },
+            "value": {
+              "en": "Partially decrypted USB data resolves to the name Marcus Reed.",
+              "vi": "Dữ liệu USB được giải mã một phần cho ra tên Marcus Reed."
+            },
+            "requiresEvidence": [
+              "encrypted-meeting"
+            ]
+          }
+        ]
+      }
+    ],
     "filesystem": [
       {
         "type": "directory",
@@ -661,6 +746,107 @@
         "ls, cd, cat, find, pwd, history, hint"
       ]
     },
+    "people": [
+      {
+        "id": "alice-morgan",
+        "name": "Alice Morgan",
+        "role": {
+          "en": "Workstation owner",
+          "vi": "Chủ máy trạm"
+        },
+        "summary": {
+          "en": "Finance employee whose unattended workstation was used during the transfer.",
+          "vi": "Nhân viên tài chính có máy trạm bị sử dụng trong lúc không có người trông coi."
+        },
+        "details": [
+          {
+            "label": {
+              "en": "Account activity",
+              "vi": "Hoạt động tài khoản"
+            },
+            "value": {
+              "en": "The transfer occurred during Alice’s logged-in session, which does not by itself identify the operator.",
+              "vi": "Vụ chuyển dữ liệu xảy ra trong phiên đăng nhập của Alice, nhưng riêng điều đó chưa xác định được người thao tác."
+            },
+            "requiresEvidence": [
+              "evidence-002-01"
+            ]
+          },
+          {
+            "label": {
+              "en": "Statement",
+              "vi": "Lời khai"
+            },
+            "value": {
+              "en": "Alice denied authorizing the confidential transfer.",
+              "vi": "Alice phủ nhận việc cho phép chuyển dữ liệu mật."
+            },
+            "requiresEvidence": [
+              "evidence-002-05"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "bob-carter",
+        "name": "Bob Carter",
+        "role": {
+          "en": "IT employee",
+          "vi": "Nhân viên CNTT"
+        },
+        "summary": {
+          "en": "An IT employee listed in the company directory.",
+          "vi": "Nhân viên CNTT có tên trong danh bạ công ty."
+        },
+        "requiresEvidence": [
+          "evidence-002-02"
+        ],
+        "details": []
+      },
+      {
+        "id": "daniel-reed",
+        "name": "Daniel Reed",
+        "role": {
+          "en": "Security employee",
+          "vi": "Nhân viên an ninh"
+        },
+        "summary": {
+          "en": "A security employee authorized for Project Orion who requested emergency access to Alice’s workstation.",
+          "vi": "Nhân viên an ninh có quyền với dự án Orion và từng yêu cầu sử dụng máy trạm của Alice."
+        },
+        "requiresEvidence": [
+          "evidence-002-02"
+        ],
+        "details": [
+          {
+            "label": {
+              "en": "Security exception",
+              "vi": "Ngoại lệ bảo mật"
+            },
+            "value": {
+              "en": "A temporary security exception created just before the USB connection belonged to Daniel Reed.",
+              "vi": "Ngoại lệ bảo mật tạm thời được tạo ngay trước khi USB kết nối thuộc về Daniel Reed."
+            },
+            "requiresEvidence": [
+              "evidence-002-03"
+            ]
+          },
+          {
+            "label": {
+              "en": "Maintenance request",
+              "vi": "Yêu cầu bảo trì"
+            },
+            "value": {
+              "en": "Daniel asked Alice to leave the workstation unlocked for emergency maintenance.",
+              "vi": "Daniel yêu cầu Alice để máy trạm mở khóa cho công việc bảo trì khẩn cấp."
+            },
+            "requiresEvidence": [
+              "evidence-002-04"
+            ]
+          }
+        ]
+      }
+    ],
     "filesystem": [
       {
         "type": "directory",
@@ -1121,6 +1307,121 @@
         "Gõ \"help\" để xem các lệnh khả dụng."
       ]
     },
+    "people": [
+      {
+        "id": "daniel-cross",
+        "name": "Daniel Cross",
+        "role": {
+          "en": "Lead researcher and victim",
+          "vi": "Trưởng nhóm nghiên cứu, nạn nhân"
+        },
+        "summary": {
+          "en": "Found unconscious in Server Room 4; his account and badge appear throughout the incident records.",
+          "vi": "Được phát hiện bất tỉnh trong Phòng máy chủ 4; tài khoản và thẻ của anh xuất hiện trong nhiều bản ghi sự cố."
+        },
+        "details": [
+          {
+            "label": {
+              "en": "Account compromise",
+              "vi": "Tài khoản bị xâm nhập"
+            },
+            "value": {
+              "en": "Authentication evidence indicates that Daniel’s identity was used from another endpoint.",
+              "vi": "Bằng chứng xác thực cho thấy danh tính Daniel đã bị sử dụng từ một thiết bị đầu cuối khác."
+            },
+            "requiresEvidence": [
+              "authentication-anomaly"
+            ]
+          },
+          {
+            "label": {
+              "en": "Physical contradiction",
+              "vi": "Mâu thuẫn vật lý"
+            },
+            "value": {
+              "en": "Independent badge and camera evidence shows that the person moving through the facility was not Daniel.",
+              "vi": "Dữ liệu thẻ và camera độc lập cho thấy người di chuyển trong cơ sở không phải Daniel."
+            },
+            "requiresEvidence": [
+              "camera-timeline"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "victor-hale",
+        "name": "Victor Hale",
+        "role": {
+          "en": "Security administrator",
+          "vi": "Quản trị viên an ninh"
+        },
+        "summary": {
+          "en": "A privileged employee whose access and equipment become relevant as the physical evidence develops.",
+          "vi": "Nhân viên có đặc quyền, với quyền truy cập và thiết bị trở nên đáng chú ý khi chuỗi chứng cứ vật lý được làm rõ."
+        },
+        "requiresEvidence": [
+          "victor-profile"
+        ],
+        "details": [
+          {
+            "label": {
+              "en": "Physical operation",
+              "vi": "Hoạt động tại hiện trường"
+            },
+            "value": {
+              "en": "Profile, camera and endpoint records connect Victor to the cloned badge, USB device and maintenance endpoint.",
+              "vi": "Hồ sơ, camera và bản ghi thiết bị nối Victor với thẻ sao chép, USB và endpoint bảo trì."
+            },
+            "requiresEvidence": [
+              "incident-contradictions"
+            ]
+          },
+          {
+            "label": {
+              "en": "Recovered message",
+              "vi": "Tin nhắn được khôi phục"
+            },
+            "value": {
+              "en": "A deleted message instructed Victor to use an old credential and keep Daniel uninvolved.",
+              "vi": "Một tin nhắn đã xóa yêu cầu Victor dùng thông tin xác thực cũ và không để Daniel liên quan."
+            },
+            "requiresEvidence": [
+              "deleted-email"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "external-operator",
+        "name": "Unknown operator",
+        "role": {
+          "en": "External controller",
+          "vi": "Người điều khiển bên ngoài"
+        },
+        "summary": {
+          "en": "An unidentified party associated with the external transfer destination.",
+          "vi": "Một bên chưa xác định có liên hệ với đích chuyển dữ liệu bên ngoài."
+        },
+        "requiresEvidence": [
+          "external-node"
+        ],
+        "details": [
+          {
+            "label": {
+              "en": "Control infrastructure",
+              "vi": "Hạ tầng điều khiển"
+            },
+            "value": {
+              "en": "Certificate and command history tie NODE-OMEGA to the external phase of the operation.",
+              "vi": "Chứng thư và lịch sử lệnh nối NODE-OMEGA với giai đoạn bên ngoài của chiến dịch."
+            },
+            "requiresEvidence": [
+              "external-history"
+            ]
+          }
+        ]
+      }
+    ],
     "filesystem": [
       {
         "type": "directory",
@@ -3020,6 +3321,233 @@
         "requiresGameCompletion": true
       }
     ],
+    "people": [
+      {
+        "id": "ethan-ward",
+        "name": "Ethan Ward",
+        "role": {
+          "en": "Victim · investigative journalist",
+          "vi": "Nạn nhân · nhà báo điều tra"
+        },
+        "summary": {
+          "en": "Ethan investigated city emergency-radio contracts and protected source material on the encrypted ORPHEUS drive.",
+          "vi": "Ethan điều tra các hợp đồng vô tuyến khẩn cấp của thành phố và bảo vệ tài liệu nguồn tin trong ổ đĩa mã hóa ORPHEUS."
+        },
+        "details": [
+          {
+            "label": {
+              "en": "Scene status",
+              "vi": "Tình trạng tại hiện trường"
+            },
+            "value": {
+              "en": "Found dead in apartment 17B. The ORPHEUS drive was missing and the bedroom clock could not be trusted.",
+              "vi": "Được phát hiện đã tử vong tại căn hộ 17B. Ổ ORPHEUS biến mất và đồng hồ phòng ngủ không phải nguồn giờ đáng tin cậy."
+            },
+            "requiresEvidence": [
+              "scene-baseline"
+            ]
+          },
+          {
+            "label": {
+              "en": "Verified homicide window",
+              "vi": "Khoảng thời gian gây án đã xác minh"
+            },
+            "value": {
+              "en": "Forensic and wearable evidence places the fatal struggle between 01:10 and 01:35 true time.",
+              "vi": "Pháp y và dữ liệu thiết bị đeo xác định cuộc giằng co dẫn đến án mạng xảy ra trong khoảng 01:10–01:35 theo giờ chuẩn."
+            },
+            "requiresEvidence": [
+              "forensic-window"
+            ]
+          },
+          {
+            "label": {
+              "en": "Connection to Mercer",
+              "vi": "Quan hệ với Mercer"
+            },
+            "value": {
+              "en": "Ethan scheduled Grant Mercer as an ORPHEUS source interview and issued guest code EW-INTERVIEW-04.",
+              "vi": "Ethan hẹn Grant Mercer dưới danh nghĩa phỏng vấn nguồn tin ORPHEUS và cấp mã khách EW-INTERVIEW-04."
+            },
+            "requiresEvidence": [
+              "device-timeline"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "claire-bennett",
+        "name": "Claire Bennett",
+        "role": {
+          "en": "Missing person · Ethan’s editor",
+          "vi": "Người mất tích · biên tập viên của Ethan"
+        },
+        "summary": {
+          "en": "Claire worked directly with Ethan and warned him that she was being followed shortly before the homicide.",
+          "vi": "Claire làm việc trực tiếp với Ethan và cảnh báo rằng cô đang bị bám theo ngay trước khi án mạng xảy ra."
+        },
+        "details": [
+          {
+            "label": {
+              "en": "Message verification",
+              "vi": "Xác minh tin nhắn"
+            },
+            "value": {
+              "en": "The “I am safe” message used her desktop key, not her phone key. An unsent draft mentions a blue truck, river cranes and a fifteen-minute bell.",
+              "vi": "Tin nhắn “tôi an toàn” dùng khóa máy bàn, không phải khóa điện thoại. Bản nháp chưa gửi nhắc tới xe tải xanh, cần cẩu ven sông và tiếng chuông mỗi 15 phút."
+            },
+            "requiresEvidence": [
+              "claire-abducted"
+            ]
+          },
+          {
+            "label": {
+              "en": "Live location",
+              "vi": "Vị trí còn hoạt động"
+            },
+            "value": {
+              "en": "Her phone reached River-3 and began a low-power emergency beacon near Warehouse Row 4–7.",
+              "vi": "Điện thoại của Claire tới RIVER-3 rồi phát tín hiệu khẩn cấp yếu quanh dãy kho số 4–7."
+            },
+            "requiresEvidence": [
+              "live-beacon"
+            ]
+          },
+          {
+            "label": {
+              "en": "Holding location",
+              "vi": "Nơi bị giam giữ"
+            },
+            "value": {
+              "en": "Independent environmental and radio clues converge on Northstar Warehouse 6.",
+              "vi": "Các manh mối môi trường và vô tuyến độc lập cùng hội tụ tại Kho Northstar số 6."
+            },
+            "requiresEvidence": [
+              "target-location"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lucas-reed",
+        "name": "Lucas Reed",
+        "role": {
+          "en": "Police officer · compromised account owner",
+          "vi": "Cảnh sát · chủ tài khoản bị chiếm dụng"
+        },
+        "summary": {
+          "en": "Lucas owns the police account used during the intrusion, but an account name alone does not identify its operator.",
+          "vi": "Lucas là chủ tài khoản cảnh sát được dùng trong phiên xâm nhập, nhưng tên tài khoản không đồng nghĩa với người trực tiếp thao tác."
+        },
+        "requiresEvidence": [
+          "account-compromise"
+        ],
+        "details": [
+          {
+            "label": {
+              "en": "Verified alibi",
+              "vi": "Ngoại phạm đã xác minh"
+            },
+            "value": {
+              "en": "Biometrics, smart-card activity and continuous body-camera footage place Reed inside the Central Evidence Building.",
+              "vi": "Sinh trắc học, thẻ thông minh và camera gắn trên người liên tục xác nhận Reed ở trong Tòa nhà Vật chứng Trung tâm."
+            }
+          },
+          {
+            "label": {
+              "en": "Account compromise",
+              "vi": "Tài khoản bị chiếm dụng"
+            },
+            "value": {
+              "en": "The intruder used recovery code RC-04 from a separate, untrusted device at 10.23.8.44.",
+              "vi": "Kẻ xâm nhập dùng mã khôi phục RC-04 từ một thiết bị lạ mang địa chỉ 10.23.8.44."
+            }
+          }
+        ]
+      },
+      {
+        "id": "grant-mercer",
+        "name": "Grant Mercer",
+        "role": {
+          "en": "Scheduled ORPHEUS interviewee",
+          "vi": "Người được hẹn phỏng vấn về ORPHEUS"
+        },
+        "summary": {
+          "en": "Ethan issued Mercer a temporary guest code for a private source interview. His true connection to the case must be established independently.",
+          "vi": "Ethan cấp cho Mercer mã khách tạm thời để thực hiện một cuộc phỏng vấn nguồn tin riêng. Vai trò thật sự của Mercer vẫn phải được chứng minh bằng các nguồn độc lập."
+        },
+        "requiresEvidence": [
+          "device-timeline"
+        ],
+        "details": [
+          {
+            "label": {
+              "en": "Former position",
+              "vi": "Chức vụ cũ"
+            },
+            "value": {
+              "en": "Former police digital-evidence supervisor. Recovery code RC-04 had previously been printed for him.",
+              "vi": "Cựu giám sát viên vật chứng số của cảnh sát. Mã khôi phục RC-04 từng được in cho Mercer."
+            },
+            "requiresEvidence": [
+              "account-compromise"
+            ]
+          },
+          {
+            "label": {
+              "en": "Device attribution",
+              "vi": "Thiết bị liên quan"
+            },
+            "value": {
+              "en": "FIELDKIT-MERCER is an unreturned police field kit formerly assigned to Mercer.",
+              "vi": "FIELDKIT-MERCER là bộ thiết bị hiện trường của cảnh sát từng cấp cho Mercer nhưng chưa được hoàn trả."
+            },
+            "requiresEvidence": [
+              "fieldkit-trace"
+            ]
+          },
+          {
+            "label": {
+              "en": "Physical and technical match",
+              "vi": "Đối chiếu đặc điểm và năng lực"
+            },
+            "value": {
+              "en": "A documented right-thumb scar matches the scene trace. Mercer knew evidence systems, GPS simulation and River District cameras.",
+              "vi": "Vết sẹo ngón cái phải trong hồ sơ phù hợp dấu vết hiện trường. Mercer hiểu hệ thống vật chứng, giả lập GPS và camera Quận Ven Sông."
+            },
+            "requiresEvidence": [
+              "suspect-profile"
+            ]
+          },
+          {
+            "label": {
+              "en": "Motive",
+              "vi": "Động cơ"
+            },
+            "value": {
+              "en": "ORPHEUS exposes diverted Northstar emergency-radio contracts bearing Mercer’s approval.",
+              "vi": "ORPHEUS phơi bày các hợp đồng vô tuyến Northstar bị biển thủ có tên Mercer trong chuỗi phê duyệt."
+            },
+            "requiresEvidence": [
+              "motive"
+            ]
+          },
+          {
+            "label": {
+              "en": "Vehicle route",
+              "vi": "Hành trình phương tiện"
+            },
+            "value": {
+              "en": "His gray sedan 51H-742.19 entered Tower 17 and later travelled toward River-3.",
+              "vi": "Sedan xám 51H-742.19 của Mercer vào Tòa nhà 17 rồi di chuyển về RIVER-3."
+            },
+            "requiresEvidence": [
+              "vehicle-route"
+            ]
+          }
+        ]
+      }
+    ],
     "filesystem": [
       {
         "type": "file",
@@ -3930,6 +4458,14 @@
           "en": "The smart-home hub audit proves the bedroom clock was 17 minutes slow. A reliable homicide window must instead use the laptop NTP clock, wearable data and forensic findings.",
           "vi": "Nhật ký của bộ điều khiển nhà thông minh cho thấy đồng hồ phòng ngủ chạy chậm 17 phút. Vì vậy phải dùng giờ NTP của laptop, dữ liệu đồng hồ đeo tay và kết quả pháp y để xác định thời gian gây án đáng tin cậy."
         },
+        "completionSummary": {
+          "en": "The reliable record places the struggle at 01:14 and removal of ORPHEUS at 01:19; the bedroom clock is excluded.",
+          "vi": "Nguồn giờ đáng tin cậy xác định cuộc giằng co lúc 01:14 và ổ ORPHEUS bị tháo lúc 01:19; đồng hồ phòng ngủ bị loại khỏi chuỗi thời gian."
+        },
+        "nextLead": {
+          "en": "Ethan monitored unfamiliar devices on his home network. Determine whether another machine was active inside the apartment.",
+          "vi": "Ethan có theo dõi thiết bị lạ trong mạng nhà. Hãy xác định có máy nào khác hoạt động trong căn hộ vào thời điểm gây án hay không."
+        },
         "requiresEvidence": [
           "scene-baseline",
           "forensic-window",
@@ -3950,6 +4486,14 @@
         "reason": {
           "en": "The task begins with activity found in the victim laptop's locally stored network-monitor log. Because the connection was encrypted, the laptop reveals the device and destination but not the police account; restricted server records and the original router log are required next.",
           "vi": "Task được mở từ nhật ký giám sát mạng lưu trên laptop nạn nhân. Vì kết nối đã mã hóa, laptop chỉ cho biết thiết bị và tên miền đích, không biết tài khoản cảnh sát bên trong; người chơi phải tiếp tục đối chiếu hồ sơ máy chủ cảnh sát và nhật ký gốc của router."
+        },
+        "completionSummary": {
+          "en": "Lucas Reed has a verified alibi. His account was abused from FIELDKIT-MERCER, an unreturned police device assigned to Grant Mercer.",
+          "vi": "Lucas Reed có ngoại phạm đã xác minh. Tài khoản của anh bị sử dụng từ FIELDKIT-MERCER, thiết bị cảnh sát cũ được cấp cho Grant Mercer nhưng chưa hoàn trả."
+        },
+        "nextLead": {
+          "en": "A device name is not enough to accuse a person. Compare Mercer’s personnel record with physical traces, vehicle ownership and the contents of ORPHEUS.",
+          "vi": "Tên thiết bị chưa đủ để buộc tội một người. Hãy đối chiếu hồ sơ Mercer với dấu vết vật lý, quyền sở hữu phương tiện và nội dung ORPHEUS."
         },
         "requiresEvidence": [
           "separate-device",
@@ -3972,6 +4516,14 @@
           "en": "Device attribution is not enough for probable cause. The investigation needs a person connected independently by scene traces, means, vehicle and motive.",
           "vi": "Việc truy ra một thiết bị vẫn chưa đủ căn cứ để bắt người. Nghi phạm phải được liên kết với vụ án bằng nhiều nguồn độc lập: dấu vết tại hiện trường, khả năng gây án, chiếc xe và động cơ."
         },
+        "completionSummary": {
+          "en": "Grant Mercer is independently linked by the thumb scar, field kit, sedan route and a motive to recover the incriminating ORPHEUS archive.",
+          "vi": "Grant Mercer được liên kết độc lập bằng sẹo ngón cái, bộ thiết bị hiện trường, hành trình sedan và động cơ chiếm lại tài liệu ORPHEUS bất lợi cho hắn."
+        },
+        "nextLead": {
+          "en": "Mercer’s digital traces point to Central Library, but his vehicle travelled toward River-3. Test which location is real.",
+          "vi": "Dấu vết số của Mercer chỉ tới Thư viện Trung tâm, nhưng xe của hắn lại đi về RIVER-3. Hãy xác minh đâu mới là vị trí thật."
+        },
         "requiresEvidence": [
           "suspect-profile",
           "motive",
@@ -3992,6 +4544,14 @@
         "reason": {
           "en": "Both the VPN and burner GPS point to Central Library, while radio telemetry points to River-3. Acting on the false location would waste the rescue window.",
           "vi": "Địa chỉ VPN và GPS của điện thoại dùng một lần đều chỉ tới Thư viện Trung tâm, nhưng dữ liệu trạm phát sóng lại chỉ tới RIVER-3. Nếu tin vào vị trí giả, cảnh sát sẽ mất thời gian quý giá để giải cứu Claire."
+        },
+        "completionSummary": {
+          "en": "Central Library is only a VPN exit and spoofed GPS position. Independent radio records place Mercer’s devices in River-3.",
+          "vi": "Thư viện Trung tâm chỉ là điểm ra VPN và tọa độ GPS giả. Dữ liệu vô tuyến độc lập xác định thiết bị của Mercer tại RIVER-3."
+        },
+        "nextLead": {
+          "en": "Claire may still be alive. Follow her authenticated device activity and emergency radio signal into River-3.",
+          "vi": "Claire có thể vẫn còn sống. Hãy lần theo hoạt động của đúng thiết bị của cô và tín hiệu vô tuyến khẩn cấp tới RIVER-3."
         },
         "requiresEvidence": [
           "vpn-deception",
@@ -4014,6 +4574,14 @@
           "en": "Claire may still be alive. Her forged safety message and low-power beacon make locating her the investigation's urgent life-safety priority.",
           "vi": "Claire có thể vẫn còn sống. Tin nhắn báo an toàn đã bị làm giả, còn điện thoại của cô đang phát tín hiệu khẩn cấp yếu dần. Vì vậy việc xác định vị trí của Claire là ưu tiên cao nhất."
         },
+        "completionSummary": {
+          "en": "Claire’s safety message was forged. Her live emergency beacon narrows her location to Warehouse Row 4–7 in River-3.",
+          "vi": "Tin nhắn báo an toàn của Claire là giả. Tín hiệu khẩn cấp còn hoạt động khoanh vùng cô tại dãy kho số 4–7 trong RIVER-3."
+        },
+        "nextLead": {
+          "en": "Several warehouses remain. Intersect the beacon radius with the cranes, bell cycle, trace fibers and Northstar connection.",
+          "vi": "Vẫn còn nhiều nhà kho. Hãy giao phạm vi beacon với cần cẩu, chu kỳ chuông, sợi vi vết và mối liên hệ Northstar."
+        },
         "requiresEvidence": [
           "claire-abducted",
           "live-beacon",
@@ -4034,6 +4602,14 @@
         "reason": {
           "en": "River-3 still contains several candidate sites. A tactical team cannot enter until the exact warehouse is supported by multiple independent clues.",
           "vi": "Khu vực RIVER-3 có nhiều địa điểm khả nghi. Trước khi điều đội chiến thuật, cần dùng nhiều nguồn chứng cứ độc lập để xác nhận chính xác nhà kho nơi Claire bị giam giữ."
+        },
+        "completionSummary": {
+          "en": "Only Northstar Warehouse 6 matches every independent physical, environmental, vehicle and telecom clue.",
+          "vi": "Chỉ Kho Northstar số 6 phù hợp đồng thời với toàn bộ manh mối vật lý, môi trường, phương tiện và viễn thông độc lập."
+        },
+        "nextLead": {
+          "en": "The evidentiary chain is complete. Prepare the operational report with the suspect, vehicle, target and victim.",
+          "vi": "Chuỗi chứng cứ đã hoàn chỉnh. Hãy lập văn bản tác chiến với nghi phạm, phương tiện, mục tiêu và nạn nhân."
         },
         "requiresEvidence": [
           "target-location",

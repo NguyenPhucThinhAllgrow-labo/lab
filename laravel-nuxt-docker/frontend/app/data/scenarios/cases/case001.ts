@@ -71,6 +71,64 @@ export const case001: Scenario = {
     ],
   },
 
+  people: [
+    {
+      id: 'alex-morgan',
+      name: 'Alex Morgan',
+      role: { en: 'Missing employee', vi: 'Nhân viên mất tích' },
+      summary: {
+        en: 'Owner of the unlocked workstation and a member of the confidential Nightfall project.',
+        vi: 'Chủ máy trạm bị bỏ lại trong trạng thái mở khóa và là thành viên của dự án mật Nightfall.',
+      },
+      details: [
+        {
+          label: { en: 'Last known activity', vi: 'Hoạt động cuối cùng' },
+          value: {
+            en: 'His session was locked at 23:50, shortly after an unknown USB device was connected.',
+            vi: 'Phiên của Alex bị khóa lúc 23:50, ngay sau khi một USB không xác định được kết nối.',
+          },
+          requiresEvidence: ['terminal-log'],
+        },
+        {
+          label: { en: 'Planned meeting', vi: 'Cuộc hẹn đã lên kế hoạch' },
+          value: {
+            en: 'Alex agreed to meet an unknown sender alone at parking level B2.',
+            vi: 'Alex đồng ý gặp riêng một người gửi chưa xác định tại tầng B2 của bãi đỗ xe.',
+          },
+          requiresEvidence: ['sent-message'],
+        },
+      ],
+    },
+    {
+      id: 'marcus-reed',
+      name: 'Marcus Reed',
+      role: { en: 'Person of interest', vi: 'Đối tượng cần điều tra' },
+      summary: {
+        en: 'An internal user who had requested access to the Nightfall project.',
+        vi: 'Một người dùng nội bộ từng yêu cầu quyền truy cập dự án Nightfall.',
+      },
+      requiresEvidence: ['project-document'],
+      details: [
+        {
+          label: { en: 'Project access', vi: 'Quyền truy cập dự án' },
+          value: {
+            en: 'Marcus requested the Nightfall documentation, but Alex refused.',
+            vi: 'Marcus yêu cầu tài liệu Nightfall nhưng Alex đã từ chối.',
+          },
+          requiresEvidence: ['project-document'],
+        },
+        {
+          label: { en: 'Recovered identity', vi: 'Danh tính được khôi phục' },
+          value: {
+            en: 'Partially decrypted USB data resolves to the name Marcus Reed.',
+            vi: 'Dữ liệu USB được giải mã một phần cho ra tên Marcus Reed.',
+          },
+          requiresEvidence: ['encrypted-meeting'],
+        },
+      ],
+    },
+  ],
+
   /*
    * --------------------------------------------------
    * FILESYSTEM

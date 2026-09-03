@@ -72,6 +72,75 @@ const case002: Scenario = {
     ],
   },
 
+  people: [
+    {
+      id: 'alice-morgan',
+      name: 'Alice Morgan',
+      role: { en: 'Workstation owner', vi: 'Chủ máy trạm' },
+      summary: {
+        en: 'Finance employee whose unattended workstation was used during the transfer.',
+        vi: 'Nhân viên tài chính có máy trạm bị sử dụng trong lúc không có người trông coi.',
+      },
+      details: [
+        {
+          label: { en: 'Account activity', vi: 'Hoạt động tài khoản' },
+          value: {
+            en: 'The transfer occurred during Alice’s logged-in session, which does not by itself identify the operator.',
+            vi: 'Vụ chuyển dữ liệu xảy ra trong phiên đăng nhập của Alice, nhưng riêng điều đó chưa xác định được người thao tác.',
+          },
+          requiresEvidence: ['evidence-002-01'],
+        },
+        {
+          label: { en: 'Statement', vi: 'Lời khai' },
+          value: {
+            en: 'Alice denied authorizing the confidential transfer.',
+            vi: 'Alice phủ nhận việc cho phép chuyển dữ liệu mật.',
+          },
+          requiresEvidence: ['evidence-002-05'],
+        },
+      ],
+    },
+    {
+      id: 'bob-carter',
+      name: 'Bob Carter',
+      role: { en: 'IT employee', vi: 'Nhân viên CNTT' },
+      summary: {
+        en: 'An IT employee listed in the company directory.',
+        vi: 'Nhân viên CNTT có tên trong danh bạ công ty.',
+      },
+      requiresEvidence: ['evidence-002-02'],
+      details: [],
+    },
+    {
+      id: 'daniel-reed',
+      name: 'Daniel Reed',
+      role: { en: 'Security employee', vi: 'Nhân viên an ninh' },
+      summary: {
+        en: 'A security employee authorized for Project Orion who requested emergency access to Alice’s workstation.',
+        vi: 'Nhân viên an ninh có quyền với dự án Orion và từng yêu cầu sử dụng máy trạm của Alice.',
+      },
+      requiresEvidence: ['evidence-002-02'],
+      details: [
+        {
+          label: { en: 'Security exception', vi: 'Ngoại lệ bảo mật' },
+          value: {
+            en: 'A temporary security exception created just before the USB connection belonged to Daniel Reed.',
+            vi: 'Ngoại lệ bảo mật tạm thời được tạo ngay trước khi USB kết nối thuộc về Daniel Reed.',
+          },
+          requiresEvidence: ['evidence-002-03'],
+        },
+        {
+          label: { en: 'Maintenance request', vi: 'Yêu cầu bảo trì' },
+          value: {
+            en: 'Daniel asked Alice to leave the workstation unlocked for emergency maintenance.',
+            vi: 'Daniel yêu cầu Alice để máy trạm mở khóa cho công việc bảo trì khẩn cấp.',
+          },
+          requiresEvidence: ['evidence-002-04'],
+        },
+      ],
+    },
+  ],
+
   /*
    * --------------------------------------------------
    * FILESYSTEM

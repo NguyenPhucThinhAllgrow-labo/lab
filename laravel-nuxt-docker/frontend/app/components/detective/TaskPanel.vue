@@ -22,6 +22,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   toggleExpand: []
   createOperationalReport: []
+  reviewTaskSummary: [taskId: string]
 }>()
 
 const explainedTaskId = ref<string | null>(null)
@@ -253,6 +254,19 @@ function getDiscoveredCount(
               >
                 {{ getText(task.description) }}
               </div>
+
+              <button
+                v-if="task.completed"
+                type="button"
+                class="mt-2 rounded border border-emerald-700/70
+                       bg-emerald-950/35 px-2.5 py-1.5
+                       font-mono text-[9px] uppercase tracking-[0.1em]
+                       text-emerald-300 transition
+                       hover:border-emerald-500 hover:bg-emerald-900/45"
+                @click="emit('reviewTaskSummary', task.id)"
+              >
+                {{ locale === 'vi' ? 'Xem tổng kết' : 'Review summary' }}
+              </button>
 
               <div
                 v-if="explainedTaskId === task.id"

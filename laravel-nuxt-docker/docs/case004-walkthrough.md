@@ -10,6 +10,10 @@ Các lệnh dưới đây dùng đường dẫn tuyệt đối nên có thể ch
 
 Nhấn phím **M** ở ngoài ô nhập terminal để mở dòng thời gian vụ án. Ban đầu, bảng chỉ hiển thị những mốc mà điều tra viên đã đủ dữ kiện để tái dựng; các sự kiện mới sẽ xuất hiện dần khi evidence liên quan được khám phá. Nhấn **M** lần nữa, nhấn **Esc** hoặc nút đóng để quay lại màn hình điều tra.
 
+Nhấn phím **P** để mở hồ sơ những người liên quan. Ethan Ward và Claire Bennett có mặt từ đầu theo hồ sơ nhập vụ; Lucas Reed và Grant Mercer chỉ xuất hiện khi người chơi tìm được chứng cứ nhắc tới họ. Những thông tin nhạy cảm như ngoại phạm, động cơ, phương tiện và vị trí giam giữ tiếp tục được bổ sung theo từng evidence đã xác minh.
+
+Mỗi khi hoàn thành một task, game hiển thị thông báo gồm **Kết luận mới** và **Đầu mối tiếp theo**. Đầu mối chỉ định hướng nguồn cần điều tra hoặc phép đối chiếu cần thực hiện, không đưa thẳng câu lệnh hay lời giải.
+
 Tính năng này áp dụng cho mọi case. Case có timeline được biên soạn riêng sẽ dùng điều kiện `requiresEvidence` của từng sự kiện; case không khai báo timeline sẽ tự tạo các mốc `E01`, `E02`, ... từ evidence đã khám phá, vì vậy các case mới vẫn có timeline mặc định.
 
 Trước khi điều tra, đọc hồ sơ nhập vụ để nắm tóm tắt sự việc, vai trò của Ethan Ward và Claire Bennett, ý nghĩa ban đầu của ORPHEUS và các mục tiêu cần hoàn thành. Hồ sơ chỉ chứa thông tin cảnh sát biết lúc đến hiện trường, không tiết lộ hung thủ:

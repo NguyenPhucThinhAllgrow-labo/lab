@@ -109,9 +109,37 @@ export interface Task {
 
   reason?: LocalizedText
 
+  /* Shown once when the task is completed. */
+  completionSummary?: LocalizedText
+
+  /* A direction for the next investigation step without revealing a command. */
+  nextLead?: LocalizedText
+
   requiresEvidence: string[]
 
   completed?: boolean
+}
+
+export interface PersonProfileDetail {
+  label: LocalizedText
+
+  value: LocalizedText
+
+  requiresEvidence?: string[]
+}
+
+export interface PersonProfile {
+  id: string
+
+  name: string
+
+  role: LocalizedText
+
+  summary: LocalizedText
+
+  requiresEvidence?: string[]
+
+  details: PersonProfileDetail[]
 }
 
 export interface ScenarioTimelineEvent {
@@ -159,6 +187,9 @@ export interface Scenario {
   intro: LocalizedTextArray
 
   timeline?: ScenarioTimelineEvent[]
+
+  /* Character dossiers can reveal people and facts progressively. */
+  people?: PersonProfile[]
 
   /*
    * When present, completing every investigation task unlocks a final
