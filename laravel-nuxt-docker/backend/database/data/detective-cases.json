@@ -4584,8 +4584,7 @@
         },
         "requiresEvidence": [
           "claire-abducted",
-          "live-beacon",
-          "clock-correction"
+          "live-beacon"
         ],
         "completed": false
       },
@@ -4612,8 +4611,7 @@
           "vi": "Chuỗi chứng cứ đã hoàn chỉnh. Hãy lập văn bản tác chiến với nghi phạm, phương tiện, mục tiêu và nạn nhân."
         },
         "requiresEvidence": [
-          "target-location",
-          "false-trail-analysis"
+          "target-location"
         ],
         "completed": false
       }

@@ -178,11 +178,7 @@ Báo cáo loại bỏ bốn hướng sai:
 3. Tin nhắn an toàn của Claire được gửi bằng máy bàn sau khi cô bị bắt.
 4. Đồng hồ phòng ngủ bị lệch 17 phút.
 
-Lệnh cuối hoàn thành nhiệm vụ **Phá thủ đoạn đánh lạc hướng vị trí**. Vì các evidence cần cho nhiệm vụ **Truy tìm nạn nhân còn sống** cũng đã được thu thập, chạy một lệnh vô hại để hệ thống đánh giá nhiệm vụ vừa được giao:
-
-```bash
-pwd
-```
+Sau khi nhiệm vụ **Phá thủ đoạn đánh lạc hướng vị trí** hoàn tất, đối chiếu hai evidence trực tiếp với nhiệm vụ **Truy tìm nạn nhân còn sống**: `claire-abducted` chứng minh tin nhắn an toàn là giả và `live-beacon` xác định Claire còn sống tại dãy kho 4–7. `clock-correction` chỉ dùng để chuẩn hóa tuyến xe và không còn là điều kiện hoàn thành nhiệm vụ này.
 
 ## 6. Xác lập mục tiêu tác chiến
 
@@ -201,6 +197,8 @@ Chỉ **Kho Northstar số 6** đáp ứng đồng thời tất cả điều ki�
 - Thuộc Northstar Logistics, đơn vị liên quan hồ sơ tham nhũng và cuộc gọi từ máy rác.
 
 Các địa điểm còn lại bị loại vì thiếu cần cẩu, sai chu kỳ chuông, không có sợi đay hoặc không cho xe tải vào ban đêm.
+
+Đối chiếu `target-location` với task **Xác định chính xác địa điểm cần đột kích**. `false-trail-analysis` đã hoàn thành vai trò ở task loại bỏ vị trí giả và không cần liên kết lại ở bước này.
 
 ## 7. Lập văn bản tác chiến và kết thúc vụ án
 

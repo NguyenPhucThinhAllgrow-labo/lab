@@ -132,7 +132,7 @@ function isVerified(evidenceId: string) {
 }
 
 function evidenceLabel(item: Evidence) {
-  if (isVerified(item.id)) return getText(item.title)
+  if (isVerified(item.id)) return `${getText(item.title)} [${item.id}]`
 
   const index = props.evidence.findIndex(evidence => evidence.id === item.id)
   return `${props.locale === 'vi' ? 'Evidence' : 'Evidence'} ${String(index + 1).padStart(2, '0')}`
@@ -225,6 +225,21 @@ function toggleFileViewer(item: Evidence) {
       </div>
     </div>
 
+    <div
+      v-if="discovered.length"
+      class="mb-3 rounded border border-cyan-900/60
+             bg-cyan-950/20 px-3 py-2
+             font-mono text-[9px] leading-4
+             text-cyan-200/80"
+    >
+      <span class="mr-1 text-cyan-400">[INFO]</span>
+      {{
+        locale === 'vi'
+          ? 'Evidence đã xác nhận vẫn có thể được chọn lại để hoàn thành task khác.'
+          : 'Verified evidence can still be selected again to complete another task.'
+      }}
+    </div>
+
     <!-- DISCOVERED -->
 
     <div
@@ -243,9 +258,9 @@ function toggleFileViewer(item: Evidence) {
         :class="rejectedEvidenceIds?.includes(item.id)
           ? 'evidence-rejected border-red-500 bg-red-950/40'
           : selectedEvidenceIds.includes(item.id)
-            ? 'evidence-link-selected border-cyan-400 bg-cyan-950/40 ring-1 ring-cyan-500/40'
+            ? 'border-cyan-400 bg-cyan-950/40 ring-1 ring-cyan-500/40'
           : isVerified(item.id)
-            ? 'border-green-600/60 bg-green-900/30'
+            ? 'border-green-600/60 bg-slate-700/45'
             : 'border-slate-500/70 bg-slate-700/45'"
       >
         <div
@@ -253,10 +268,10 @@ function toggleFileViewer(item: Evidence) {
                  gap-2"
         >
           <span
-            class="font-mono text-xs"
-            :class="isVerified(item.id) ? 'text-green-300' : 'text-slate-300'"
+            v-if="!isVerified(item.id)"
+            class="font-mono text-xs text-slate-300"
           >
-            {{ isVerified(item.id) ? '✓' : '?' }}
+            ?
           </span>
 
           <span
@@ -270,7 +285,6 @@ function toggleFileViewer(item: Evidence) {
         <div
           v-if="isVerified(item.id)"
           class="mt-2
-                 pl-5
                  text-[10px]
                  leading-5
                  text-slate-200"
@@ -286,10 +300,10 @@ function toggleFileViewer(item: Evidence) {
 
         <div
           class="mt-2
-                 pl-5
                  font-mono
                  text-[9px]
                  text-slate-400"
+          :class="isVerified(item.id) ? '' : 'pl-5'"
         >
           SOURCE:
           {{ item.discover.path }}

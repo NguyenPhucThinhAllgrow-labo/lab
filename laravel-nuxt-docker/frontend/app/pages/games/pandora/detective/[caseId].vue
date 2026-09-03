@@ -79,6 +79,9 @@ const timelineOpen = ref(false)
 const personProfilesOpen = ref(false)
 const operationalReportOpen = ref(false)
 const operationalReportSuccess = ref(false)
+const automationCodeOpen = ref(false)
+const automationCode = ref('')
+const automationCodeIncorrect = ref(false)
 const completedTaskNotice = ref<Task | null>(null)
 const terminalLightTheme = ref(false)
 const terminalResetKey = ref(0)
@@ -355,6 +358,29 @@ function closeOperationalReport() {
   operationalReportSuccess.value = false
 }
 
+function closeAutomationCode() {
+  automationCodeOpen.value = false
+  automationCode.value = ''
+  automationCodeIncorrect.value = false
+}
+
+function submitAutomationCode() {
+  if (automationCode.value !== '123456') {
+    automationCodeIncorrect.value = true
+    return
+  }
+
+  closeAutomationCode()
+  selectedEvidenceIds.value = []
+  evidenceLinkFeedback.value = null
+  game.autoCompleteInvestigation()
+
+  if (scenario.operationalReport) {
+    operationalReportSuccess.value = true
+    operationalReportOpen.value = true
+  }
+}
+
 function createProgressPayload(): DetectiveProgressPayload {
   return {
     locale: game.state.locale,
@@ -529,6 +555,7 @@ async function resetGame() {
     evidenceLinkFeedback.value = null
     operationalReportOpen.value = false
     operationalReportSuccess.value = false
+    closeAutomationCode()
     personProfilesOpen.value = false
     closeTaskCompletionNotice()
     collapseExpandedPanels()
@@ -724,6 +751,19 @@ function handlePanelShortcut(
 
   if (
     event.key === 'Escape' &&
+    automationCodeOpen.value
+  ) {
+    event.preventDefault()
+    closeAutomationCode()
+    return
+  }
+
+  if (automationCodeOpen.value) {
+    return
+  }
+
+  if (
+    event.key === 'Escape' &&
     operationalReportOpen.value
   ) {
     event.preventDefault()
@@ -863,6 +903,14 @@ const autocompleteEntries = computed(() =>
 function executeCommand(
   command: string,
 ) {
+  if (command.trim().toLowerCase() === 'excute') {
+    automationCode.value = ''
+    automationCodeIncorrect.value = false
+    automationCodeOpen.value = true
+    terminalInput.value = ''
+    return
+  }
+
   const hintsBefore = game.state.hintHistory.length
   game.execute(command)
 
@@ -966,7 +1014,7 @@ async function handleCommandBarInput(
             : allPanelsExpanded
               ? 'relative col-span-2 row-start-2 flex min-h-0 flex-col'
               : multiplePanelsExpanded && expandedPanels.terminal
-                ? 'relative order-3 flex min-h-0 flex-col'
+                ? 'relative order-1 flex min-h-0 flex-col'
               : multiplePanelsExpanded
                 ? 'hidden'
                 : 'relative'
@@ -1141,7 +1189,7 @@ async function handleCommandBarInput(
             allPanelsExpanded
               ? 'col-start-1 row-start-1 min-h-0 min-w-0 w-full'
               : multiplePanelsExpanded && expandedPanels.task
-                ? 'order-1 min-h-0 min-w-0 w-full'
+                ? 'order-2 min-h-0 min-w-0 w-full'
               : multiplePanelsExpanded
                 ? 'hidden'
                 : ''
@@ -1273,6 +1321,89 @@ async function handleCommandBarInput(
         @submit="game.submitPassword"
         @cancel="game.cancelPasswordPrompt"
       />
+
+      <div
+        v-if="automationCodeOpen"
+        class="fixed inset-0 z-[150]
+               flex items-center justify-center
+               bg-black/85 p-4 backdrop-blur-sm"
+        role="presentation"
+        @click.self="closeAutomationCode"
+      >
+        <form
+          class="w-full max-w-md rounded-xl
+                 border border-emerald-700/70
+                 bg-zinc-950 p-6 font-mono
+                 shadow-2xl shadow-emerald-950/60"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="automation-code-title"
+          @submit.prevent="submitAutomationCode"
+        >
+          <p class="text-xs tracking-[0.25em] text-emerald-500">
+            [ CLASSIFIED OVERRIDE ]
+          </p>
+
+          <h2
+            id="automation-code-title"
+            class="mt-3 text-lg font-semibold text-zinc-100"
+          >
+            {{
+              game.state.locale === 'vi'
+                ? 'Nhập mã tự động hóa'
+                : 'Enter automation code'
+            }}
+          </h2>
+
+          <input
+            v-model="automationCode"
+            autofocus
+            type="password"
+            inputmode="numeric"
+            maxlength="6"
+            autocomplete="off"
+            class="mt-5 w-full rounded-md border
+                   border-emerald-900 bg-black px-4 py-3
+                   text-emerald-300 outline-none
+                   focus:border-emerald-500"
+            :aria-invalid="automationCodeIncorrect"
+            @input="automationCodeIncorrect = false"
+          >
+
+          <p
+            v-if="automationCodeIncorrect"
+            class="mt-3 text-xs text-red-400"
+          >
+            {{
+              game.state.locale === 'vi'
+                ? 'Mã không hợp lệ.'
+                : 'Invalid authorization code.'
+            }}
+          </p>
+
+          <div class="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              class="rounded-md border border-zinc-700
+                     px-4 py-2 text-xs text-zinc-300
+                     hover:bg-zinc-800"
+              @click="closeAutomationCode"
+            >
+              {{ game.state.locale === 'vi' ? 'Hủy' : 'Cancel' }}
+            </button>
+
+            <button
+              type="submit"
+              class="rounded-md border border-emerald-700
+                     bg-emerald-950/50 px-4 py-2
+                     text-xs text-emerald-300
+                     hover:bg-emerald-900/50"
+            >
+              {{ game.state.locale === 'vi' ? 'Xác nhận' : 'Authorize' }}
+            </button>
+          </div>
+        </form>
+      </div>
 
       <div
         v-if="resetConfirmationOpen"

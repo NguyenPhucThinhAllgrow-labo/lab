@@ -279,6 +279,7 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
                   {{ getText(
                       activeTask.title,
                     ) }}
+                  <span class="ml-1 font-mono text-cyan-500">[{{ activeTask.id }}]</span>
                 </div>
 
                 <span
@@ -408,6 +409,7 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
                     "
                   >
                     {{ getText(item.title) }}
+                    <span class="ml-1 text-cyan-500">[{{ item.id }}]</span>
                   </span>
                 </div>
 
@@ -455,12 +457,15 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
             <details
               v-for="task in completedTasks"
               :key="task.id"
-              class="overflow-hidden rounded border border-emerald-900/60 bg-emerald-950/20"
+              class="completed-task-record overflow-hidden rounded border border-emerald-900/60 bg-emerald-950/20 transition"
             >
-              <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-2.5 py-2 text-[10px] text-emerald-300 transition hover:bg-emerald-950/40">
+              <summary class="completed-task-summary flex cursor-pointer list-none items-center justify-between gap-3 px-2.5 py-2 text-[10px] text-emerald-300 transition hover:bg-emerald-950/40">
                 <span class="flex min-w-0 items-center gap-2">
                   <span class="shrink-0 font-mono">[VERIFIED] ✓</span>
-                  <span class="truncate">{{ getText(task.title) }}</span>
+                  <span class="truncate">
+                    {{ getText(task.title) }}
+                    <span class="text-emerald-600">[{{ task.id }}]</span>
+                  </span>
                 </span>
                 <span class="shrink-0 font-mono text-[9px] text-emerald-600">
                   {{ getLinkedTaskEvidence(task).length }}
@@ -488,6 +493,7 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
                     <div class="min-w-0">
                       <div class="text-[10px] text-emerald-200">
                         {{ getText(item.title) }}
+                        <span class="ml-1 text-cyan-600">[{{ item.id }}]</span>
                       </div>
                       <div class="mt-0.5 text-[9px] leading-4 text-stone-400">
                         {{ getText(item.description) }}

@@ -23,17 +23,6 @@
   animation: evidence-rejected 0.45s ease both;
 }
 
-.evidence-link-selected::before {
-  position: absolute;
-  top: 50%;
-  right: 100%;
-  width: 1.25rem;
-  height: 1px;
-  content: '';
-  background: rgb(34 211 238);
-  box-shadow: 0 0 8px rgb(34 211 238);
-}
-
 @keyframes evidence-rejected {
   20%, 60% { transform: translateX(-6px); }
   40%, 80% { transform: translateX(6px); }

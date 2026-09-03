@@ -261,9 +261,23 @@ export function useDetectiveGame(
     state.commandHistory = [
       ...(progress.command_history ?? []),
     ]
-    state.hintCount = Math.max(0, progress.hint_count ?? 0)
-    state.hintPenalty = Math.max(0, progress.hint_penalty ?? 0)
-    state.hintHistory = [...(progress.hint_history ?? [])]
+    const uniqueHintHistory = [
+      ...(progress.hint_history ?? []),
+    ].filter((usage, index, history) =>
+      history.findIndex(item =>
+        item.task_id === usage.task_id &&
+        item.evidence_id === usage.evidence_id &&
+        item.level === usage.level,
+      ) === index,
+    )
+
+    state.hintHistory = uniqueHintHistory
+    state.hintCount = uniqueHintHistory.length
+      ? uniqueHintHistory.length
+      : Math.max(0, progress.hint_count ?? 0)
+    state.hintPenalty = uniqueHintHistory.length
+      ? uniqueHintHistory.reduce((total, usage) => total + usage.penalty, 0)
+      : Math.max(0, progress.hint_penalty ?? 0)
 
     state.terminal =
       (progress.terminal_lines ?? []).map(
@@ -1118,6 +1132,36 @@ export function useDetectiveGame(
         task => task.completed,
       ),
     )
+  }
+
+  function autoCompleteInvestigation() {
+    if (state.gameCompleted) {
+      return
+    }
+
+    state.commandHistory.push('excute')
+
+    state.evidence.forEach(evidence => {
+      evidence.discovered = true
+    })
+
+    state.tasks.forEach(task => {
+      state.linkedEvidence[task.id] = [
+        ...task.requiresEvidence,
+      ]
+      task.completed = true
+    })
+
+    state.passwordPrompt = null
+
+    addLine(
+      'success',
+      state.locale === 'vi'
+        ? 'MÃ ĐIỀU KHIỂN HỢP LỆ — ĐÃ TỰ ĐỘNG HOÀN TẤT ĐIỀU TRA.'
+        : 'OVERRIDE CODE ACCEPTED — INVESTIGATION AUTOMATION COMPLETE.',
+    )
+
+    finalizeGameCompletion()
   }
 
   /*
@@ -2292,17 +2336,24 @@ export function useDetectiveGame(
     const penalty = ({ 1: 2, 2: 5, 3: 10 } as const)[
       normalizedLevel as 1 | 2 | 3
     ]
+    const alreadyCharged = state.hintHistory.some(usage =>
+      usage.task_id === taskId &&
+      usage.evidence_id === evidence.id &&
+      usage.level === normalizedLevel,
+    )
 
-    state.hintCount += 1
-    state.hintPenalty += penalty
-    state.hintHistory.push({
-      task_id: taskId,
-      evidence_id: evidence.id,
-      level: normalizedLevel,
-      penalty,
-      elapsed_seconds: 0,
-      recorded_at: new Date().toISOString(),
-    })
+    if (!alreadyCharged) {
+      state.hintCount += 1
+      state.hintPenalty += penalty
+      state.hintHistory.push({
+        task_id: taskId,
+        evidence_id: evidence.id,
+        level: normalizedLevel,
+        penalty,
+        elapsed_seconds: 0,
+        recorded_at: new Date().toISOString(),
+      })
+    }
 
     const hintLabel = state.locale === 'vi'
       ? `GỢI Ý CẤP ${normalizedLevel}/3`
@@ -2310,11 +2361,13 @@ export function useDetectiveGame(
 
     const lines = [`${hintLabel}: ${text(evidence.hint)}`]
 
-    lines.push(
-      state.locale === 'vi'
-        ? `→ Chi phí: -${penalty} điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
-        : `→ Cost: -${penalty} points · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`,
-    )
+    lines.push(state.locale === 'vi'
+      ? alreadyCharged
+        ? `→ Gợi ý đã mở khóa · Không trừ thêm điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
+        : `→ Chi phí: -${penalty} điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
+      : alreadyCharged
+        ? `→ Hint already unlocked · No additional cost · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`
+        : `→ Cost: -${penalty} points · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`)
 
     if (normalizedLevel >= 2) {
       lines.push(
@@ -4167,6 +4220,8 @@ function initialize() {
     completeOperationalReport,
 
     isOperationalReportAvailable,
+
+    autoCompleteInvestigation,
 
     restoreProgress,
 

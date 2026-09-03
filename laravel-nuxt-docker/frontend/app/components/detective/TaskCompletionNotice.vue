@@ -21,7 +21,7 @@ function text(value: { en: string; vi: string }) {
 
 <template>
   <aside
-    class="fixed left-1/2 top-5 z-[108] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-xl border border-emerald-600/70 bg-slate-950/95 p-5 shadow-[0_20px_70px_rgba(0,0,0,0.65)] backdrop-blur"
+    class="fixed left-1/2 top-1/2 z-[108] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-xl border border-emerald-600/70 bg-slate-950/95 p-5 shadow-[0_20px_70px_rgba(0,0,0,0.65)] backdrop-blur"
     role="status"
     aria-live="polite"
   >

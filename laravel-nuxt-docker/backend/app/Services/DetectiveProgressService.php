@@ -56,11 +56,28 @@ class DetectiveProgressService
 
         $existing = $this->progress->findForUserAndCase($user, $case);
 
+        $savable = Arr::only($data, self::SAVABLE_FIELDS);
+
+        if (array_key_exists('hint_history', $savable)) {
+            $hintHistory = collect($savable['hint_history'] ?? [])
+                ->unique(fn (array $hint): string => implode(':', [
+                    $hint['task_id'] ?? 'general',
+                    $hint['evidence_id'],
+                    $hint['level'],
+                ]))
+                ->values()
+                ->all();
+
+            $savable['hint_history'] = $hintHistory;
+            $savable['hint_count'] = count($hintHistory);
+            $savable['hint_penalty'] = (int) collect($hintHistory)->sum('penalty');
+        }
+
         $progress = $this->progress->saveForUserAndCase(
             $user,
             $case,
             [
-                ...Arr::only($data, self::SAVABLE_FIELDS),
+                ...$savable,
                 'run_id' => $existing?->run_id ?? (string) Str::uuid(),
                 'last_played_at' => now(),
             ],
