@@ -28,6 +28,23 @@ Sau đó đọc mô tả workspace để biết mỗi thư mục lấy dữ li�
 cat /README.txt
 ```
 
+### Quan hệ giữa Ethan, Claire, Mercer và nguồn gốc ORPHEUS
+
+Đọc ghi chú tiếp nhận nguồn tin trên laptop:
+
+```bash
+cat /laptop/orpheus-intake.txt
+```
+
+Chuỗi quan hệ được xác lập như sau:
+
+- **LYRA** là mật danh của một kiểm toán viên mua sắm thành phố. Người này gửi ổ đĩa mã hóa, checksum SHA-256 và danh mục hồ sơ cho Ethan qua hộp nhận tài liệu an toàn của tòa soạn.
+- **Ethan Ward** là phóng viên chính. Anh xác minh checksum, đặt tên kho dữ liệu là `ORPHEUS`, trực tiếp giữ ổ đĩa và giữ khóa giải mã duy nhất ngoại tuyến để bảo vệ nguồn tin.
+- **Claire Bennett** là biên tập viên kiêm người kiểm chứng độc lập. Cô không giữ ổ hoặc khóa giải mã; Ethan chỉ chuyển mã hóa đơn, đăng ký nhà cung cấp và ngày thanh toán để Claire đối chiếu với dữ liệu công khai.
+- **Grant Mercer** xuất hiện trong chuỗi phê duyệt đáng ngờ. Khi Ethan yêu cầu giải trình, Mercer giả vờ muốn làm nguồn đối chứng bí mật và đề nghị gặp riêng. Vì chưa biết Mercer là hung thủ, Ethan cấp mã khách dùng một lần `EW-INTERVIEW-04` cho cuộc gặp.
+
+Như vậy Ethan không tự nhiên có được toàn bộ bí mật: anh nhận dữ liệu từ một nguồn nội bộ, xác minh tính toàn vẹn bằng checksum và nhờ Claire kiểm chứng nội dung bằng nguồn độc lập. Mercer biết về ORPHEUS vì Ethan liên hệ hắn để bảo đảm quyền phản hồi trước khi xuất bản; hắn lợi dụng quy trình báo chí đó để vào căn hộ mà không cần phá cửa.
+
 ### Tệp gây nhiễu
 
 Case có thêm một số thư mục và tệp không thuộc chuỗi chứng cứ chính. Chúng chứa những chi tiết dễ khiến người chơi đi sai hướng, nhưng có thể bị loại trừ khi kiểm tra thời gian, nguồn dữ liệu và đặc điểm nhận dạng:
@@ -123,25 +140,7 @@ Chuỗi chứng cứ cho thấy:
 
 Hồ sơ tham nhũng xác lập động cơ; dấu vết vật lý, thiết bị và phương tiện mới là chứng cứ liên kết Mercer với hành vi.
 
-## 4. Phá thủ đoạn đánh lạc hướng vị trí
-
-Trước tiên kiểm tra VPN và điện thoại rác:
-
-```bash
-cat /network/vpn.log
-cat /telecom/suspect-phone.log
-```
-
-Không được kết luận Mercer ở Thư viện Trung tâm:
-
-- Thư viện chỉ là điểm ra công khai của VPN.
-- Kết nối VPN đi ra Internet tại Thư viện, nhưng tín hiệu vô tuyến cho thấy thiết bị bắt đầu kết nối từ khu vực `RIVER-3`.
-- GPS trên điện thoại dùng một lần báo vị trí Thư viện, nhưng phần mềm kiểm tra phát hiện tọa độ đã bị chèn giả.
-- Cùng thiết bị đó bám trạm `RIVER-3` rồi gọi tới máy cổng Northstar.
-
-Evidence tổng hợp của nhiệm vụ này còn cần dòng thời gian đã hiệu chỉnh. Vì vậy hãy tiếp tục truy nạn nhân trước khi đọc báo cáo loại dấu vết giả.
-
-## 5. Truy tìm Claire Bennett
+## 4. Truy tìm Claire Bennett
 
 Xác minh tin nhắn được gửi từ thiết bị nào, sau đó lần theo beacon điện thoại của Claire:
 
@@ -156,6 +155,24 @@ Kết luận:
 - Bản nháp chưa gửi mô tả xe tải xanh, cần cẩu ven sông và tiếng chuông mỗi 15 phút.
 - Điện thoại Claire di chuyển từ khu trung tâm tới `RIVER-3`.
 - “Beacon” là tín hiệu khẩn cấp công suất thấp do điện thoại Claire phát ra khi không lấy được GPS. Hai trạm di động đo hướng phát và khoanh vùng điện thoại trong bán kính 180 m quanh dãy kho số 4 đến số 7.
+
+Đối chiếu `claire-abducted` và `live-beacon` với task **Truy tìm nạn nhân còn sống**. Task này chỉ cần xác minh Claire bị bắt cóc và khoanh vùng tín hiệu còn hoạt động; chưa cần xác định chính xác nhà kho.
+
+## 5. Phá thủ đoạn đánh lạc hướng vị trí
+
+Beacon chỉ tới `RIVER-3`, nhưng dấu vết số của Mercer lại chỉ tới Thư viện Trung tâm. Kiểm tra VPN và điện thoại rác để giải quyết mâu thuẫn:
+
+```bash
+cat /network/vpn.log
+cat /telecom/suspect-phone.log
+```
+
+Không được kết luận Mercer ở Thư viện Trung tâm:
+
+- Thư viện chỉ là điểm ra công khai của VPN.
+- Kết nối VPN đi ra Internet tại Thư viện, nhưng tín hiệu vô tuyến cho thấy thiết bị bắt đầu kết nối từ khu vực `RIVER-3`.
+- GPS trên điện thoại dùng một lần báo vị trí Thư viện, nhưng phần mềm kiểm tra phát hiện tọa độ đã bị chèn giả.
+- Cùng thiết bị đó bám trạm `RIVER-3` rồi gọi tới máy cổng Northstar.
 
 Đối chiếu tuyến xe và beacon trên một dòng thời gian chuẩn:
 
@@ -178,7 +195,7 @@ Báo cáo loại bỏ bốn hướng sai:
 3. Tin nhắn an toàn của Claire được gửi bằng máy bàn sau khi cô bị bắt.
 4. Đồng hồ phòng ngủ bị lệch 17 phút.
 
-Sau khi nhiệm vụ **Phá thủ đoạn đánh lạc hướng vị trí** hoàn tất, đối chiếu hai evidence trực tiếp với nhiệm vụ **Truy tìm nạn nhân còn sống**: `claire-abducted` chứng minh tin nhắn an toàn là giả và `live-beacon` xác định Claire còn sống tại dãy kho 4–7. `clock-correction` chỉ dùng để chuẩn hóa tuyến xe và không còn là điều kiện hoàn thành nhiệm vụ này.
+Đối chiếu `vpn-deception`, `gps-spoof` và `false-trail-analysis` với task **Loại bỏ vị trí giả do hung thủ tạo ra**. Vì `live-beacon` đã được tìm ở task trước, `clock-correction` giờ được mở theo đúng thứ tự và không còn buộc người chơi làm trước một task chưa được giao.
 
 ## 6. Xác lập mục tiêu tác chiến
 
@@ -226,6 +243,7 @@ Dùng block sau để kiểm thử nhanh một lượt chơi mới theo đúng t
 ```bash
 cat /CASE-BRIEF.txt
 cat /README.txt
+cat /laptop/orpheus-intake.txt
 cat /scene/first-response.txt
 cat /scene/chain-of-custody.txt
 cat /scene/forensics.txt
@@ -236,10 +254,10 @@ cat /network/dhcp.log
 sudo cat /police/personnel.txt
 sudo cat /police/corruption-case.txt
 cat /city/parking.log
-cat /network/vpn.log
-cat /telecom/suspect-phone.log
 cat /laptop/messages-recovered.txt
 cat /telecom/claire-phone.log
+cat /network/vpn.log
+cat /telecom/suspect-phone.log
 cat /analysis/clock-normalization.txt
 cat /analysis/false-trails.txt
 pwd

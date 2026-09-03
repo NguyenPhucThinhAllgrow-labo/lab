@@ -3330,8 +3330,8 @@
           "vi": "Nạn nhân · nhà báo điều tra"
         },
         "summary": {
-          "en": "Ethan investigated city emergency-radio contracts and protected source material on the encrypted ORPHEUS drive.",
-          "vi": "Ethan điều tra các hợp đồng vô tuyến khẩn cấp của thành phố và bảo vệ tài liệu nguồn tin trong ổ đĩa mã hóa ORPHEUS."
+          "en": "Ethan led the reporting on city emergency-radio contracts. An anonymous procurement auditor sent him the encrypted archive that he named ORPHEUS, while Claire independently verified its records before publication.",
+          "vi": "Ethan phụ trách điều tra các hợp đồng vô tuyến khẩn cấp của thành phố. Một kiểm toán viên mua sắm ẩn danh đã chuyển cho anh kho dữ liệu mã hóa mà anh đặt tên là ORPHEUS, còn Claire chịu trách nhiệm kiểm chứng độc lập trước khi xuất bản."
         },
         "details": [
           {
@@ -3362,6 +3362,19 @@
           },
           {
             "label": {
+              "en": "How ORPHEUS reached Ethan",
+              "vi": "Ethan có ORPHEUS bằng cách nào"
+            },
+            "value": {
+              "en": "A source using the codename LYRA delivered an encrypted drive through the newsroom secure drop. Ethan verified its checksum, named the archive ORPHEUS and kept the only decryption key offline.",
+              "vi": "Nguồn tin mang mật danh LYRA gửi một ổ đĩa mã hóa qua hộp nhận tài liệu an toàn của tòa soạn. Ethan kiểm tra checksum, đặt tên kho dữ liệu là ORPHEUS và giữ khóa giải mã duy nhất ở chế độ ngoại tuyến."
+            },
+            "requiresEvidence": [
+              "device-timeline"
+            ]
+          },
+          {
+            "label": {
               "en": "Connection to Mercer",
               "vi": "Quan hệ với Mercer"
             },
@@ -3383,8 +3396,8 @@
           "vi": "Người mất tích · biên tập viên của Ethan"
         },
         "summary": {
-          "en": "Claire worked directly with Ethan and warned him that she was being followed shortly before the homicide.",
-          "vi": "Claire làm việc trực tiếp với Ethan và cảnh báo rằng cô đang bị bám theo ngay trước khi án mạng xảy ra."
+          "en": "Claire was Ethan’s editor and verification partner. She checked ORPHEUS invoice numbers against public procurement records but never held the drive or its decryption key.",
+          "vi": "Claire là biên tập viên kiêm người kiểm chứng độc lập của Ethan. Cô đối chiếu mã hóa đơn trong ORPHEUS với hồ sơ mua sắm công khai nhưng không giữ ổ đĩa hoặc khóa giải mã."
         },
         "details": [
           {
@@ -3395,6 +3408,19 @@
             "value": {
               "en": "The “I am safe” message used her desktop key, not her phone key. An unsent draft mentions a blue truck, river cranes and a fifteen-minute bell.",
               "vi": "Tin nhắn “tôi an toàn” dùng khóa máy bàn, không phải khóa điện thoại. Bản nháp chưa gửi nhắc tới xe tải xanh, cần cẩu ven sông và tiếng chuông mỗi 15 phút."
+            },
+            "requiresEvidence": [
+              "claire-abducted"
+            ]
+          },
+          {
+            "label": {
+              "en": "Working relationship with Ethan",
+              "vi": "Quan hệ công việc với Ethan"
+            },
+            "value": {
+              "en": "Ethan protected the source and raw archive; Claire independently verified vendors, invoices and payment dates so the investigation would not rely on a single anonymous claim.",
+              "vi": "Ethan bảo vệ nguồn tin và dữ liệu gốc; Claire kiểm chứng độc lập nhà cung cấp, hóa đơn và ngày thanh toán để bài điều tra không chỉ dựa vào lời của một nguồn ẩn danh."
             },
             "requiresEvidence": [
               "claire-abducted"
@@ -3473,8 +3499,8 @@
           "vi": "Người được hẹn phỏng vấn về ORPHEUS"
         },
         "summary": {
-          "en": "Ethan issued Mercer a temporary guest code for a private source interview. His true connection to the case must be established independently.",
-          "vi": "Ethan cấp cho Mercer mã khách tạm thời để thực hiện một cuộc phỏng vấn nguồn tin riêng. Vai trò thật sự của Mercer vẫn phải được chứng minh bằng các nguồn độc lập."
+          "en": "After Ethan requested comment on the suspicious approvals, Mercer claimed he could privately authenticate the records. Ethan treated him as a potential corroborating source and issued a temporary guest code.",
+          "vi": "Sau khi Ethan yêu cầu giải trình về các phê duyệt đáng ngờ, Mercer nói rằng hắn có thể bí mật xác thực hồ sơ. Ethan xem hắn như một nguồn có khả năng đối chứng và cấp mã khách tạm thời."
         },
         "requiresEvidence": [
           "device-timeline"
@@ -3491,6 +3517,19 @@
             },
             "requiresEvidence": [
               "account-compromise"
+            ]
+          },
+          {
+            "label": {
+              "en": "Reason for meeting Ethan",
+              "vi": "Lý do gặp Ethan"
+            },
+            "value": {
+              "en": "Mercer responded to Ethan’s request for comment by posing as a confidential corroborating source. The meeting gave him lawful-looking access to apartment 17B and an opportunity to seize ORPHEUS.",
+              "vi": "Mercer phản hồi yêu cầu giải trình của Ethan bằng cách giả làm nguồn đối chứng bí mật. Cuộc hẹn giúp hắn vào căn hộ 17B mà không cần phá cửa và tạo cơ hội chiếm ORPHEUS."
+            },
+            "requiresEvidence": [
+              "motive"
             ]
           },
           {
@@ -3609,10 +3648,18 @@
           },
           {
             "type": "file",
+            "name": "orpheus-intake.txt",
+            "content": {
+              "en": "ORPHEUS — SOURCE INTAKE NOTES\nCase opened: twelve days before the incident\nReporter: Ethan Ward\nEditor / independent verifier: Claire Bennett\n\nA municipal procurement auditor using the codename LYRA contacted Ethan through the newsroom secure drop. LYRA supplied an encrypted removable drive, a SHA-256 checksum and a short index of emergency-radio contract records. Ethan verified the checksum, assigned the archive name ORPHEUS and kept the only decryption key offline.\n\nEthan protected LYRA's identity and reviewed the raw archive. Claire did not receive the drive or key; Ethan gave her invoice numbers, vendor registrations and payment dates to verify independently against public records. Claire confirmed that the Northstar invoices and procurement entries were genuine.\n\nEthan then requested comment from people named in the approval chain. Grant Mercer replied that he possessed internal context capable of authenticating the records and asked for an off-record meeting. Ethan recorded Mercer as a potential corroborating source—not a cleared witness—and created temporary guest code EW-INTERVIEW-04 for that meeting.\n\nSECURITY NOTE: no complete copy of ORPHEUS was stored on the laptop. The encrypted removable drive is the missing original; these notes explain provenance but do not reproduce its protected contents.",
+              "vi": "ORPHEUS — GHI CHÚ TIẾP NHẬN NGUỒN TIN\nMở hồ sơ: mười hai ngày trước vụ án\nPhóng viên phụ trách: Ethan Ward\nBiên tập viên / người kiểm chứng độc lập: Claire Bennett\n\nMột kiểm toán viên mua sắm của thành phố dùng mật danh LYRA đã liên hệ Ethan qua hộp nhận tài liệu an toàn của tòa soạn. LYRA gửi một ổ đĩa rời được mã hóa, checksum SHA-256 và danh mục ngắn về các hồ sơ hợp đồng vô tuyến khẩn cấp. Ethan xác minh checksum, đặt tên kho dữ liệu là ORPHEUS và giữ khóa giải mã duy nhất ở chế độ ngoại tuyến.\n\nEthan bảo vệ danh tính LYRA và trực tiếp xem dữ liệu gốc. Claire không nhận ổ đĩa hoặc khóa; Ethan chỉ chuyển cho cô các mã hóa đơn, đăng ký nhà cung cấp và ngày thanh toán để đối chiếu độc lập với hồ sơ công khai. Claire xác nhận hóa đơn Northstar và các mục mua sắm là có thật.\n\nSau đó Ethan yêu cầu những người có tên trong chuỗi phê duyệt giải trình. Grant Mercer trả lời rằng hắn có thông tin nội bộ có thể xác thực hồ sơ và đề nghị gặp riêng. Ethan ghi Mercer là nguồn đối chứng tiềm năng—chưa phải nhân chứng đã được xác minh—và tạo mã khách tạm thời EW-INTERVIEW-04 cho cuộc hẹn.\n\nLƯU Ý BẢO MẬT: laptop không giữ bản sao đầy đủ của ORPHEUS. Ổ đĩa rời mã hóa bị mất là bản gốc; tệp này chỉ giải thích nguồn gốc, không sao chép nội dung được bảo vệ."
+            }
+          },
+          {
+            "type": "file",
             "name": "messages-recovered.txt",
             "content": {
-              "en": "RECOVERED THREAD\n00:52 CLAIRE-BENNETT: Ethan, the procurement files are real. I am followed.\n00:54 ETHAN: Go to the newsroom safe point. Do not come here.\n01:06 CLAIRE-BENNETT: [message sent by paired desktop] I'm safe at home. Delete everything.\nFORENSIC NOTE: 01:06 message signed by desktop key CB-DESK-2, not Claire's phone key CB-PHONE-9.\nDRAFT 01:16 (unsent): \"Blue truck. River cranes. Heard bell every fifteen minutes.\"",
-              "vi": "LUỒNG TIN NHẮN KHÔI PHỤC\n00:52 CLAIRE-BENNETT: Ethan, hồ sơ mua sắm là thật. Có người bám theo tôi.\n00:54 ETHAN: Tới điểm an toàn của tòa soạn. Đừng về đây.\n01:06 CLAIRE-BENNETT: [gửi từ máy tính ghép cặp] Tôi an toàn ở nhà. Xóa hết đi.\nGHI CHÚ PHÁP Y: tin 01:06 ký bằng khóa máy bàn CB-DESK-2, không phải khóa điện thoại CB-PHONE-9 của Claire.\nBẢN NHÁP 01:16 (chưa gửi): \"Xe tải xanh. Cần cẩu ven sông. Nghe chuông mỗi mười lăm phút.\""
+              "en": "RECOVERED THREAD\n00:34 ETHAN: I verified LYRA's checksum. I am opening ORPHEUS now. You still have only the invoice references—keep the source and archive separate.\n00:37 CLAIRE-BENNETT: Understood. Northstar vendor registration matches. I am checking the payment dates independently.\n00:39 ETHAN: Mercer answered my request for comment. He says he can authenticate the approval chain off record. I marked him as unverified and gave him a one-use guest code.\n00:52 CLAIRE-BENNETT: Ethan, the procurement files are real. I am followed.\n00:54 ETHAN: Go to the newsroom safe point. Do not come here.\n01:06 CLAIRE-BENNETT: [message sent by paired desktop] I'm safe at home. Delete everything.\nFORENSIC NOTE: 01:06 message signed by desktop key CB-DESK-2, not Claire's phone key CB-PHONE-9.\nDRAFT 01:16 (unsent): \"Blue truck. River cranes. Heard bell every fifteen minutes.\"",
+              "vi": "LUỒNG TIN NHẮN KHÔI PHỤC\n00:34 ETHAN: Tôi đã xác minh checksum của LYRA và đang mở ORPHEUS. Cô vẫn chỉ giữ các mã hóa đơn—phải tách riêng nguồn tin với kho dữ liệu.\n00:37 CLAIRE-BENNETT: Đã rõ. Đăng ký nhà cung cấp Northstar khớp. Tôi đang kiểm tra độc lập các ngày thanh toán.\n00:39 ETHAN: Mercer đã phản hồi yêu cầu giải trình. Hắn nói có thể bí mật xác thực chuỗi phê duyệt. Tôi đánh dấu hắn là chưa được xác minh và chỉ cấp mã khách dùng một lần.\n00:52 CLAIRE-BENNETT: Ethan, hồ sơ mua sắm là thật. Có người bám theo tôi.\n00:54 ETHAN: Tới điểm an toàn của tòa soạn. Đừng về đây.\n01:06 CLAIRE-BENNETT: [gửi từ máy tính ghép cặp] Tôi an toàn ở nhà. Xóa hết đi.\nGHI CHÚ PHÁP Y: tin 01:06 ký bằng khóa máy bàn CB-DESK-2, không phải khóa điện thoại CB-PHONE-9 của Claire.\nBẢN NHÁP 01:16 (chưa gửi): \"Xe tải xanh. Cần cẩu ven sông. Nghe chuông mỗi mười lăm phút.\""
             }
           },
           {
@@ -3674,8 +3721,8 @@
             "type": "file",
             "name": "corruption-case.txt",
             "content": {
-              "en": "SEALED INTERNAL CASE — authorized for homicide task force\nOrpheus archive concerned diverted emergency-radio contracts.\nShell vendor: Northstar Logistics.\nApproval chain included former supervisor Grant Mercer.\nJournalist requested comment yesterday; Mercer denied contact.\nThis establishes motive, not presence. Corroboration required.",
-              "vi": "HỒ SƠ NỘI BỘ ĐÃ NIÊM PHONG — tổ điều tra án mạng được phép truy cập\nTài liệu ORPHEUS đề cập việc tiền từ các hợp đồng vô tuyến khẩn cấp bị biển thủ.\nNorthstar Logistics là công ty bình phong nhận các hợp đồng này.\nGrant Mercer, cựu giám sát viên, xuất hiện trong chuỗi phê duyệt.\nHôm qua Ethan Ward đã đề nghị Mercer trả lời về vụ việc, nhưng Mercer phủ nhận mọi liên quan.\nThông tin này xác lập động cơ gây án, nhưng chưa chứng minh Mercer có mặt tại hiện trường. Cần thêm chứng cứ độc lập."
+              "en": "SEALED INTERNAL CASE — authorized for homicide task force\nOrpheus archive concerned diverted emergency-radio contracts.\nSource provenance: procurement auditor codenamed LYRA delivered the encrypted archive to Ethan Ward through the newsroom secure drop. Claire Bennett independently matched its invoice references and payment dates against public procurement records.\nShell vendor: Northstar Logistics.\nApproval chain included former supervisor Grant Mercer.\nEthan requested comment; Mercer then presented himself as a confidential corroborating source and arranged the private meeting recorded on Ethan's laptop. Mercer later denied any contact.\nThis establishes access to the investigation and motive, not presence. Corroboration required.",
+              "vi": "HỒ SƠ NỘI BỘ ĐÃ NIÊM PHONG — tổ điều tra án mạng được phép truy cập\nTài liệu ORPHEUS đề cập việc tiền từ các hợp đồng vô tuyến khẩn cấp bị biển thủ.\nNguồn gốc: kiểm toán viên mua sắm mang mật danh LYRA gửi kho dữ liệu mã hóa cho Ethan Ward qua hộp nhận tài liệu an toàn của tòa soạn. Claire Bennett đã đối chiếu độc lập mã hóa đơn và ngày thanh toán với hồ sơ mua sắm công khai.\nNorthstar Logistics là công ty bình phong nhận các hợp đồng này.\nGrant Mercer, cựu giám sát viên, xuất hiện trong chuỗi phê duyệt.\nEthan yêu cầu Mercer giải trình; sau đó Mercer tự nhận là nguồn đối chứng bí mật và sắp xếp cuộc gặp riêng được ghi trên laptop Ethan. Về sau hắn phủ nhận từng liên hệ.\nThông tin này xác lập việc Mercer biết cuộc điều tra và có động cơ gây án, nhưng chưa chứng minh hắn có mặt tại hiện trường. Cần thêm chứng cứ độc lập."
             }
           }
         ]
@@ -4521,42 +4568,13 @@
           "vi": "Grant Mercer được liên kết độc lập bằng sẹo ngón cái, bộ thiết bị hiện trường, hành trình sedan và động cơ chiếm lại tài liệu ORPHEUS bất lợi cho hắn."
         },
         "nextLead": {
-          "en": "Mercer’s digital traces point to Central Library, but his vehicle travelled toward River-3. Test which location is real.",
-          "vi": "Dấu vết số của Mercer chỉ tới Thư viện Trung tâm, nhưng xe của hắn lại đi về RIVER-3. Hãy xác minh đâu mới là vị trí thật."
+          "en": "Claire may still be alive and her safety message cannot yet be trusted. Authenticate her messages and follow her emergency radio signal.",
+          "vi": "Claire có thể vẫn còn sống và chưa thể tin vào tin nhắn báo an toàn. Hãy xác thực thiết bị gửi tin rồi lần theo tín hiệu vô tuyến khẩn cấp của cô."
         },
         "requiresEvidence": [
           "suspect-profile",
           "motive",
           "vehicle-route"
-        ],
-        "completed": false
-      },
-      {
-        "id": "defeat-deception",
-        "title": {
-          "en": "Defeat the location deception",
-          "vi": "Loại bỏ vị trí giả do hung thủ tạo ra"
-        },
-        "description": {
-          "en": "Separate VPN exit and spoofed GPS from physical radio evidence.",
-          "vi": "Phân biệt địa chỉ VPN và tọa độ GPS giả với dữ liệu vô tuyến phản ánh vị trí thật."
-        },
-        "reason": {
-          "en": "Both the VPN and burner GPS point to Central Library, while radio telemetry points to River-3. Acting on the false location would waste the rescue window.",
-          "vi": "Địa chỉ VPN và GPS của điện thoại dùng một lần đều chỉ tới Thư viện Trung tâm, nhưng dữ liệu trạm phát sóng lại chỉ tới RIVER-3. Nếu tin vào vị trí giả, cảnh sát sẽ mất thời gian quý giá để giải cứu Claire."
-        },
-        "completionSummary": {
-          "en": "Central Library is only a VPN exit and spoofed GPS position. Independent radio records place Mercer’s devices in River-3.",
-          "vi": "Thư viện Trung tâm chỉ là điểm ra VPN và tọa độ GPS giả. Dữ liệu vô tuyến độc lập xác định thiết bị của Mercer tại RIVER-3."
-        },
-        "nextLead": {
-          "en": "Claire may still be alive. Follow her authenticated device activity and emergency radio signal into River-3.",
-          "vi": "Claire có thể vẫn còn sống. Hãy lần theo hoạt động của đúng thiết bị của cô và tín hiệu vô tuyến khẩn cấp tới RIVER-3."
-        },
-        "requiresEvidence": [
-          "vpn-deception",
-          "gps-spoof",
-          "false-trail-analysis"
         ],
         "completed": false
       },
@@ -4579,12 +4597,41 @@
           "vi": "Tin nhắn báo an toàn của Claire là giả. Tín hiệu khẩn cấp còn hoạt động khoanh vùng cô tại dãy kho số 4–7 trong RIVER-3."
         },
         "nextLead": {
-          "en": "Several warehouses remain. Intersect the beacon radius with the cranes, bell cycle, trace fibers and Northstar connection.",
-          "vi": "Vẫn còn nhiều nhà kho. Hãy giao phạm vi beacon với cần cẩu, chu kỳ chuông, sợi vi vết và mối liên hệ Northstar."
+          "en": "The beacon points to River-3, while Mercer’s digital traces point to Central Library. Correct the conflicting clocks and determine which location records are false.",
+          "vi": "Beacon chỉ tới RIVER-3, trong khi dấu vết số của Mercer lại chỉ tới Thư viện Trung tâm. Hãy hiệu chỉnh các nguồn giờ xung đột và xác định bản ghi vị trí nào đã bị làm giả."
         },
         "requiresEvidence": [
           "claire-abducted",
           "live-beacon"
+        ],
+        "completed": false
+      },
+      {
+        "id": "defeat-deception",
+        "title": {
+          "en": "Defeat the location deception",
+          "vi": "Loại bỏ vị trí giả do hung thủ tạo ra"
+        },
+        "description": {
+          "en": "Separate VPN exit and spoofed GPS from physical radio evidence.",
+          "vi": "Phân biệt địa chỉ VPN và tọa độ GPS giả với dữ liệu vô tuyến phản ánh vị trí thật."
+        },
+        "reason": {
+          "en": "Both the VPN and burner GPS point to Central Library, while radio telemetry points to River-3. Acting on the false location would waste the rescue window.",
+          "vi": "Địa chỉ VPN và GPS của điện thoại dùng một lần đều chỉ tới Thư viện Trung tâm, nhưng dữ liệu trạm phát sóng lại chỉ tới RIVER-3. Nếu tin vào vị trí giả, cảnh sát sẽ mất thời gian quý giá để giải cứu Claire."
+        },
+        "completionSummary": {
+          "en": "Central Library is only a VPN exit and spoofed GPS position. Independent radio records place Mercer’s devices in River-3.",
+          "vi": "Thư viện Trung tâm chỉ là điểm ra VPN và tọa độ GPS giả. Dữ liệu vô tuyến độc lập xác định thiết bị của Mercer tại RIVER-3."
+        },
+        "nextLead": {
+          "en": "River-3 still contains several warehouses. Intersect Claire’s beacon with the environmental traces and the Northstar connection to establish one lawful tactical target.",
+          "vi": "RIVER-3 vẫn có nhiều nhà kho. Hãy kết hợp beacon của Claire với dấu vết môi trường và mối liên hệ Northstar để xác lập một mục tiêu tác chiến có đủ căn cứ pháp lý."
+        },
+        "requiresEvidence": [
+          "vpn-deception",
+          "gps-spoof",
+          "false-trail-analysis"
         ],
         "completed": false
       },
