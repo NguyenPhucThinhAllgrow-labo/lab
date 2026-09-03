@@ -1066,7 +1066,6 @@ async function handleCommandBarInput(
         :evidence="game.state.evidence"
         :total-events="timelineTotalEvents"
         :locale="game.state.locale"
-        @change-locale="game.state.locale = $event"
         @close="timelineOpen = false"
       />
 

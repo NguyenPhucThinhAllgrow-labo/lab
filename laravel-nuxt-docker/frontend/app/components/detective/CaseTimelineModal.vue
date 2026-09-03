@@ -14,10 +14,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  'change-locale': [locale: SupportedLocale]
 }>()
-
-const languages: SupportedLocale[] = ['en', 'vi']
 
 const sortedEvents = computed(() =>
   props.events
@@ -100,37 +97,15 @@ function evidenceBasis(event: ScenarioTimelineEvent) {
           </p>
         </div>
 
-        <div class="flex items-center gap-3">
-          <div
-            class="flex overflow-hidden rounded border border-slate-700
-                   bg-black/40 font-mono text-[10px]"
-            :aria-label="locale === 'vi' ? 'Chọn ngôn ngữ' : 'Select language'"
-          >
-            <button
-              v-for="language in languages"
-              :key="language"
-              type="button"
-              class="px-2.5 py-1.5 uppercase transition"
-              :class="locale === language
-                ? 'bg-cyan-800 text-white'
-                : 'text-slate-500 hover:bg-slate-900 hover:text-cyan-300'"
-              :aria-pressed="locale === language"
-              @click="emit('change-locale', language)"
-            >
-              {{ language }}
-            </button>
-          </div>
-
-          <button
-            type="button"
-            class="rounded border border-cyan-800 px-3 py-1.5
-                   font-mono text-xs text-cyan-300 transition
-                   hover:bg-cyan-950"
-            @click="emit('close')"
-          >
-            [M] {{ locale === 'vi' ? 'Đóng' : 'Close' }}
-          </button>
-        </div>
+        <button
+          type="button"
+          class="rounded border border-cyan-800 px-3 py-1.5
+                 font-mono text-xs text-cyan-300 transition
+                 hover:bg-cyan-950"
+          @click="emit('close')"
+        >
+          [M] {{ locale === 'vi' ? 'Đóng' : 'Close' }}
+        </button>
       </header>
 
       <div class="shrink-0 border-b border-slate-800 bg-black/25 px-5 py-3 md:px-8">
