@@ -155,14 +155,14 @@ function toggleFileViewer(item: Evidence) {
   <section
     class="rounded-lg
            border
-           border-slate-600
-           bg-slate-800/90
+           border-cyan-800/70
+           bg-[#03090d]/95
            p-4
            shadow-lg
-           shadow-slate-950/30"
+           shadow-[0_0_30px_rgba(6,182,212,0.08)]"
     :class="
       expanded && !grouped
-        ? 'fixed inset-4 z-50 flex flex-col bg-slate-900 md:inset-8'
+        ? 'fixed inset-4 z-50 flex flex-col bg-[#03090d] md:inset-8'
         : expanded
           ? 'flex h-full min-h-0 flex-col'
           : ''
@@ -179,7 +179,7 @@ function toggleFileViewer(item: Evidence) {
                  text-xs
                  uppercase
                  tracking-[0.2em]
-                 text-slate-200"
+                 text-cyan-300"
         >
           Evidence
         </div>
@@ -197,7 +197,7 @@ function toggleFileViewer(item: Evidence) {
         <div
           class="font-mono
                  text-[10px]
-                 text-slate-300"
+                 text-cyan-400"
         >
           {{ discovered.length }}
           /
@@ -207,12 +207,12 @@ function toggleFileViewer(item: Evidence) {
         <button
           type="button"
           class="rounded border
-                 border-slate-500/70
+                 border-cyan-800/70
                  px-2 py-1
                  font-mono text-[9px]
-                 text-slate-200
+                 text-cyan-300
                  transition
-                 hover:bg-slate-700/70"
+                 hover:bg-cyan-950/60"
           :title="expanded ? 'Collapse evidence' : 'Expand evidence'"
           @click="emit('toggleExpand')"
         >

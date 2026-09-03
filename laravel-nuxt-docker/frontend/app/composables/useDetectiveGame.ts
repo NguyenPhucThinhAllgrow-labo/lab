@@ -109,6 +109,11 @@ export function useDetectiveGame(
 
   let lineId = 0
 
+  const hintProgress = new Map<
+    string,
+    { evidenceId: string; level: number }
+  >()
+
   function normalizeRestoredTerminalLine(
     line: TerminalLine,
   ): TerminalLine {
@@ -300,6 +305,7 @@ export function useDetectiveGame(
     state.locale = currentLocale
     state.terminal = []
     lineId = 0
+    hintProgress.clear()
 
     showIntro()
   }
@@ -1978,6 +1984,7 @@ export function useDetectiveGame(
 
   function showEvidenceHint(
     evidence: Evidence,
+    level = 1,
   ) {
     const folder = evidence.discover.path
       .split('/')
@@ -2244,18 +2251,47 @@ export function useDetectiveGame(
       },
     }
 
-    const hintLine = `${getTranslation(
-      'hint',
-    )}: ${text(evidence.hint)}`
+    const normalizedLevel = Math.min(3, Math.max(1, level))
+    const hintLabel = state.locale === 'vi'
+      ? `GỢI Ý CẤP ${normalizedLevel}/3`
+      : `HINT LEVEL ${normalizedLevel}/3`
+
+    const lines = [`${hintLabel}: ${text(evidence.hint)}`]
+
+    if (normalizedLevel >= 2) {
+      lines.push(
+        state.locale === 'vi'
+          ? `→ Nhóm dữ liệu liên quan: /${folder}`
+          : `→ Relevant data group: /${folder}`,
+      )
+    }
+
+    if (normalizedLevel >= 3) {
+      lines.push(
+        state.locale === 'vi'
+          ? `→ Tệp nên kiểm tra: ${evidence.discover.path}`
+          : `→ File to inspect: ${evidence.discover.path}`,
+      )
+    } else {
+      lines.push(
+        state.locale === 'vi'
+          ? `→ Gõ "hint ${normalizedLevel + 1}" nếu cần gợi ý cụ thể hơn.`
+          : `→ Type "hint ${normalizedLevel + 1}" for a more specific clue.`,
+      )
+    }
+
+    const hintLine = lines.join('\n')
 
     addLine(
       'warning',
       hintLine,
       createHighlights(
         hintLine,
-        termsByFolder[state.locale][
-          folder
-        ] ?? [],
+        [
+          ...(termsByFolder[state.locale][folder] ?? []),
+          folder,
+          evidence.discover.path,
+        ],
       ),
     )
   }
@@ -2263,7 +2299,22 @@ export function useDetectiveGame(
   function commandHint(
     args: string[],
   ) {
-    if (!args.length) {
+    const requestedLevel = args[0] && /^[1-3]$/.test(args[0])
+      ? Number(args[0])
+      : null
+    const evidenceQueryArgs = requestedLevel ? args.slice(1) : args
+
+    if (args[0] && /^\d+$/.test(args[0]) && !requestedLevel) {
+      addLine(
+        'error',
+        state.locale === 'vi'
+          ? 'hint: cấp độ phải từ 1 đến 3'
+          : 'hint: level must be between 1 and 3',
+      )
+      return
+    }
+
+    if (!evidenceQueryArgs.length) {
       const activeTask = state.tasks.find(
         task => !task.completed,
       )
@@ -2348,13 +2399,26 @@ export function useDetectiveGame(
         )
       }
 
-      showEvidenceHint(evidence)
+      const progressKey = activeTask?.id ?? 'general'
+      const previous = hintProgress.get(progressKey)
+      const level = requestedLevel ?? (
+        previous?.evidenceId === evidence.id
+          ? Math.min(3, previous.level + 1)
+          : 1
+      )
+
+      hintProgress.set(progressKey, {
+        evidenceId: evidence.id,
+        level,
+      })
+
+      showEvidenceHint(evidence, level)
 
       return
     }
 
     const query =
-      args
+      evidenceQueryArgs
         .join(' ')
         .toLowerCase()
 
@@ -2397,7 +2461,7 @@ export function useDetectiveGame(
       return
     }
 
-    showEvidenceHint(evidence)
+    showEvidenceHint(evidence, requestedLevel ?? 1)
   }
 
   /*
@@ -3239,7 +3303,7 @@ requestedLocale
         sudo: 'Run filesystem investigation commands with elevated access',
         history: 'Show command history',
         whoami: 'Show current user',
-        hint: 'Get an investigation hint',
+        hint: 'Get a progressive hint (levels 1–3)',
         guide: 'Explain investigation folders',
         help: 'Show available commands',
         lang: 'Change terminal language',
@@ -3263,7 +3327,7 @@ requestedLocale
         sudo: 'Chạy các lệnh điều tra filesystem với quyền nâng cao',
         history: 'Hiển thị lịch sử lệnh',
         whoami: 'Hiển thị người dùng hiện tại',
-        hint: 'Nhận gợi ý điều tra',
+        hint: 'Nhận gợi ý điều tra theo cấp 1–3',
         guide: 'Giải thích chức năng các thư mục điều tra',
         help: 'Hiển thị các lệnh khả dụng',
         lang: 'Thay đổi ngôn ngữ terminal',
@@ -3472,6 +3536,16 @@ requestedLocale
     /*
      * GUIDE AUTOCOMPLETE
      */
+
+    if (command === 'hint') {
+      if (argument.includes(' ')) {
+        return []
+      }
+
+      return ['1', '2', '3'].filter(level =>
+        level.startsWith(argument),
+      )
+    }
 
     if (command === 'guide') {
       if (argument.includes(' ')) {

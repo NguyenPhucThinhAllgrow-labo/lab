@@ -11,8 +11,9 @@ defineProps<{
 <template>
   <header
     class="border-b
-           border-zinc-800
-           bg-black/70"
+           border-emerald-950
+           bg-[#020806]/95
+           shadow-[0_8px_30px_rgba(16,185,129,0.05)]"
   >
     <div
       class="mx-auto
@@ -27,7 +28,7 @@ defineProps<{
                  text-[10px]
                  uppercase
                  tracking-[0.3em]
-                 text-green-500"
+                 text-emerald-400"
         >
           Detective Terminal
         </div>
@@ -37,7 +38,7 @@ defineProps<{
                  font-mono
                  text-xl
                  font-semibold
-                 text-zinc-200"
+                 text-emerald-50"
         >
           {{ title }}
         </h1>
@@ -48,7 +49,7 @@ defineProps<{
                  font-mono
                  text-[11px]
                  leading-5
-                 text-zinc-600"
+                 text-emerald-700"
         >
           {{ description }}
         </p>
@@ -64,7 +65,7 @@ defineProps<{
                  text-[9px]
                  uppercase
                  tracking-widest
-                 text-zinc-700"
+                 text-emerald-700"
         >
           CASE
         </div>
@@ -73,7 +74,7 @@ defineProps<{
           class="mt-1
                  font-mono
                  text-sm
-                 text-green-500"
+                 text-emerald-400"
         >
           {{ id }}
         </div>

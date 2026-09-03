@@ -129,7 +129,7 @@ export const terminalCommands:
       command: 'hint',
 
       description:
-        'Get an investigation hint',
+        'Get a progressive investigation hint (levels 1–3)',
 
       requiresArgument: false,
     },

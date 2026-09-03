@@ -845,8 +845,8 @@ async function handleCommandBarInput(
 
 <template>
   <main
-    class="min-h-screen
-           bg-zinc-950
+    class="hacker-workspace min-h-screen
+           bg-[#020706]
            text-zinc-200"
   >
     <!-- ==========================================
@@ -898,9 +898,9 @@ async function handleCommandBarInput(
              lg:grid-cols-[minmax(0,1fr)_400px]"
       :class="
         multiplePanelsExpanded
-          ? allPanelsExpanded
-            ? 'fixed inset-4 z-50 max-w-none grid-cols-[repeat(2,minmax(0,1fr))] grid-rows-2 gap-4 overflow-hidden bg-zinc-950 p-4 md:inset-8 lg:grid-cols-[repeat(2,minmax(0,1fr))]'
-            : 'fixed inset-4 z-50 max-w-none grid-cols-[repeat(2,minmax(0,1fr))] grid-rows-1 gap-4 overflow-hidden bg-zinc-950 p-4 md:inset-8 lg:grid-cols-[repeat(2,minmax(0,1fr))]'
+            ? allPanelsExpanded
+              ? 'fixed inset-4 z-50 max-w-none grid-cols-[repeat(2,minmax(0,1fr))] grid-rows-2 gap-4 overflow-hidden bg-zinc-950 p-4 md:inset-8 lg:grid-cols-[repeat(2,minmax(0,1fr))]'
+              : 'fixed inset-4 z-50 max-w-none grid-cols-[repeat(2,minmax(0,1fr))] grid-rows-1 gap-4 overflow-hidden bg-zinc-950 p-4 md:inset-8 lg:grid-cols-[repeat(2,minmax(0,1fr))]'
           : ''
       "
     >
@@ -913,14 +913,14 @@ async function handleCommandBarInput(
         :class="
           expandedPanels.terminal &&
           expandedPanelCount === 1
-            ? 'fixed inset-4 z-50 flex flex-col bg-zinc-950 md:inset-8'
+              ? 'fixed inset-4 z-50 flex flex-col bg-zinc-950 md:inset-8'
             : allPanelsExpanded
               ? 'relative col-span-2 row-start-2 flex min-h-0 flex-col'
               : multiplePanelsExpanded && expandedPanels.terminal
                 ? 'relative order-3 flex min-h-0 flex-col'
-                : multiplePanelsExpanded
-                  ? 'hidden'
-                  : 'relative'
+              : multiplePanelsExpanded
+                ? 'hidden'
+                : 'relative'
         "
       >
         <button
@@ -1117,9 +1117,9 @@ async function handleCommandBarInput(
               ? 'col-start-1 row-start-1 min-h-0 min-w-0 w-full'
               : multiplePanelsExpanded && expandedPanels.task
                 ? 'order-1 min-h-0 min-w-0 w-full'
-                : multiplePanelsExpanded
-                  ? 'hidden'
-                  : ''
+              : multiplePanelsExpanded
+                ? 'hidden'
+                : ''
           "
         >
           <TaskPanel
@@ -1162,9 +1162,9 @@ async function handleCommandBarInput(
               ? 'col-start-2 row-start-1 min-h-0 min-w-0 w-full'
               : multiplePanelsExpanded && expandedPanels.evidence
                 ? 'order-2 min-h-0 min-w-0 w-full'
-                : multiplePanelsExpanded
-                  ? 'hidden'
-                  : ''
+              : multiplePanelsExpanded
+                ? 'hidden'
+                : ''
           "
         >
           <EvidencePanel
@@ -1350,3 +1350,29 @@ async function handleCommandBarInput(
     </Teleport>
   </main>
 </template>
+
+<style scoped>
+.hacker-workspace {
+  background-image:
+    linear-gradient(rgb(16 185 129 / 2.5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(16 185 129 / 2.5%) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0%, rgb(6 78 59 / 18%), transparent 46%);
+  background-size: 32px 32px, 32px 32px, 100% 100%;
+}
+
+.hacker-workspace::after {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  content: '';
+  opacity: 0.12;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgb(0 0 0 / 32%) 4px
+  );
+}
+
+</style>

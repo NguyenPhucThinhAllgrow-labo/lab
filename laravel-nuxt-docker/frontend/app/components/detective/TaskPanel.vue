@@ -116,14 +116,14 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
   <section
     class="rounded-lg
            border
-           border-amber-700/60
-           bg-stone-950/95
+           border-emerald-800/70
+           bg-[#030b08]/95
            p-4
            shadow-lg
-           shadow-amber-950/20"
+           shadow-[0_0_30px_rgba(16,185,129,0.08)]"
     :class="
       expanded && !grouped
-        ? 'fixed inset-4 z-50 flex flex-col bg-stone-950 md:inset-8'
+        ? 'fixed inset-4 z-50 flex flex-col bg-[#030b08] md:inset-8'
         : expanded
           ? 'flex h-full min-h-0 flex-col'
           : ''
@@ -141,7 +141,7 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
                  text-xs
                  uppercase
                  tracking-[0.2em]
-                 text-amber-200"
+                 text-emerald-300"
         >
           {{ locale === 'vi' ? 'Chỉ thị điều tra' : 'Investigation order' }}
         </div>
@@ -167,7 +167,7 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
         <div
           class="font-mono
                  text-[10px]
-                 text-amber-300"
+                 text-emerald-400"
         >
           {{
             completedTasks.length
@@ -179,12 +179,12 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
         <button
           type="button"
           class="rounded border
-                 border-amber-700/60
+                 border-emerald-700/70
                  px-2 py-1
                  font-mono text-[9px]
-                 text-amber-200
+                 text-emerald-300
                  transition
-                 hover:bg-amber-900/40"
+                 hover:bg-emerald-950/70"
           :title="expanded ? 'Collapse tasks' : 'Expand tasks'"
           @click="emit('toggleExpand')"
         >
@@ -217,7 +217,7 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
         <div
           v-if="activeTask"
           :key="activeTask.id"
-          class="rounded-md border border-amber-600/70 bg-stone-700/80 p-3 shadow-[0_0_20px_rgba(217,119,6,0.08)]"
+          class="rounded-md border border-emerald-700/70 bg-emerald-950/35 p-3 shadow-[0_0_20px_rgba(16,185,129,0.08)]"
         >
           <div
             class="flex gap-3"
@@ -328,31 +328,22 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
                        pt-3"
               >
                 <div
-                  class="mb-2
-                         font-mono
-                         text-[9px]
-                         uppercase
-                         tracking-[0.14em]
-                         text-stone-400"
+                  class="mb-2 flex flex-wrap items-center justify-between gap-2 font-mono text-[9px]"
                 >
-                  {{
-                    locale === 'vi'
-                      ? 'Bằng chứng liên quan'
-                      : 'Related evidence'
-                  }}
-                </div>
-
-                <div
-                  v-if="!linkingMode"
-                  class="mb-2.5 rounded border border-dashed border-cyan-800/60 bg-cyan-950/20 px-2 py-2 text-center font-mono text-[9px] leading-4 text-cyan-400"
-                >
-                  {{ locale === 'vi'
-                    ? 'Nhấn [Q] và [E] để mở chế độ đối chiếu task–evidence'
-                    : 'Press [Q] and [E] to open task–evidence linking mode' }}
+                  <span class="uppercase tracking-[0.14em] text-stone-400">
+                    {{ locale === 'vi' ? 'Bằng chứng liên quan' : 'Related evidence' }}
+                  </span>
+                  <span class="normal-case tracking-normal text-cyan-500">
+                    {{ !linkingMode
+                      ? (locale === 'vi' ? 'Mở [Q] + [E] để đối chiếu' : 'Open [Q] + [E] to link')
+                      : selectedEvidence.length
+                        ? (locale === 'vi' ? `${selectedEvidence.length} evidence đã chọn` : `${selectedEvidence.length} selected`)
+                        : (locale === 'vi' ? 'Chọn evidence ở panel [E]' : 'Select evidence in panel [E]') }}
+                  </span>
                 </div>
 
                 <button
-                  v-else-if="selectedEvidence.length"
+                  v-if="linkingMode && selectedEvidence.length"
                   type="button"
                   class="mb-2.5 w-full rounded border border-cyan-600/70 bg-cyan-950/40 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-900/50"
                   @click="emit('linkEvidence', activeTask.id, selectedEvidence.map(item => item.id))"
@@ -370,15 +361,6 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
                     : 'border-red-800/60 bg-red-950/25 text-red-300'"
                 >
                   {{ linkFeedback.message }}
-                </div>
-
-                <div
-                  v-else
-                  class="mb-2.5 rounded border border-dashed border-stone-600 px-2 py-2 text-center font-mono text-[9px] text-stone-400"
-                >
-                  {{ locale === 'vi'
-                    ? 'Chọn một evidence trong panel [E] để đối chiếu'
-                    : 'Select evidence in panel [E] to link it' }}
                 </div>
 
                 <div
