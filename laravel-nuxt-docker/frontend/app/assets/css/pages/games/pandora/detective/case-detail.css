@@ -1,0 +1,51 @@
+.hacker-workspace {
+  background-image:
+    linear-gradient(rgb(16 185 129 / 2.5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(16 185 129 / 2.5%) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0%, rgb(6 78 59 / 18%), transparent 46%);
+  background-size: 32px 32px, 32px 32px, 100% 100%;
+}
+
+.hacker-workspace::after {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  content: '';
+  opacity: 0.12;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgb(0 0 0 / 32%) 4px
+  );
+}
+
+.detective-border-runner {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  padding: 1px;
+  overflow: hidden;
+  pointer-events: none;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+}
+
+.detective-border-runner::before {
+  position: absolute;
+  inset: -100%;
+  content: '';
+  background: conic-gradient(from 0deg, transparent 0deg 292deg, rgb(34 197 94 / 15%) 310deg, rgb(74 222 128) 335deg, transparent 360deg);
+  animation: detective-border-spin 4.5s linear infinite;
+}
+
+@keyframes detective-border-spin {
+  to { transform: rotate(1turn); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detective-border-runner::before { animation: none; }
+}

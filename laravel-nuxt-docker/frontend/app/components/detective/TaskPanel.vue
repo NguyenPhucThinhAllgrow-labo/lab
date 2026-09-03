@@ -114,7 +114,7 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
 
 <template>
   <section
-    class="rounded-lg
+    class="detective-running-frame rounded-lg
            border
            border-emerald-800/70
            bg-[#030b08]/95
@@ -125,10 +125,12 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
       expanded && !grouped
         ? 'fixed inset-4 z-50 flex flex-col bg-[#030b08] md:inset-8'
         : expanded
-          ? 'flex h-full min-h-0 flex-col'
-          : ''
+          ? 'relative flex h-full min-h-0 flex-col'
+          : 'relative'
     "
   >
+    <span class="detective-border-runner" aria-hidden="true" />
+
     <div
       class="mb-4
              flex items-center
@@ -537,3 +539,5 @@ function isEvidenceLinked(task: Task, evidenceId: string) {
     </div>
   </section>
 </template>
+
+<style scoped src="~/assets/css/components/detective/TaskPanel.css"></style>

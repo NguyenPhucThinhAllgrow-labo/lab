@@ -124,6 +124,8 @@ function selectCase(
             class="case-file group relative min-h-64 overflow-hidden border border-emerald-900/60 bg-[#050d0a]/90 p-5 text-left transition duration-300 hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-950/20 hover:shadow-[0_0_30px_rgba(52,211,153,0.12)] focus:outline-none focus:ring-1 focus:ring-emerald-400"
             @click="selectCase(item.id)"
           >
+            <span class="case-border-runner" aria-hidden="true" />
+
             <span class="absolute right-3 top-2 text-5xl font-bold text-emerald-950/70 transition group-hover:text-emerald-900/60">
               {{ String(index + 1).padStart(2, '0') }}
             </span>
@@ -162,60 +164,4 @@ function selectCase(
   </main>
 </template>
 
-<style scoped>
-.hacker-screen {
-  text-shadow: 0 0 12px rgb(16 185 129 / 12%);
-}
-
-.hacker-grid {
-  background-image:
-    linear-gradient(rgb(16 185 129 / 3%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(16 185 129 / 3%) 1px, transparent 1px);
-  background-size: 34px 34px;
-  mask-image: linear-gradient(to bottom, black, transparent 90%);
-}
-
-.scanlines {
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 3px,
-    rgb(0 0 0 / 24%) 4px
-  );
-}
-
-.case-file::before,
-.case-file::after {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  content: '';
-  pointer-events: none;
-}
-
-.case-file::before {
-  top: -1px;
-  left: -1px;
-  border-top: 2px solid rgb(52 211 153 / 70%);
-  border-left: 2px solid rgb(52 211 153 / 70%);
-}
-
-.case-file::after {
-  right: -1px;
-  bottom: -1px;
-  border-right: 2px solid rgb(52 211 153 / 70%);
-  border-bottom: 2px solid rgb(52 211 153 / 70%);
-}
-
-.cursor-blink {
-  animation: cursor-blink 1s steps(1) infinite;
-}
-
-@keyframes cursor-blink {
-  50% { opacity: 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cursor-blink { animation: none; }
-}
-</style>
+<style scoped src="~/assets/css/pages/games/pandora/detective/index.css"></style>

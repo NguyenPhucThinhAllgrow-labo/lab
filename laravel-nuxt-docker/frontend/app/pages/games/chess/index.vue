@@ -1579,41 +1579,4 @@ onBeforeUnmount(() => {
   </main>
 </template>
 
-<style scoped>
-.check-enter-active,
-.check-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-
-.check-enter-from,
-.check-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-.modal-enter-active,
-.modal-leave-active {
-  transition:
-    opacity 0.2s ease;
-}
-
-.modal-enter-active > div,
-.modal-leave-active > div {
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-from > div,
-.modal-leave-to > div {
-  opacity: 0;
-  transform: scale(0.92);
-}
-</style>
+<style scoped src="~/assets/css/pages/games/chess/index.css"></style>

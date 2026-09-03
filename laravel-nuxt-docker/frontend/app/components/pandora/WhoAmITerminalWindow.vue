@@ -812,37 +812,4 @@ watch(
 
 </template>
 
-<style scoped>
-
-.typing-cursor {
-  display: inline-block;
-
-  margin-left: 2px;
-
-  color: #39ff88;
-
-  text-shadow:
-    0 0 5px #39ff88,
-    0 0 10px #39ff88;
-
-  animation:
-    pandora-cursor-blink
-    0.7s
-    steps(1)
-    infinite;
-}
-
-@keyframes pandora-cursor-blink {
-
-  0%,
-  50% {
-    opacity: 1;
-  }
-
-  51%,
-  100% {
-    opacity: 0;
-  }
-}
-
-</style>
+<style scoped src="~/assets/css/components/pandora/WhoAmITerminalWindow.css"></style>

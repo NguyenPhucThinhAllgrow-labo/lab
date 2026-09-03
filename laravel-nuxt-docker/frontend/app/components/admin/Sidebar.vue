@@ -696,25 +696,4 @@ const handleLogout = async () => {
   </aside>
 </template>
 
-<style scoped>
-.game-menu-enter-active,
-.game-menu-leave-active,
-.algorithm-menu-enter-active,
-.algorithm-menu-leave-active,
-.sorting-menu-enter-active,
-.sorting-menu-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-
-.game-menu-enter-from,
-.game-menu-leave-to,
-.algorithm-menu-enter-from,
-.algorithm-menu-leave-to,
-.sorting-menu-enter-from,
-.sorting-menu-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
-}
-</style>
+<style scoped src="~/assets/css/components/admin/Sidebar.css"></style>

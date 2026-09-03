@@ -1605,13 +1605,4 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
-.terminal-scrollbar-hidden {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.terminal-scrollbar-hidden::-webkit-scrollbar {
-  display: none;
-}
-</style>
+<style scoped src="~/assets/css/components/detective/Terminal.css"></style>

@@ -932,9 +932,11 @@ async function handleCommandBarInput(
         "
       >
         <div
-          class="relative min-h-0"
+          class="detective-running-frame relative min-h-0 rounded-t-lg"
           :class="expandedPanels.terminal ? 'flex flex-1 flex-col' : ''"
         >
+          <span class="detective-border-runner" aria-hidden="true" />
+
           <button
           type="button"
           class="absolute left-3 top-3 z-10 rounded border px-2.5 py-1
@@ -1333,28 +1335,4 @@ async function handleCommandBarInput(
   </main>
 </template>
 
-<style scoped>
-.hacker-workspace {
-  background-image:
-    linear-gradient(rgb(16 185 129 / 2.5%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(16 185 129 / 2.5%) 1px, transparent 1px),
-    radial-gradient(circle at 50% 0%, rgb(6 78 59 / 18%), transparent 46%);
-  background-size: 32px 32px, 32px 32px, 100% 100%;
-}
-
-.hacker-workspace::after {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  pointer-events: none;
-  content: '';
-  opacity: 0.12;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 3px,
-    rgb(0 0 0 / 32%) 4px
-  );
-}
-
-</style>
+<style scoped src="~/assets/css/pages/games/pandora/detective/case-detail.css"></style>

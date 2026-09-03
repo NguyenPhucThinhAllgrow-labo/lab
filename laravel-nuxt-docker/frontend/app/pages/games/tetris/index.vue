@@ -1933,6 +1933,4 @@ onBeforeUnmount(() => {
   </div>
 </template>
 
-<style scoped>
-  @import "~/assets/css/tetris.css";
-</style>
+<style scoped src="~/assets/css/tetris.css"></style>

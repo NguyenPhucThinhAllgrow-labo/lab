@@ -153,7 +153,7 @@ function toggleFileViewer(item: Evidence) {
 
 <template>
   <section
-    class="rounded-lg
+    class="detective-running-frame rounded-lg
            border
            border-cyan-800/70
            bg-[#03090d]/95
@@ -164,10 +164,12 @@ function toggleFileViewer(item: Evidence) {
       expanded && !grouped
         ? 'fixed inset-4 z-50 flex flex-col bg-[#03090d] md:inset-8'
         : expanded
-          ? 'flex h-full min-h-0 flex-col'
-          : ''
+          ? 'relative flex h-full min-h-0 flex-col'
+          : 'relative'
     "
   >
+    <span class="detective-border-runner" aria-hidden="true" />
+
     <div
       class="mb-4
              flex items-center
@@ -417,3 +419,5 @@ function toggleFileViewer(item: Evidence) {
 
   </section>
 </template>
+
+<style scoped src="~/assets/css/components/detective/EvidencePanel.css"></style>

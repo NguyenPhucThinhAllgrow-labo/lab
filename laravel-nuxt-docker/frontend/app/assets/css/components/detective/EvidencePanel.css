@@ -1,0 +1,28 @@
+.detective-border-runner {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  padding: 1px;
+  overflow: hidden;
+  pointer-events: none;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+}
+
+.detective-border-runner::before {
+  position: absolute;
+  inset: -100%;
+  content: '';
+  background: conic-gradient(from 0deg, transparent 0deg 292deg, rgb(34 211 238 / 15%) 310deg, rgb(103 232 249) 335deg, transparent 360deg);
+  animation: detective-border-spin 5.5s linear infinite;
+}
+
+@keyframes detective-border-spin {
+  to { transform: rotate(1turn); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detective-border-runner::before { animation: none; }
+}
