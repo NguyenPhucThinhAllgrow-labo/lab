@@ -27,6 +27,24 @@ const emit = defineEmits<{
 
 const explainedTaskId = ref<string | null>(null)
 
+const completedTasks = computed(() =>
+  props.tasks.filter(task => task.completed),
+)
+
+const activeTask = computed(() =>
+  props.tasks.find(task => !task.completed) ?? null,
+)
+
+const hiddenTaskCount = computed(() => {
+  if (!activeTask.value) return 0
+
+  const activeIndex = props.tasks.findIndex(
+    task => task.id === activeTask.value?.id,
+  )
+
+  return Math.max(0, props.tasks.length - activeIndex - 1)
+})
+
 function toggleTaskExplanation(task: Task) {
   explainedTaskId.value =
     explainedTaskId.value === task.id
@@ -113,7 +131,7 @@ function getDiscoveredCount(
                  tracking-[0.2em]
                  text-amber-200"
         >
-          Investigation
+          {{ locale === 'vi' ? 'Chỉ thị điều tra' : 'Investigation order' }}
         </div>
 
         <div
@@ -121,7 +139,15 @@ function getDiscoveredCount(
                  text-[10px]
                  text-stone-400"
         >
-          Current objectives
+          {{
+            activeTask
+              ? locale === 'vi'
+                ? 'Nhiệm vụ hiện tại do cảnh sát giao'
+                : 'Current police assignment'
+              : locale === 'vi'
+                ? 'Đã xử lý toàn bộ chỉ thị'
+                : 'All assignments processed'
+          }}
         </div>
       </div>
 
@@ -132,10 +158,7 @@ function getDiscoveredCount(
                  text-amber-300"
         >
           {{
-            tasks.filter(
-              task =>
-                task.completed,
-            ).length
+            completedTasks.length
           }}
           /
           {{ tasks.length }}
@@ -167,15 +190,22 @@ function getDiscoveredCount(
     >
       <div class="space-y-3">
         <div
-          v-for="task in tasks"
-          :key="task.id"
-          class="rounded-md
-                border p-3"
-          :class="
-            task.completed
-              ? 'border-emerald-600/60 bg-emerald-900/45'
-              : 'border-amber-800/60 bg-stone-700/80'
-          "
+          v-if="activeTask"
+          class="mb-3 flex items-center gap-3 rounded-md border border-cyan-800/60 bg-cyan-950/25 px-3 py-2"
+        >
+          <span class="relative flex h-2.5 w-2.5 shrink-0">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-50" />
+            <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-cyan-400" />
+          </span>
+          <div class="font-mono text-[9px] uppercase tracking-[0.13em] text-cyan-300">
+            {{ locale === 'vi' ? 'Đã nhận chỉ thị từ đơn vị điều tra' : 'Assignment received from investigation unit' }}
+          </div>
+        </div>
+
+        <div
+          v-if="activeTask"
+          :key="activeTask.id"
+          class="rounded-md border border-amber-600/70 bg-stone-700/80 p-3 shadow-[0_0_20px_rgba(217,119,6,0.08)]"
         >
           <div
             class="flex gap-3"
@@ -191,7 +221,7 @@ function getDiscoveredCount(
                     font-mono
                     text-[10px]"
               :class="
-                task.completed
+                activeTask.completed
                   ? 'border-emerald-500 text-emerald-300'
                   : 'border-amber-600 text-amber-300'
               "
@@ -200,11 +230,11 @@ function getDiscoveredCount(
                   ? 'Giải thích nhiệm vụ'
                   : 'Explain this task'
               "
-              :aria-expanded="explainedTaskId === task.id"
-              @click="toggleTaskExplanation(task)"
+              :aria-expanded="explainedTaskId === activeTask.id"
+              @click="toggleTaskExplanation(activeTask)"
             >
               {{
-                task.completed
+                activeTask.completed
                   ? '✓'
                   : '!'
               }}
@@ -220,29 +250,25 @@ function getDiscoveredCount(
                   class="text-xs
                          font-medium"
                   :class="
-                    task.completed
+                    activeTask.completed
                       ? 'text-emerald-300'
                       : 'text-stone-100'
                   "
                 >
                   {{ getText(
-                      task.title,
+                      activeTask.title,
                     ) }}
                 </div>
 
                 <span
                   class="shrink-0
                          font-mono
-                         text-[9px]"
-                :class="
-                  task.completed
-                    ? 'text-emerald-300'
-                    : 'text-amber-300'
-                "
+                         text-[9px]
+                         text-amber-300"
                 >
-                  {{ getDiscoveredCount(task) }}
+                  {{ getDiscoveredCount(activeTask) }}
                   /
-                  {{ task.requiresEvidence.length }}
+                  {{ activeTask.requiresEvidence.length }}
                 </span>
               </div>
 
@@ -252,24 +278,24 @@ function getDiscoveredCount(
                       leading-5
                       text-stone-300"
               >
-                {{ getText(task.description) }}
+                {{ getText(activeTask.description) }}
               </div>
 
               <button
-                v-if="task.completed"
+                v-if="activeTask.completed"
                 type="button"
                 class="mt-2 rounded border border-emerald-700/70
                        bg-emerald-950/35 px-2.5 py-1.5
                        font-mono text-[9px] uppercase tracking-[0.1em]
                        text-emerald-300 transition
                        hover:border-emerald-500 hover:bg-emerald-900/45"
-                @click="emit('reviewTaskSummary', task.id)"
+                @click="emit('reviewTaskSummary', activeTask.id)"
               >
                 {{ locale === 'vi' ? 'Xem tổng kết' : 'Review summary' }}
               </button>
 
               <div
-                v-if="explainedTaskId === task.id"
+                v-if="explainedTaskId === activeTask.id"
                 class="mt-3 rounded-md border border-amber-700/50
                        bg-amber-950/35 p-3"
               >
@@ -278,13 +304,13 @@ function getDiscoveredCount(
                   {{ locale === 'vi' ? 'Vì sao có nhiệm vụ này?' : 'Why does this task exist?' }}
                 </div>
                 <p class="mt-1.5 text-[10px] leading-5 text-stone-200">
-                  {{ getTaskReason(task) }}
+                  {{ getTaskReason(activeTask) }}
                 </p>
 
               </div>
 
               <div
-                v-if="getTaskEvidence(task).length"
+                v-if="getTaskEvidence(activeTask).length"
                 class="mt-3 space-y-1.5
                        border-t
                        border-stone-600/60
@@ -306,7 +332,7 @@ function getDiscoveredCount(
                 </div>
 
                 <div
-                  v-for="item in getTaskEvidence(task)"
+                  v-for="item in getTaskEvidence(activeTask)"
                   :key="item.id"
                   class="flex items-center
                          gap-2 rounded
@@ -347,6 +373,93 @@ function getDiscoveredCount(
             </div>
           </div>
         </div>
+
+        <div
+          v-else
+          class="rounded-md border border-emerald-700/60 bg-emerald-950/35 p-5 text-center"
+        >
+          <div class="font-mono text-xs uppercase tracking-[0.16em] text-emerald-300">
+            {{ locale === 'vi' ? 'Toàn bộ nhiệm vụ đã hoàn thành' : 'All assignments completed' }}
+          </div>
+        </div>
+
+        <div
+          v-if="hiddenTaskCount"
+          class="rounded-md border border-dashed border-stone-700 bg-black/20 px-3 py-3 text-center"
+        >
+          <div class="font-mono text-[9px] uppercase tracking-[0.12em] text-stone-500">
+            {{
+              locale === 'vi'
+                ? `${hiddenTaskCount} nhiệm vụ tiếp theo đang chờ cảnh sát chỉ định`
+                : `${hiddenTaskCount} further assignments awaiting police authorization`
+            }}
+          </div>
+        </div>
+
+        <details v-if="completedTasks.length" class="rounded-md border border-stone-800 bg-black/20">
+          <summary class="cursor-pointer px-3 py-2.5 font-mono text-[9px] uppercase tracking-[0.12em] text-stone-500 hover:text-emerald-300">
+            {{ locale === 'vi' ? `Hồ sơ đã hoàn thành (${completedTasks.length})` : `Completed files (${completedTasks.length})` }}
+          </summary>
+          <div class="space-y-2 border-t border-stone-800 p-2">
+            <details
+              v-for="task in completedTasks"
+              :key="task.id"
+              class="overflow-hidden rounded border border-emerald-900/60 bg-emerald-950/20"
+            >
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-2.5 py-2 text-[10px] text-emerald-300 transition hover:bg-emerald-950/40">
+                <span class="flex min-w-0 items-center gap-2">
+                  <span class="shrink-0 font-mono">✓</span>
+                  <span class="truncate">{{ getText(task.title) }}</span>
+                </span>
+                <span class="shrink-0 font-mono text-[9px] text-emerald-600">
+                  {{ getTaskEvidence(task).length }}
+                  {{ locale === 'vi' ? 'bằng chứng' : 'evidence' }} ▾
+                </span>
+              </summary>
+
+              <div class="border-t border-emerald-950/80 p-2.5">
+                <div class="mb-2 font-mono text-[9px] uppercase tracking-[0.12em] text-stone-500">
+                  {{ locale === 'vi' ? 'Bằng chứng đã xác minh' : 'Verified evidence' }}
+                </div>
+
+                <div
+                  v-if="getTaskEvidence(task).length"
+                  class="space-y-1.5"
+                >
+                  <div
+                    v-for="item in getTaskEvidence(task)"
+                    :key="item.id"
+                    class="flex items-start gap-2 rounded border border-emerald-900/50 bg-black/20 px-2 py-1.5"
+                  >
+                    <span class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-emerald-700 font-mono text-[8px] text-emerald-300">
+                      ✓
+                    </span>
+                    <div class="min-w-0">
+                      <div class="text-[10px] text-emerald-200">
+                        {{ getText(item.title) }}
+                      </div>
+                      <div class="mt-0.5 text-[9px] leading-4 text-stone-400">
+                        {{ getText(item.description) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else class="text-[9px] text-stone-600">
+                  {{ locale === 'vi' ? 'Không có evidence được liên kết.' : 'No linked evidence.' }}
+                </div>
+
+                <button
+                  type="button"
+                  class="mt-2.5 w-full rounded border border-emerald-800/70 px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.1em] text-emerald-400 transition hover:bg-emerald-950/50"
+                  @click="emit('reviewTaskSummary', task.id)"
+                >
+                  {{ locale === 'vi' ? 'Xem lại kết luận' : 'Review conclusion' }}
+                </button>
+              </div>
+            </details>
+          </div>
+        </details>
 
       </div>
     </div>

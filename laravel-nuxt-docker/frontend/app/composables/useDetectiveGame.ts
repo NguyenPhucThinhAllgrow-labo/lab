@@ -857,9 +857,6 @@ export function useDetectiveGame(
       )}`,
     )
 
-    checkTasks()
-
-    checkGameCompletion()
   }
 
   function checkEvidenceFromCat(
@@ -914,47 +911,49 @@ export function useDetectiveGame(
    */
 
   function checkTasks() {
-    for (const task of state.tasks) {
-      if (
-        task.completed
-      ) {
-        continue
-      }
+    // Police assignments are sequential: only the first unfinished task is
+    // active. This also prevents overlapping evidence from completing several
+    // future objectives at the same moment.
+    const task = state.tasks.find(
+      item => !item.completed,
+    )
 
-      const completed =
-        task.requiresEvidence.every(
-          evidenceId =>
-            state.evidence.some(
-              evidence =>
-                evidence.id ===
-                  evidenceId &&
-                evidence.discovered,
-            ),
-        )
-
-      if (!completed) {
-        continue
-      }
-
-      task.completed =
-        true
-
-      addLine(
-        'success',
-        `${getTranslation(
-          'taskCompleted',
-        )}: ${text(
-          task.title,
-        )}`,
-      )
-
-      addLine(
-        'success',
-        `→ ${text(
-          task.description,
-        )}`,
-      )
+    if (!task) {
+      return
     }
+
+    const completed =
+      task.requiresEvidence.every(
+        evidenceId =>
+          state.evidence.some(
+            evidence =>
+              evidence.id ===
+                evidenceId &&
+              evidence.discovered,
+          ),
+      )
+
+    if (!completed) {
+      return
+    }
+
+    task.completed = true
+
+    addLine(
+      'success',
+      `${getTranslation(
+        'taskCompleted',
+      )}: ${text(
+        task.title,
+      )}`,
+    )
+
+    addLine(
+      'success',
+      `→ ${text(
+        task.description,
+      )}`,
+    )
   }
 
   function finalizeGameCompletion() {
