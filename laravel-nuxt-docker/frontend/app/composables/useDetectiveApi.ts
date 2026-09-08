@@ -58,6 +58,7 @@ export interface DetectiveTimelineEntry {
 
 export interface DetectiveProgress {
   id: number
+  run_id: string | null
   user_id: number
   case_id: string
   locale: SupportedLocale

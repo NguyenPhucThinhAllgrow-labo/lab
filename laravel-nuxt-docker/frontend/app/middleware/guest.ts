@@ -1,5 +1,5 @@
 export default defineNuxtRouteMiddleware(
-  async () => {
+  async (to) => {
     const {
       user,
       initialized,
@@ -10,9 +10,12 @@ export default defineNuxtRouteMiddleware(
       await fetchUser()
     }
 
-    // Đã login rồi
-    if (user.value) {
+    if (to.path.startsWith('/admin') && user.value?.role === 'admin') {
       return navigateTo('/admin')
+    }
+
+    if (to.path === '/login' && user.value?.role === 'user') {
+      return navigateTo('/games/pandora/detective')
     }
   },
 )

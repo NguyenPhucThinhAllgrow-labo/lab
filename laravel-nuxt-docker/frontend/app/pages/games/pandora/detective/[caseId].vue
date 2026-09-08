@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {
+  DetectiveProgress,
   DetectiveProgressPayload,
   DetectiveTimelineEntry,
 } from '~/composables/useDetectiveApi'
@@ -93,6 +94,7 @@ const taskHistory = ref<DetectiveTimelineEntry[]>([])
 const incorrectLinkAttempts = ref(0)
 const rejectedEvidenceIds = ref<string[]>([])
 const documentVisible = ref(true)
+const currentRunId = ref<string | null>(null)
 const progressStatus = ref<
   | 'loading'
   | 'saving'
@@ -109,6 +111,9 @@ let clockTimer:
   ReturnType<typeof setInterval> |
   null = null
 
+let clockAnchorMs = 0
+let lastTimedProgressSave = 0
+
 let taskNoticeTimer:
   ReturnType<typeof setTimeout> |
   null = null
@@ -119,6 +124,67 @@ const TERMINAL_THEME_KEY =
 const localProgressKey = computed(() =>
   `detective-progress:${caseId.value}`,
 )
+
+const timerCheckpointKey = computed(() =>
+  `detective-timer:${caseId.value}`,
+)
+
+interface TimerCheckpoint {
+  run_id: string | null
+  elapsed_seconds: number
+  saved_at: number
+  game_completed: boolean
+}
+
+function readTimerCheckpoint(): TimerCheckpoint | null {
+  try {
+    const stored = localStorage.getItem(timerCheckpointKey.value)
+    if (!stored) return null
+
+    const checkpoint = JSON.parse(stored) as TimerCheckpoint
+
+    if (
+      !Number.isInteger(checkpoint.elapsed_seconds) ||
+      checkpoint.elapsed_seconds < 0 ||
+      !Number.isFinite(checkpoint.saved_at)
+    ) {
+      return null
+    }
+
+    return checkpoint
+  } catch {
+    localStorage.removeItem(timerCheckpointKey.value)
+    return null
+  }
+}
+
+function writeTimerCheckpoint() {
+  try {
+    localStorage.setItem(timerCheckpointKey.value, JSON.stringify({
+      run_id: currentRunId.value,
+      elapsed_seconds: elapsedSeconds.value,
+      saved_at: Date.now(),
+      game_completed: game.state.gameCompleted,
+    } satisfies TimerCheckpoint))
+  } catch {
+    // A timer checkpoint is an optimization; progress saving still works without it.
+  }
+}
+
+function restoreElapsedTime(savedSeconds: number, runId: string | null = null) {
+  const checkpoint = readTimerCheckpoint()
+  const sameRun = !runId || !checkpoint?.run_id || checkpoint.run_id === runId
+
+  currentRunId.value = runId
+  elapsedSeconds.value = Math.max(
+    0,
+    savedSeconds,
+    sameRun ? checkpoint?.elapsed_seconds ?? 0 : 0,
+  )
+  lastTimedProgressSave = elapsedSeconds.value
+  clockAnchorMs = Date.now()
+  writeTimerCheckpoint()
+}
 
 function readLocalProgress(): DetectiveProgressPayload | null {
   try {
@@ -148,9 +214,12 @@ function writeLocalProgress(progress: DetectiveProgressPayload) {
   }
 }
 
-function applyProgress(progress: DetectiveProgressPayload) {
+function applyProgress(
+  progress: DetectiveProgressPayload | DetectiveProgress,
+  runId: string | null = null,
+) {
   game.restoreProgress(progress)
-  elapsedSeconds.value = progress.elapsed_seconds ?? 0
+  restoreElapsedTime(progress.elapsed_seconds ?? 0, runId)
   evidenceHistory.value = progress.evidence_history ?? []
   taskHistory.value = progress.task_history ?? []
   incorrectLinkAttempts.value = progress.incorrect_link_attempts ?? 0
@@ -169,7 +238,54 @@ function toggleTerminalTheme() {
 }
 
 function handleVisibilityChange() {
-  documentVisible.value = !document.hidden
+  if (document.hidden) {
+    updateElapsedClock()
+    documentVisible.value = false
+    writeTimerCheckpoint()
+    return
+  }
+
+  documentVisible.value = true
+  clockAnchorMs = Date.now()
+}
+
+function updateElapsedClock() {
+  const now = Date.now()
+
+  if (
+    !progressReady.value ||
+    game.state.gameCompleted ||
+    !documentVisible.value
+  ) {
+    clockAnchorMs = now
+    return
+  }
+
+  if (!clockAnchorMs) {
+    clockAnchorMs = now
+    return
+  }
+
+  const passedSeconds = Math.floor((now - clockAnchorMs) / 1000)
+  if (passedSeconds < 1) return
+
+  elapsedSeconds.value += passedSeconds
+  clockAnchorMs += passedSeconds * 1000
+  writeTimerCheckpoint()
+
+  if (elapsedSeconds.value - lastTimedProgressSave >= 30) {
+    lastTimedProgressSave = elapsedSeconds.value
+    void persistProgress()
+  }
+}
+
+function handlePageHide() {
+  updateElapsedClock()
+  writeTimerCheckpoint()
+
+  if (progressReady.value) {
+    writeLocalProgress(createProgressPayload())
+  }
 }
 
 const formattedElapsedTime = computed(() => {
@@ -399,7 +515,10 @@ function createProgressPayload(): DetectiveProgressPayload {
         )
         .map(task => task.id),
     linked_evidence: Object.fromEntries(
-      Object.entries(game.state.linkedEvidence).map(([taskId, ids]) => [taskId, [...ids]]),
+      Object.entries(game.state.linkedEvidence).map(([taskId, ids]) => [
+        taskId,
+        [...new Set(ids)],
+      ]),
     ),
     unlocked_paths: [
       ...game.state.unlockedPaths,
@@ -431,14 +550,22 @@ async function loadRemoteProgress() {
       await fetchUser()
     }
   } catch {
-    if (localProgress) applyProgress(localProgress)
+    if (localProgress) {
+      applyProgress(localProgress)
+    } else {
+      restoreElapsedTime(0)
+    }
     progressStatus.value = 'local'
     progressReady.value = true
     return
   }
 
   if (!user.value) {
-    if (localProgress) applyProgress(localProgress)
+    if (localProgress) {
+      applyProgress(localProgress)
+    } else {
+      restoreElapsedTime(0)
+    }
     progressStatus.value = 'local'
     progressReady.value = true
     return
@@ -451,19 +578,21 @@ async function loadRemoteProgress() {
       )
 
     if (progress) {
-      game.restoreProgress(progress)
-      elapsedSeconds.value = progress.elapsed_seconds ?? 0
-      evidenceHistory.value = progress.evidence_history ?? []
-      taskHistory.value = progress.task_history ?? []
-      incorrectLinkAttempts.value = progress.incorrect_link_attempts ?? 0
+      applyProgress(progress, progress.run_id)
       writeLocalProgress(createProgressPayload())
     } else if (localProgress) {
       applyProgress(localProgress)
+    } else {
+      restoreElapsedTime(0)
     }
 
     progressStatus.value = progress ? 'saved' : 'local'
   } catch {
-    if (localProgress) applyProgress(localProgress)
+    if (localProgress) {
+      applyProgress(localProgress)
+    } else {
+      restoreElapsedTime(0)
+    }
     progressStatus.value = 'local'
   } finally {
     progressReady.value = true
@@ -486,11 +615,13 @@ async function persistProgress() {
   progressStatus.value = 'saving'
 
   try {
-    await detectiveApi.saveProgress(
+    const savedProgress = await detectiveApi.saveProgress(
       caseId.value,
       payload,
     )
 
+    currentRunId.value = savedProgress.run_id
+    writeTimerCheckpoint()
     progressStatus.value = 'saved'
   } catch {
     // The local snapshot remains available even when the API is offline.
@@ -539,6 +670,7 @@ async function resetGame() {
     }
 
     localStorage.removeItem(localProgressKey.value)
+    localStorage.removeItem(timerCheckpointKey.value)
 
     game.resetGame()
     // Recreate the terminal so its output queue is empty and the intro
@@ -546,6 +678,10 @@ async function resetGame() {
     // number of lines and uses the same locale.
     terminalResetKey.value += 1
     elapsedSeconds.value = 0
+    currentRunId.value = null
+    lastTimedProgressSave = 0
+    clockAnchorMs = Date.now()
+    writeTimerCheckpoint()
     evidenceHistory.value = []
     taskHistory.value = []
     incorrectLinkAttempts.value = 0
@@ -834,7 +970,9 @@ function handlePanelShortcut(
 
 onMounted(() => {
   documentVisible.value = !document.hidden
+  clockAnchorMs = Date.now()
   document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('pagehide', handlePageHide)
   terminalLightTheme.value =
     localStorage.getItem(
       TERMINAL_THEME_KEY,
@@ -847,20 +985,15 @@ onMounted(() => {
 
   void loadRemoteProgress()
 
-  clockTimer = setInterval(() => {
-    if (progressReady.value && !game.state.gameCompleted) {
-      elapsedSeconds.value += 1
-
-      if (elapsedSeconds.value % 30 === 0) {
-        void persistProgress()
-      }
-    }
-  }, 1000)
+  clockTimer = setInterval(updateElapsedClock, 250)
 })
 
 onBeforeUnmount(() => {
+  updateElapsedClock()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('pagehide', handlePageHide)
   if (progressReady.value) {
+    writeTimerCheckpoint()
     writeLocalProgress(createProgressPayload())
   }
 

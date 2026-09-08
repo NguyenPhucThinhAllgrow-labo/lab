@@ -3,6 +3,7 @@ import type {
   DetectiveCaseMetadata,
 } from '~/composables/useDetectiveApi'
 
+
 /*
  * --------------------------------------------------
  * CASES
@@ -57,6 +58,7 @@ function selectCase(
 
 <template>
   <main class="hacker-screen relative min-h-screen overflow-hidden bg-[#030807] px-4 py-6 font-mono text-emerald-200 sm:px-6 lg:px-10">
+
     <div class="pointer-events-none absolute inset-0 hacker-grid" />
     <div class="pointer-events-none absolute inset-0 scanlines opacity-25" />
 
@@ -67,7 +69,6 @@ function selectCase(
             <span class="h-2 w-2 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]" />
             PANDORA // FORENSIC NETWORK
           </div>
-          <span class="hidden sm:inline">SECURE SESSION: AES-256</span>
         </div>
 
         <div class="grid gap-8 px-5 py-8 md:grid-cols-[minmax(0,1fr)_280px] md:px-8 md:py-10">

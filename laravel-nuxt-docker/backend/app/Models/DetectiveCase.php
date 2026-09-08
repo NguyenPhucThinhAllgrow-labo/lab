@@ -35,4 +35,9 @@ class DetectiveCase extends Model
     {
         return $this->hasMany(DetectiveProgress::class, 'case_id');
     }
+
+    public function completionHistories(): HasMany
+    {
+        return $this->hasMany(DetectiveCompletionHistory::class, 'case_id');
+    }
 }

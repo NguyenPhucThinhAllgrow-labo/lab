@@ -6,6 +6,7 @@ import {
   onMounted,
   ref
 } from 'vue'
+import { useTetrisAudio } from '~/composables/useTetrisAudio'
 
 type Cell = string | null
 type Matrix = number[][]
@@ -121,6 +122,22 @@ const player2 = ref<Player>(createPlayer())
 
 const paused = ref(false)
 const started = ref(false)
+
+const {
+  soundEnabled,
+  stopAudio,
+  playStart,
+  playMove,
+  playSoftDrop,
+  playRotate,
+  playLock,
+  playHardDrop,
+  playLineClear,
+  playGameOver,
+  playPause,
+  toggleSound,
+  dispose: disposeAudio,
+} = useTetrisAudio()
 
 let timer: ReturnType<typeof setTimeout> | null = null
 let gameSession = 0
@@ -294,6 +311,11 @@ function spawnPlayer(
     player.current = null
     player.gameOver = true
 
+    playGameOver(
+      mode.value === 1 ||
+      (player1.value.gameOver && player2.value.gameOver)
+    )
+
     return false
   }
 
@@ -447,6 +469,8 @@ async function clearLines(
     return
   }
 
+  playLineClear(cleared)
+
   player.isClearing = true
   player.clearingRows = clearingRows
 
@@ -514,6 +538,7 @@ async function lockPiece(
   const session = gameSession
 
   mergePiece(player)
+  playLock()
   await clearLines(player)
 
   // Ignore delayed work left over from a restart, mode change, or unmount.
@@ -564,6 +589,7 @@ function moveDown(
 
     if (softDrop) {
       player.score += 1
+      playSoftDrop()
     }
 
     return
@@ -601,6 +627,7 @@ function moveLeft(
     )
   ) {
     active.x--
+    playMove()
   }
 }
 
@@ -629,6 +656,7 @@ function moveRight(
     )
   ) {
     active.x++
+    playMove()
   }
 }
 
@@ -702,6 +730,7 @@ function rotate(
         rotated
 
       active.x += kick
+      playRotate()
 
       return
     }
@@ -744,6 +773,8 @@ function hardDrop(
 
   player.score +=
     distance * 2
+
+  playHardDrop(distance)
 
   void lockPiece(player)
 }
@@ -877,6 +908,8 @@ function startGame(
 
   paused.value = false
   started.value = true
+  stopAudio()
+  void playStart()
 
   /*
    * Tạo duy nhất một sequence.
@@ -1025,6 +1058,8 @@ function togglePause(): void {
   } else {
     restartTimer()
   }
+
+  playPause(paused.value)
 }
 
 /* =========================================================
@@ -1042,6 +1077,18 @@ function backToMode(): void {
   resetPlayers()
 
   pieceSequence = []
+  stopAudio()
+}
+
+function handleSoundToggle(): void {
+  void toggleSound(
+    started.value &&
+    !paused.value &&
+    !(
+      player1.value.gameOver &&
+      (mode.value === 1 || player2.value.gameOver)
+    )
+  )
 }
 
 /* =========================================================
@@ -1181,6 +1228,7 @@ onBeforeUnmount(() => {
 
   stopTimer()
   gameSession++
+  void disposeAudio()
 })
 </script>
 
@@ -1196,6 +1244,13 @@ onBeforeUnmount(() => {
       class="mode-screen"
     >
       <div class="mode-card">
+
+        <button
+          type="button"
+          class="audio-toggle audio-toggle-mode"
+          :aria-pressed="soundEnabled"
+          @click="handleSoundToggle"
+        >{{ soundEnabled ? '♫ ON' : '♫ OFF' }}</button>
 
         <div class="logo">
           <span>TETRIS</span>
@@ -1281,6 +1336,13 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="header-actions">
+
+          <button
+            type="button"
+            class="audio-toggle"
+            :aria-pressed="soundEnabled"
+            @click="handleSoundToggle"
+          >{{ soundEnabled ? '♫ SOUND' : '♫ MUTED' }}</button>
 
           <button
             class="restart-button"

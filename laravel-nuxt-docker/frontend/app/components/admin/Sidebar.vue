@@ -22,6 +22,7 @@ import {
   ArrowDownUp,
   Brush,
   SquareTerminal,
+  Trophy,
   LogOut
 } from 'lucide-vue-next'
 
@@ -52,7 +53,7 @@ const menuItems = [
   },
   {
     label: 'Users',
-    to: '/users',
+    to: '/admin/users',
     icon: Users
   },
   {
@@ -70,6 +71,11 @@ const menuItems = [
     label: 'Reports',
     to: '/reports',
     icon: FileText
+  },
+  {
+    label: 'Pandora Ranking',
+    to: '/admin/pandora/leaderboard',
+    icon: Trophy
   }
 ]
 
@@ -77,32 +83,38 @@ const gameMenuItems = [
   {
     label: 'Aim',
     to: '/games/aim',
-    icon: Crosshair
+    icon: Crosshair,
+    newTab: true
   },
   {
     label: 'Chess',
     to: '/games/chess',
-    icon: ChessKing
+    icon: ChessKing,
+    newTab: true
   },
   {
     label: 'Reaction',
     to: '/games/reaction',
-    icon: Zap
+    icon: Zap,
+    newTab: true
   },
   {
     label: 'Tetris',
     to: '/games/tetris',
-    icon: Blocks
+    icon: Blocks,
+    newTab: true
   },
   {
     label: 'WhoAmI',
     to: '/games/pandora/whoami',
-    icon: Blocks
+    icon: Blocks,
+    newTab: true
   },
   {
     label: 'I am a detective.',
     to: '/games/pandora/detective',
-    icon: SquareTerminal
+    icon: SquareTerminal,
+    newTab: true
   }
 ]
 
@@ -134,7 +146,7 @@ const algorithmMenuItems = [
 
 const handleLogout = async () => {
   await logout()
-  navigateTo('/login')
+  navigateTo('/admin/login')
 }
 </script>
 
@@ -236,7 +248,6 @@ const handleLogout = async () => {
             hover:text-zinc-200
           "
           active-class="bg-violet-500/10 !text-violet-300"
-          @click="emit('close')"
         >
           <component
             :is="item.icon"
@@ -327,6 +338,8 @@ const handleLogout = async () => {
                 v-for="item in gameMenuItems"
                 :key="item.to"
                 :to="item.to"
+                :target="item.newTab ? '_blank' : undefined"
+                :rel="item.newTab ? 'noopener noreferrer' : undefined"
                 class="
                   group
                   flex items-center
@@ -341,7 +354,6 @@ const handleLogout = async () => {
                   hover:text-zinc-200
                 "
                 active-class="bg-violet-500/10 !text-violet-300"
-                @click="emit('close')"
               >
                 <component
                   :is="item.icon"
@@ -501,7 +513,6 @@ const handleLogout = async () => {
                         hover:text-zinc-200
                       "
                       active-class="bg-violet-500/10 !text-violet-300"
-                      @click="emit('close')"
                     >
                       <component
                         :is="item.icon"
@@ -541,7 +552,6 @@ const handleLogout = async () => {
                   hover:text-zinc-200
                 "
                 active-class="bg-violet-500/10 !text-violet-300"
-                @click="emit('close')"
               >
                 <component
                   :is="item.icon"
@@ -580,7 +590,6 @@ const handleLogout = async () => {
               hover:text-zinc-200
             "
             active-class="bg-violet-500/10 !text-violet-300"
-            @click="emit('close')"
           >
             <Settings
               class="

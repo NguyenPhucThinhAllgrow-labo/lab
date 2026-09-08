@@ -1147,7 +1147,7 @@ export function useDetectiveGame(
 
     state.tasks.forEach(task => {
       state.linkedEvidence[task.id] = [
-        ...task.requiresEvidence,
+        ...new Set(task.requiresEvidence),
       ]
       task.completed = true
     })

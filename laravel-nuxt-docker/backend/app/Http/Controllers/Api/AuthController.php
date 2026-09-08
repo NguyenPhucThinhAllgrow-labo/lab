@@ -11,12 +11,25 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
+        return $this->loginWithRole($request, 'user');
+    }
+
+    public function adminLogin(Request $request)
+    {
+        return $this->loginWithRole($request, 'admin');
+    }
+
+    private function loginWithRole(Request $request, string $role)
+    {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
         ]);
 
-        if (!Auth::attempt($credentials)) {
+        if (! Auth::attempt([
+            ...$credentials,
+            'role' => $role,
+        ])) {
             throw ValidationException::withMessages([
                 'email' => ['Email hoặc mật khẩu không chính xác.'],
             ]);

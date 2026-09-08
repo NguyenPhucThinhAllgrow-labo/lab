@@ -15,6 +15,7 @@ class DetectiveApiTest extends TestCase
     public function test_it_lists_active_cases_in_the_requested_locale(): void
     {
         $this->createCase();
+        Sanctum::actingAs(User::factory()->create());
 
         $this->getJson('/api/detective/cases?locale=vi')
             ->assertOk()
@@ -30,15 +31,31 @@ class DetectiveApiTest extends TestCase
             ->assertUnauthorized();
     }
 
+    public function test_case_list_requires_player_authentication(): void
+    {
+        $this->getJson('/api/detective/cases')
+            ->assertUnauthorized();
+    }
+
     public function test_it_returns_the_complete_scenario_for_a_case(): void
     {
         $case = $this->createCase();
+        Sanctum::actingAs(User::factory()->create());
 
         $this->getJson("/api/detective/cases/{$case->id}")
             ->assertOk()
             ->assertJsonPath('data.scenario.id', 'case001')
             ->assertJsonPath('data.scenario.filesystem.0.name', 'logs')
             ->assertJsonCount(1, 'data.scenario.tasks');
+    }
+
+    public function test_an_admin_cannot_access_player_detective_api(): void
+    {
+        $this->createCase();
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+
+        $this->getJson('/api/detective/cases')
+            ->assertForbidden();
     }
 
     public function test_a_user_can_save_and_read_detective_progress(): void
@@ -93,6 +110,36 @@ class DetectiveApiTest extends TestCase
             ->assertOk();
 
         $this->assertDatabaseCount('detective_progress', 0);
+    }
+
+    public function test_evidence_can_be_reused_across_different_tasks(): void
+    {
+        $case = $this->createCase();
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->putJson("/api/detective/cases/{$case->id}/progress", [
+            'linked_evidence' => [
+                'first-task' => ['shared-evidence', 'first-evidence'],
+                'second-task' => ['shared-evidence', 'second-evidence'],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.linked_evidence.first-task.0', 'shared-evidence')
+            ->assertJsonPath('data.linked_evidence.second-task.0', 'shared-evidence');
+    }
+
+    public function test_the_same_evidence_cannot_be_linked_twice_to_one_task(): void
+    {
+        $case = $this->createCase();
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->putJson("/api/detective/cases/{$case->id}/progress", [
+            'linked_evidence' => [
+                'first-task' => ['shared-evidence', 'shared-evidence'],
+            ],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('linked_evidence.first-task');
     }
 
     public function test_completing_a_case_creates_detailed_history(): void

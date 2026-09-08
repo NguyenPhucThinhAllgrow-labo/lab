@@ -2,6 +2,7 @@ interface User {
   id: number
   name: string
   email: string
+  role: 'admin' | 'user'
 }
 
 interface LoginResponse {
@@ -64,6 +65,28 @@ export const useAuth = () => {
     return response
   }
 
+  const adminLogin = async (
+    email: string,
+    password: string,
+  ) => {
+    await csrf()
+
+    const response = await api<LoginResponse>(
+      '/api/admin/login',
+      {
+        method: 'POST',
+        body: {
+          email,
+          password,
+        },
+      },
+    )
+
+    user.value = response.user
+
+    return response
+  }
+
   /**
    * Lấy user hiện tại
    */
@@ -106,6 +129,7 @@ export const useAuth = () => {
     initialized,
 
     login,
+    adminLogin,
     fetchUser,
     logout,
   }

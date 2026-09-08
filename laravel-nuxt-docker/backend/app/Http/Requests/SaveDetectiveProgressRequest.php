@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SaveDetectiveProgressRequest extends FormRequest
@@ -21,8 +22,19 @@ class SaveDetectiveProgressRequest extends FormRequest
             'completed_tasks' => ['sometimes', 'array', 'max:100'],
             'completed_tasks.*' => ['string', 'max:100', 'distinct'],
             'linked_evidence' => ['sometimes', 'array', 'max:100'],
-            'linked_evidence.*' => ['array', 'max:100'],
-            'linked_evidence.*.*' => ['string', 'max:100', 'distinct'],
+            'linked_evidence.*' => [
+                'array',
+                'max:100',
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    if (
+                        is_array($value) &&
+                        count($value) !== count(array_unique($value, SORT_STRING))
+                    ) {
+                        $fail("The {$attribute} field has a duplicate value.");
+                    }
+                },
+            ],
+            'linked_evidence.*.*' => ['string', 'max:100'],
             'unlocked_paths' => ['sometimes', 'array', 'max:100'],
             'unlocked_paths.*' => ['string', 'max:500', 'starts_with:/', 'distinct'],
             'command_history' => ['sometimes', 'array', 'max:200'],

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureUserHasRole;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Treat requests from the Nuxt SPA as first-party Sanctum requests.
         $middleware->statefulApi();
+
+        $middleware->alias([
+            'role' => EnsureUserHasRole::class,
+        ]);
 
         // Terminal output intentionally contains leading indentation. Trimming
         // it would invalidate the persisted highlight character offsets.

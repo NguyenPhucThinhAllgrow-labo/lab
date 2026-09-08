@@ -30,4 +30,9 @@ class DetectiveCompletionHistory extends Model
     {
         return $this->belongsTo(DetectiveCase::class, 'case_id');
     }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 }
