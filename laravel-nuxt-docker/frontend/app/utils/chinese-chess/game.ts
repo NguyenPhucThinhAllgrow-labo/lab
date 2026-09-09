@@ -1,12 +1,12 @@
 import type {
-  ChessPiece,
+  ChineseChessPiece,
   Position,
-} from '~/types/chess'
+} from '~/types/games/chinese-chess'
 
 export function getPieceAt(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
   position: Position,
-): ChessPiece | undefined {
+): ChineseChessPiece | undefined {
   return board.find(
     piece =>
       piece.row === position.row &&
@@ -15,10 +15,10 @@ export function getPieceAt(
 }
 
 export function movePiece(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
   pieceId: string,
   to: Position,
-): ChessPiece[] {
+): ChineseChessPiece[] {
   const nextBoard = board.map(
     piece => ({
       ...piece,

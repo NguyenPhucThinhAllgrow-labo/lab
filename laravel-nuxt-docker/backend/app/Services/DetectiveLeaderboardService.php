@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DetectiveCase;
 use App\Models\DetectiveCompletionHistory;
 use App\Repositories\Contracts\DetectiveLeaderboardRepositoryInterface;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 class DetectiveLeaderboardService
@@ -13,37 +14,12 @@ class DetectiveLeaderboardService
         private readonly DetectiveLeaderboardRepositoryInterface $leaderboard,
     ) {}
 
-    public function get(?string $caseId = null, int $limit = 100, string $locale = 'vi'): array
+    public function best(?string $caseId, int $perPage, int $page, string $locale = 'vi'): array
     {
         $histories = $this->leaderboard->completionHistories($caseId);
-        $historyRuns = $caseId
-            ? $this->leaderboard->completionHistories()
-            : $histories;
-
-        $attemptNumbers = [];
-        $allRuns = $historyRuns
-            ->sort(function (DetectiveCompletionHistory $left, DetectiveCompletionHistory $right): int {
-                return (($left->completed_at?->getTimestamp() ?? 0)
-                    <=> ($right->completed_at?->getTimestamp() ?? 0))
-                    ?: ($left->id <=> $right->id);
-            })
-            ->map(function (DetectiveCompletionHistory $history) use (&$attemptNumbers, $locale): array {
-                $key = "{$history->user_id}:{$history->case_id}";
-                $attemptNumbers[$key] = ($attemptNumbers[$key] ?? 0) + 1;
-
-                return [
-                    ...$this->historyData($history, $locale),
-                    'attempt_number' => $attemptNumbers[$key],
-                ];
-            })
-            ->sort(function (array $left, array $right): int {
-                return (strtotime((string) $right['completed_at'])
-                    <=> strtotime((string) $left['completed_at']))
-                    ?: ($right['history_id'] <=> $left['history_id']);
-            })
-            ->values();
-
-        $bestRuns = $histories
+        $rankByHistoryId = [];
+        $attemptsByHistoryId = [];
+        $bestHistoryIds = $histories
             ->groupBy(fn (DetectiveCompletionHistory $history): string => "{$history->user_id}:{$history->case_id}")
             ->map(function (Collection $attempts): array {
                 $best = $attempts->sort(function (DetectiveCompletionHistory $left, DetectiveCompletionHistory $right): int {
@@ -75,7 +51,7 @@ class DetectiveLeaderboardService
 
                 return (int) ($history->detectiveCase?->sort_order ?? PHP_INT_MAX);
             })
-            ->flatMap(function (Collection $caseRuns) use ($limit, $locale): Collection {
+            ->flatMap(function (Collection $caseRuns) use (&$rankByHistoryId, &$attemptsByHistoryId): Collection {
                 return $caseRuns
                     ->sort(function (array $left, array $right): int {
                         /** @var DetectiveCompletionHistory $leftHistory */
@@ -88,19 +64,26 @@ class DetectiveLeaderboardService
                             ?: (($leftHistory->completed_at?->getTimestamp() ?? 0)
                                 <=> ($rightHistory->completed_at?->getTimestamp() ?? 0));
                     })
-                    ->take($limit)
                     ->values()
-                    ->map(function (array $result, int $index) use ($locale): array {
+                    ->map(function (array $result, int $index) use (&$rankByHistoryId, &$attemptsByHistoryId): int {
                         /** @var DetectiveCompletionHistory $history */
                         $history = $result['history'];
+                        $rankByHistoryId[$history->id] = $index + 1;
+                        $attemptsByHistoryId[$history->id] = $result['attempts'];
 
-                        return [
-                            'rank' => $index + 1,
-                            ...$this->historyData($history, $locale),
-                            'attempts' => $result['attempts'],
-                        ];
+                        return $history->id;
                     });
             })
+            ->values()
+            ->all();
+
+        $paginator = $this->leaderboard->paginateBestHistories($bestHistoryIds, $perPage, $page);
+        $items = $paginator->getCollection()
+            ->map(fn (DetectiveCompletionHistory $history): array => [
+                'rank' => $rankByHistoryId[$history->id],
+                ...$this->historyData($history, $locale),
+                'attempts' => $attemptsByHistoryId[$history->id],
+            ])
             ->values();
 
         return [
@@ -111,14 +94,58 @@ class DetectiveLeaderboardService
                 'average_elapsed_seconds' => (int) round($histories->avg('elapsed_seconds') ?? 0),
                 'best_score' => $histories->max(fn (DetectiveCompletionHistory $history): int => $this->score($history)) ?? 0,
             ],
-            'history' => $allRuns,
-            'cases' => $this->leaderboard->cases()
-                ->map(fn (DetectiveCase $case): array => [
-                    'id' => $case->id,
-                    'title' => $this->localizedTitle($case, $locale),
-                ])
-                ->values(),
-            'leaderboard' => $bestRuns,
+            'cases' => $this->cases($locale),
+            'items' => $items,
+            'pagination' => $this->pagination($paginator),
+        ];
+    }
+
+    public function history(?string $caseId, ?string $search, int $perPage, int $page, string $locale = 'vi'): array
+    {
+        $allHistories = $this->leaderboard->completionHistories();
+        $attemptNumberById = [];
+        $attemptNumbers = [];
+        $allHistories
+            ->sortBy(fn (DetectiveCompletionHistory $history): string => sprintf('%020d:%020d', $history->completed_at?->getTimestamp() ?? 0, $history->id))
+            ->each(function (DetectiveCompletionHistory $history) use (&$attemptNumberById, &$attemptNumbers): void {
+                $key = "{$history->user_id}:{$history->case_id}";
+                $attemptNumbers[$key] = ($attemptNumbers[$key] ?? 0) + 1;
+                $attemptNumberById[$history->id] = $attemptNumbers[$key];
+            });
+
+        $paginator = $this->leaderboard->paginateCompletionHistories($caseId, $search, $perPage, $page);
+        $items = $paginator->getCollection()
+            ->map(fn (DetectiveCompletionHistory $history): array => [
+                ...$this->historyData($history, $locale),
+                'attempt_number' => $attemptNumberById[$history->id],
+            ])
+            ->values();
+
+        return [
+            'items' => $items,
+            'pagination' => $this->pagination($paginator),
+        ];
+    }
+
+    private function cases(string $locale): Collection
+    {
+        return $this->leaderboard->cases()
+            ->map(fn (DetectiveCase $case): array => [
+                'id' => $case->id,
+                'title' => $this->localizedTitle($case, $locale),
+            ])
+            ->values();
+    }
+
+    private function pagination(LengthAwarePaginator $paginator): array
+    {
+        return [
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total(),
+            'from' => $paginator->firstItem(),
+            'to' => $paginator->lastItem(),
         ];
     }
 
@@ -156,7 +183,7 @@ class DetectiveLeaderboardService
 
     private function localizedTitle(?DetectiveCase $case, string $locale): string
     {
-        if (!$case) {
+        if (! $case) {
             return 'Unknown case';
         }
 

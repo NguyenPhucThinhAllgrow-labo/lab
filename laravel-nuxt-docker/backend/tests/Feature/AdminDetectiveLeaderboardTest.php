@@ -26,31 +26,34 @@ class AdminDetectiveLeaderboardTest extends TestCase
 
         Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
 
-        $this->getJson('/api/admin/pandora/leaderboard?case_id=case004')
+        $this->getJson('/api/admin/pandora/leaderboard/best?case_id=case004')
             ->assertOk()
             ->assertJsonPath('data.summary.players', 2)
             ->assertJsonPath('data.summary.completions', 3)
-            ->assertJsonPath('data.leaderboard.0.player.name', 'Sharp Detective')
-            ->assertJsonPath('data.leaderboard.0.score', 96)
-            ->assertJsonPath('data.leaderboard.0.attempts', 2)
-            ->assertJsonPath('data.leaderboard.1.player.name', 'Fast Detective')
-            ->assertJsonCount(3, 'data.history')
-            ->assertJsonPath('data.history.0.attempt_number', 2)
-            ->assertJsonPath('data.history.1.attempt_number', 1)
-            ->assertJsonPath('data.history.2.attempt_number', 1)
-            ->assertJsonPath('data.cases.0.title', 'Mật mã Orpheus');
+            ->assertJsonPath('data.cases.0.title', 'Mật mã Orpheus')
+            ->assertJsonPath('data.items.0.player.name', 'Sharp Detective')
+            ->assertJsonPath('data.items.0.score', 96)
+            ->assertJsonPath('data.items.0.attempts', 2)
+            ->assertJsonPath('data.items.1.player.name', 'Fast Detective')
+            ->assertJsonPath('data.pagination.total', 2);
+
+        $this->getJson('/api/admin/pandora/leaderboard/history?case_id=case004')
+            ->assertOk()
+            ->assertJsonCount(3, 'data.items')
+            ->assertJsonPath('data.items.0.attempt_number', 2)
+            ->assertJsonPath('data.pagination.total', 3);
     }
 
     public function test_player_cannot_view_admin_pandora_leaderboard(): void
     {
         Sanctum::actingAs(User::factory()->create(['role' => 'user']));
 
-        $this->getJson('/api/admin/pandora/leaderboard')->assertForbidden();
+        $this->getJson('/api/admin/pandora/leaderboard/best')->assertForbidden();
     }
 
     public function test_leaderboard_requires_authentication(): void
     {
-        $this->getJson('/api/admin/pandora/leaderboard')->assertUnauthorized();
+        $this->getJson('/api/admin/pandora/leaderboard/best')->assertUnauthorized();
     }
 
     public function test_case_ranking_filter_does_not_remove_other_cases_from_full_history(): void
@@ -64,11 +67,13 @@ class AdminDetectiveLeaderboardTest extends TestCase
 
         Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
 
-        $this->getJson('/api/admin/pandora/leaderboard?case_id=case004')
+        $this->getJson('/api/admin/pandora/leaderboard/best?case_id=case004')
             ->assertOk()
-            ->assertJsonPath('data.summary.completions', 1)
-            ->assertJsonCount(1, 'data.leaderboard')
-            ->assertJsonCount(2, 'data.history');
+            ->assertJsonCount(1, 'data.items');
+
+        $this->getJson('/api/admin/pandora/leaderboard/history')
+            ->assertOk()
+            ->assertJsonCount(2, 'data.items');
     }
 
     public function test_each_case_has_an_independent_ranking(): void
@@ -85,14 +90,37 @@ class AdminDetectiveLeaderboardTest extends TestCase
 
         Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
 
-        $response = $this->getJson('/api/admin/pandora/leaderboard')->assertOk();
-        $ranksByCase = collect($response->json('data.leaderboard'))
+        $response = $this->getJson('/api/admin/pandora/leaderboard/best')->assertOk();
+        $ranksByCase = collect($response->json('data.items'))
             ->groupBy('case.id')
             ->map(fn ($entries) => collect($entries)->pluck('rank')->all())
             ->all();
 
         $this->assertSame([1, 2], $ranksByCase['case003']);
         $this->assertSame([1, 2], $ranksByCase['case004']);
+    }
+
+    public function test_best_and_history_endpoints_are_paginated_by_the_backend(): void
+    {
+        $case = $this->createCase('case004', 'Mật mã Orpheus');
+
+        foreach (range(1, 3) as $index) {
+            $this->createHistory($case, User::factory()->create(), 90 - $index, 200 + $index, 0);
+        }
+
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+
+        $this->getJson('/api/admin/pandora/leaderboard/best?per_page=2&page=2')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.pagination.current_page', 2)
+            ->assertJsonPath('data.pagination.total', 3);
+
+        $this->getJson('/api/admin/pandora/leaderboard/history?per_page=2&page=2')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.pagination.current_page', 2)
+            ->assertJsonPath('data.pagination.total', 3);
     }
 
     private function createCase(string $id, string $title): DetectiveCase

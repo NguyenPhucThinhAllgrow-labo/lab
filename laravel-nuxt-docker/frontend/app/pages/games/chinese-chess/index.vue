@@ -6,12 +6,12 @@ import {
 } from 'vue'
 
 import type {
-  ChessPiece,
+  ChineseChessPiece,
   PieceColor,
-} from '~/types/games/chess'
+} from '~/types/games/chinese-chess'
 
 useHead({
-  title: 'Cờ Tướng',
+  title: 'Chinese Chess',
 })
 
 /**
@@ -23,7 +23,7 @@ useHead({
 interface MoveHistory {
   number: number
   color: PieceColor
-  piece: ChessPiece
+  piece: ChineseChessPiece
 
   from: {
     row: number
@@ -35,7 +35,7 @@ interface MoveHistory {
     col: number
   }
 
-  captured: ChessPiece | null
+  captured: ChineseChessPiece | null
 }
 
 /**
@@ -119,10 +119,10 @@ const moveHistory =
  */
 
 const redCaptured =
-  ref<ChessPiece[]>([])
+  ref<ChineseChessPiece[]>([])
 
 const blackCaptured =
-  ref<ChessPiece[]>([])
+  ref<ChineseChessPiece[]>([])
 
 /**
  * ==========================================
@@ -266,10 +266,10 @@ const winReasonText =
  */
 
 function getPieceName(
-  piece: ChessPiece,
+  piece: ChineseChessPiece,
 ): string {
   const names: Record<
-    ChessPiece['type'],
+    ChineseChessPiece['type'],
     string
   > = {
     general: 'Tướng',
@@ -291,10 +291,10 @@ function getPieceName(
  */
 
 function getPieceSymbol(
-  piece: ChessPiece,
+  piece: ChineseChessPiece,
 ): string {
   const symbols: Record<
-    ChessPiece['type'],
+    ChineseChessPiece['type'],
     string
   > = {
     general:
@@ -556,7 +556,7 @@ function restartGame() {
   stopTimer()
 
   /**
-   * Tạo ChessBoard mới.
+   * Tạo ChineseChessBoard mới.
    */
 
   gameKey.value++
@@ -1172,7 +1172,7 @@ onBeforeUnmount(() => {
         </aside>
 
         <!-- ================================= -->
-        <!-- CENTER: CHESS BOARD -->
+        <!-- CENTER: CHINESE CHESS BOARD -->
         <!-- ================================= -->
 
         <section
@@ -1183,7 +1183,7 @@ onBeforeUnmount(() => {
             xl:order-2
           "
         >
-          <ChessBoard
+          <ChineseChessBoard
             :key="gameKey"
             :current-turn="currentTurn"
             :game-started="gameStarted"
@@ -1579,4 +1579,4 @@ onBeforeUnmount(() => {
   </main>
 </template>
 
-<style scoped src="~/assets/css/pages/games/chess/index.css"></style>
+<style scoped src="~/assets/css/pages/games/chinese-chess/index.css"></style>

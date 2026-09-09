@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { ChessPiece } from '~/types/chess'
+import type { ChineseChessPiece } from '~/types/games/chinese-chess'
 
 defineProps<{
-  piece: ChessPiece
+  piece: ChineseChessPiece
   selected?: boolean
 }>()
 </script>

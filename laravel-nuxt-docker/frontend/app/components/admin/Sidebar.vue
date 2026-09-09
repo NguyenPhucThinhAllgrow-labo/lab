@@ -87,8 +87,8 @@ const gameMenuItems = [
     newTab: true
   },
   {
-    label: 'Chess',
-    to: '/games/chess',
+    label: 'Chinese Chess',
+    to: '/games/chinese-chess',
     icon: ChessKing,
     newTab: true
   },

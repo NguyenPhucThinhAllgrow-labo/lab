@@ -6,28 +6,28 @@ import {
 } from 'vue'
 
 import type {
-  ChessPiece,
+  ChineseChessPiece,
   PieceColor,
   Position,
-} from '~/types/chess'
+} from '~/types/games/chinese-chess'
 
 import {
   createInitialBoard,
-} from '~/utils/chess/board'
+} from '~/utils/chinese-chess/board'
 
 import {
   getPseudoLegalMoves,
-} from '~/utils/chess/move'
+} from '~/utils/chinese-chess/move'
 
 import {
   movePiece,
-} from '~/utils/chess/game'
+} from '~/utils/chinese-chess/game'
 
 import {
   isInCheck,
   isCheckmate,
   isLegalMove,
-} from '~/utils/chess/check'
+} from '~/utils/chinese-chess/check'
 
 /**
  * ==========================================
@@ -51,10 +51,10 @@ const emit = defineEmits<{
     {
       number: number
       color: PieceColor
-      piece: ChessPiece
+      piece: ChineseChessPiece
       from: Position
       to: Position
-      captured: ChessPiece | null
+      captured: ChineseChessPiece | null
     },
   ]
 
@@ -74,7 +74,7 @@ const emit = defineEmits<{
  * ==========================================
  */
 
-const board = ref<ChessPiece[]>(
+const board = ref<ChineseChessPiece[]>(
   createInitialBoard(),
 )
 
@@ -222,7 +222,7 @@ const selectedPiece =
 function getPieceAt(
   row: number,
   col: number,
-): ChessPiece | undefined {
+): ChineseChessPiece | undefined {
   return board.value.find(
     (piece) =>
       piece.row === row &&
@@ -254,7 +254,7 @@ function isValidMove(
  */
 
 function selectPiece(
-  piece: ChessPiece,
+  piece: ChineseChessPiece,
 ) {
   /**
    * Chưa bắt đầu game
@@ -495,7 +495,7 @@ function performMove(
    * nên dữ liệu này dùng cho history.
    */
 
-  const movedPiece: ChessPiece = {
+  const movedPiece: ChineseChessPiece = {
     ...piece,
   }
 
@@ -629,7 +629,7 @@ function isCheckedGeneral(
  */
 
 function isCurrentTurnPiece(
-  piece: ChessPiece,
+  piece: ChineseChessPiece,
 ): boolean {
   return (
     piece.color ===
@@ -1031,7 +1031,7 @@ function isCurrentTurnPiece(
             <!-- PIECE -->
             <!-- =========================== -->
 
-            <ChessPiece
+            <ChineseChessPiece
               v-if="
                 getPieceAt(
                   row - 1,

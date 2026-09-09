@@ -14,12 +14,9 @@
 .ranking-stat__icon { display: grid; width: 34px; height: 34px; place-items: center; margin-bottom: 16px; border-radius: 10px; background: color-mix(in srgb, var(--stat-color) 12%, transparent); color: var(--stat-color); }
 .ranking-stat__icon svg { width: 17px; height: 17px; }.ranking-stat > span { display: block; color: #71717a; font-size: 11px; }.ranking-stat > strong { display: block; margin-top: 6px; font-size: 25px; }.ranking-stat > small { display: block; margin-top: 5px; color: #52525b; font-size: 10px; }
 .ranking-stat--violet { --stat-color: #a78bfa; }.ranking-stat--cyan { --stat-color: #22d3ee; }.ranking-stat--amber { --stat-color: #fbbf24; }.ranking-stat--emerald { --stat-color: #34d399; }
-.pandora-ranking__panel { margin-top: 18px; overflow: hidden; border: 1px solid rgb(255 255 255 / 6%); border-radius: 17px; background: rgb(17 17 27 / 72%); }
+.pandora-ranking__panel { margin-top: 18px; border: 1px solid rgb(255 255 255 / 6%); border-radius: 17px; background: rgb(17 17 27 / 72%); }
 .pandora-ranking__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 19px 20px; border-bottom: 1px solid rgb(255 255 255 / 6%); }
 .pandora-ranking__toolbar h2 { margin: 0; font-size: 15px; }.pandora-ranking__toolbar p { margin: 4px 0 0; color: #52525b; font-size: 11px; }
-.pandora-ranking__filter { display: flex; align-items: center; gap: 8px; min-width: 250px; padding: 0 11px; border: 1px solid rgb(255 255 255 / 8%); border-radius: 10px; background: #0c0c13; color: #71717a; }
-.pandora-ranking__filter svg { width: 14px; height: 14px; }.pandora-ranking__filter select { width: 100%; padding: 9px 0; border: 0; outline: 0; background: transparent; color: #d4d4d8; font: inherit; font-size: 11px; }
-.pandora-ranking__filter.is-loading { border-color: rgb(167 139 250 / 35%); }.pandora-ranking__filter svg.is-spinning { color: #a78bfa; animation: ranking-spin .8s linear infinite; }
 .pandora-ranking__table-area { position: relative; min-height: 180px; }
 .pandora-ranking__filter-loading { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 9px; background: rgb(9 9 11 / 62%); color: #c4b5fd; font-size: 11px; font-weight: 700; letter-spacing: .04em; backdrop-filter: blur(2px); }
 .pandora-ranking__filter-loading svg { width: 17px; height: 17px; animation: ranking-spin .8s linear infinite; }
@@ -44,13 +41,18 @@
 .ranking-mono { color: #67e8f9 !important; font-family: monospace; }.ranking-date { color: #71717a !important; white-space: nowrap; }
 .pandora-ranking__history-panel { margin-top: 18px; }
 .pandora-ranking__history-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
-.pandora-ranking__history-search, .pandora-ranking__history-case { display: flex; align-items: center; gap: 7px; min-width: 190px; height: 36px; padding: 0 10px; border: 1px solid rgb(255 255 255 / 8%); border-radius: 9px; background: #0c0c13; color: #71717a; }
-.pandora-ranking__history-search svg, .pandora-ranking__history-case svg { width: 13px; height: 13px; flex: none; }
-.pandora-ranking__history-search input, .pandora-ranking__history-case select { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #d4d4d8; font: inherit; font-size: 10px; }
+.pandora-ranking__history-search { display: flex; min-width: 210px; height: 40px; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid rgb(255 255 255 / 9%); border-radius: 11px; background: linear-gradient(180deg, #11111a, #0b0b12); color: #71717a; transition: border-color .18s ease, box-shadow .18s ease; }
+.pandora-ranking__history-search:focus-within { border-color: rgb(34 211 238 / 38%); box-shadow: 0 0 0 3px rgb(34 211 238 / 7%); }
+.pandora-ranking__history-search svg { width: 14px; height: 14px; flex: none; }
+.pandora-ranking__history-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #d4d4d8; font: inherit; font-size: 10px; }
 .pandora-ranking__history-search input::placeholder { color: #52525b; }
-.pandora-ranking__history-case { min-width: 230px; }
-.pandora-ranking__history-case select { cursor: pointer; }
 .pandora-ranking__history-count { flex: none; padding: 7px 10px; border: 1px solid rgb(34 211 238 / 18%); border-radius: 999px; background: rgb(34 211 238 / 7%); color: #67e8f9; font-family: monospace; font-size: 10px; font-weight: 700; }
+.pandora-ranking__pagination { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 18px; border-top: 1px solid rgb(255 255 255 / 6%); color: #71717a; font-size: 10px; }
+.pandora-ranking__pagination > div { display: flex; align-items: center; gap: 8px; }
+.pandora-ranking__pagination strong { min-width: 58px; color: #a1a1aa; text-align: center; }
+.pandora-ranking__pagination button { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid rgb(255 255 255 / 8%); border-radius: 8px; background: rgb(255 255 255 / 3%); color: #a1a1aa; cursor: pointer; }
+.pandora-ranking__pagination button:disabled { cursor: not-allowed; opacity: .35; }
+.pandora-ranking__pagination button svg { width: 14px; height: 14px; }
 .pandora-ranking__history-table { min-width: 1040px; }
 .ranking-attempt { display: inline-grid; min-width: 34px; height: 26px; place-items: center; padding: 0 7px; border-radius: 7px; background: rgb(139 92 246 / 10%); color: #c4b5fd; font-family: monospace; font-size: 10px; font-weight: 800; }
 .pandora-ranking__empty--compact { min-height: 170px; }
@@ -59,4 +61,4 @@
 .pandora-ranking__error { display: grid; min-height: 230px; place-items: center; align-content: center; gap: 10px; color: #fb7185; font-size: 12px; }.pandora-ranking__error button { padding: 7px 12px; border: 1px solid rgb(251 113 133 / 30%); border-radius: 8px; background: rgb(159 18 57 / 12%); color: #fda4af; cursor: pointer; }
 @keyframes ranking-spin { to { transform: rotate(360deg); } } @keyframes ranking-shimmer { to { background-position: -200% 0; } }
 @media (max-width: 1050px) { .pandora-ranking__stats { grid-template-columns: repeat(2, 1fr); }.pandora-ranking__history-tools { width: 100%; flex-wrap: wrap; justify-content: flex-start; } }
-@media (max-width: 640px) { .pandora-ranking { padding: 18px 14px; }.pandora-ranking__header, .pandora-ranking__toolbar { align-items: stretch; flex-direction: column; }.pandora-ranking__refresh { align-self: flex-start; }.pandora-ranking__stats { grid-template-columns: 1fr; }.pandora-ranking__filter, .pandora-ranking__history-search, .pandora-ranking__history-case { width: 100%; min-width: 0; }.pandora-ranking__history-count { align-self: flex-start; } }
+@media (max-width: 640px) { .pandora-ranking { padding: 18px 14px; }.pandora-ranking__header, .pandora-ranking__toolbar { align-items: stretch; flex-direction: column; }.pandora-ranking__refresh { align-self: flex-start; }.pandora-ranking__stats { grid-template-columns: 1fr; }.pandora-ranking__history-search { width: 100%; min-width: 0; }.pandora-ranking__history-count { align-self: flex-start; } }

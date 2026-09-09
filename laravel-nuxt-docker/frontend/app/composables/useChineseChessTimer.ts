@@ -4,11 +4,11 @@ import {
   ref,
 } from 'vue'
 
-export type ChessTurn =
+export type ChineseChessTurn =
   | 'red'
   | 'black'
 
-export function useChessTimer(
+export function useChineseChessTimer(
   initialSeconds = 10 * 60,
 ) {
   const redTime = ref(
@@ -25,7 +25,7 @@ export function useChessTimer(
    * Game luôn bắt đầu bằng Đỏ.
    */
   const currentTurn =
-    ref<ChessTurn>('red')
+    ref<ChineseChessTurn>('red')
 
   /**
    * Game đã bắt đầu chưa.

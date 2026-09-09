@@ -1,8 +1,8 @@
 import type {
-  ChessPiece,
+  ChineseChessPiece,
   PieceColor,
   PieceType,
-} from '~/types/chess'
+} from '~/types/games/chinese-chess'
 
 function createPiece(
   id: string,
@@ -10,7 +10,7 @@ function createPiece(
   color: PieceColor,
   row: number,
   col: number,
-): ChessPiece {
+): ChineseChessPiece {
   return {
     id,
     type,
@@ -20,8 +20,8 @@ function createPiece(
   }
 }
 
-export function createInitialBoard(): ChessPiece[] {
-  const pieces: ChessPiece[] = []
+export function createInitialBoard(): ChineseChessPiece[] {
+  const pieces: ChineseChessPiece[] = []
 
   // =========================
   // BLACK

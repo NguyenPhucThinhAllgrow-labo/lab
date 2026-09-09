@@ -1,16 +1,16 @@
 import type {
-  ChessPiece,
+  ChineseChessPiece,
   PieceColor,
   Position,
-} from '~/types/games/chess'
+} from '~/types/games/chinese-chess'
 
 import {
   getPseudoLegalMoves,
-} from '~/utils/chess/move'
+} from '~/utils/chinese-chess/move'
 
 import {
   movePiece,
-} from '~/utils/chess/game'
+} from '~/utils/chinese-chess/game'
 
 /**
  * ==========================================
@@ -19,9 +19,9 @@ import {
  */
 
 function findGeneral(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
   color: PieceColor,
-): ChessPiece | undefined {
+): ChineseChessPiece | undefined {
   return board.find(
     piece =>
       piece.type === 'general' &&
@@ -36,10 +36,10 @@ function findGeneral(
  */
 
 function getPieceAt(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
   row: number,
   col: number,
-): ChessPiece | undefined {
+): ChineseChessPiece | undefined {
   return board.find(
     piece =>
       piece.row === row &&
@@ -60,7 +60,7 @@ function getPieceAt(
  */
 
 function areGeneralsFacing(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
 ): boolean {
   const redGeneral =
     findGeneral(
@@ -139,7 +139,7 @@ function areGeneralsFacing(
  */
 
 export function isInCheck(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
   color: PieceColor,
 ): boolean {
   const general =
@@ -218,10 +218,10 @@ export function isInCheck(
  */
 
 function tryMove(
-  board: ChessPiece[],
-  piece: ChessPiece,
+  board: ChineseChessPiece[],
+  piece: ChineseChessPiece,
   position: Position,
-): ChessPiece[] {
+): ChineseChessPiece[] {
   return movePiece(
     board,
     piece.id,
@@ -236,8 +236,8 @@ function tryMove(
  */
 
 export function isLegalMove(
-  board: ChessPiece[],
-  piece: ChessPiece,
+  board: ChineseChessPiece[],
+  piece: ChineseChessPiece,
   position: Position,
 ): boolean {
   /**
@@ -297,14 +297,14 @@ export function isLegalMove(
  */
 
 export function getLegalMoves(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
   color: PieceColor,
 ): {
-  piece: ChessPiece
+  piece: ChineseChessPiece
   moves: Position[]
 }[] {
   const result: {
-    piece: ChessPiece
+    piece: ChineseChessPiece
     moves: Position[]
   }[] = []
 
@@ -358,7 +358,7 @@ export function getLegalMoves(
  */
 
 export function isCheckmate(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
   color: PieceColor,
 ): boolean {
   /**
@@ -402,7 +402,7 @@ export function isCheckmate(
  */
 
 export function isStalemate(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
   color: PieceColor,
 ): boolean {
   /**

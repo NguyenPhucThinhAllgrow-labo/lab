@@ -1,9 +1,9 @@
 import type {
-  ChessPiece,
+  ChineseChessPiece,
   PieceColor,
   PieceType,
   Position,
-} from '~/types/chess'
+} from '~/types/games/chinese-chess'
 
 const ROWS = 10
 const COLS = 9
@@ -27,10 +27,10 @@ function insideBoard(
  * Lấy quân cờ tại một vị trí.
  */
 function getPieceAt(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
   row: number,
   col: number,
-): ChessPiece | undefined {
+): ChineseChessPiece | undefined {
   return board.find(
     piece =>
       piece.row === row &&
@@ -42,7 +42,7 @@ function getPieceAt(
  * Kiểm tra quân tại vị trí có phải quân địch.
  */
 function isEnemy(
-  piece: ChessPiece | undefined,
+  piece: ChineseChessPiece | undefined,
   color: PieceColor,
 ): boolean {
   return !!piece && piece.color !== color
@@ -52,7 +52,7 @@ function isEnemy(
  * Kiểm tra quân tại vị trí có phải quân cùng màu.
  */
 function isFriendly(
-  piece: ChessPiece | undefined,
+  piece: ChineseChessPiece | undefined,
   color: PieceColor,
 ): boolean {
   return !!piece && piece.color === color
@@ -67,7 +67,7 @@ function isFriendly(
  * - Tướng đối mặt
  */
 function countPiecesBetween(
-  board: ChessPiece[],
+  board: ChineseChessPiece[],
   from: Position,
   to: Position,
 ): number {
@@ -160,8 +160,8 @@ function insidePalace(
  * - chỉ được ở trong cung
  */
 function getGeneralMoves(
-  piece: ChessPiece,
-  board: ChessPiece[],
+  piece: ChineseChessPiece,
+  board: ChineseChessPiece[],
 ): Position[] {
   const moves: Position[] = []
 
@@ -222,8 +222,8 @@ function getGeneralMoves(
  * - chỉ ở trong cung
  */
 function getAdvisorMoves(
-  piece: ChessPiece,
-  board: ChessPiece[],
+  piece: ChineseChessPiece,
+  board: ChineseChessPiece[],
 ): Position[] {
   const moves: Position[] = []
 
@@ -285,8 +285,8 @@ function getAdvisorMoves(
  * - bị chặn mắt tượng
  */
 function getElephantMoves(
-  piece: ChessPiece,
-  board: ChessPiece[],
+  piece: ChineseChessPiece,
+  board: ChineseChessPiece[],
 ): Position[] {
   const moves: Position[] = []
 
@@ -370,8 +370,8 @@ function getElephantMoves(
  * - bị chặn chân mã
  */
 function getHorseMoves(
-  piece: ChessPiece,
-  board: ChessPiece[],
+  piece: ChineseChessPiece,
+  board: ChineseChessPiece[],
 ): Position[] {
   const moves: Position[] = []
 
@@ -489,8 +489,8 @@ function getHorseMoves(
  * - không được nhảy qua quân
  */
 function getChariotMoves(
-  piece: ChessPiece,
-  board: ChessPiece[],
+  piece: ChineseChessPiece,
+  board: ChineseChessPiece[],
 ): Position[] {
   const moves: Position[] = []
 
@@ -556,8 +556,8 @@ function getChariotMoves(
  * - muốn ăn phải có đúng 1 quân làm ngòi
  */
 function getCannonMoves(
-  piece: ChessPiece,
-  board: ChessPiece[],
+  piece: ChineseChessPiece,
+  board: ChineseChessPiece[],
 ): Position[] {
   const moves: Position[] = []
 
@@ -638,8 +638,8 @@ function getCannonMoves(
  * Không bao giờ được đi lùi.
  */
 function getSoldierMoves(
-  piece: ChessPiece,
-  board: ChessPiece[],
+  piece: ChineseChessPiece,
+  board: ChineseChessPiece[],
 ): Position[] {
   const moves: Position[] = []
 
@@ -742,8 +742,8 @@ function getSoldierMoves(
  * - Tướng đối mặt
  */
 export function getPseudoLegalMoves(
-  piece: ChessPiece,
-  board: ChessPiece[],
+  piece: ChineseChessPiece,
+  board: ChineseChessPiece[],
 ): Position[] {
   switch (piece.type) {
     case 'general':

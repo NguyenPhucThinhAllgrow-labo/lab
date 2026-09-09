@@ -14,7 +14,7 @@ export interface Position {
   col: number
 }
 
-export interface ChessPiece {
+export interface ChineseChessPiece {
   id: string
   type: PieceType
   color: PieceColor

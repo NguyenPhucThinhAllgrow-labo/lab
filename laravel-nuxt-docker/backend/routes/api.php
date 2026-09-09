@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Admin\DetectiveLeaderboardController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DetectiveCaseController;
 use App\Http\Controllers\Api\DetectiveHistoryController;
 use App\Http\Controllers\Api\DetectiveProgressController;
@@ -38,5 +38,6 @@ Route::middleware(['auth:sanctum', 'role:user'])->group(function (): void {
 Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(function (): void {
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/users', [AdminUserController::class, 'index']);
-    Route::get('/pandora/leaderboard', [DetectiveLeaderboardController::class, 'index']);
+    Route::get('/pandora/leaderboard/best', [DetectiveLeaderboardController::class, 'best']);
+    Route::get('/pandora/leaderboard/history', [DetectiveLeaderboardController::class, 'history']);
 });

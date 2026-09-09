@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {
   Award,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   RefreshCw,
   Search,
@@ -58,13 +60,19 @@ interface LeaderboardData {
     best_score: number
   }
   cases: LeaderboardCase[]
-  leaderboard: LeaderboardEntry[]
-  history: CompletionHistoryEntry[]
 }
 
-interface LeaderboardResponse {
-  data: LeaderboardData
+interface Pagination {
+  current_page: number
+  last_page: number
+  per_page: number
+  total: number
+  from: number | null
+  to: number | null
 }
+
+interface PaginatedResponse<T> { data: { items: T[]; pagination: Pagination } }
+interface BestResponse extends PaginatedResponse<LeaderboardEntry> { data: PaginatedResponse<LeaderboardEntry>['data'] & LeaderboardData }
 
 useHead({ title: 'Pandora Ranking | Admin' })
 
@@ -72,9 +80,20 @@ const api = useApi()
 const selectedCase = ref('')
 const historyNameQuery = ref('')
 const historyCase = ref('')
-const loading = ref(true)
+const bestLoading = ref(true)
+const historyLoading = ref(true)
 const errorMessage = ref('')
 const leaderboard = ref<LeaderboardData | null>(null)
+const bestEntries = ref<LeaderboardEntry[]>([])
+const historyEntries = ref<CompletionHistoryEntry[]>([])
+const emptyPagination = (): Pagination => ({ current_page: 1, last_page: 1, per_page: 10, total: 0, from: null, to: null })
+const bestPagination = ref<Pagination>(emptyPagination())
+const historyPagination = ref<Pagination>(emptyPagination())
+const caseFilterOptions = computed(() => (leaderboard.value?.cases ?? []).map(item => ({
+  value: item.id,
+  label: item.title,
+  meta: `[${item.id}]`,
+})))
 
 const summaryCards = computed(() => [
   {
@@ -107,26 +126,13 @@ const summaryCards = computed(() => [
   },
 ])
 
-const filteredHistory = computed(() => {
-  const query = historyNameQuery.value.trim().toLocaleLowerCase('vi')
-
-  return (leaderboard.value?.history ?? []).filter((entry) => {
-    const matchesCase = !historyCase.value || entry.case.id === historyCase.value
-    const playerIdentity = `${entry.player.name} ${entry.player.email ?? ''}`
-      .toLocaleLowerCase('vi')
-    const matchesPlayer = !query || playerIdentity.includes(query)
-
-    return matchesCase && matchesPlayer
-  })
-})
-
 const leaderboardGroups = computed(() => {
   const groups = new Map<string, {
     case: LeaderboardCase
     entries: LeaderboardEntry[]
   }>()
 
-  for (const entry of leaderboard.value?.leaderboard ?? []) {
+  for (const entry of bestEntries.value) {
     const group = groups.get(entry.case.id)
 
     if (group) {
@@ -142,25 +148,44 @@ const leaderboardGroups = computed(() => {
   return [...groups.values()]
 })
 
-async function loadLeaderboard() {
-  loading.value = true
+async function loadBest(page = bestPagination.value.current_page) {
+  bestLoading.value = true
   errorMessage.value = ''
-
   try {
-    const response = await api<LeaderboardResponse>('/api/admin/pandora/leaderboard', {
+    const response = await api<BestResponse>('/api/admin/pandora/leaderboard/best', {
+      query: { case_id: selectedCase.value || undefined, locale: 'vi', page, per_page: bestPagination.value.per_page },
+    })
+    bestEntries.value = response.data.items
+    bestPagination.value = response.data.pagination
+    leaderboard.value = { summary: response.data.summary, cases: response.data.cases }
+  } catch (error: any) {
+    errorMessage.value = error?.data?.message || 'Không thể tải thành tích tốt nhất.'
+  } finally {
+    bestLoading.value = false
+  }
+}
+
+async function loadHistory(page = historyPagination.value.current_page) {
+  historyLoading.value = true
+  try {
+    const response = await api<PaginatedResponse<CompletionHistoryEntry>>('/api/admin/pandora/leaderboard/history', {
       query: {
-        case_id: selectedCase.value || undefined,
-        locale: 'vi',
-        limit: 100,
+        case_id: historyCase.value || undefined,
+        search: historyNameQuery.value.trim() || undefined,
+        locale: 'vi', page, per_page: historyPagination.value.per_page,
       },
     })
-
-    leaderboard.value = response.data
+    historyEntries.value = response.data.items
+    historyPagination.value = response.data.pagination
   } catch (error: any) {
-    errorMessage.value = error?.data?.message || 'Không thể tải bảng xếp hạng Pandora.'
+    errorMessage.value = error?.data?.message || 'Không thể tải lịch sử lượt chơi.'
   } finally {
-    loading.value = false
+    historyLoading.value = false
   }
+}
+
+function refreshAll() {
+  return Promise.all([loadBest(), loadHistory()])
 }
 
 function formatDuration(totalSeconds: number) {
@@ -191,8 +216,14 @@ function rankClass(rank: number) {
   return ''
 }
 
-watch(selectedCase, loadLeaderboard)
-onMounted(loadLeaderboard)
+let historySearchTimer: ReturnType<typeof setTimeout> | undefined
+watch(selectedCase, () => loadBest(1))
+watch(historyCase, () => loadHistory(1))
+watch(historyNameQuery, () => {
+  clearTimeout(historySearchTimer)
+  historySearchTimer = setTimeout(() => loadHistory(1), 300)
+})
+onMounted(() => Promise.all([loadBest(1), loadHistory(1)]))
 </script>
 
 <template>
@@ -207,8 +238,8 @@ onMounted(loadLeaderboard)
         <p>Dữ liệu tổng hợp trực tiếp từ các lượt hoàn thành được lưu trong hệ thống.</p>
       </div>
 
-      <button type="button" class="pandora-ranking__refresh" :disabled="loading" @click="loadLeaderboard">
-        <RefreshCw :class="{ 'is-spinning': loading }" />
+      <button type="button" class="pandora-ranking__refresh" :disabled="bestLoading || historyLoading" @click="refreshAll">
+        <RefreshCw :class="{ 'is-spinning': bestLoading || historyLoading }" />
         Làm mới
       </button>
     </header>
@@ -229,40 +260,37 @@ onMounted(loadLeaderboard)
           <p>Mỗi người chơi chỉ lấy lượt tốt nhất trong từng case.</p>
         </div>
 
-        <label class="pandora-ranking__filter" :class="{ 'is-loading': loading }">
-          <RefreshCw v-if="loading" class="is-spinning" />
-          <Search v-else />
-          <select v-model="selectedCase" :disabled="loading">
-            <option value="">Tất cả case</option>
-            <option v-for="item in leaderboard?.cases ?? []" :key="item.id" :value="item.id">
-              {{ item.title }} [{{ item.id }}]
-            </option>
-          </select>
-        </label>
+        <AdminFilterSelect
+          v-model="selectedCase"
+          :options="caseFilterOptions"
+          placeholder="Tất cả case"
+          aria-label="Lọc thành tích theo case"
+          :loading="bestLoading"
+        />
       </div>
 
       <div v-if="errorMessage" class="pandora-ranking__error">
         <p>{{ errorMessage }}</p>
-        <button type="button" @click="loadLeaderboard">Thử lại</button>
+        <button type="button" @click="refreshAll">Thử lại</button>
       </div>
 
-      <div v-else-if="loading && !leaderboard" class="pandora-ranking__loading">
+      <div v-else-if="bestLoading && !bestEntries.length" class="pandora-ranking__loading">
         <i v-for="row in 6" :key="row"></i>
       </div>
 
-      <div v-else-if="!leaderboard?.leaderboard.length" class="pandora-ranking__empty">
+      <div v-else-if="!bestEntries.length" class="pandora-ranking__empty">
         <Trophy />
         <strong>Chưa có thành tích</strong>
         <span>Người chơi hoàn thành case sẽ xuất hiện tại đây.</span>
       </div>
 
       <div v-else class="pandora-ranking__table-area">
-        <div v-if="loading" class="pandora-ranking__filter-loading" role="status" aria-live="polite">
+        <div v-if="bestLoading" class="pandora-ranking__filter-loading" role="status" aria-live="polite">
           <RefreshCw />
           <span>Đang lọc dữ liệu...</span>
         </div>
 
-        <div class="pandora-ranking__boards" :class="{ 'is-filtering': loading }">
+        <div class="pandora-ranking__boards" :class="{ 'is-filtering': bestLoading }">
           <section
             v-for="group in leaderboardGroups"
             :key="group.case.id"
@@ -322,6 +350,14 @@ onMounted(loadLeaderboard)
           </section>
         </div>
       </div>
+      <footer v-if="bestPagination.total" class="pandora-ranking__pagination">
+        <span>Hiển thị {{ bestPagination.from }}–{{ bestPagination.to }} trong {{ bestPagination.total }} thành tích</span>
+        <div>
+          <button type="button" :disabled="bestPagination.current_page <= 1 || bestLoading" @click="loadBest(bestPagination.current_page - 1)"><ChevronLeft /></button>
+          <strong>{{ bestPagination.current_page }} / {{ bestPagination.last_page }}</strong>
+          <button type="button" :disabled="bestPagination.current_page >= bestPagination.last_page || bestLoading" @click="loadBest(bestPagination.current_page + 1)"><ChevronRight /></button>
+        </div>
+      </footer>
     </section>
 
     <section v-if="leaderboard" class="pandora-ranking__panel pandora-ranking__history-panel">
@@ -342,35 +378,33 @@ onMounted(loadLeaderboard)
             >
           </label>
 
-          <label class="pandora-ranking__history-case">
-            <Search />
-            <select v-model="historyCase" aria-label="Lọc lịch sử theo case">
-              <option value="">Tất cả case</option>
-              <option v-for="item in leaderboard.cases" :key="item.id" :value="item.id">
-                {{ item.title }} [{{ item.id }}]
-              </option>
-            </select>
-          </label>
+          <AdminFilterSelect
+            v-model="historyCase"
+            :options="caseFilterOptions"
+            placeholder="Tất cả case"
+            aria-label="Lọc lịch sử theo case"
+            :loading="historyLoading"
+          />
 
           <span class="pandora-ranking__history-count">
-            {{ filteredHistory.length }}/{{ leaderboard.history.length }} lượt
+            {{ historyPagination.total }} lượt
           </span>
         </div>
       </div>
 
-      <div v-if="!filteredHistory.length" class="pandora-ranking__empty pandora-ranking__empty--compact">
+      <div v-if="!historyEntries.length && !historyLoading" class="pandora-ranking__empty pandora-ranking__empty--compact">
         <Clock3 />
         <strong>Không tìm thấy lượt chơi phù hợp</strong>
         <span>Thử thay đổi tên người chơi hoặc case đang lọc.</span>
       </div>
 
       <div v-else class="pandora-ranking__table-area">
-        <div v-if="loading" class="pandora-ranking__filter-loading" role="status" aria-live="polite">
+        <div v-if="historyLoading" class="pandora-ranking__filter-loading" role="status" aria-live="polite">
           <RefreshCw />
           <span>Đang lọc lịch sử...</span>
         </div>
 
-        <div class="pandora-ranking__table-wrap" :class="{ 'is-filtering': loading }">
+        <div class="pandora-ranking__table-wrap" :class="{ 'is-filtering': historyLoading }">
           <table class="pandora-ranking__table pandora-ranking__history-table">
             <thead>
               <tr>
@@ -386,7 +420,7 @@ onMounted(loadLeaderboard)
               </tr>
             </thead>
             <tbody>
-              <tr v-for="entry in filteredHistory" :key="entry.history_id">
+              <tr v-for="entry in historyEntries" :key="entry.history_id">
                 <td>
                   <span class="ranking-attempt">#{{ entry.attempt_number }}</span>
                 </td>
@@ -408,6 +442,14 @@ onMounted(loadLeaderboard)
           </table>
         </div>
       </div>
+      <footer v-if="historyPagination.total" class="pandora-ranking__pagination">
+        <span>Hiển thị {{ historyPagination.from }}–{{ historyPagination.to }} trong {{ historyPagination.total }} lượt</span>
+        <div>
+          <button type="button" :disabled="historyPagination.current_page <= 1 || historyLoading" @click="loadHistory(historyPagination.current_page - 1)"><ChevronLeft /></button>
+          <strong>{{ historyPagination.current_page }} / {{ historyPagination.last_page }}</strong>
+          <button type="button" :disabled="historyPagination.current_page >= historyPagination.last_page || historyLoading" @click="loadHistory(historyPagination.current_page + 1)"><ChevronRight /></button>
+        </div>
+      </footer>
     </section>
   </main>
 </template>

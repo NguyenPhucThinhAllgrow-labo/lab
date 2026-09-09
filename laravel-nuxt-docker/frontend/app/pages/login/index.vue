@@ -10,11 +10,22 @@ let hackerBitTimer: ReturnType<typeof setInterval> | null = null
 
 const games = [
   { name: 'Aim Training', path: '/games/aim', code: 'AIM-01', description: 'Precision challenge' },
-  { name: 'Chess Arena', path: '/games/chess', code: 'CHS-02', description: 'Strategic board' },
+  { name: 'Chinese Chess', path: '/games/chinese-chess', code: 'XQ-02', description: 'Xiangqi strategy board' },
   { name: 'Reaction Test', path: '/games/reaction', code: 'RFX-03', description: 'Speed challenge' },
   { name: 'Tetris', path: '/games/tetris', code: 'TRS-04', description: 'Block protocol' },
   { name: 'Pandora: Who Am I?', path: '/games/pandora/whoami', code: 'WHO-05', description: 'Identity puzzle' },
   { name: 'Pandora Detective', path: '/games/pandora/detective', code: 'PDS-06', description: 'Forensic investigation' },
+]
+
+const chineseChessPieces = [
+  { symbol: '帥', side: 'red', x: '5%', y: '13%', size: 58, delay: 0 },
+  { symbol: '車', side: 'black', x: '14%', y: '39%', size: 45, delay: .45 },
+  { symbol: '炮', side: 'red', x: '4%', y: '72%', size: 50, delay: .9 },
+  { symbol: '馬', side: 'black', x: '25%', y: '85%', size: 38, delay: 1.35 },
+  { symbol: '將', side: 'black', x: '91%', y: '14%', size: 58, delay: .2 },
+  { symbol: '象', side: 'red', x: '83%', y: '37%', size: 43, delay: .65 },
+  { symbol: '卒', side: 'black', x: '93%', y: '69%', size: 48, delay: 1.1 },
+  { symbol: '兵', side: 'red', x: '76%', y: '87%', size: 36, delay: 1.55 },
 ]
 
 function safeGamePath(value: unknown): string {
@@ -44,6 +55,10 @@ const isTetrisSelected = computed(() =>
   selectedGame.value.path === '/games/tetris',
 )
 
+const isChineseChessSelected = computed(() =>
+  selectedGame.value.path === '/games/chinese-chess',
+)
+
 const loginBuildTransition = computed(() => {
   if (isPandoraSelected.value) return 'hacker-build'
   if (isTetrisSelected.value) return 'tetris-build'
@@ -70,6 +85,17 @@ const loginTheme = computed(() => {
       title: 'Xếp khối, phá hàng và chinh phục điểm cao.',
       description: 'Đăng nhập để lưu điểm số và tiếp tục hành trình xếp khối của bạn.',
       formStatus: 'PLAYER ONE LOGIN',
+    }
+  }
+
+  if (isChineseChessSelected.value) {
+    return {
+      mark: '帥',
+      brand: 'CHINESE CHESS',
+      eyebrow: 'XIANGQI ARENA',
+      title: 'Điều binh khiển tướng, làm chủ bàn cờ.',
+      description: 'Đăng nhập để bắt đầu ván Chinese Chess và lưu lại hành trình thi đấu.',
+      formStatus: 'PLAYER LOGIN',
     }
   }
 
@@ -187,6 +213,7 @@ const handleLogin = async () => {
     :class="{
       'game-login--pandora': isPandoraSelected,
       'game-login--tetris': isTetrisSelected,
+      'game-login--chinese-chess': isChineseChessSelected,
     }"
   >
     <div class="game-login-grid" aria-hidden="true"></div>
@@ -219,6 +246,25 @@ const handleLogin = async () => {
       </div>
       <div v-if="isTetrisSelected" class="game-login-tetrominoes">
         <i v-for="block in 12" :key="block"></i>
+      </div>
+      <div v-if="isChineseChessSelected" class="game-login-chinese-chess-scene">
+        <div class="game-login-chinese-chess-glow"></div>
+        <div class="game-login-chinese-chess-board"></div>
+        <span
+          v-for="(piece, index) in chineseChessPieces"
+          :key="`${piece.symbol}-${index}`"
+          class="game-login-chinese-chess-piece"
+          :class="`is-${piece.side}`"
+          :style="{
+            left: piece.x,
+            top: piece.y,
+            width: `${piece.size}px`,
+            height: `${piece.size}px`,
+            animationDelay: `${piece.delay}s`,
+          }"
+        >
+          <i>{{ piece.symbol }}</i>
+        </span>
       </div>
     </div>
 
