@@ -82,6 +82,8 @@ class ChineseChessRoomService
             if ($room->red_ready && $room->black_ready) {
                 $room->fill([
                     'status' => 'playing',
+                    'current_turn' => 'red',
+                    'starting_color' => 'red',
                     'started_at' => now(),
                     'last_move_at' => now(),
                 ]);
@@ -268,9 +270,17 @@ class ChineseChessRoomService
             $room->{$color.'_rematch'} = true;
             $room->version++;
             if ($room->red_rematch && $room->black_rematch) {
+                $nextStartingColor = match ((int) $room->winner_id) {
+                    (int) $room->red_player_id => 'black',
+                    (int) $room->black_player_id => 'red',
+                    default => 'red',
+                };
+
                 $room->fill([
                     'status' => 'playing',
-                    'current_turn' => 'red',
+                    'current_turn' => $nextStartingColor,
+                    'starting_color' => $nextStartingColor,
+                    'round_number' => $room->round_number + 1,
                     'board' => $this->engine->initialBoard(),
                     'move_history' => [],
                     'red_time_seconds' => 600,
@@ -299,7 +309,9 @@ class ChineseChessRoomService
             'id' => $room->id,
             'code' => $room->code,
             'status' => $room->status,
+            'round_number' => $room->round_number,
             'current_turn' => $room->current_turn,
+            'starting_color' => $room->starting_color,
             'board' => $room->board,
             'move_history' => $room->move_history ?? [],
             'red_time_seconds' => $this->displayTime($room, 'red'),

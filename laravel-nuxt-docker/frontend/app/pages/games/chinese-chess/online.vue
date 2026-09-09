@@ -412,7 +412,13 @@ onBeforeUnmount(() => {
             {{ room.code }} <Check v-if="copied" :size="16" /><Copy v-else :size="16" />
           </button>
         </div>
-        <div class="chess-roombar__status" :class="`is-${room.status}`"><span></span>{{ statusText }}</div>
+        <div class="chess-roombar__match">
+          <div class="chess-round">
+            <strong>Ván {{ room.round_number }}</strong>
+            <small>{{ room.starting_color === 'red' ? 'Quân Đỏ' : 'Quân Đen' }} đi trước</small>
+          </div>
+          <div class="chess-roombar__status" :class="`is-${room.status}`"><span></span>{{ statusText }}</div>
+        </div>
         <button class="chess-button chess-button--danger-ghost" :disabled="busy" @click="leaveRoom">
           <DoorOpen :size="17" /> Rời phòng
         </button>
@@ -572,3 +578,4 @@ onBeforeUnmount(() => {
 <style scoped src="~/assets/css/pages/games/chinese-chess/ready.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/dialogs.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/typography.css"></style>
+<style scoped src="~/assets/css/pages/games/chinese-chess/rounds.css"></style>

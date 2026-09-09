@@ -193,6 +193,40 @@ class ChineseChessRoomApiTest extends TestCase
         $this->assertNotNull(ChineseChessRoom::where('code', $code)->value('last_move_at'));
     }
 
+    public function test_first_round_starts_with_red_and_loser_starts_each_next_round(): void
+    {
+        Event::fake([ChineseChessRoomUpdated::class]);
+        $red = User::factory()->create(['role' => 'user']);
+        $black = User::factory()->create(['role' => 'user']);
+        $code = $this->actingAs($red)->postJson('/api/chinese-chess/rooms')->json('room.code');
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/join");
+        $this->startGame($code, $red, $black);
+
+        $this->actingAs($red)->getJson("/api/chinese-chess/rooms/{$code}")
+            ->assertOk()
+            ->assertJsonPath('room.round_number', 1)
+            ->assertJsonPath('room.starting_color', 'red')
+            ->assertJsonPath('room.current_turn', 'red');
+
+        // Black loses round one, therefore Black starts round two.
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/surrender")->assertOk();
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/rematch")->assertOk();
+        $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/rematch")
+            ->assertOk()
+            ->assertJsonPath('room.round_number', 2)
+            ->assertJsonPath('room.starting_color', 'black')
+            ->assertJsonPath('room.current_turn', 'black');
+
+        // Red loses round two, therefore Red starts round three.
+        $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/surrender")->assertOk();
+        $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/rematch")->assertOk();
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/rematch")
+            ->assertOk()
+            ->assertJsonPath('room.round_number', 3)
+            ->assertJsonPath('room.starting_color', 'red')
+            ->assertJsonPath('room.current_turn', 'red');
+    }
+
     private function startGame(string $code, User $red, User $black): int
     {
         $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/ready")->assertOk();

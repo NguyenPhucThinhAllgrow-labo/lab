@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'code', 'host_id', 'red_player_id', 'black_player_id', 'status',
-    'current_turn', 'board', 'move_history', 'red_time_seconds',
+    'current_turn', 'starting_color', 'round_number', 'board', 'move_history', 'red_time_seconds',
     'black_time_seconds', 'started_at', 'last_move_at', 'paused_by_id',
     'paused_at', 'winner_id',
     'finish_reason', 'version', 'red_ready', 'black_ready',
@@ -30,6 +30,7 @@ class ChineseChessRoom extends Model
             'red_time_seconds' => 'integer',
             'black_time_seconds' => 'integer',
             'version' => 'integer',
+            'round_number' => 'integer',
             'red_ready' => 'boolean',
             'black_ready' => 'boolean',
             'red_rematch' => 'boolean',

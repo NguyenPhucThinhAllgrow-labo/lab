@@ -51,7 +51,9 @@ export interface ChineseChessRoom {
   id: number
   code: string
   status: ChineseChessRoomStatus
+  round_number: number
   current_turn: PieceColor
+  starting_color: PieceColor
   board: ChineseChessPiece[]
   move_history: ChineseChessMoveHistory[]
   red_time_seconds: number
