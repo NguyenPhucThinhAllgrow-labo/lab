@@ -43,7 +43,7 @@ const sortingMenuOpen = ref(false)
 const menuItems = [
   {
     label: 'Dashboard',
-    to: '/',
+    to: '/admin',
     icon: LayoutDashboard
   },
   {

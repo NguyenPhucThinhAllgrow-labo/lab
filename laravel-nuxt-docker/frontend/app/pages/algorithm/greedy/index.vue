@@ -813,7 +813,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="min-h-screen bg-slate-950 text-slate-100"
+    class="algorithm-lab algorithm-lab--greedy min-h-screen bg-slate-950 text-slate-100"
   >
     <!-- =====================================================
          HEADER
@@ -2466,3 +2466,4 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped src="~/assets/css/pages/algorithm/greedy/index.css"></style>
+<style src="~/assets/css/pages/algorithm/algorithm-lab.css"></style>

@@ -6,6 +6,7 @@ import {
 } from 'vue'
 
 import type {
+  ChineseChessMoveHistory,
   ChineseChessPiece,
   PieceColor,
   Position,
@@ -38,6 +39,11 @@ import {
 const props = defineProps<{
   currentTurn: PieceColor
   gameStarted: boolean
+  position?: ChineseChessPiece[]
+  playerColor?: PieceColor | null
+  readonly?: boolean
+  showWaitingOverlay?: boolean
+  lastMove?: Pick<ChineseChessMoveHistory, 'from' | 'to'> | null
 }>()
 
 /**
@@ -75,7 +81,31 @@ const emit = defineEmits<{
  */
 
 const board = ref<ChineseChessPiece[]>(
-  createInitialBoard(),
+  props.position?.map(piece => ({ ...piece })) ?? createInitialBoard(),
+)
+
+function boardSignature(position: ChineseChessPiece[]): string {
+  return position
+    .map(piece => `${piece.id}:${piece.row}:${piece.col}`)
+    .sort()
+    .join('|')
+}
+
+watch(
+  () => props.position,
+  (position) => {
+    if (!position || boardSignature(position) === boardSignature(board.value)) return
+
+    board.value = position.map(piece => ({ ...piece }))
+    clearSelection()
+  },
+  { deep: true },
+)
+
+const canInteract = computed(() =>
+  props.gameStarted
+  && !props.readonly
+  && (!props.playerColor || props.playerColor === props.currentTurn),
 )
 
 /**
@@ -230,6 +260,14 @@ function getPieceAt(
   )
 }
 
+function isLastMoveFrom(row: number, col: number): boolean {
+  return props.lastMove?.from.row === row && props.lastMove.from.col === col
+}
+
+function isLastMoveTo(row: number, col: number): boolean {
+  return props.lastMove?.to.row === row && props.lastMove.to.col === col
+}
+
 /**
  * ==========================================
  * VALID MOVE
@@ -260,7 +298,7 @@ function selectPiece(
    * Chưa bắt đầu game
    */
 
-  if (!props.gameStarted) {
+  if (!canInteract.value) {
     return
   }
 
@@ -333,7 +371,7 @@ function handlePointClick(
    * Chưa bắt đầu
    */
 
-  if (!props.gameStarted) {
+  if (!canInteract.value) {
     return
   }
 
@@ -499,6 +537,19 @@ function performMove(
     ...piece,
   }
 
+  if (props.position) {
+    clearSelection()
+    emit('move', {
+      number: 0,
+      color: piece.color,
+      piece: movedPiece,
+      from,
+      to: { row, col },
+      captured,
+    })
+    return
+  }
+
   /**
    * Thực hiện nước đi.
    */
@@ -632,8 +683,8 @@ function isCurrentTurnPiece(
   piece: ChineseChessPiece,
 ): boolean {
   return (
-    piece.color ===
-    props.currentTurn
+    canInteract.value &&
+    piece.color === props.currentTurn
   )
 }
 </script>
@@ -958,10 +1009,10 @@ function isCurrentTurnPiece(
             "
             :class="{
               'cursor-pointer':
-                gameStarted,
+                canInteract,
 
               'cursor-not-allowed':
-                !gameStarted,
+                !canInteract,
             }"
             :style="{
               left: `${
@@ -981,6 +1032,16 @@ function isCurrentTurnPiece(
               )
             "
           >
+            <span
+              v-if="isLastMoveFrom(row - 1, col - 1)"
+              class="chess-last-move-marker is-from"
+            />
+
+            <span
+              v-if="isLastMoveTo(row - 1, col - 1)"
+              class="chess-last-move-marker is-to"
+            />
+
             <!-- =========================== -->
             <!-- VALID MOVE -->
             <!-- =========================== -->
@@ -1051,6 +1112,9 @@ function isCurrentTurnPiece(
                 )?.id ===
                 selectedPieceId
               "
+              :class="{
+                'chess-last-moved-piece': isLastMoveTo(row - 1, col - 1),
+              }"
             />
 
             <!-- =========================== -->
@@ -1086,7 +1150,7 @@ function isCurrentTurnPiece(
       <!-- ================================= -->
 
       <div
-        v-if="!gameStarted"
+        v-if="!gameStarted && showWaitingOverlay !== false"
         class="
           pointer-events-none
           absolute
@@ -1134,3 +1198,60 @@ function isCurrentTurnPiece(
     </div>
   </div>
 </template>
+
+<style scoped>
+.chess-last-move-marker {
+  position: absolute;
+  z-index: 0;
+  width: 88%;
+  height: 88%;
+  pointer-events: none;
+  border-radius: 50%;
+}
+
+.chess-last-move-marker.is-from {
+  border: 2px dashed rgb(180 83 9 / 72%);
+  background: rgb(245 158 11 / 14%);
+  box-shadow: inset 0 0 12px rgb(120 53 15 / 20%);
+}
+
+.chess-last-move-marker.is-to {
+  border: 3px solid #fbbf24;
+  background: rgb(250 204 21 / 17%);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 42%), 0 0 22px rgb(245 158 11 / 78%);
+  animation: opponent-move-ring 0.85s ease-out;
+}
+
+.chess-last-moved-piece {
+  z-index: 1;
+  animation: opponent-piece-arrive 0.72s cubic-bezier(0.2, 0.9, 0.25, 1.2);
+}
+
+@keyframes opponent-move-ring {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.14);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes opponent-piece-arrive {
+  0% { transform: scale(0.72); filter: brightness(1.65); }
+  55% { transform: scale(1.14); filter: brightness(1.2); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chess-last-move-marker.is-to,
+  .chess-last-moved-piece {
+    animation: none;
+  }
+}
+</style>

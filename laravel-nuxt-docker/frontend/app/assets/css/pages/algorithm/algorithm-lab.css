@@ -1,0 +1,315 @@
+.algorithm-lab {
+  --algorithm-accent: #38bdf8;
+  --algorithm-accent-rgb: 56 189 248;
+  --algorithm-mark: "BUBBLE";
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  overflow-x: clip;
+  color: #e8edf6;
+  background:
+    radial-gradient(circle at 82% 2%, rgb(var(--algorithm-accent-rgb) / 13%), transparent 27rem),
+    radial-gradient(circle at 4% 45%, rgb(99 102 241 / 8%), transparent 24rem),
+    linear-gradient(180deg, #080a11 0%, #070910 55%, #090b13 100%) !important;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.algorithm-lab--selection {
+  --algorithm-accent: #c084fc;
+  --algorithm-accent-rgb: 192 132 252;
+  --algorithm-mark: "SELECT";
+}
+
+.algorithm-lab--insertion {
+  --algorithm-accent: #a78bfa;
+  --algorithm-accent-rgb: 167 139 250;
+  --algorithm-mark: "INSERT";
+}
+
+.algorithm-lab--greedy {
+  --algorithm-accent: #34d399;
+  --algorithm-accent-rgb: 52 211 153;
+  --algorithm-mark: "GREEDY";
+}
+
+.algorithm-lab::before {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  opacity: 0.32;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 3%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 3%) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 60%) 45%, transparent 92%);
+  pointer-events: none;
+}
+
+/* Navigation */
+.algorithm-lab > header {
+  border-color: rgb(255 255 255 / 7%) !important;
+  background: rgb(8 10 17 / 78%) !important;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 2%);
+}
+
+.algorithm-lab > header > div {
+  width: min(100%, 1180px);
+  min-height: 68px;
+  padding-block: 11px !important;
+}
+
+.algorithm-lab > header button {
+  min-height: 38px;
+  border: 1px solid rgb(255 255 255 / 7%);
+  border-radius: 10px !important;
+  background: rgb(255 255 255 / 3%);
+  color: #a4adbd !important;
+  font-size: 12px !important;
+}
+
+.algorithm-lab > header button:hover {
+  border-color: rgb(var(--algorithm-accent-rgb) / 30%);
+  background: rgb(var(--algorithm-accent-rgb) / 9%) !important;
+  color: #fff !important;
+}
+
+.algorithm-lab > header h1 {
+  color: #f8fafc;
+  font-size: 13px !important;
+  letter-spacing: -0.015em;
+}
+
+/* Main layout and common surfaces */
+.algorithm-lab > main {
+  position: relative;
+  width: min(calc(100% - 40px), 1180px);
+  padding: 42px 0 88px !important;
+}
+
+.algorithm-lab > main > section {
+  border-color: rgb(255 255 255 / 7%) !important;
+  border-radius: 20px !important;
+  background: linear-gradient(145deg, rgb(18 20 30 / 88%), rgb(10 12 20 / 91%)) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 4%),
+    0 20px 55px rgb(0 0 0 / 17%);
+}
+
+.algorithm-lab .bg-slate-900 {
+  background-color: rgb(15 17 27 / 82%) !important;
+}
+
+.algorithm-lab .bg-slate-950,
+.algorithm-lab .bg-\[\#080d18\] {
+  background-color: rgb(7 9 15 / 80%) !important;
+}
+
+.algorithm-lab .border-slate-800 {
+  border-color: rgb(255 255 255 / 7%) !important;
+}
+
+.algorithm-lab .text-slate-400 { color: #9aa3b3 !important; }
+.algorithm-lab .text-slate-500 { color: #737d8e !important; }
+.algorithm-lab .text-slate-600 { color: #596273 !important; }
+.algorithm-lab .rounded-3xl { border-radius: 20px !important; }
+.algorithm-lab .rounded-2xl { border-radius: 14px !important; }
+.algorithm-lab .rounded-xl { border-radius: 10px !important; }
+
+/* Hero */
+.algorithm-lab > main > section:first-child {
+  display: flex;
+  min-height: 270px;
+  align-items: center;
+  padding: 46px !important;
+  border-color: rgb(var(--algorithm-accent-rgb) / 20%) !important;
+  background:
+    linear-gradient(112deg, rgb(var(--algorithm-accent-rgb) / 13%), rgb(13 15 24 / 93%) 48%, rgb(9 11 18 / 96%)) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 6%),
+    0 30px 80px rgb(0 0 0 / 22%);
+}
+
+.algorithm-lab > main > section:first-child::after {
+  position: absolute;
+  right: 34px;
+  bottom: -23px;
+  content: var(--algorithm-mark);
+  color: rgb(var(--algorithm-accent-rgb) / 6%);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(64px, 11vw, 142px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.09em;
+  pointer-events: none;
+}
+
+.algorithm-lab > main > section:first-child > div:last-child {
+  z-index: 1;
+}
+
+.algorithm-lab > main > section:first-child h2 {
+  color: #fff;
+  font-size: clamp(38px, 5vw, 60px) !important;
+  line-height: 1.02;
+  letter-spacing: -0.055em !important;
+}
+
+.algorithm-lab > main > section:first-child p {
+  max-width: 690px;
+  color: #9aa3b3 !important;
+  font-size: 15px !important;
+  line-height: 1.75 !important;
+}
+
+.algorithm-lab > main > section:first-child [class*="rounded-full"] {
+  border-radius: 999px !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px !important;
+  letter-spacing: 0.12em;
+}
+
+/* Introduction and explanation */
+.algorithm-lab > main > section:nth-child(2),
+.algorithm-lab > main > section:nth-child(7) {
+  padding: 30px !important;
+}
+
+.algorithm-lab > main > section:nth-child(2) h3,
+.algorithm-lab > main > section:nth-child(7) h3 {
+  font-size: 18px !important;
+  letter-spacing: -0.025em;
+}
+
+.algorithm-lab > main > section:nth-child(2) > div:last-child > div:last-child,
+.algorithm-lab > main > section:nth-child(7) [class*="bg-slate-950"] {
+  border-color: rgb(var(--algorithm-accent-rgb) / 12%) !important;
+  background: rgb(var(--algorithm-accent-rgb) / 4%) !important;
+}
+
+/* Use-case and pseudocode rows: no unnecessary outer card. */
+.algorithm-lab > main > section:nth-child(3),
+.algorithm-lab > main > section:nth-child(5) {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.algorithm-lab > main > section:nth-child(3) > div,
+.algorithm-lab > main > section:nth-child(5) > div {
+  border-radius: 18px !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 4%),
+    0 18px 50px rgb(0 0 0 / 14%);
+}
+
+.algorithm-lab > main > section:nth-child(3) > div {
+  background-color: rgb(12 14 23 / 78%) !important;
+}
+
+.algorithm-lab > main > section:nth-child(3) li {
+  line-height: 1.65;
+}
+
+/* Interactive workspace */
+.algorithm-lab > main > section:nth-child(4) {
+  border-color: rgb(var(--algorithm-accent-rgb) / 25%) !important;
+  background:
+    linear-gradient(145deg, rgb(var(--algorithm-accent-rgb) / 8%), rgb(10 12 20 / 96%) 32%) !important;
+  box-shadow:
+    0 30px 90px rgb(0 0 0 / 28%),
+    inset 0 1px 0 rgb(255 255 255 / 5%) !important;
+}
+
+.algorithm-lab > main > section:nth-child(4) > div:first-of-type {
+  border-color: rgb(255 255 255 / 8%) !important;
+  background: rgb(11 13 21 / 72%) !important;
+}
+
+.algorithm-lab > main > section:nth-child(4) input[type="range"] {
+  height: 4px;
+  accent-color: var(--algorithm-accent);
+  cursor: pointer;
+}
+
+.algorithm-lab > main > section:nth-child(4) input:not([type="range"]) {
+  border-color: rgb(255 255 255 / 9%) !important;
+  background: rgb(5 7 13 / 72%) !important;
+  color: #f8fafc;
+}
+
+.algorithm-lab > main > section:nth-child(4) input:focus {
+  border-color: rgb(var(--algorithm-accent-rgb) / 48%) !important;
+  box-shadow: 0 0 0 3px rgb(var(--algorithm-accent-rgb) / 10%);
+  outline: none;
+}
+
+.algorithm-lab > main > section:nth-child(4) button {
+  min-height: 39px;
+  border-radius: 10px !important;
+  font-size: 11px;
+  transition: transform 160ms ease, border-color 160ms ease, filter 160ms ease, background 160ms ease;
+}
+
+.algorithm-lab > main > section:nth-child(4) button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.12);
+}
+
+.algorithm-lab > main > section:nth-child(4) button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Code and complexity */
+.algorithm-lab > main > section:nth-child(5) > div,
+.algorithm-lab > main > section:nth-child(6) {
+  border-color: rgb(255 255 255 / 8%) !important;
+  background: linear-gradient(145deg, rgb(14 16 26 / 91%), rgb(8 10 17 / 94%)) !important;
+}
+
+.algorithm-lab > main > section:nth-child(5) [class*="grid-cols-4"] > div {
+  border-color: rgb(255 255 255 / 7%) !important;
+  background: rgb(6 8 14 / 68%) !important;
+}
+
+.algorithm-lab code,
+.algorithm-lab pre {
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-variant-ligatures: none;
+}
+
+.algorithm-lab pre {
+  line-height: 1.72;
+}
+
+.algorithm-lab ::selection {
+  color: #fff;
+  background: rgb(var(--algorithm-accent-rgb) / 34%);
+}
+
+@media (max-width: 768px) {
+  .algorithm-lab > header > div { padding-inline: 14px !important; }
+  .algorithm-lab > main { width: min(calc(100% - 24px), 1180px); padding-top: 24px !important; }
+  .algorithm-lab > main > section:first-child { min-height: 225px; padding: 28px 23px !important; }
+  .algorithm-lab > main > section:first-child::after { right: 14px; bottom: -8px; font-size: 66px; }
+  .algorithm-lab > main > section:first-child h2 { font-size: 38px !important; }
+  .algorithm-lab > main > section:first-child p { font-size: 13px !important; }
+  .algorithm-lab > main > section:nth-child(2),
+  .algorithm-lab > main > section:nth-child(7) { padding: 22px !important; }
+}
+
+@media (max-width: 480px) {
+  .algorithm-lab > header button { padding-inline: 10px !important; }
+  .algorithm-lab > main { width: min(calc(100% - 16px), 1180px); }
+  .algorithm-lab > main > section:first-child h2 { font-size: 33px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .algorithm-lab *,
+  .algorithm-lab *::before,
+  .algorithm-lab *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

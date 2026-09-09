@@ -1,0 +1,27 @@
+<?php
+
+return [
+    // Keep local multiplayer usable through polling before Pusher credentials
+    // are configured. Set BROADCAST_CONNECTION=pusher to enable WebSockets.
+    'default' => env('BROADCAST_CONNECTION', 'null'),
+
+    'connections' => [
+        'pusher' => [
+            'driver' => 'pusher',
+            'key' => env('PUSHER_APP_KEY'),
+            'secret' => env('PUSHER_APP_SECRET'),
+            'app_id' => env('PUSHER_APP_ID'),
+            'options' => [
+                'cluster' => env('PUSHER_APP_CLUSTER', 'ap1'),
+                'host' => env('PUSHER_HOST') ?: 'api-'.env('PUSHER_APP_CLUSTER', 'ap1').'.pusher.com',
+                'port' => env('PUSHER_PORT', 443),
+                'scheme' => env('PUSHER_SCHEME', 'https'),
+                'encrypted' => true,
+                'useTLS' => env('PUSHER_SCHEME', 'https') === 'https',
+            ],
+            'client_options' => [],
+        ],
+        'log' => ['driver' => 'log'],
+        'null' => ['driver' => 'null'],
+    ],
+];

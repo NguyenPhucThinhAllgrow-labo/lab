@@ -311,7 +311,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="min-h-screen bg-slate-950 text-slate-100"
+    class="algorithm-lab algorithm-lab--bubble min-h-screen bg-slate-950 text-slate-100"
   >
     <!-- =====================================================
          HEADER
@@ -1824,3 +1824,5 @@ onBeforeUnmount(() => {
     </main>
   </div>
 </template>
+
+<style src="~/assets/css/pages/algorithm/algorithm-lab.css"></style>

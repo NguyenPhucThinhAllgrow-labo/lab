@@ -1,13 +1,14 @@
 export default defineNuxtRouteMiddleware(async (to) => {
   const isAdminLogin = to.path === '/admin/login'
   const isUserLogin = to.path === '/login'
+  const isUserRegister = to.path === '/register'
   const requiredRole = to.path.startsWith('/admin')
     ? 'admin'
     : to.path.startsWith('/games')
       ? 'user'
       : null
 
-  if (!requiredRole && !isUserLogin) {
+  if (!requiredRole && !isUserLogin && !isUserRegister) {
     return
   }
 
@@ -29,7 +30,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
 
-  if (isUserLogin) {
+  if (isUserLogin || isUserRegister) {
     if (user.value?.role === 'user') {
       const redirect = typeof to.query.redirect === 'string'
         ? to.query.redirect

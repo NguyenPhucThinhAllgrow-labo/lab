@@ -87,6 +87,29 @@ export const useAuth = () => {
     return response
   }
 
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    passwordConfirmation: string,
+  ) => {
+    await csrf()
+
+    const response = await api<LoginResponse>('/api/register', {
+      method: 'POST',
+      body: {
+        name,
+        email,
+        password,
+        password_confirmation: passwordConfirmation,
+      },
+    })
+
+    user.value = response.user
+
+    return response
+  }
+
   /**
    * Lấy user hiện tại
    */
@@ -129,6 +152,7 @@ export const useAuth = () => {
     initialized,
 
     login,
+    register,
     adminLogin,
     fetchUser,
     logout,

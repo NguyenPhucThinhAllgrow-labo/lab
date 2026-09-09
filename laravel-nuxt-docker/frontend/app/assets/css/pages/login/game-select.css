@@ -151,7 +151,7 @@
   line-height: 1.18;
   letter-spacing: -.045em;
   text-shadow: 0 0 24px rgb(52 211 153 / 13%);
-  animation: hacker-title-glitch 7s steps(1, end) infinite;
+  animation: hacker-title-glitch 3s steps(1, end) infinite;
 }
 
 .game-login--pandora .game-login-brand > span:last-child { color: #a7f3d0; font-size: 11px; letter-spacing: .16em; text-shadow: 0 0 10px rgb(52 211 153 / 28%); }
@@ -689,6 +689,13 @@
   from { opacity: 1; }
   to { opacity: 0; }
 }
+
+.game-login-account-links { display: grid; gap: 8px; margin-top: auto; padding-top: 30px; }
+.game-login-account-links .game-login-admin, .game-login-register { margin: 0; padding: 0; color: #7597b6; font-size: 12px; }
+.game-login-register a { color: #67e8f9; text-decoration: none; }.game-login-register a:hover { color: #cffafe; }
+.game-login--pandora .game-login-register { color: #7a9b8d; font-size: 10px; letter-spacing: .035em; }.game-login--pandora .game-login-register::before { content: "// "; color: #315747; }.game-login--pandora .game-login-register a { color: #5eead4; }
+.game-login--chinese-chess .game-login-register { color: #92918a; }.game-login--chinese-chess .game-login-register a { color: #d6b878; }
+.game-login--tetris .game-login-register a { color: #f472b6; }
 
 @media (prefers-reduced-motion: reduce) {
   .hacker-scanline,

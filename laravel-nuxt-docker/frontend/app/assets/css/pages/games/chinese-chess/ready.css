@@ -1,0 +1,217 @@
+.board-overlay {
+  inset: 6px;
+  border-radius: 8px;
+  padding: 24px;
+  background: rgb(8 7 6 / 48%);
+  backdrop-filter: blur(1.5px) saturate(0.8);
+}
+
+.board-waiting-card {
+  position: relative;
+  width: min(100%, 370px);
+  overflow: hidden;
+  border: 1px solid rgb(245 158 11 / 26%);
+  border-radius: 20px;
+  padding: 28px 30px 26px;
+  background: radial-gradient(circle at 50% 0, rgb(180 83 9 / 17%), transparent 52%), rgb(15 13 11 / 95%);
+  text-align: center;
+  box-shadow: 0 28px 70px rgb(0 0 0 / 48%), inset 0 1px rgb(255 255 255 / 4%);
+}
+
+.board-waiting-card::before {
+  position: absolute;
+  top: 0;
+  right: 18%;
+  left: 18%;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, #e2a44e, transparent);
+}
+
+.board-waiting-card__icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  margin: 0 auto 16px;
+  border: 1px solid rgb(245 158 11 / 30%);
+  border-radius: 50%;
+  color: #e8ad59;
+  background: rgb(146 64 14 / 14%);
+}
+
+.board-waiting-card__icon.is-ready {
+  border-color: rgb(52 211 153 / 34%);
+  color: #6ee7b7;
+  background: rgb(6 78 59 / 24%);
+}
+
+.board-waiting-card__eyebrow {
+  color: #bd8e4d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.board-overlay .board-waiting-card h2 {
+  margin: 7px 0 8px;
+  color: #f4ede2;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 23px;
+  font-weight: 750;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+
+.board-overlay .board-waiting-card p {
+  max-width: 290px;
+  margin: 0 auto;
+  color: #aaa197;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.board-waiting-card__players {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  border: 1px solid rgb(255 255 255 / 7%);
+  border-radius: 10px;
+  padding: 9px 11px;
+  background: rgb(0 0 0 / 18%);
+}
+
+.board-waiting-card__players span {
+  color: #847d74;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.board-waiting-card__players span i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  content: "";
+  vertical-align: 1px;
+  background: #625d57;
+}
+
+.board-waiting-card__players span.is-ready {
+  color: #86efac;
+}
+
+.board-waiting-card__players span.is-ready i {
+  background: #34d399;
+  box-shadow: 0 0 8px #34d399;
+}
+
+.board-waiting-card__players b {
+  color: #5d5750;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+
+.board-overlay .chess-button--ready {
+  min-width: 190px;
+  margin-top: 16px;
+  border-color: rgb(245 158 11 / 45%);
+  background: linear-gradient(135deg, #c17921, #80420f);
+  color: #fff3dc;
+  box-shadow: 0 12px 28px rgb(146 64 14 / 28%);
+}
+
+.board-overlay .chess-button--ready:hover:not(:disabled) {
+  border-color: rgb(251 191 36 / 65%);
+  background: linear-gradient(135deg, #d58a2c, #965017);
+}
+
+.board-overlay .chess-button--ready:disabled {
+  border-color: rgb(52 211 153 / 28%);
+  background: rgb(6 78 59 / 32%);
+  color: #86efac;
+}
+
+.player-card em {
+  display: block;
+  margin-top: 5px;
+  color: #8b8176;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.player-card em::before {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 5px;
+  border-radius: 50%;
+  content: "";
+  vertical-align: 1px;
+  background: #78716c;
+}
+
+.player-card em.is-ready {
+  color: #6ee7b7;
+}
+
+.player-card em.is-ready::before {
+  background: #34d399;
+  box-shadow: 0 0 8px #34d399;
+}
+
+.board-overlay--paused {
+  background: rgb(8 7 6 / 38%);
+  backdrop-filter: blur(1px) saturate(0.8);
+}
+
+.board-waiting-card__icon.is-paused {
+  border-color: rgb(96 165 250 / 34%);
+  color: #93c5fd;
+  background: rgb(30 64 175 / 20%);
+  box-shadow: 0 0 28px rgb(59 130 246 / 12%);
+}
+
+.pause-card strong {
+  color: #e9c280;
+}
+
+.board-overlay .chess-button--resume,
+.chess-button--resume {
+  margin-top: 18px;
+  border-color: rgb(52 211 153 / 32%);
+  background: linear-gradient(135deg, #087452, #064e3b);
+  color: #d1fae5;
+  box-shadow: 0 10px 24px rgb(6 78 59 / 24%);
+}
+
+.chess-button--resume:hover:not(:disabled) {
+  border-color: rgb(110 231 183 / 50%);
+  background: linear-gradient(135deg, #0a8961, #056046);
+}
+
+.chess-button--pause {
+  border-color: rgb(96 165 250 / 25%);
+  color: #bfdbfe;
+  background: rgb(30 64 175 / 12%);
+}
+
+.chess-button--pause:hover:not(:disabled) {
+  border-color: rgb(96 165 250 / 42%);
+  background: rgb(30 64 175 / 20%);
+}
+
+@media (max-width: 520px) {
+  .board-overlay {
+    padding: 12px;
+  }
+
+  .board-waiting-card {
+    padding: 23px 18px 20px;
+  }
+}

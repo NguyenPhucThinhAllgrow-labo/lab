@@ -760,6 +760,17 @@ onBeforeUnmount(() => {
         >
           Cờ Tướng
         </h1>
+
+        <p class="mt-2 text-sm text-slate-400">
+          Chế độ hai người chơi trên cùng thiết bị
+        </p>
+
+        <NuxtLink
+          to="/games/chinese-chess/online"
+          class="mt-4 inline-flex items-center rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/20"
+        >
+          Chơi online với bạn bè
+        </NuxtLink>
       </header>
 
       <!-- ================================= -->

@@ -1,0 +1,62 @@
+.move-item {
+  grid-template-columns: 20px 7px 34px minmax(48px, 1fr) 10px 34px;
+}
+
+.move-piece-token,
+.captured-piece-token {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid currentcolor;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 27%, #f0dcae, #c39a5a 68%, #74502a);
+  font-family: KaiTi, STKaiti, "Noto Serif SC", SimSun, serif;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px rgb(255 255 255 / 24%);
+  box-shadow: inset 0 0 0 2px rgb(70 42 17 / 24%), 0 4px 9px rgb(0 0 0 / 30%);
+}
+
+.move-piece-token {
+  width: 31px;
+  height: 31px;
+  font-size: 17px;
+}
+
+.move-piece-token.is-captured {
+  opacity: 0.78;
+  box-shadow: inset 0 0 0 2px rgb(70 42 17 / 24%), 0 0 0 2px rgb(239 68 68 / 24%);
+}
+
+.move-capture-mark {
+  color: #ef8d87;
+  font-size: 15px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.move-piece-token.is-red,
+.captured-piece-token.is-red {
+  color: #a82320;
+}
+
+.move-piece-token.is-black,
+.captured-piece-token.is-black {
+  color: #252420;
+}
+
+.captured-block b.captured-piece-token {
+  width: 29px;
+  height: 29px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 27%, #f0dcae, #c39a5a 68%, #74502a);
+  font-size: 15px;
+}
+
+.move-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

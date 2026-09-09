@@ -24,6 +24,11 @@ class User extends Authenticatable
         return $this->hasMany(DetectiveProgress::class);
     }
 
+    public function hostedChineseChessRooms(): HasMany
+    {
+        return $this->hasMany(ChineseChessRoom::class, 'host_id');
+    }
+
     /**
      * Get the attributes that should be cast.
      *

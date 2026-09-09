@@ -367,7 +367,10 @@ const handleLogin = async () => {
           </button>
         </form>
 
-        <p class="game-login-admin">Quản trị viên? <NuxtLink to="/admin/login">Đăng nhập admin →</NuxtLink></p>
+        <div class="game-login-account-links">
+          <p class="game-login-register">Chưa có tài khoản? <NuxtLink to="/register">Đăng ký ngay →</NuxtLink></p>
+          <p class="game-login-admin">Quản trị viên? <NuxtLink to="/admin/login">Đăng nhập admin →</NuxtLink></p>
+        </div>
       </section>
       </section>
     </Transition>

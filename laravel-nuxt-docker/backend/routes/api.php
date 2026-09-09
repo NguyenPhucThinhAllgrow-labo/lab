@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Admin\DetectiveLeaderboardController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ChineseChessRoomController;
 use App\Http\Controllers\Api\DetectiveCaseController;
 use App\Http\Controllers\Api\DetectiveHistoryController;
 use App\Http\Controllers\Api\DetectiveProgressController;
@@ -15,6 +16,7 @@ Route::get('/ping', function () {
 });
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 
 Route::middleware('auth:sanctum')->group(function (): void {
@@ -23,6 +25,19 @@ Route::middleware('auth:sanctum')->group(function (): void {
 });
 
 Route::middleware(['auth:sanctum', 'role:user'])->group(function (): void {
+    Route::prefix('chinese-chess/rooms')->group(function (): void {
+        Route::post('/', [ChineseChessRoomController::class, 'create']);
+        Route::post('/{code}/join', [ChineseChessRoomController::class, 'join']);
+        Route::get('/{code}', [ChineseChessRoomController::class, 'show']);
+        Route::post('/{code}/ready', [ChineseChessRoomController::class, 'ready']);
+        Route::post('/{code}/moves', [ChineseChessRoomController::class, 'move']);
+        Route::post('/{code}/pause', [ChineseChessRoomController::class, 'pause']);
+        Route::post('/{code}/resume', [ChineseChessRoomController::class, 'resume']);
+        Route::post('/{code}/surrender', [ChineseChessRoomController::class, 'surrender']);
+        Route::post('/{code}/leave', [ChineseChessRoomController::class, 'leave']);
+        Route::post('/{code}/rematch', [ChineseChessRoomController::class, 'rematch']);
+    });
+
     Route::prefix('detective')->group(function (): void {
         Route::get('/cases', [DetectiveCaseController::class, 'index']);
         Route::get('/cases/{caseId}', [DetectiveCaseController::class, 'show']);

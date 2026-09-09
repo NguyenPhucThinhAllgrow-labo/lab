@@ -432,7 +432,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="min-h-screen bg-slate-950 text-slate-100"
+    class="algorithm-lab algorithm-lab--insertion min-h-screen bg-slate-950 text-slate-100"
   >
     <!-- =====================================================
          HEADER
@@ -1919,3 +1919,4 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped src="~/assets/css/pages/algorithm/sorting/insertion-sort/index.css"></style>
+<style src="~/assets/css/pages/algorithm/algorithm-lab.css"></style>
