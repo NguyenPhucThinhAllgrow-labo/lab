@@ -20,6 +20,8 @@ class ChineseChessRoomApiTest extends TestCase
         $black = User::factory()->create(['role' => 'user']);
 
         $created = $this->actingAs($red)->postJson('/api/chinese-chess/rooms')->assertCreated();
+        $created->assertJsonPath('room.your_color', 'red')
+            ->assertJsonPath('room.red_player.id', $red->id);
         $code = $created->json('room.code');
 
         $joined = $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/join")

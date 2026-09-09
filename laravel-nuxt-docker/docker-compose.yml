@@ -35,6 +35,8 @@ services:
     image: node:22-alpine
 
     container_name: nuxt
+    environment:
+      API_PROXY_TARGET: http://nginx
 
     working_dir: /app
 

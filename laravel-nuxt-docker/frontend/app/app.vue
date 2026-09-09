@@ -29,6 +29,7 @@ const isPandoraGame = computed(() => route.path.startsWith('/games/pandora/'))
 
   <PlayerLogoutButton
     v-if="isGamePage"
+    show-home
     :variant="isPandoraGame ? 'hacker' : 'default'"
   />
 </template>

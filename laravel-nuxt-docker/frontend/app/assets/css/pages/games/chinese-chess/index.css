@@ -34,3 +34,17 @@
   opacity: 0;
   transform: scale(0.92);
 }
+
+.local-chess__subtitle { margin-top: 5px; color: #aaa398; font-size: 12px; }
+.local-chess .captured-block > div { flex-wrap: wrap; }
+.local-chess .player-card > div:nth-child(2) { min-width: 0; }
+.local-chess .match-notice > svg { flex-shrink: 0; }
+.local-chess a { text-decoration: none; }
+.local-chess button:focus-visible, .local-chess a:focus-visible { outline: 2px solid #d8a45b; outline-offset: 3px; }
+@media (max-width: 520px) {
+  .local-chess .chess-roombar { flex-wrap: wrap; }
+  .local-chess .chess-roombar .chess-button { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .local-chess *, .local-chess *::before, .local-chess *::after { transition: none !important; animation: none !important; }
+}

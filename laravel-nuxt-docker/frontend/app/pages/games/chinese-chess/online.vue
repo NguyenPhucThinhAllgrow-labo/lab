@@ -57,6 +57,16 @@ const blackCaptured = computed(() => room.value?.move_history.filter(move => mov
 const lastMove = computed(() => room.value?.move_history.at(-1) ?? null)
 const rematchRequested = computed(() => room.value?.your_color === 'red' ? room.value.red_rematch : room.value?.black_rematch)
 
+const finishReasonText = computed(() => {
+  const reasons: Record<string, string> = {
+    checkmate: 'Chiếu bí', stalemate: 'Bí nước', timeout: 'Hết giờ',
+    surrender: 'Đầu hàng', player_left: 'Đối thủ rời phòng', host_left: 'Chủ phòng đã rời đi',
+  }
+  return reasons[room.value?.finish_reason ?? ''] ?? ''
+})
+const hasWinner = computed(() => room.value?.status === 'finished' && !!room.value.winner)
+const playerLeft = computed(() => ['player_left', 'host_left'].includes(room.value?.finish_reason ?? ''))
+
 const statusText = computed(() => {
   if (!room.value) return ''
   if (room.value.status === 'waiting') {
@@ -68,13 +78,10 @@ const statusText = computed(() => {
   if (room.value.status === 'playing') return isMyTurn.value ? 'Đến lượt bạn' : 'Đang chờ đối thủ đi'
   if (room.value.status === 'paused') return `${room.value.paused_by?.name ?? 'Một người chơi'} đã tạm dừng`
   if (room.value.status === 'cancelled') return 'Phòng đã đóng'
-  const reasons: Record<string, string> = {
-    checkmate: 'Chiếu bí', stalemate: 'Bí nước', timeout: 'Hết giờ',
-    surrender: 'Đầu hàng', player_left: 'Đối thủ rời phòng', host_left: 'Chủ phòng đã rời đi',
-  }
+
   return room.value.winner
-    ? `${room.value.winner.name} thắng · ${reasons[room.value.finish_reason ?? ''] ?? 'Kết thúc'}`
-    : reasons[room.value.finish_reason ?? ''] ?? 'Ván đấu kết thúc'
+    ? `${room.value.winner.name} thắng · ${finishReasonText.value || 'Kết thúc'}`
+    : finishReasonText.value || 'Ván đấu kết thúc'
 })
 
 function applyRoom(next: ChineseChessRoom, keepColor = false): void {
@@ -417,7 +424,10 @@ onBeforeUnmount(() => {
             <strong>Ván {{ room.round_number }}</strong>
             <small>{{ room.starting_color === 'red' ? 'Quân Đỏ' : 'Quân Đen' }} đi trước</small>
           </div>
-          <div class="chess-roombar__status" :class="`is-${room.status}`"><span></span>{{ statusText }}</div>
+          <div class="chess-roombar__status" :class="`is-${room.status}`"><span></span>
+            <div v-if="hasWinner" class="chess-result-text"><strong class="chess-result-winner">{{ room.winner?.name }} thắng</strong> · <em :class="{ 'chess-result-left': playerLeft }">{{ finishReasonText || 'Kết thúc' }}</em></div>
+            <div v-else :class="{ 'chess-result-left': playerLeft }">{{ statusText }}</div>
+          </div>
         </div>
         <button class="chess-button chess-button--danger-ghost" :disabled="busy" @click="leaveRoom">
           <DoorOpen :size="17" /> Rời phòng
@@ -504,6 +514,10 @@ onBeforeUnmount(() => {
 
         <aside class="match-panel match-panel--players">
           <div class="match-panel__title"><span>Người chơi</span><Users :size="17" /></div>
+          <div v-if="room.status === 'playing'" class="player-turn" role="status">
+            <span class="player-turn__dot" :class="{ 'is-red': room.current_turn === 'red' }"></span>
+            Lượt quân {{ room.current_turn === 'red' ? 'Đỏ' : 'Đen' }}
+          </div>
           <div class="player-card" :class="{ 'is-active': room.status === 'playing' && room.current_turn === 'black' }">
             <div class="player-avatar is-black">將</div>
             <div><span>QUÂN ĐEN</span><strong>{{ room.black_player?.name ?? 'Đang chờ...' }}</strong><em v-if="room.status === 'waiting' && room.black_player" :class="{ 'is-ready': room.black_ready }">{{ room.black_ready ? 'Đã sẵn sàng' : 'Chưa sẵn sàng' }}</em></div>
@@ -518,7 +532,13 @@ onBeforeUnmount(() => {
 
           <div class="match-notice" :class="{ 'is-mine': isMyTurn }">
             <Swords :size="18" />
-            <div><strong>{{ statusText }}</strong><span v-if="checkedColor">Tướng {{ checkedColor === 'red' ? 'Đỏ' : 'Đen' }} đang bị chiếu</span></div>
+            <div>
+              <template v-if="hasWinner">
+                <strong class="chess-result-winner">{{ room.winner?.name }} thắng</strong>
+                <span class="chess-result-reason" :class="{ 'chess-result-left': playerLeft }">{{ finishReasonText || 'Kết thúc' }}</span>
+              </template>
+              <strong v-else :class="{ 'chess-result-left': playerLeft }">{{ statusText }}</strong>
+              <span v-if="checkedColor">Tướng {{ checkedColor === 'red' ? 'Đỏ' : 'Đen' }} đang bị chiếu</span></div>
           </div>
 
           <div class="match-actions">
@@ -579,3 +599,12 @@ onBeforeUnmount(() => {
 <style scoped src="~/assets/css/pages/games/chinese-chess/dialogs.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/typography.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/rounds.css"></style>
+
+<style scoped>
+.chess-result-winner, .chess-dialog.is-winner h2 { color: #6ee7b7; }
+.chess-result-text em { font-style: normal; }
+.match-notice .chess-result-reason { color: #b2aca2; }
+.chess-result-left, .match-notice .chess-result-left { color: #f87171; }
+</style>
+
+<style scoped src="~/assets/css/pages/games/chinese-chess/player-turn.css"></style>

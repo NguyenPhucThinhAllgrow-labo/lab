@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminDataTable from '~/components/admin/AdminDataTable.vue'
 import {
   ShoppingBag,
   Users,
@@ -495,39 +496,10 @@ const activities = [
         </button>
       </div>
 
-      <!-- Desktop -->
-      <div class="hidden overflow-x-auto md:block">
-        <table class="w-full">
-          <thead>
-            <tr
-              class="
-                border-b border-white/[0.04]
-                text-left
-                text-[11px]
-                uppercase
-                tracking-wider
-                text-zinc-700
-              "
-            >
-              <th class="px-6 py-4 font-medium">Order</th>
-              <th class="px-6 py-4 font-medium">Customer</th>
-              <th class="px-6 py-4 font-medium">Product</th>
-              <th class="px-6 py-4 font-medium">Amount</th>
-              <th class="px-6 py-4 font-medium">Status</th>
-              <th class="px-6 py-4"></th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr
-              v-for="order in recentOrders"
-              :key="order.id"
-              class="
-                border-b border-white/[0.04]
-                last:border-0
-                hover:bg-violet-500/[0.025]
-              "
-            >
+      <!-- Shared responsive table -->
+      <div class="min-w-0">
+        <AdminDataTable title="Recent orders" :rows="recentOrders" :columns="['Order', 'Customer', 'Product', 'Amount', 'Status', '']" :row-key="order => order.id">
+          <template #row="{ row: order }">
               <td
                 class="
                   px-6 py-4
@@ -589,63 +561,11 @@ const activities = [
                   <MoreHorizontal class="h-5 w-5" />
                 </button>
               </td>
-            </tr>
-          </tbody>
-        </table>
+            </template>
+        </AdminDataTable>
       </div>
 
-      <!-- Mobile -->
-      <div class="divide-y divide-white/[0.04] md:hidden">
-        <div
-          v-for="order in recentOrders"
-          :key="order.id"
-          class="p-5"
-        >
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-sm font-semibold text-violet-300">
-                {{ order.id }}
-              </p>
 
-              <p class="mt-1 text-sm text-zinc-300">
-                {{ order.customer }}
-              </p>
-            </div>
-
-            <span
-              class="
-                rounded-full
-                px-2.5 py-1
-                text-[10px]
-                font-medium
-              "
-              :class="{
-                'bg-emerald-500/10 text-emerald-400':
-                  order.status === 'Completed',
-
-                'bg-amber-500/10 text-amber-400':
-                  order.status === 'Processing' ||
-                  order.status === 'Pending',
-
-                'bg-red-500/10 text-red-400':
-                  order.status === 'Cancelled'
-              }"
-            >
-              {{ order.status }}
-            </span>
-          </div>
-
-          <div class="mt-4 flex items-center justify-between">
-            <p class="text-xs text-zinc-600">
-              {{ order.product }}
-            </p>
-
-            <p class="text-sm font-semibold text-zinc-300">
-              {{ order.amount }}
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
 
   </main>

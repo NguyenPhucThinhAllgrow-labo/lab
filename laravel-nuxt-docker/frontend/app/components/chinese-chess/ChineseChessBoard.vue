@@ -80,6 +80,11 @@ const emit = defineEmits<{
  * ==========================================
  */
 
+// Display coordinates only: game rules and API moves keep their original coordinates.
+const flipped = computed(() => props.playerColor === 'black')
+const displayRow = (row: number) => flipped.value ? 9 - row : row
+const displayCol = (col: number) => flipped.value ? 8 - col : col
+
 const board = ref<ChineseChessPiece[]>(
   props.position?.map(piece => ({ ...piece })) ?? createInitialBoard(),
 )
@@ -697,74 +702,6 @@ function isCurrentTurnPiece(
     "
   >
     <!-- ================================= -->
-    <!-- TURN INDICATOR -->
-    <!-- ================================= -->
-
-    <div
-      v-if="gameStarted"
-      class="
-        mb-3
-        flex
-        items-center
-        justify-center
-        gap-2
-      "
-    >
-      <span
-        class="
-          h-2.5
-          w-2.5
-          rounded-full
-        "
-        :class="
-          currentTurn === 'red'
-            ? 'bg-red-500'
-            : 'bg-slate-300'
-        "
-      />
-
-      <span
-        class="
-          text-sm
-          font-semibold
-        "
-        :class="
-          currentTurn === 'red'
-            ? 'text-red-400'
-            : 'text-slate-300'
-        "
-      >
-        Lượt
-        {{
-          currentTurn === 'red'
-            ? 'Đỏ'
-            : 'Đen'
-        }}
-      </span>
-
-      <span
-        v-if="
-          currentPlayerInCheck
-        "
-        class="
-          ml-2
-          animate-pulse
-          rounded-full
-          bg-red-500/20
-          px-3
-          py-1
-          text-xs
-          font-bold
-          text-red-400
-          ring-1
-          ring-red-500/40
-        "
-      >
-        ⚠ ĐANG CHIẾU
-      </span>
-    </div>
-
-    <!-- ================================= -->
     <!-- BOARD -->
     <!-- ================================= -->
 
@@ -803,13 +740,13 @@ function isCurrentTurnPiece(
         :style="{
           left: `${
             5 +
-            (checkedGeneral.col / 8) *
+            (displayCol(checkedGeneral.col) / 8) *
               90
           }%`,
 
           top: `${
             5 +
-            (checkedGeneral.row / 9) *
+            (displayRow(checkedGeneral.row) / 9) *
               90
           }%`,
 
@@ -1016,12 +953,12 @@ function isCurrentTurnPiece(
             }"
             :style="{
               left: `${
-                ((col - 1) / 8) *
+                (displayCol(col - 1) / 8) *
                 100
               }%`,
 
               top: `${
-                ((row - 1) / 9) *
+                (displayRow(row - 1) / 9) *
                 100
               }%`,
             }"

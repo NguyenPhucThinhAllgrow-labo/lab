@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import AdminDataTable from '~/components/admin/AdminDataTable.vue'
+import AdminFilterBar from '~/components/admin/AdminFilterBar.vue'
+import AdminPagination from '~/components/admin/AdminPagination.vue'
+import type { AdminPagination as Pagination } from '~/types/admin/table'
 import {
-  ChevronLeft,
-  ChevronRight,
   RefreshCw,
   Search,
   ShieldCheck,
   UserRound,
+  UserRoundCheck,
   Users,
 } from 'lucide-vue-next'
 
@@ -18,14 +21,6 @@ interface AdminUser {
   created_at: string | null
 }
 
-interface Pagination {
-  current_page: number
-  last_page: number
-  per_page: number
-  total: number
-  from: number | null
-  to: number | null
-}
 
 interface UserListResponse {
   data: {
@@ -41,7 +36,7 @@ const users = ref<AdminUser[]>([])
 const pagination = ref<Pagination>({
   current_page: 1,
   last_page: 1,
-  per_page: 15,
+  per_page: 10,
   total: 0,
   from: null,
   to: null,
@@ -127,8 +122,8 @@ onBeforeUnmount(() => {
       </button>
     </header>
 
-    <section class="admin-users-panel">
-      <div class="admin-users-toolbar">
+    <section class="rounded-2xl border border-white/[0.06] bg-[#11111b]">
+      <AdminFilterBar>
         <label class="admin-users-search">
           <Search />
           <input v-model="search" type="search" placeholder="Tìm theo tên hoặc email...">
@@ -144,42 +139,13 @@ onBeforeUnmount(() => {
         </label>
 
         <span class="admin-users-total">{{ pagination.total }} tài khoản</span>
-      </div>
 
-      <div v-if="errorMessage" class="admin-users-state admin-users-state--error">
-        <strong>{{ errorMessage }}</strong>
-        <button type="button" @click="loadUsers(1)">Thử lại</button>
-      </div>
-
-      <div v-else-if="loading && !users.length" class="admin-users-loading">
-        <i v-for="row in 8" :key="row"></i>
-      </div>
-
-      <div v-else-if="!users.length" class="admin-users-state">
-        <UserRound />
-        <strong>Không tìm thấy người dùng</strong>
-        <span>Thử thay đổi từ khóa hoặc vai trò đang lọc.</span>
-      </div>
-
-      <div v-else class="admin-users-table-area">
-        <div v-if="loading" class="admin-users-filter-loading">
-          <RefreshCw />
-          <span>Đang tải dữ liệu...</span>
-        </div>
-
-        <div class="admin-users-table-wrap" :class="{ 'is-loading': loading }">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Người dùng</th>
-                <th>Vai trò</th>
-                <th>Xác thực email</th>
-                <th>Ngày tạo</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in users" :key="item.id">
+      </AdminFilterBar>
+      <AdminDataTable
+      title="Danh sách người dùng" :rows="users" :columns="['ID', 'Người dùng', 'Vai trò', 'Xác thực email', 'Ngày tạo']"
+      :row-key="item => item.id" :loading="loading" :error="errorMessage" empty-text="Không tìm thấy người dùng" empty-description="Thử thay đổi từ khóa hoặc vai trò đang lọc." @retry="loadUsers(1)"
+    >
+      <template #row="{ row: item }">
                 <td class="admin-users-id">#{{ item.id }}</td>
                 <td>
                   <div class="admin-user-identity">
@@ -204,26 +170,10 @@ onBeforeUnmount(() => {
                   </span>
                 </td>
                 <td class="admin-users-date">{{ formatDate(item.created_at) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <footer v-if="pagination.total" class="admin-users-pagination">
-        <span>
-          Hiển thị {{ pagination.from }}–{{ pagination.to }} trong {{ pagination.total }} tài khoản
-        </span>
-        <div>
-          <button type="button" :disabled="pagination.current_page <= 1 || loading" @click="changePage(pagination.current_page - 1)">
-            <ChevronLeft />
-          </button>
-          <strong>{{ pagination.current_page }} / {{ pagination.last_page }}</strong>
-          <button type="button" :disabled="pagination.current_page >= pagination.last_page || loading" @click="changePage(pagination.current_page + 1)">
-            <ChevronRight />
-          </button>
-        </div>
-      </footer>
+      </template>
+    </AdminDataTable>
+      <AdminPagination v-if="!errorMessage" :pagination="pagination" :loading="loading" item-label="tài khoản" @page-change="changePage" />
     </section>
   </main>
 </template>

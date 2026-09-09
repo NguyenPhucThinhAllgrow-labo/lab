@@ -7,9 +7,8 @@ import {
   ChevronRight,
   Crosshair,
   Gamepad2,
+  LogOut,
   Radar,
-  ShieldCheck,
-  Sparkles,
   Swords,
   TerminalSquare,
   Zap,
@@ -20,7 +19,23 @@ useHead({
   meta: [{ name: 'description', content: 'Khám phá các game thử thách phản xạ, chiến thuật và tư duy trong Game Lab.' }],
 })
 
-const { user, initialized, fetchUser } = useAuth()
+const { user, initialized, fetchUser, logout } = useAuth()
+const loggingOut = ref(false)
+const logoutError = ref('')
+
+async function handleLogout() {
+  if (loggingOut.value) return
+  loggingOut.value = true
+  logoutError.value = ''
+  try {
+    await logout()
+  } catch {
+    await fetchUser()
+    logoutError.value = 'Không thể đăng xuất. Vui lòng thử lại.'
+  } finally {
+    loggingOut.value = false
+  }
+}
 
 const games = [
   {
@@ -100,60 +115,84 @@ onMounted(async () => {
     <header class="home-header">
       <NuxtLink to="/" class="home-brand">
         <span><Gamepad2 /></span>
-        <div><strong>GAME LAB</strong><small>PLAYGROUND / 2026</small></div>
+        <div><strong>GAME LAB</strong><small>CHƠI · KHÁM PHÁ · TIẾN BỘ</small></div>
       </NuxtLink>
 
       <nav class="home-nav" aria-label="Điều hướng chính">
-        <a href="#games">Games</a>
-        <a href="#algorithm-lab">Algorithm Lab</a>
+        <a href="#games">Trò chơi</a>
+        <a href="#algorithm-lab">Thuật toán</a>
         <NuxtLink to="/portfolio">Portfolio</NuxtLink>
       </nav>
 
       <div class="home-account">
-        <PlayerLogoutButton v-if="user" />
+        <template v-if="user">
+          <div class="home-account__user">
+            <span class="home-account__avatar" aria-hidden="true">{{ user.name.trim().slice(0, 1).toLocaleUpperCase('vi') }}</span>
+            <div class="home-account__identity">
+              <strong :title="user.name">{{ user.name }}</strong>
+              <small :title="user.email">{{ user.email }}</small>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="home-account__logout"
+            :disabled="loggingOut"
+            :aria-label="loggingOut ? 'Đang đăng xuất' : 'Đăng xuất'"
+            title="Đăng xuất"
+            @click="handleLogout"
+          >
+            <LogOut aria-hidden="true" />
+            <span>{{ loggingOut ? 'Đang thoát...' : 'Đăng xuất' }}</span>
+          </button>
+        </template>
         <template v-else-if="initialized">
           <NuxtLink class="home-account__login" to="/login">Đăng nhập</NuxtLink>
           <NuxtLink class="home-account__register" to="/register">Tạo tài khoản</NuxtLink>
         </template>
         <span v-else class="home-account__loading"></span>
+        <p v-if="logoutError" class="home-account__error" role="alert">{{ logoutError }}</p>
       </div>
     </header>
 
     <section class="home-hero">
       <div class="home-hero__copy">
-        <div class="home-hero__eyebrow"><Sparkles /> INTERACTIVE GAME EXPERIENCE</div>
-        <h1>Chơi để thử thách.<br><span>Nghĩ để tiến xa.</span></h1>
-        <p>Một không gian tập hợp game phản xạ, chiến thuật và giải đố — được xây dựng để mỗi lượt chơi đều mang lại một trải nghiệm mới.</p>
+        <div class="home-hero__eyebrow"><span></span> KHÔNG GIAN CHO TRÍ TÒ MÒ</div>
+        <h1>Một chút thử thách.<br><span>Mỗi ngày tiến xa.</span></h1>
+        <p>Luyện phản xạ, thử tài chiến thuật hoặc bước vào một vụ án bí ẩn. Chọn thử thách của bạn và bắt đầu khám phá.</p>
         <div class="home-hero__actions">
           <a href="#games" class="home-button home-button--primary">Khám phá game <ArrowRight /></a>
-          <NuxtLink to="/games/pandora/detective" class="home-button home-button--ghost"><ShieldCheck /> Chơi Pandora</NuxtLink>
+          <a href="#algorithm-lab" class="home-button home-button--ghost">Khám phá thuật toán <ChevronRight /></a>
         </div>
         <div class="home-hero__metrics">
-          <span><strong>06</strong><small>Game modes</small></span>
+          <span><strong>06</strong><small>Trò chơi</small></span>
           <i></i>
-          <span><strong>04</strong><small>Algorithm labs</small></span>
+          <span><strong>04</strong><small>Mô phỏng thuật toán</small></span>
           <i></i>
-          <span><strong>∞</strong><small>Challenges</small></span>
+          <span><strong>01</strong><small>Không gian khám phá</small></span>
         </div>
       </div>
 
-      <div class="home-console" aria-hidden="true">
-        <div class="home-console__top"><span></span><span></span><span></span><code>game_lab.session</code></div>
-        <div class="home-console__body">
-          <p><i>$</i> initialize player_session</p>
-          <p><i>›</i> Loading challenges...</p>
-          <p><i>›</i> Reflex module <b>[READY]</b></p>
-          <p><i>›</i> Strategy module <b>[READY]</b></p>
-          <p><i>›</i> Pandora network <b>[ONLINE]</b></p>
-          <p class="is-active"><i>$</i> select_your_game<span>_</span></p>
+      <NuxtLink to="/games/pandora/detective" class="home-feature">
+        <div class="home-feature__top"><span>THỬ THÁCH NỔI BẬT</span><span>01 / 06</span></div>
+        <div class="home-feature__art" aria-hidden="true">
+          <div class="home-feature__orbit home-feature__orbit--outer"></div>
+          <div class="home-feature__orbit home-feature__orbit--inner"></div>
+          <Radar />
+          <span class="home-feature__evidence home-feature__evidence--one">01 — MANH MỐI</span>
+          <span class="home-feature__evidence home-feature__evidence--two">02 — KẾT NỐI</span>
         </div>
-        <div class="home-console__radar"><Radar /></div>
-      </div>
+        <div class="home-feature__copy">
+          <small>QUAN SÁT. SUY LUẬN. PHÁ ÁN.</small>
+          <h2>Pandora Detective</h2>
+          <p>Mỗi manh mối là một phần của sự thật. Bạn có thể kết nối chúng?</p>
+          <span class="home-feature__cta">Bắt đầu điều tra <ArrowRight /></span>
+        </div>
+      </NuxtLink>
     </section>
 
     <section id="games" class="home-section">
       <header class="home-section__header">
-        <div><small>CHOOSE YOUR CHALLENGE</small><h2>Game collection</h2></div>
+        <div><small>TÌM THỬ THÁCH CỦA BẠN</small><h2>Hôm nay bạn muốn chơi gì?</h2></div>
         <p>Chọn thử thách phù hợp với kỹ năng bạn muốn chinh phục.</p>
       </header>
 
@@ -163,7 +202,7 @@ onMounted(async () => {
           <small>{{ game.category }}</small>
           <h3>{{ game.name }}</h3>
           <p>{{ game.description }}</p>
-          <footer><span>PLAY NOW</span><ArrowRight /></footer>
+          <footer><span>Khám phá trò chơi</span><ArrowRight /></footer>
           <b aria-hidden="true">0{{ index + 1 }}</b>
         </NuxtLink>
       </div>
@@ -171,7 +210,7 @@ onMounted(async () => {
 
     <section id="algorithm-lab" class="home-lab">
       <div class="home-lab__icon"><BrainCircuit /></div>
-      <div class="home-lab__copy"><small>VISUAL LEARNING</small><h2>Algorithm Lab</h2><p>Quan sát thuật toán vận hành từng bước qua các mô phỏng trực quan và tương tác.</p></div>
+      <div class="home-lab__copy"><small>HỌC QUA TRẢI NGHIỆM</small><h2>Algorithm Lab</h2><p>Quan sát thuật toán vận hành từng bước qua các mô phỏng trực quan và tương tác.</p></div>
       <div class="home-lab__links">
         <NuxtLink v-for="lab in algorithmLabs" :key="lab.path" :to="lab.path"><Braces /><span>{{ lab.name }}</span><ChevronRight /></NuxtLink>
       </div>
@@ -179,8 +218,8 @@ onMounted(async () => {
 
     <footer class="home-footer">
       <div class="home-brand"><span><Gamepad2 /></span><div><strong>GAME LAB</strong><small>PLAY. THINK. IMPROVE.</small></div></div>
-      <p>Built for curious players.</p>
-      <div><NuxtLink to="/portfolio">Portfolio</NuxtLink><NuxtLink to="/login">Player login</NuxtLink><NuxtLink to="/admin/login">Admin</NuxtLink></div>
+      <p>Dành cho những người luôn tò mò.</p>
+      <div><NuxtLink to="/portfolio">Portfolio</NuxtLink><NuxtLink to="/login">Đăng nhập</NuxtLink><NuxtLink to="/admin/login">Admin</NuxtLink></div>
     </footer>
   </main>
 </template>

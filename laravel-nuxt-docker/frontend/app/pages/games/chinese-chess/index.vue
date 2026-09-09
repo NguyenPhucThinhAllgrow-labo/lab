@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowLeft, Globe, Monitor, Play, RotateCcw, Swords, Trophy, Users } from 'lucide-vue-next'
 import {
   computed,
   onBeforeUnmount,
@@ -722,872 +723,121 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main
-    class="
-      min-h-screen
-      bg-slate-950
-      px-4
-      py-8
-      text-white
-    "
-  >
-    <div
-      class="
-        mx-auto
-        flex
-        min-h-[calc(100vh-4rem)]
-        w-full
-        max-w-[1450px]
-        flex-col
-        justify-center
-      "
-    >
-      <!-- ================================= -->
-      <!-- HEADER -->
-      <!-- ================================= -->
+  <main class="online-chess local-chess">
+    <div class="online-chess__glow" aria-hidden="true"></div>
+    <header class="online-chess__header">
+      <NuxtLink to="/" class="online-chess__back"><ArrowLeft :size="16" /> Trang chủ</NuxtLink>
+      <div><span class="online-chess__eyebrow">CHINESE CHESS</span><h1>Cờ Tướng</h1></div>
+      <span class="online-chess__connection"><Monitor :size="16" /> Cùng thiết bị</span>
+    </header>
 
-      <header
-        class="
-          mb-6
-          text-center
-        "
-      >
-        <h1
-          class="
-            text-3xl
-            font-bold
-          "
-        >
-          Cờ Tướng
-        </h1>
-
-        <p class="mt-2 text-sm text-slate-400">
-          Chế độ hai người chơi trên cùng thiết bị
-        </p>
-
-        <NuxtLink
-          to="/games/chinese-chess/online"
-          class="mt-4 inline-flex items-center rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/20"
-        >
-          Chơi online với bạn bè
-        </NuxtLink>
-      </header>
-
-      <!-- ================================= -->
-      <!-- THREE COLUMNS -->
-      <!-- ================================= -->
-
-      <div
-        class="
-          grid
-          w-full
-          gap-6
-          xl:grid-cols-[300px_minmax(0,600px)_300px]
-          xl:justify-center
-        "
-      >
-        <!-- ================================= -->
-        <!-- LEFT: HISTORY -->
-        <!-- ================================= -->
-
-        <aside
-          class="
-            order-2
-            w-full
-            rounded-2xl
-            border
-            border-slate-800
-            bg-slate-900
-            p-5
-            xl:order-1
-          "
-        >
-          <!-- HISTORY -->
-
-          <div>
-            <div
-              class="
-                flex
-                items-center
-                justify-between
-              "
-            >
-              <h2
-                class="
-                  font-semibold
-                "
-              >
-                Lịch sử nước đi
-              </h2>
-
-              <span
-                class="
-                  rounded-full
-                  bg-slate-800
-                  px-2
-                  py-1
-                  text-xs
-                  text-slate-400
-                "
-              >
-                {{ moveHistory.length }}
-              </span>
-            </div>
-
-            <div
-              class="
-                mt-3
-                h-72
-                overflow-y-auto
-                rounded-xl
-                bg-slate-800
-              "
-            >
-              <!-- EMPTY -->
-
-              <div
-                v-if="
-                  moveHistory.length ===
-                  0
-                "
-                class="
-                  flex
-                  h-full
-                  items-center
-                  justify-center
-                  p-4
-                  text-center
-                  text-sm
-                  text-slate-500
-                "
-              >
-                Chưa có nước đi
-              </div>
-
-              <!-- MOVES -->
-
-              <div
-                v-else
-                class="
-                  divide-y
-                  divide-slate-700
-                "
-              >
-                <div
-                  v-for="
-                    move in moveHistory
-                  "
-                  :key="
-                    `${move.number}-${move.piece.id}`
-                  "
-                  class="
-                    flex
-                    items-center
-                    gap-2
-                    px-3
-                    py-2.5
-                  "
-                >
-                  <!-- NUMBER -->
-
-                  <span
-                    class="
-                      w-5
-                      text-xs
-                      text-slate-500
-                    "
-                  >
-                    {{ move.number }}
-                  </span>
-
-                  <!-- COLOR -->
-
-                  <span
-                    class="
-                      h-2
-                      w-2
-                      shrink-0
-                      rounded-full
-                    "
-                    :class="
-                      move.color === 'red'
-                        ? 'bg-red-500'
-                        : 'bg-slate-300'
-                    "
-                  />
-
-                  <!-- PIECE -->
-
-                  <span
-                    class="
-                      text-lg
-                      font-bold
-                    "
-                    :class="
-                      move.color === 'red'
-                        ? 'text-red-400'
-                        : 'text-slate-200'
-                    "
-                  >
-                    {{
-                      getPieceSymbol(
-                        move.piece,
-                      )
-                    }}
-                  </span>
-
-                  <!-- MOVE -->
-
-                  <div
-                    class="
-                      min-w-0
-                      flex-1
-                    "
-                  >
-                    <p
-                      class="
-                        truncate
-                        text-sm
-                        text-slate-200
-                      "
-                    >
-                      {{
-                        getMoveText(
-                          move,
-                        )
-                      }}
-                    </p>
-                  </div>
-
-                  <!-- CAPTURE -->
-
-                  <span
-                    v-if="
-                      move.captured
-                    "
-                    class="
-                      shrink-0
-                      rounded
-                      bg-red-950/60
-                      px-1.5
-                      py-0.5
-                      text-xs
-                      text-red-300
-                    "
-                  >
-                    {{
-                      getPieceSymbol(
-                        move.captured,
-                      )
-                    }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ================================= -->
-          <!-- CAPTURED -->
-          <!-- ================================= -->
-
-          <div
-            class="
-              mt-5
-              border-t
-              border-slate-800
-              pt-5
-            "
-          >
-            <h2
-              class="
-                font-semibold
-              "
-            >
-              Quân đã ăn
-            </h2>
-
-            <!-- RED -->
-
-            <div
-              class="
-                mt-4
-              "
-            >
-              <div
-                class="
-                  flex
-                  justify-between
-                "
-              >
-                <span
-                  class="
-                    text-sm
-                    text-red-400
-                  "
-                >
-                  Đỏ đã ăn
-                </span>
-
-                <span
-                  class="
-                    text-xs
-                    text-slate-500
-                  "
-                >
-                  {{ redCaptured.length }}
-                </span>
-              </div>
-
-              <div
-                class="
-                  mt-2
-                  flex
-                  min-h-9
-                  flex-wrap
-                  gap-1.5
-                "
-              >
-                <span
-                  v-for="
-                    (piece, index)
-                    in redCaptured
-                  "
-                  :key="
-                    `red-${index}`
-                  "
-                  class="
-                    flex
-                    h-9
-                    w-9
-                    items-center
-                    justify-center
-                    rounded-lg
-                    bg-slate-800
-                    text-lg
-                  "
-                  :title="
-                    getPieceName(
-                      piece,
-                    )
-                  "
-                >
-                  {{
-                    getPieceSymbol(
-                      piece,
-                    )
-                  }}
-                </span>
-
-                <span
-                  v-if="
-                    redCaptured.length ===
-                    0
-                  "
-                  class="
-                    text-xs
-                    text-slate-500
-                  "
-                >
-                  Chưa có
-                </span>
-              </div>
-            </div>
-
-            <!-- BLACK -->
-
-            <div
-              class="
-                mt-4
-              "
-            >
-              <div
-                class="
-                  flex
-                  justify-between
-                "
-              >
-                <span
-                  class="
-                    text-sm
-                    text-slate-300
-                  "
-                >
-                  Đen đã ăn
-                </span>
-
-                <span
-                  class="
-                    text-xs
-                    text-slate-500
-                  "
-                >
-                  {{ blackCaptured.length }}
-                </span>
-              </div>
-
-              <div
-                class="
-                  mt-2
-                  flex
-                  min-h-9
-                  flex-wrap
-                  gap-1.5
-                "
-              >
-                <span
-                  v-for="
-                    (piece, index)
-                    in blackCaptured
-                  "
-                  :key="
-                    `black-${index}`
-                  "
-                  class="
-                    flex
-                    h-9
-                    w-9
-                    items-center
-                    justify-center
-                    rounded-lg
-                    bg-slate-800
-                    text-lg
-                  "
-                  :title="
-                    getPieceName(
-                      piece,
-                    )
-                  "
-                >
-                  {{
-                    getPieceSymbol(
-                      piece,
-                    )
-                  }}
-                </span>
-
-                <span
-                  v-if="
-                    blackCaptured.length ===
-                    0
-                  "
-                  class="
-                    text-xs
-                    text-slate-500
-                  "
-                >
-                  Chưa có
-                </span>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <!-- ================================= -->
-        <!-- CENTER: CHINESE CHESS BOARD -->
-        <!-- ================================= -->
-
-        <section
-          class="
-            order-1
-            flex
-            justify-center
-            xl:order-2
-          "
-        >
-          <ChineseChessBoard
-            :key="gameKey"
-            :current-turn="currentTurn"
-            :game-started="gameStarted"
-            @move="handleMove"
-            @checkmate="
-              handleCheckmate
-            "
-            @check="handleCheck"
-          />
-        </section>
-
-        <!-- ================================= -->
-        <!-- RIGHT: SIDEBAR -->
-        <!-- ================================= -->
-
-        <aside
-          class="
-            order-3
-            w-full
-            rounded-2xl
-            border
-            border-slate-800
-            bg-slate-900
-            p-5
-          "
-        >
-          <!-- ================================= -->
-          <!-- CHECK MESSAGE -->
-          <!-- ================================= -->
-
-          <Transition name="check">
-            <div
-              v-if="
-                gameStarted &&
-                isCheck
-              "
-              class="
-                mb-3
-                rounded-xl
-                border
-                border-red-500/30
-                bg-red-950/40
-                px-4
-                py-3
-                text-center
-                shadow-lg
-                shadow-red-950/20
-              "
-            >
-              <p
-                class="
-                  animate-pulse
-                  font-bold
-                  text-red-400
-                "
-              >
-                ⚠
-                {{
-                  checkPlayerName
-                }}
-                đang bị chiếu!
-              </p>
-
-              <p
-                class="
-                  mt-1
-                  text-xs
-                  text-red-300/70
-                "
-              >
-                Hãy tìm nước đi để thoát chiếu
-              </p>
-            </div>
-          </Transition>
-          <!-- PLAYER -->
-
-          <div
-            class="
-              mb-5
-            "
-          >
-            <p
-              class="
-                text-sm
-                text-slate-400
-              "
-            >
-              Người chơi
-            </p>
-
-            <p
-              class="
-                mt-1
-                text-xl
-                font-bold
-              "
-              :class="
-                currentTurn === 'red'
-                  ? 'text-red-400'
-                  : 'text-slate-200'
-              "
-            >
-              {{ currentPlayerName }}
-            </p>
-          </div>
-
-          <!-- RED TIMER -->
-
-          <div
-            class="
-              mb-3
-              rounded-xl
-              p-4
-              text-center
-            "
-            :class="
-              currentTurn === 'red' &&
-              gameStarted &&
-              !gameOver
-                ? 'bg-red-950/60 ring-2 ring-red-500/50'
-                : 'bg-slate-800'
-            "
-          >
-            <p
-              class="
-                text-sm
-                text-slate-400
-              "
-            >
-              Đỏ
-            </p>
-
-            <p
-              class="
-                mt-1
-                font-mono
-                text-3xl
-                font-bold
-              "
-            >
-              {{ redTimeText }}
-            </p>
-          </div>
-
-          <!-- BLACK TIMER -->
-
-          <div
-            class="
-              rounded-xl
-              p-4
-              text-center
-            "
-            :class="
-              currentTurn === 'black' &&
-              gameStarted &&
-              !gameOver
-                ? 'bg-slate-700 ring-2 ring-slate-400/50'
-                : 'bg-slate-800'
-            "
-          >
-            <p
-              class="
-                text-sm
-                text-slate-400
-              "
-            >
-              Đen
-            </p>
-
-            <p
-              class="
-                mt-1
-                font-mono
-                text-3xl
-                font-bold
-              "
-            >
-              {{ blackTimeText }}
-            </p>
-          </div>
-
-          <!-- ================================= -->
-          <!-- CONTROLS -->
-          <!-- ================================= -->
-
-          <div
-            class="
-              mt-5
-              grid
-              gap-2
-            "
-          >
-            <!-- START -->
-
-            <button
-              v-if="
-                !gameStarted
-              "
-              type="button"
-              class="
-                rounded-lg
-                bg-green-600
-                px-4
-                py-2
-                font-semibold
-                transition
-                hover:bg-green-500
-              "
-              @click="
-                startGame
-              "
-            >
-              Bắt đầu
-            </button>
-
-            <!-- RESTART -->
-
-            <button
-              v-else
-              type="button"
-              class="
-                rounded-lg
-                bg-slate-700
-                px-4
-                py-2
-                transition
-                hover:bg-slate-600
-              "
-              @click="
-                restartGame
-              "
-            >
-              Chơi lại
-            </button>
-
-            <!-- SURRENDER -->
-
-            <button
-              v-if="
-                gameStarted &&
-                !gameOver
-              "
-              type="button"
-              class="
-                rounded-lg
-                border
-                border-slate-700
-                px-4
-                py-2
-                text-slate-300
-                transition
-                hover:bg-slate-800
-              "
-              @click="
-                surrender
-              "
-            >
-              Đầu hàng
-            </button>
-          </div>
-        </aside>
+    <section class="chess-roombar">
+      <div>
+        <span class="online-chess__eyebrow">CHƠI CÙNG THIẾT BỊ</span>
+        <p class="local-chess__subtitle">Hai người chơi · 10 phút mỗi bên</p>
       </div>
-    </div>
+      <div class="chess-roombar__status" :class="gameStarted && !gameOver ? 'is-playing' : 'is-waiting'">
+        <span></span>{{ gameOver ? 'Ván đấu kết thúc' : gameStarted ? `Lượt quân ${currentPlayerName}` : 'Sẵn sàng bắt đầu' }}
+      </div>
+      <NuxtLink to="/games/chinese-chess/online" class="chess-button"><Globe :size="17" /><span>Chơi online với bạn bè</span></NuxtLink>
+    </section>
 
-    <!-- ================================= -->
-    <!-- GAME OVER MODAL -->
-    <!-- ================================= -->
+    <section class="online-match">
+      <aside class="match-panel match-panel--history">
+        <div class="match-panel__title"><span>Lịch sử nước đi</span><b>{{ moveHistory.length }}</b></div>
+        <div class="move-list">
+          <p v-if="!moveHistory.length" class="match-empty">Chưa có nước đi nào</p>
+          <div v-for="move in moveHistory" :key="`${move.number}-${move.piece.id}`" class="move-item">
+            <span>{{ move.number }}</span>
+            <i :class="`is-${move.color}`"></i>
+            <strong class="move-piece-token" :class="`is-${move.piece.color}`" :title="getPieceName(move.piece)">{{ getPieceSymbol(move.piece) }}</strong>
+            <small>{{ getMoveText(move) }}</small>
+            <span class="move-item__result">
+              <template v-if="move.captured">
+                <span class="move-capture-mark">×</span>
+                <strong class="move-piece-token is-captured" :class="`is-${move.captured.color}`" :title="getPieceName(move.captured)">{{ getPieceSymbol(move.captured) }}</strong>
+              </template>
+            </span>
+          </div>
+        </div>
+        <div class="captured-block">
+          <p>Quân đã ăn</p>
+          <div><span>Đỏ</span><b v-for="piece in redCaptured" :key="piece.id" class="captured-piece-token" :class="`is-${piece.color}`" :title="getPieceName(piece)">{{ getPieceSymbol(piece) }}</b><small v-if="!redCaptured.length">—</small></div>
+          <div><span>Đen</span><b v-for="piece in blackCaptured" :key="piece.id" class="captured-piece-token" :class="`is-${piece.color}`" :title="getPieceName(piece)">{{ getPieceSymbol(piece) }}</b><small v-if="!blackCaptured.length">—</small></div>
+        </div>
+      </aside>
+
+      <section class="online-board-wrap">
+        <div v-if="!gameStarted" class="board-overlay">
+          <div class="board-waiting-card">
+            <div class="board-waiting-card__icon"><Swords :size="24" /></div>
+            <span class="board-waiting-card__eyebrow">HAI NGƯỜI · CÙNG THIẾT BỊ</span>
+            <h2>Sẵn sàng khai cuộc?</h2>
+            <p>Quân Đỏ đi trước. Mỗi bên có 10 phút để thi đấu.</p>
+            <button class="chess-button chess-button--primary" @click="startGame"><Play :size="17" /> Bắt đầu ván đấu</button>
+          </div>
+        </div>
+        <ChineseChessBoard
+          :key="gameKey"
+          :current-turn="currentTurn"
+          :game-started="gameStarted && !gameOver"
+          @move="handleMove"
+          @checkmate="handleCheckmate"
+          @check="handleCheck"
+        />
+      </section>
+
+      <aside class="match-panel match-panel--players">
+        <div class="match-panel__title"><span>Người chơi</span><Users :size="17" /></div>
+          <div v-if="gameStarted && !gameOver" class="player-turn" role="status">
+            <span class="player-turn__dot" :class="{ 'is-red': currentTurn === 'red' }"></span>
+            Lượt quân {{ currentTurn === 'red' ? 'Đỏ' : 'Đen' }}
+          </div>
+        <div class="player-card" :class="{ 'is-active': gameStarted && !gameOver && currentTurn === 'black' }">
+          <div class="player-avatar is-black">將</div>
+          <div><span>QUÂN ĐEN</span><strong>Người chơi Đen</strong></div>
+          <time>{{ blackTimeText }}</time>
+        </div>
+        <div class="match-versus">VS</div>
+        <div class="player-card" :class="{ 'is-active': gameStarted && !gameOver && currentTurn === 'red' }">
+          <div class="player-avatar is-red">帥</div>
+          <div><span>QUÂN ĐỎ</span><strong>Người chơi Đỏ</strong></div>
+          <time>{{ redTimeText }}</time>
+        </div>
+        <div class="match-notice" :class="{ 'is-mine': gameStarted && !gameOver }" aria-live="polite">
+          <Swords :size="17" />
+          <div>
+            <strong>{{ gameOver ? `Quân ${winnerName} thắng` : gameStarted ? `Lượt quân ${currentPlayerName}` : 'Bấm Bắt đầu để khai cuộc' }}</strong>
+            <span v-if="gameStarted && !gameOver && isCheck">{{ checkPlayerName }} đang bị chiếu! Hãy tìm nước đi để thoát chiếu.</span>
+          </div>
+        </div>
+        <div class="match-actions">
+          <button v-if="!gameStarted" class="chess-button chess-button--primary" @click="startGame"><Play :size="17" /> Bắt đầu</button>
+          <button v-else class="chess-button" @click="restartGame"><RotateCcw :size="17" /> Chơi lại</button>
+          <button v-if="gameStarted && !gameOver" class="chess-button chess-button--danger-ghost" @click="surrender">Đầu hàng</button>
+        </div>
+      </aside>
+    </section>
 
     <Transition name="modal">
-      <div
-        v-if="gameOver"
-        class="
-          fixed
-          inset-0
-          z-[100]
-          flex
-          items-center
-          justify-center
-          bg-black/75
-          p-4
-          backdrop-blur-sm
-        "
-      >
-        <div
-          class="
-            w-full
-            max-w-md
-            rounded-3xl
-            border
-            border-slate-700
-            bg-slate-900
-            p-8
-            text-center
-            shadow-2xl
-          "
-        >
-          <div
-            class="
-              mx-auto
-              flex
-              h-20
-              w-20
-              items-center
-              justify-center
-              rounded-full
-              bg-yellow-500/10
-              text-4xl
-              ring-4
-              ring-yellow-500/20
-            "
-          >
-            🏆
-          </div>
-
-          <h2
-            class="
-              mt-5
-              text-3xl
-              font-bold
-            "
-          >
-            Game Over
-          </h2>
-
-          <p
-            class="
-              mt-4
-              text-xl
-              font-semibold
-            "
-          >
-            <span
-              :class="
-                winner === 'red'
-                  ? 'text-red-400'
-                  : 'text-slate-200'
-              "
-            >
-              {{ winnerName }}
-            </span>
-
-            thắng!
-          </p>
-
-          <div
-            class="
-              mx-auto
-              mt-4
-              w-fit
-              rounded-full
-              bg-slate-800
-              px-5
-              py-2
-              text-sm
-              text-slate-300
-            "
-          >
-            {{ winReasonText }}
-          </div>
-
-          <p
-            class="
-              mt-4
-              text-sm
-              text-slate-400
-            "
-          >
-            {{ loserName }} đã thua
-          </p>
-
-          <button
-            type="button"
-            class="
-              mt-7
-              w-full
-              rounded-xl
-              bg-green-600
-              px-5
-              py-3
-              font-semibold
-              transition
-              hover:bg-green-500
-            "
-            @click="
-              restartGame
-            "
-          >
-            Chơi lại
-          </button>
-        </div>
+      <div v-if="gameOver" class="chess-dialog-backdrop">
+        <section class="chess-dialog chess-dialog--result is-winner" role="alertdialog" aria-modal="true" aria-labelledby="local-result-title" aria-describedby="local-result-description">
+          <div class="chess-dialog__icon is-winner"><Trophy :size="28" /></div>
+          <span class="chess-dialog__eyebrow">VÁN ĐẤU KẾT THÚC</span>
+          <h2 id="local-result-title">Quân {{ winnerName }} thắng!</h2>
+          <p id="local-result-description">{{ winReasonText }} · Quân {{ loserName }} đã thua.</p>
+          <div class="chess-dialog__actions is-centered"><button class="chess-button chess-button--primary" @click="restartGame"><RotateCcw :size="17" /> Chơi lại</button></div>
+        </section>
       </div>
     </Transition>
   </main>
 </template>
 
+<style scoped src="~/assets/css/pages/games/chinese-chess/online.css"></style>
+<style scoped src="~/assets/css/pages/games/chinese-chess/history-pieces.css"></style>
+<style scoped src="~/assets/css/pages/games/chinese-chess/ready.css"></style>
+<style scoped src="~/assets/css/pages/games/chinese-chess/dialogs.css"></style>
+<style scoped src="~/assets/css/pages/games/chinese-chess/typography.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/index.css"></style>
+
+<style scoped src="~/assets/css/pages/games/chinese-chess/player-turn.css"></style>

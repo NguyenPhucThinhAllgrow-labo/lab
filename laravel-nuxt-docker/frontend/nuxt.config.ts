@@ -13,6 +13,16 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss'
   ],
   nitro: {
+    devProxy: {
+      '/api': {
+        target: `${process.env.API_PROXY_TARGET || 'http://localhost'}/api`,
+        changeOrigin: true,
+      },
+      '/sanctum': {
+        target: `${process.env.API_PROXY_TARGET || 'http://localhost'}/sanctum`,
+        changeOrigin: true,
+      },
+    },
     experimental: {
       websocket: true,
     },

@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import AdminDataTable from '~/components/admin/AdminDataTable.vue'
+import AdminFilterBar from '~/components/admin/AdminFilterBar.vue'
+import AdminPagination from '~/components/admin/AdminPagination.vue'
+import type { AdminPagination as Pagination } from '~/types/admin/table'
 import {
   Award,
-  ChevronLeft,
-  ChevronRight,
   Clock3,
   RefreshCw,
   Search,
@@ -62,14 +64,6 @@ interface LeaderboardData {
   cases: LeaderboardCase[]
 }
 
-interface Pagination {
-  current_page: number
-  last_page: number
-  per_page: number
-  total: number
-  from: number | null
-  to: number | null
-}
 
 interface PaginatedResponse<T> { data: { items: T[]; pagination: Pagination } }
 interface BestResponse extends PaginatedResponse<LeaderboardEntry> { data: PaginatedResponse<LeaderboardEntry>['data'] & LeaderboardData }
@@ -83,6 +77,7 @@ const historyCase = ref('')
 const bestLoading = ref(true)
 const historyLoading = ref(true)
 const errorMessage = ref('')
+const historyError = ref('')
 const leaderboard = ref<LeaderboardData | null>(null)
 const bestEntries = ref<LeaderboardEntry[]>([])
 const historyEntries = ref<CompletionHistoryEntry[]>([])
@@ -148,6 +143,8 @@ const leaderboardGroups = computed(() => {
   return [...groups.values()]
 })
 
+const tableGroups = computed(() => leaderboardGroups.value.map(group => ({ key: group.case.id, title: group.case.title, rows: group.entries })))
+
 async function loadBest(page = bestPagination.value.current_page) {
   bestLoading.value = true
   errorMessage.value = ''
@@ -167,6 +164,7 @@ async function loadBest(page = bestPagination.value.current_page) {
 
 async function loadHistory(page = historyPagination.value.current_page) {
   historyLoading.value = true
+  historyError.value = ''
   try {
     const response = await api<PaginatedResponse<CompletionHistoryEntry>>('/api/admin/pandora/leaderboard/history', {
       query: {
@@ -178,7 +176,7 @@ async function loadHistory(page = historyPagination.value.current_page) {
     historyEntries.value = response.data.items
     historyPagination.value = response.data.pagination
   } catch (error: any) {
-    errorMessage.value = error?.data?.message || 'Không thể tải lịch sử lượt chơi.'
+    historyError.value = error?.data?.message || 'Không thể tải lịch sử lượt chơi.'
   } finally {
     historyLoading.value = false
   }
@@ -224,6 +222,7 @@ watch(historyNameQuery, () => {
   historySearchTimer = setTimeout(() => loadHistory(1), 300)
 })
 onMounted(() => Promise.all([loadBest(1), loadHistory(1)]))
+onBeforeUnmount(() => clearTimeout(historySearchTimer))
 </script>
 
 <template>
@@ -253,8 +252,8 @@ onMounted(() => Promise.all([loadBest(1), loadHistory(1)]))
       </article>
     </section>
 
-    <section class="pandora-ranking__panel">
-      <div class="pandora-ranking__toolbar">
+    <section class="rounded-2xl mt-[18px] border border-white/[0.06] bg-[#11111b]">
+      <AdminFilterBar>
         <div>
           <h2>Thành tích tốt nhất</h2>
           <p>Mỗi người chơi chỉ lấy lượt tốt nhất trong từng case.</p>
@@ -267,60 +266,13 @@ onMounted(() => Promise.all([loadBest(1), loadHistory(1)]))
           aria-label="Lọc thành tích theo case"
           :loading="bestLoading"
         />
-      </div>
-
-      <div v-if="errorMessage" class="pandora-ranking__error">
-        <p>{{ errorMessage }}</p>
-        <button type="button" @click="refreshAll">Thử lại</button>
-      </div>
-
-      <div v-else-if="bestLoading && !bestEntries.length" class="pandora-ranking__loading">
-        <i v-for="row in 6" :key="row"></i>
-      </div>
-
-      <div v-else-if="!bestEntries.length" class="pandora-ranking__empty">
-        <Trophy />
-        <strong>Chưa có thành tích</strong>
-        <span>Người chơi hoàn thành case sẽ xuất hiện tại đây.</span>
-      </div>
-
-      <div v-else class="pandora-ranking__table-area">
-        <div v-if="bestLoading" class="pandora-ranking__filter-loading" role="status" aria-live="polite">
-          <RefreshCw />
-          <span>Đang lọc dữ liệu...</span>
-        </div>
-
-        <div class="pandora-ranking__boards" :class="{ 'is-filtering': bestLoading }">
-          <section
-            v-for="group in leaderboardGroups"
-            :key="group.case.id"
-            class="pandora-ranking__case-board"
-          >
-            <header class="pandora-ranking__case-heading">
-              <div>
-                <span>CASE RANKING</span>
-                <h3>{{ group.case.title }}</h3>
-              </div>
-              <code>[{{ group.case.id }}]</code>
-              <small>{{ group.entries.length }} người chơi</small>
-            </header>
-
-            <div class="pandora-ranking__table-wrap">
-              <table class="pandora-ranking__table pandora-ranking__case-table">
-                <thead>
-                  <tr>
-                    <th>Hạng</th>
-                    <th>Người chơi</th>
-                    <th>Điểm</th>
-                    <th>Thời gian</th>
-                    <th>Hint</th>
-                    <th>Nối sai</th>
-                    <th>Lượt chơi</th>
-                    <th>Hoàn thành</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="entry in group.entries" :key="`${entry.player.id}-${entry.case.id}`">
+      </AdminFilterBar>
+      <AdminDataTable
+      title="Thành tích tốt nhất" :rows="bestEntries" :groups="tableGroups"
+      :columns="['Hạng', 'Người chơi', 'Điểm', 'Thời gian', 'Hint', 'Nối sai', 'Lượt chơi', 'Hoàn thành']"
+      :row-key="entry => entry.history_id" :loading="bestLoading" :error="errorMessage" empty-text="Chưa có thành tích" empty-description="Người chơi hoàn thành case sẽ xuất hiện tại đây." @retry="loadBest()"
+    >
+      <template #row="{ row: entry }">
                     <td>
                       <span
                         class="ranking-position"
@@ -343,25 +295,13 @@ onMounted(() => Promise.all([loadBest(1), loadHistory(1)]))
                     <td>{{ entry.incorrect_link_attempts }}</td>
                     <td>{{ entry.attempts }}</td>
                     <td class="ranking-date">{{ formatDate(entry.completed_at) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      </div>
-      <footer v-if="bestPagination.total" class="pandora-ranking__pagination">
-        <span>Hiển thị {{ bestPagination.from }}–{{ bestPagination.to }} trong {{ bestPagination.total }} thành tích</span>
-        <div>
-          <button type="button" :disabled="bestPagination.current_page <= 1 || bestLoading" @click="loadBest(bestPagination.current_page - 1)"><ChevronLeft /></button>
-          <strong>{{ bestPagination.current_page }} / {{ bestPagination.last_page }}</strong>
-          <button type="button" :disabled="bestPagination.current_page >= bestPagination.last_page || bestLoading" @click="loadBest(bestPagination.current_page + 1)"><ChevronRight /></button>
-        </div>
-      </footer>
+                  </template>
+    </AdminDataTable>
+      <AdminPagination v-if="!errorMessage" :pagination="bestPagination" :loading="bestLoading" item-label="thành tích" @page-change="loadBest" />
     </section>
 
-    <section v-if="leaderboard" class="pandora-ranking__panel pandora-ranking__history-panel">
-      <div class="pandora-ranking__toolbar">
+    <section class="pandora-ranking__history-panel rounded-2xl border border-white/[0.06] bg-[#11111b]" v-if="leaderboard">
+      <AdminFilterBar>
         <div>
           <h2>Lịch sử tất cả lượt chơi</h2>
           <p>Mỗi dòng là một lần hoàn thành riêng biệt, mới nhất được hiển thị trước.</p>
@@ -390,37 +330,13 @@ onMounted(() => Promise.all([loadBest(1), loadHistory(1)]))
             {{ historyPagination.total }} lượt
           </span>
         </div>
-      </div>
-
-      <div v-if="!historyEntries.length && !historyLoading" class="pandora-ranking__empty pandora-ranking__empty--compact">
-        <Clock3 />
-        <strong>Không tìm thấy lượt chơi phù hợp</strong>
-        <span>Thử thay đổi tên người chơi hoặc case đang lọc.</span>
-      </div>
-
-      <div v-else class="pandora-ranking__table-area">
-        <div v-if="historyLoading" class="pandora-ranking__filter-loading" role="status" aria-live="polite">
-          <RefreshCw />
-          <span>Đang lọc lịch sử...</span>
-        </div>
-
-        <div class="pandora-ranking__table-wrap" :class="{ 'is-filtering': historyLoading }">
-          <table class="pandora-ranking__table pandora-ranking__history-table">
-            <thead>
-              <tr>
-                <th>Lượt</th>
-                <th>Người chơi</th>
-                <th>Case</th>
-                <th>Điểm</th>
-                <th>Thời gian</th>
-                <th>Hint</th>
-                <th>Nối sai</th>
-                <th>Lệnh</th>
-                <th>Hoàn thành</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="entry in historyEntries" :key="entry.history_id">
+      </AdminFilterBar>
+      <AdminDataTable
+      title="Lịch sử tất cả lượt chơi" :rows="historyEntries"
+      :columns="['Lượt', 'Người chơi', 'Case', 'Điểm', 'Thời gian', 'Hint', 'Nối sai', 'Lệnh', 'Hoàn thành']"
+      :row-key="entry => entry.history_id" :loading="historyLoading" :error="historyError" empty-text="Không tìm thấy lượt chơi phù hợp" empty-description="Thử thay đổi tên người chơi hoặc case đang lọc." @retry="loadHistory()"
+    >
+      <template #row="{ row: entry }">
                 <td>
                   <span class="ranking-attempt">#{{ entry.attempt_number }}</span>
                 </td>
@@ -437,19 +353,9 @@ onMounted(() => Promise.all([loadBest(1), loadHistory(1)]))
                 <td>{{ entry.incorrect_link_attempts }}</td>
                 <td>{{ entry.command_count }}</td>
                 <td class="ranking-date">{{ formatDate(entry.completed_at) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <footer v-if="historyPagination.total" class="pandora-ranking__pagination">
-        <span>Hiển thị {{ historyPagination.from }}–{{ historyPagination.to }} trong {{ historyPagination.total }} lượt</span>
-        <div>
-          <button type="button" :disabled="historyPagination.current_page <= 1 || historyLoading" @click="loadHistory(historyPagination.current_page - 1)"><ChevronLeft /></button>
-          <strong>{{ historyPagination.current_page }} / {{ historyPagination.last_page }}</strong>
-          <button type="button" :disabled="historyPagination.current_page >= historyPagination.last_page || historyLoading" @click="loadHistory(historyPagination.current_page + 1)"><ChevronRight /></button>
-        </div>
-      </footer>
+              </template>
+    </AdminDataTable>
+      <AdminPagination v-if="!historyError" :pagination="historyPagination" :loading="historyLoading" item-label="lượt" @page-change="loadHistory" />
     </section>
   </main>
 </template>
