@@ -48,9 +48,15 @@ class ChineseChessRoomApiTest extends TestCase
             'version' => $version,
         ])->assertOk()
             ->assertJsonPath('room.current_turn', 'black')
-            ->assertJsonPath('room.move_history.0.piece.id', 'red-soldier-1');
+            ->assertJsonPath('room.move_history.0.piece.id', 'red-soldier-1')
+            ->assertJsonPath('room.move_history.0.is_check', false);
 
-        Event::assertDispatched(ChineseChessRoomUpdated::class);
+        Event::assertDispatched(ChineseChessRoomUpdated::class, function (ChineseChessRoomUpdated $event): bool {
+            $payload = $event->broadcastWith();
+
+            return array_keys($payload) === ['room_id', 'version', 'action']
+                && strlen((string) json_encode($payload)) < 1024;
+        });
     }
 
     public function test_room_rejects_a_third_player_and_out_of_turn_move(): void
@@ -101,6 +107,32 @@ class ChineseChessRoomApiTest extends TestCase
             'to' => ['row' => 5, 'col' => 0],
             'version' => $version,
         ])->assertUnprocessable()->assertJsonValidationErrors('move');
+    }
+
+    public function test_check_is_recorded_in_move_history(): void
+    {
+        Event::fake([ChineseChessRoomUpdated::class]);
+        $red = User::factory()->create(['role' => 'user']);
+        $black = User::factory()->create(['role' => 'user']);
+        $code = $this->actingAs($red)->postJson('/api/chinese-chess/rooms')->json('room.code');
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/join");
+        $version = $this->startGame($code, $red, $black);
+
+        $room = ChineseChessRoom::where('code', $code)->firstOrFail();
+        $room->board = [
+            ['id' => 'black-general', 'type' => 'general', 'color' => 'black', 'row' => 0, 'col' => 4],
+            ['id' => 'red-chariot-1', 'type' => 'chariot', 'color' => 'red', 'row' => 1, 'col' => 3],
+            ['id' => 'red-soldier-1', 'type' => 'soldier', 'color' => 'red', 'row' => 5, 'col' => 4],
+            ['id' => 'red-general', 'type' => 'general', 'color' => 'red', 'row' => 9, 'col' => 4],
+        ];
+        $room->save();
+
+        $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/moves", [
+            'piece_id' => 'red-chariot-1',
+            'to' => ['row' => 1, 'col' => 4],
+            'version' => $version,
+        ])->assertOk()
+            ->assertJsonPath('room.move_history.0.is_check', true);
     }
 
     public function test_timeout_is_authoritative_and_persisted_before_a_move(): void

@@ -1,0 +1,12 @@
+.online-chess {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+/* Keep decorative serif typography for English only; Vietnamese diacritics
+   render consistently with the UI font stack below. */
+.chess-lobby h2,
+.board-overlay h2 {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}

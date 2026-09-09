@@ -6,6 +6,7 @@ import type {
   ChineseChessRoom,
   PieceColor,
 } from '~/types/games/chinese-chess'
+import type { ChineseChessRoomEvent } from '~/composables/useChineseChessRealtime'
 import { isInCheck } from '~/utils/chinese-chess/check'
 
 useHead({ title: 'Chinese Chess Online' })
@@ -32,6 +33,8 @@ let clockTimer: ReturnType<typeof setInterval> | null = null
 let pollRequestPending = false
 let pollingEnabled = false
 let announcedFinishVersion: number | null = null
+let realtimeTargetVersion = 0
+let realtimeSyncPending = false
 
 const gameStarted = computed(() => room.value?.status === 'playing' || room.value?.status === 'paused')
 const isMyTurn = computed(() => room.value?.status === 'playing' && room.value.your_color === room.value.current_turn)
@@ -75,6 +78,8 @@ const statusText = computed(() => {
 })
 
 function applyRoom(next: ChineseChessRoom, keepColor = false): void {
+  if (room.value?.id === next.id && next.version < room.value.version) return
+
   const previousStatus = room.value?.status
   const ownColor = keepColor ? room.value?.your_color ?? null : next.your_color
   const updatedRoom = { ...next, your_color: next.your_color ?? ownColor }
@@ -151,8 +156,28 @@ async function loadRoom(code = room.value?.code, silent = false): Promise<void> 
 async function enterRoom(next: ChineseChessRoom): Promise<void> {
   roomCode.value = next.code
   await router.replace({ query: { room: next.code } })
-  realtimeConnected.value = realtime.connect(next.id, (event) => applyRoom(event.room, true))
+  realtimeConnected.value = realtime.connect(next.id, syncRoomFromRealtime)
   startPolling()
+}
+
+async function syncRoomFromRealtime(event: ChineseChessRoomEvent): Promise<void> {
+  if (!room.value || event.room_id !== room.value.id || event.version <= room.value.version) return
+
+  realtimeTargetVersion = Math.max(realtimeTargetVersion, event.version)
+  if (realtimeSyncPending) return
+
+  realtimeSyncPending = true
+
+  try {
+    do {
+      const requestedVersion = realtimeTargetVersion
+      await loadRoom(room.value?.code, true)
+
+      if (!room.value || room.value.version < requestedVersion) break
+    } while (room.value.version < realtimeTargetVersion)
+  } finally {
+    realtimeSyncPending = false
+  }
 }
 
 async function submitMove(move: ChineseChessMoveHistory): Promise<void> {
@@ -232,6 +257,8 @@ function resetLobby(): void {
   surrenderConfirmOpen.value = false
   surrenderResult.value = null
   announcedFinishVersion = null
+  realtimeTargetVersion = 0
+  realtimeSyncPending = false
   router.replace({ query: {} })
 }
 
@@ -403,8 +430,13 @@ onBeforeUnmount(() => {
               <i :class="`is-${move.color}`"></i>
               <strong class="move-piece-token" :class="`is-${move.piece.color}`">{{ pieceName(move.piece) }}</strong>
               <small>{{ positionText(move) }}</small>
-              <span v-if="move.captured" class="move-capture-mark">×</span>
-              <strong v-if="move.captured" class="move-piece-token is-captured" :class="`is-${move.captured.color}`">{{ pieceName(move.captured) }}</strong>
+              <span class="move-item__result">
+                <template v-if="move.captured">
+                  <span class="move-capture-mark">×</span>
+                  <strong class="move-piece-token is-captured" :class="`is-${move.captured.color}`">{{ pieceName(move.captured) }}</strong>
+                </template>
+                <strong v-if="move.is_check" class="move-check-badge" title="Nước đi này chiếu tướng">Chiếu</strong>
+              </span>
             </div>
           </div>
           <div class="captured-block">
@@ -539,3 +571,4 @@ onBeforeUnmount(() => {
 <style scoped src="~/assets/css/pages/games/chinese-chess/history-pieces.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/ready.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/dialogs.css"></style>
+<style scoped src="~/assets/css/pages/games/chinese-chess/typography.css"></style>

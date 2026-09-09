@@ -1,5 +1,12 @@
 .move-item {
-  grid-template-columns: 20px 7px 34px minmax(48px, 1fr) 10px 34px;
+  grid-template-columns: 20px 7px 34px minmax(48px, 1fr) auto;
+}
+
+.move-item__result {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
 }
 
 .move-piece-token,
@@ -35,6 +42,24 @@
   font-size: 15px;
   font-weight: 900;
   text-align: center;
+}
+
+.move-check-badge {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  border: 1px solid rgb(251 146 60 / 42%);
+  border-radius: 999px;
+  padding: 0 7px;
+  background: rgb(154 52 18 / 24%);
+  color: #fdba74;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 0 12px rgb(234 88 12 / 12%);
 }
 
 .move-piece-token.is-red,

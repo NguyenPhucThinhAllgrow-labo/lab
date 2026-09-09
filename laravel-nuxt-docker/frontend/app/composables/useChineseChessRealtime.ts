@@ -1,10 +1,9 @@
 import Echo from 'laravel-echo'
 import Pusher from 'pusher-js'
 
-import type { ChineseChessRoom } from '~/types/games/chinese-chess'
-
-interface RoomEvent {
-  room: ChineseChessRoom
+export interface ChineseChessRoomEvent {
+  room_id: number
+  version: number
   action: string
 }
 
@@ -18,7 +17,7 @@ export function useChineseChessRealtime() {
     return match ? decodeURIComponent(match[1] ?? '') : ''
   }
 
-  function connect(roomId: number, onUpdate: (event: RoomEvent) => void): boolean {
+  function connect(roomId: number, onUpdate: (event: ChineseChessRoomEvent) => void): boolean {
     disconnect()
 
     const key = String(config.public.pusherAppKey ?? '')

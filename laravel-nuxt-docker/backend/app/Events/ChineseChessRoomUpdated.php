@@ -14,7 +14,7 @@ class ChineseChessRoomUpdated implements ShouldBroadcastNow
 
     public function __construct(
         public readonly int $roomId,
-        public readonly array $room,
+        public readonly int $version,
         public readonly string $action,
     ) {}
 
@@ -31,7 +31,8 @@ class ChineseChessRoomUpdated implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'room' => $this->room,
+            'room_id' => $this->roomId,
+            'version' => $this->version,
             'action' => $this->action,
         ];
     }

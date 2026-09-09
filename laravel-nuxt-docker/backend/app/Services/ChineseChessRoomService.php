@@ -141,6 +141,8 @@ class ChineseChessRoomService
             }
 
             [$board, $captured] = $this->engine->move($room->board, $piece['id'], (int) $payload['to']['row'], (int) $payload['to']['col']);
+            $opponent = $color === 'red' ? 'black' : 'red';
+            $isCheck = $this->engine->isInCheck($board, $opponent);
             $history = $room->move_history ?? [];
             $history[] = [
                 'number' => count($history) + 1,
@@ -149,10 +151,10 @@ class ChineseChessRoomService
                 'from' => ['row' => $piece['row'], 'col' => $piece['col']],
                 'to' => ['row' => (int) $payload['to']['row'], 'col' => (int) $payload['to']['col']],
                 'captured' => $captured,
+                'is_check' => $isCheck,
                 'played_at' => now()->toISOString(),
             ];
 
-            $opponent = $color === 'red' ? 'black' : 'red';
             $room->fill([
                 'board' => $board,
                 'move_history' => $history,
@@ -162,7 +164,7 @@ class ChineseChessRoomService
             ]);
 
             if (! $this->engine->hasLegalMove($board, $opponent)) {
-                $this->finish($room, $user->id, $this->engine->isInCheck($board, $opponent) ? 'checkmate' : 'stalemate');
+                $this->finish($room, $user->id, $isCheck ? 'checkmate' : 'stalemate');
             }
 
             $room->save();

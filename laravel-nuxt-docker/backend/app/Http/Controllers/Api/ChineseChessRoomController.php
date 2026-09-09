@@ -74,8 +74,7 @@ class ChineseChessRoomController extends Controller
     private function respond(ChineseChessRoom $room, Request $request, string $action, int $status = 200): JsonResponse
     {
         $state = $this->rooms->state($room, $request->user());
-        $broadcastState = [...$state, 'your_color' => null];
-        broadcast(new ChineseChessRoomUpdated($room->id, $broadcastState, $action))->toOthers();
+        broadcast(new ChineseChessRoomUpdated($room->id, $room->version, $action))->toOthers();
 
         return response()->json(['room' => $state], $status);
     }

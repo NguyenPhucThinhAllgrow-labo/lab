@@ -36,6 +36,7 @@ export interface ChineseChessMoveHistory {
   from: Position
   to: Position
   captured: ChineseChessPiece | null
+  is_check?: boolean
   played_at?: string
 }
 
