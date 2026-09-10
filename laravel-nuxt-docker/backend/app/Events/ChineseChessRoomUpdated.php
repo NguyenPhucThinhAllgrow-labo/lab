@@ -3,7 +3,7 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -16,11 +16,12 @@ class ChineseChessRoomUpdated implements ShouldBroadcastNow
         public readonly int $roomId,
         public readonly int $version,
         public readonly string $action,
+        public readonly ?array $state = null,
     ) {}
 
     public function broadcastOn(): array
     {
-        return [new PrivateChannel("chinese-chess.{$this->roomId}")];
+        return [new PresenceChannel("chinese-chess.{$this->roomId}")];
     }
 
     public function broadcastAs(): string
@@ -30,10 +31,11 @@ class ChineseChessRoomUpdated implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        return [
+        return array_filter([
             'room_id' => $this->roomId,
             'version' => $this->version,
             'action' => $this->action,
-        ];
+            'state' => $this->state,
+        ], static fn (mixed $value): bool => $value !== null);
     }
 }

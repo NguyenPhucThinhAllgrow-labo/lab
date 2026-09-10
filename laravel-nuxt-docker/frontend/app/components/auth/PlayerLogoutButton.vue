@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ChevronRight, GripVertical, House, LoaderCircle, LogOut, PanelTopOpen } from 'lucide-vue-next'
+import { ChevronRight, ChevronUp, GripVertical, House, LoaderCircle, LogOut, PanelTopOpen } from 'lucide-vue-next'
+import LogoutConfirmModal from '~/components/auth/LogoutConfirmModal.vue'
 
 const props = withDefaults(defineProps<{
   variant?: 'default' | 'hacker'
@@ -10,7 +11,9 @@ const props = withDefaults(defineProps<{
 })
 
 const loading = ref(false)
+const logoutConfirmOpen = ref(false)
 const collapsed = ref(false)
+const vertical = ref(false)
 const { user, logout } = useAuth()
 const sessionElement = ref<HTMLElement | null>(null)
 const dragging = ref(false)
@@ -19,6 +22,7 @@ const position = reactive({ x: 0, y: 0 })
 
 const POSITION_STORAGE_KEY = 'player-logout-position'
 const COLLAPSED_STORAGE_KEY = 'player-logout-collapsed'
+const ORIENTATION_STORAGE_KEY = 'player-logout-vertical'
 const VIEWPORT_GAP = 8
 
 let activePointerId: number | null = null
@@ -129,13 +133,27 @@ async function toggleCollapsed() {
   savePosition()
 }
 
-async function handleLogout() {
+async function toggleOrientation() {
+  const right = position.x + (sessionElement.value?.offsetWidth ?? 0)
+  vertical.value = !vertical.value
+  try {
+    localStorage.setItem(ORIENTATION_STORAGE_KEY, String(vertical.value))
+  } catch {
+    // The orientation toggle still works when storage is unavailable.
+  }
+  await nextTick()
+  setPosition(right - (sessionElement.value?.offsetWidth ?? 0), position.y)
+  savePosition()
+}
+
+async function confirmLogout() {
   if (loading.value) return
 
   loading.value = true
 
   try {
     await logout()
+    logoutConfirmOpen.value = false
     await navigateTo('/login')
   } finally {
     loading.value = false
@@ -145,6 +163,7 @@ async function handleLogout() {
 onMounted(async () => {
   try {
     collapsed.value = localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true'
+    vertical.value = localStorage.getItem(ORIENTATION_STORAGE_KEY) === 'true'
   } catch {
     // Default to the expanded controls.
   }
@@ -181,7 +200,7 @@ onBeforeUnmount(() => {
     <div
       ref="sessionElement"
       class="player-session"
-      :class="[`player-session--${props.variant}`, { 'is-dragging': dragging }]"
+      :class="[`player-session--${props.variant}`, { 'is-dragging': dragging, 'is-collapsed': collapsed, 'is-vertical': vertical }]"
       :style="positionStyle"
       @pointerdown="handlePointerDown"
       @pointermove="handlePointerMove"
@@ -227,25 +246,50 @@ onBeforeUnmount(() => {
         class="player-session__logout player-session__exit"
         :disabled="loading"
         :title="loading ? 'Đang đăng xuất...' : 'Đăng xuất khỏi phiên người chơi'"
-        @click="handleLogout"
+        @click="logoutConfirmOpen = true"
       >
         <LoaderCircle v-if="loading" class="is-spinning" />
         <LogOut v-else />
         <span>{{ loading ? 'Đang thoát' : props.variant === 'hacker' ? 'EXIT' : 'Đăng xuất' }}</span>
       </button>
-      <button
-        type="button"
-        class="player-session__logout player-session__toggle"
-        :disabled="loading"
-        :title="collapsed ? 'Mở menu người chơi' : 'Thu gọn menu người chơi'"
-        :aria-label="collapsed ? 'Mở menu người chơi' : 'Thu gọn menu người chơi'"
-        :aria-expanded="!collapsed"
-        @click="toggleCollapsed"
-      >
-        <PanelTopOpen v-if="collapsed" aria-hidden="true" />
-        <ChevronRight v-else aria-hidden="true" />
-      </button>
+      <div class="player-session__controls">
+        <button
+          type="button"
+          class="player-session__logout player-session__orientation"
+          :disabled="loading"
+          :title="vertical ? 'Chuyển sang hàng ngang' : 'Chuyển sang hàng dọc'"
+          :aria-label="vertical ? 'Chuyển menu sang hàng ngang' : 'Chuyển menu sang hàng dọc'"
+          :aria-pressed="vertical"
+          @click="toggleOrientation"
+        >
+          <span class="player-session__orientation-glyph" aria-hidden="true">{{ vertical ? '↔' : '↕' }}</span>
+          <span class="player-session__control-label">{{ vertical ? 'Chuyển hàng ngang' : 'Chuyển hàng dọc' }}</span>
+        </button>
+        <button
+          type="button"
+          class="player-session__logout player-session__toggle"
+          :disabled="loading"
+          :title="collapsed ? 'Mở menu người chơi' : 'Thu gọn menu người chơi'"
+          :aria-label="collapsed ? 'Mở menu người chơi' : 'Thu gọn menu người chơi'"
+          :aria-expanded="!collapsed"
+          @click="toggleCollapsed"
+        >
+          <PanelTopOpen v-if="collapsed" aria-hidden="true" />
+          <ChevronUp v-else-if="vertical" aria-hidden="true" />
+          <ChevronRight v-else aria-hidden="true" />
+          <span class="player-session__control-label">{{ collapsed ? 'Mở rộng menu' : 'Thu gọn menu' }}</span>
+        </button>
+      </div>
     </div>
+
+    <LogoutConfirmModal
+      :open="logoutConfirmOpen"
+      :loading="loading"
+      :user-name="displayName"
+      :variant="props.variant"
+      @cancel="logoutConfirmOpen = false"
+      @confirm="confirmLogout"
+    />
   </Teleport>
 </template>
 
@@ -272,8 +316,11 @@ onBeforeUnmount(() => {
 .player-session__logout:disabled { cursor: wait; opacity: .6; }
 .player-session__home { text-decoration: none; }
 .player-session__home:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-.player-session__toggle { width: 34px; justify-content: center; padding: 0; }
-.player-session__toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.player-session__controls { display: flex; flex: none; align-items: center; gap: 4px; }
+.player-session__toggle, .player-session__orientation { width: 34px; justify-content: center; padding: 0; }
+.player-session__orientation-glyph { font-size: 17px; font-weight: 500; line-height: 1; }
+.player-session__control-label { display: none; }
+.player-session__toggle:focus-visible, .player-session__orientation:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .player-session__logout svg { width: 14px; height: 14px; flex: none; }.player-session__logout svg.is-spinning { animation: session-spin .8s linear infinite; }
 .player-session--hacker { height: 46px; border-color: rgb(110 231 183 / 24%); border-radius: 2px; background: rgb(15 26 21 / 97%); box-shadow: 0 0 22px rgb(16 185 129 / 10%), inset 0 0 18px rgb(16 185 129 / 3%); font-family: "Lucida Console", Monaco, "Courier New", monospace; }
 .player-session--hacker .player-session__avatar { width: 32px; height: 32px; border-color: rgb(52 211 153 / 48%); border-radius: 1px; background: rgb(6 78 59 / 62%); color: #6ee7b7; box-shadow: inset 0 0 10px rgb(52 211 153 / 9%); }
@@ -285,10 +332,23 @@ onBeforeUnmount(() => {
 .player-session .player-session__home:hover { border-color: rgb(213 244 135 / 30%); background: rgb(213 244 135 / 13%); color: #e5fac1; }
 .player-session .player-session__exit { border-color: rgb(252 165 165 / 14%); background: rgb(248 113 113 / 6%); color: #ffd0ca; }
 .player-session .player-session__exit:hover:not(:disabled) { border-color: rgb(252 165 165 / 32%); background: rgb(248 113 113 / 14%); color: #fecaca; }
-.player-session .player-session__toggle, .player-session .player-session__drag { background: rgb(255 255 255 / 4%); color: #dce5de; }
-.player-session .player-session__toggle:hover:not(:disabled), .player-session .player-session__drag:hover { border-color: rgb(255 255 255 / 16%); background: rgb(255 255 255 / 9%); color: #f0f4ef; }
+.player-session .player-session__toggle, .player-session .player-session__orientation, .player-session .player-session__drag { background: rgb(255 255 255 / 4%); color: #dce5de; }
+.player-session .player-session__toggle:hover:not(:disabled), .player-session .player-session__orientation:hover:not(:disabled), .player-session .player-session__drag:hover { border-color: rgb(255 255 255 / 16%); background: rgb(255 255 255 / 9%); color: #f0f4ef; }
 .player-session .player-session__exit:focus-visible { outline: 2px solid #efb4ae; outline-offset: 2px; }
+.player-session.is-vertical:not(.is-collapsed) { width: 210px; height: auto; flex-direction: column; align-items: stretch; gap: 6px; padding: 8px; }
+.player-session.is-vertical:not(.is-collapsed) .player-session__drag { width: 100%; height: 25px; border-radius: 8px; background: transparent; opacity: .65; }
+.player-session.is-vertical:not(.is-collapsed) .player-session__drag:hover { background: rgb(255 255 255 / 5%); opacity: 1; }
+.player-session.is-vertical:not(.is-collapsed) .player-session__user { width: 100%; padding: 4px 7px 7px; }
+.player-session.is-vertical:not(.is-collapsed) .player-session__identity { max-width: 125px; }
+.player-session.is-vertical:not(.is-collapsed) .player-session__divider { width: 100%; height: 1px; }
+.player-session.is-vertical:not(.is-collapsed) .player-session__logout:not(.player-session__toggle, .player-session__orientation) { width: 100%; justify-content: flex-start; }
+.player-session.is-vertical:not(.is-collapsed) .player-session__controls { flex-direction: column; align-items: stretch; padding-top: 3px; border-top: 1px solid rgb(148 163 184 / 10%); }
+.player-session.is-vertical:not(.is-collapsed) .player-session__toggle, .player-session.is-vertical:not(.is-collapsed) .player-session__orientation { width: 100%; justify-content: flex-start; padding: 0 10px; }
+.player-session.is-vertical:not(.is-collapsed) .player-session__control-label { display: inline; font-size: 10px; font-weight: 650; }
+.player-session--hacker.is-vertical:not(.is-collapsed) .player-session__drag { border-radius: 1px; }
+.player-session.is-vertical.is-collapsed { width: 48px; height: auto; flex-direction: column; padding: 6px; }
+.player-session.is-vertical.is-collapsed .player-session__controls { flex-direction: column; }
 @keyframes session-spin { to { transform: rotate(360deg); } }
-@media (max-width: 600px) { .player-session__identity { max-width: 95px; }.player-session__logout span { display: none; }.player-session__logout { width: 34px; justify-content: center; padding: 0; } }
+@media (max-width: 600px) { .player-session__identity { max-width: 95px; }.player-session:not(.is-vertical) .player-session__home > span, .player-session:not(.is-vertical) .player-session__exit > span { display: none; }.player-session:not(.is-vertical) .player-session__home, .player-session:not(.is-vertical) .player-session__exit { width: 34px; justify-content: center; padding: 0; } }
 @media (prefers-reduced-motion: reduce) { .player-session__logout svg.is-spinning { animation: none; } }
 </style>

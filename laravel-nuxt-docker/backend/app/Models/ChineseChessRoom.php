@@ -14,7 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'black_time_seconds', 'started_at', 'last_move_at', 'paused_by_id',
     'paused_at', 'winner_id',
     'finish_reason', 'version', 'red_ready', 'black_ready',
-    'red_rematch', 'black_rematch',
+    'red_rematch', 'black_rematch', 'red_undos_remaining', 'black_undos_remaining',
+    'undo_requested_by_id', 'undo_requested_at',
 ])]
 class ChineseChessRoom extends Model
 {
@@ -38,6 +39,9 @@ class ChineseChessRoom extends Model
             'black_ready' => 'boolean',
             'red_rematch' => 'boolean',
             'black_rematch' => 'boolean',
+            'red_undos_remaining' => 'integer',
+            'black_undos_remaining' => 'integer',
+            'undo_requested_at' => 'datetime',
         ];
     }
 
@@ -64,6 +68,11 @@ class ChineseChessRoom extends Model
     public function pausedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'paused_by_id');
+    }
+
+    public function undoRequestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'undo_requested_by_id');
     }
 
     public function colorFor(int $userId): ?string

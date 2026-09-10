@@ -31,6 +31,8 @@ Route::middleware(['auth:sanctum', 'role:user'])->group(function (): void {
         Route::get('/{code}', [ChineseChessRoomController::class, 'show']);
         Route::post('/{code}/ready', [ChineseChessRoomController::class, 'ready']);
         Route::post('/{code}/moves', [ChineseChessRoomController::class, 'move']);
+        Route::post('/{code}/undo', [ChineseChessRoomController::class, 'undo']);
+        Route::post('/{code}/undo/respond', [ChineseChessRoomController::class, 'respondToUndo']);
         Route::post('/{code}/pause', [ChineseChessRoomController::class, 'pause']);
         Route::post('/{code}/resume', [ChineseChessRoomController::class, 'resume']);
         Route::post('/{code}/surrender', [ChineseChessRoomController::class, 'surrender']);

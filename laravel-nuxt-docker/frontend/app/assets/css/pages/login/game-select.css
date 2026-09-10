@@ -3,6 +3,11 @@
 .game-login-backdrop { position: absolute; inset: 0; pointer-events: none; }
 .game-login-shell { z-index: 1; display: grid; width: min(100%, 1080px); min-height: 620px; grid-template-columns: 1.18fr .82fr; overflow: hidden; border: 1px solid rgb(125 211 252 / 25%); border-radius: 22px; background: rgb(15 29 49 / 94%); box-shadow: 0 28px 90px rgb(0 0 0 / 42%); }
 .game-login-intro { display: flex; flex-direction: column; padding: 42px; border-right: 1px solid rgb(125 211 252 / 16%); background: linear-gradient(145deg, rgb(14 116 144 / 18%), transparent 55%); }
+.game-login-home { display: inline-flex; align-self: flex-start; align-items: center; gap: 8px; margin-bottom: 25px; padding: 8px 12px; border: 1px solid rgb(125 211 252 / 22%); border-radius: 9px; background: rgb(2 12 25 / 28%); color: #a9cde4; font-size: 11px; font-weight: 650; text-decoration: none; transition: border-color .2s ease, background .2s ease, color .2s ease, transform .2s ease; }
+.game-login-home span { font-size: 17px; line-height: 1; transition: transform .2s ease; }
+.game-login-home:hover { transform: translateY(-1px); border-color: rgb(103 232 249 / 52%); background: rgb(14 165 233 / 10%); color: #ecfeff; }
+.game-login-home:hover span { transform: translateX(-2px); }
+.game-login-home:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
 .game-login-brand { display: flex; align-items: center; gap: 10px; color: #d9f6ff; font-size: 12px; font-weight: 800; letter-spacing: .12em; }
 .game-login-brand-mark { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #0d9488); box-shadow: 0 8px 18px rgb(14 165 233 / 23%); }
 .game-login-copy { margin: 47px 0 28px; max-width: 520px; }
@@ -697,6 +702,28 @@
 .game-login--chinese-chess .game-login-register { color: #92918a; }.game-login--chinese-chess .game-login-register a { color: #d6b878; }
 .game-login--tetris .game-login-register a { color: #f472b6; }
 
+.game-login--pandora .game-login-home {
+  border-radius: 2px;
+  border-color: rgb(52 211 153 / 32%);
+  background: rgb(0 15 10 / 52%);
+  color: #6ee7b7;
+  font-family: inherit;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.game-login--pandora .game-login-home:hover {
+  border-color: #34d399;
+  background: rgb(6 78 59 / 42%);
+  color: #d1fae5;
+  box-shadow: 0 0 16px rgb(52 211 153 / 12%);
+}
+
+.game-login--pandora .game-login-home:focus-visible { outline-color: #34d399; }
+.game-login--chinese-chess .game-login-home { border-color: rgb(211 178 119 / 28%); background: rgb(7 9 10 / 36%); color: #c9ae78; }
+.game-login--chinese-chess .game-login-home:hover { border-color: rgb(211 178 119 / 58%); background: rgb(174 132 65 / 12%); color: #f4e7ce; }
+.game-login--chinese-chess .game-login-home:focus-visible { outline-color: #d6b878; }
+
 @media (prefers-reduced-motion: reduce) {
   .hacker-scanline,
   .hacker-bit-rain > span,
@@ -725,3 +752,7 @@
 }
 
 @media (max-width: 760px) { .game-login { padding: 14px; }.game-login-shell { display: block; min-height: auto; }.game-login-intro, .game-login-form { padding: 27px 23px; }.game-login-intro { border-right: 0; border-bottom: 1px solid rgb(125 211 252 / 16%); }.game-login-copy { margin: 24px 0; }.game-login-copy h1 { font-size: 27px; }.game-login-list { max-height: 270px; overflow-y: auto; }.game-login-selection { margin: 30px 0 25px; }.game-login-admin { padding-top: 30px; }.game-login-chinese-chess-piece { opacity: .24 !important; transform: scale(.78) !important; } }
+
+@media (max-width: 760px) {
+  .game-login-home { margin-bottom: 20px; }
+}

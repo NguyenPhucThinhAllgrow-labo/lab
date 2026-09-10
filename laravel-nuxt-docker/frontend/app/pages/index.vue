@@ -7,21 +7,86 @@ import {
   ChevronRight,
   Crosshair,
   Gamepad2,
+  KeyRound,
   LogOut,
+  Mail,
   Radar,
   Swords,
   TerminalSquare,
+  X,
   Zap,
 } from 'lucide-vue-next'
+import LogoutConfirmModal from '~/components/auth/LogoutConfirmModal.vue'
 
 useHead({
   title: 'Game Lab — Play, Think, Improve',
   meta: [{ name: 'description', content: 'Khám phá các game thử thách phản xạ, chiến thuật và tư duy trong Game Lab.' }],
 })
 
-const { user, initialized, fetchUser, logout } = useAuth()
+const { user, initialized, fetchUser, login, logout } = useAuth()
 const loggingOut = ref(false)
 const logoutError = ref('')
+const logoutConfirmOpen = ref(false)
+const loginModalOpen = ref(false)
+const loginEmail = ref('')
+const loginPassword = ref('')
+const loginLoading = ref(false)
+const loginError = ref('')
+const loginEmailInput = ref<HTMLInputElement | null>(null)
+
+function openLoginModal() {
+  loginError.value = ''
+  loginModalOpen.value = true
+}
+
+function closeLoginModal() {
+  if (loginLoading.value) return
+  loginModalOpen.value = false
+  loginError.value = ''
+}
+
+async function handleLogin() {
+  if (loginLoading.value) return
+
+  loginError.value = ''
+  if (!loginEmail.value || !loginPassword.value) {
+    loginError.value = 'Vui lòng nhập email và mật khẩu.'
+    return
+  }
+
+  loginLoading.value = true
+  try {
+    await login(loginEmail.value, loginPassword.value)
+    loginModalOpen.value = false
+    loginPassword.value = ''
+  } catch (error: any) {
+    if (error?.status === 422 || error?.status === 401) {
+      loginError.value = error?.data?.errors?.email?.[0]
+        || error?.data?.message
+        || 'Email hoặc mật khẩu không chính xác.'
+    } else if (error?.status === 419) {
+      loginError.value = 'Phiên bảo mật đã hết hạn. Vui lòng thử lại.'
+    } else {
+      loginError.value = error?.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.'
+    }
+  } finally {
+    loginLoading.value = false
+  }
+}
+
+watch(loginModalOpen, async (isOpen) => {
+  if (!import.meta.client) return
+
+  document.body.style.overflow = isOpen ? 'hidden' : ''
+  if (isOpen) {
+    await nextTick()
+    loginEmailInput.value?.focus()
+  }
+})
+
+onBeforeUnmount(() => {
+  if (import.meta.client) document.body.style.overflow = ''
+})
 
 async function handleLogout() {
   if (loggingOut.value) return
@@ -34,6 +99,7 @@ async function handleLogout() {
     logoutError.value = 'Không thể đăng xuất. Vui lòng thử lại.'
   } finally {
     loggingOut.value = false
+    logoutConfirmOpen.value = false
   }
 }
 
@@ -139,14 +205,14 @@ onMounted(async () => {
             :disabled="loggingOut"
             :aria-label="loggingOut ? 'Đang đăng xuất' : 'Đăng xuất'"
             title="Đăng xuất"
-            @click="handleLogout"
+            @click="logoutConfirmOpen = true"
           >
             <LogOut aria-hidden="true" />
             <span>{{ loggingOut ? 'Đang thoát...' : 'Đăng xuất' }}</span>
           </button>
         </template>
         <template v-else-if="initialized">
-          <NuxtLink class="home-account__login" to="/login">Đăng nhập</NuxtLink>
+          <button type="button" class="home-account__login" @click="openLoginModal">Đăng nhập</button>
           <NuxtLink class="home-account__register" to="/register">Tạo tài khoản</NuxtLink>
         </template>
         <span v-else class="home-account__loading"></span>
@@ -219,8 +285,71 @@ onMounted(async () => {
     <footer class="home-footer">
       <div class="home-brand"><span><Gamepad2 /></span><div><strong>GAME LAB</strong><small>PLAY. THINK. IMPROVE.</small></div></div>
       <p>Dành cho những người luôn tò mò.</p>
-      <div><NuxtLink to="/portfolio">Portfolio</NuxtLink><NuxtLink to="/login">Đăng nhập</NuxtLink><NuxtLink to="/admin/login">Admin</NuxtLink></div>
+      <div><NuxtLink to="/portfolio">Portfolio</NuxtLink><button v-if="!user" type="button" @click="openLoginModal">Đăng nhập</button><NuxtLink to="/admin/login">Admin</NuxtLink></div>
     </footer>
+
+    <Transition name="home-modal">
+      <div v-if="loginModalOpen" class="home-login-modal" role="presentation" @click.self="closeLoginModal">
+        <section
+          class="home-login-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="home-login-title"
+          @keydown.esc="closeLoginModal"
+        >
+          <button type="button" class="home-login-dialog__close" aria-label="Đóng cửa sổ đăng nhập" :disabled="loginLoading" @click="closeLoginModal">
+            <X aria-hidden="true" />
+          </button>
+
+          <aside class="home-login-dialog__intro">
+            <span class="home-login-dialog__badge"><Gamepad2 aria-hidden="true" /></span>
+            <div>
+              <small>GAME LAB MEMBER</small>
+              <h2>Chào mừng<br>trở lại.</h2>
+              <p>Một tài khoản, toàn bộ trò chơi và hành trình tiến bộ của bạn.</p>
+            </div>
+            <div class="home-login-dialog__status"><i></i> Hệ thống sẵn sàng</div>
+          </aside>
+
+          <div class="home-login-dialog__form">
+            <header>
+              <small>PLAYER ACCESS</small>
+              <h3 id="home-login-title">Đăng nhập tài khoản</h3>
+              <p>Tiếp tục khám phá không gian Game Lab.</p>
+            </header>
+
+            <form novalidate @submit.prevent="handleLogin">
+              <label class="home-login-field" for="home-login-email">
+                <span>Email</span>
+                <div><Mail aria-hidden="true" /><input id="home-login-email" ref="loginEmailInput" v-model="loginEmail" type="email" autocomplete="email" placeholder="player@example.com" :disabled="loginLoading"></div>
+              </label>
+
+              <label class="home-login-field" for="home-login-password">
+                <span>Mật khẩu</span>
+                <div><KeyRound aria-hidden="true" /><input id="home-login-password" v-model="loginPassword" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" :disabled="loginLoading"></div>
+              </label>
+
+              <p v-if="loginError" class="home-login-dialog__error" role="alert">{{ loginError }}</p>
+
+              <button class="home-login-dialog__submit" type="submit" :disabled="loginLoading">
+                <span>{{ loginLoading ? 'Đang xác thực...' : 'Đăng nhập' }}</span>
+                <ArrowRight aria-hidden="true" />
+              </button>
+            </form>
+
+            <p class="home-login-dialog__register">Chưa có tài khoản? <NuxtLink to="/register" @click="closeLoginModal">Tạo tài khoản</NuxtLink></p>
+          </div>
+        </section>
+      </div>
+    </Transition>
+
+    <LogoutConfirmModal
+      :open="logoutConfirmOpen"
+      :loading="loggingOut"
+      :user-name="user?.name"
+      @cancel="logoutConfirmOpen = false"
+      @confirm="handleLogout"
+    />
   </main>
 </template>
 

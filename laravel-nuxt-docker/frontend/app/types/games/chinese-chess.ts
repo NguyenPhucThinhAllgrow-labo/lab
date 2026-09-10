@@ -66,6 +66,13 @@ export interface ChineseChessPlayer {
   name: string
 }
 
+export interface ChineseChessUndoRequest {
+  requester_id: number
+  requester_name: string | null
+  color: PieceColor
+  requested_at: string | null
+}
+
 export type ChineseChessRoomStatus = 'waiting' | 'playing' | 'paused' | 'finished' | 'cancelled'
 
 export interface ChineseChessRoom {
@@ -80,6 +87,9 @@ export interface ChineseChessRoom {
   repetition: ChineseChessRepetitionState
   red_time_seconds: number
   black_time_seconds: number
+  red_undos_remaining: number
+  black_undos_remaining: number
+  undo_request: ChineseChessUndoRequest | null
   red_player: ChineseChessPlayer
   black_player: ChineseChessPlayer | null
   winner: ChineseChessPlayer | null
@@ -88,6 +98,7 @@ export interface ChineseChessRoom {
   finish_reason: string | null
   version: number
   your_color: PieceColor | null
+  is_spectator: boolean
   red_ready: boolean
   black_ready: boolean
   red_rematch: boolean

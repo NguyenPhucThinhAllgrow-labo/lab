@@ -691,15 +691,43 @@ function isCurrentTurnPiece(
     piece.color === props.currentTurn
   )
 }
+
+const displayedFileLabels = computed(() =>
+  Array.from(
+    { length: 9 },
+    (_, index) => String.fromCharCode(65 + displayCol(index)),
+  ),
+)
+
+const displayedRankLabels = computed(() =>
+  Array.from(
+    { length: 10 },
+    (_, index) => displayRow(index) + 1,
+  ),
+)
 </script>
 
 <template>
   <div
     class="
+      chess-board-layout
       w-full
       max-w-[600px]
     "
   >
+    <div
+      class="chess-rank-axis"
+      aria-hidden="true"
+    >
+      <span
+        v-for="rank in displayedRankLabels"
+        :key="`rank-${rank}`"
+        class="chess-axis-label"
+      >
+        {{ rank }}
+      </span>
+    </div>
+
     <!-- ================================= -->
     <!-- BOARD -->
     <!-- ================================= -->
@@ -1132,10 +1160,59 @@ function isCurrentTurnPiece(
         </div>
       </div>
     </div>
+
+    <div aria-hidden="true" />
+
+    <div
+      class="chess-file-axis"
+      aria-hidden="true"
+    >
+      <span
+        v-for="file in displayedFileLabels"
+        :key="`file-${file}`"
+        class="chess-axis-label"
+      >
+        {{ file }}
+      </span>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.chess-board-layout {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  grid-template-rows: auto 1.4rem;
+  column-gap: 0.25rem;
+  row-gap: 0.2rem;
+}
+
+.chess-rank-axis {
+  display: grid;
+  grid-template-rows: repeat(10, minmax(0, 1fr));
+  min-height: 0;
+}
+
+.chess-file-axis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 5%;
+}
+
+.chess-axis-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #b77934;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(0.58rem, 1.5vw, 0.72rem);
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 45%);
+  user-select: none;
+}
+
 .chess-last-move-marker {
   position: absolute;
   z-index: 0;

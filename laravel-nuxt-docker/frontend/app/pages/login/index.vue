@@ -298,6 +298,11 @@ const handleLogin = async () => {
         </div>
 
       <aside class="game-login-intro">
+        <NuxtLink class="game-login-home" to="/" aria-label="Quay về trang chủ">
+          <span aria-hidden="true">←</span>
+          Về trang chủ
+        </NuxtLink>
+
         <div class="game-login-brand">
           <span class="game-login-brand-mark">{{ loginTheme.mark }}</span>
           <span>{{ loginTheme.brand }}</span>

@@ -206,6 +206,41 @@
   background: rgb(30 64 175 / 20%);
 }
 
+.chess-button--undo {
+  border-color: rgba(216, 164, 91, 0.28);
+  background: rgba(216, 164, 91, 0.08);
+  color: #f1c783;
+}
+
+.chess-button--undo:hover:not(:disabled) {
+  border-color: rgba(216, 164, 91, 0.5);
+  background: rgba(216, 164, 91, 0.14);
+}
+
+.chess-button--undo span {
+  color: #aaa398;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+}
+
+.undo-request-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(216, 164, 91, 0.2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(216, 164, 91, 0.07);
+  color: #d9c29e;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.undo-request-pending svg {
+  flex: 0 0 auto;
+  color: #d8a45b;
+}
+
 @media (max-width: 520px) {
   .board-overlay {
     padding: 12px;

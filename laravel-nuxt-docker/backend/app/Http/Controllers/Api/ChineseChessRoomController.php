@@ -51,6 +51,31 @@ class ChineseChessRoomController extends Controller
         return $this->respond($this->rooms->surrender($code, $request->user()), $request, 'surrendered');
     }
 
+    public function undo(string $code, Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'version' => ['required', 'integer', 'min:0'],
+        ]);
+
+        return $this->respond($this->rooms->requestUndo($code, $request->user(), (int) $payload['version']), $request, 'undo_requested');
+    }
+
+    public function respondToUndo(string $code, Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'version' => ['required', 'integer', 'min:0'],
+            'accepted' => ['required', 'boolean'],
+        ]);
+
+        $action = $payload['accepted'] ? 'undo_accepted' : 'undo_rejected';
+
+        return $this->respond(
+            $this->rooms->respondToUndo($code, $request->user(), (int) $payload['version'], (bool) $payload['accepted']),
+            $request,
+            $action,
+        );
+    }
+
     public function pause(string $code, Request $request): JsonResponse
     {
         return $this->respond($this->rooms->pause($code, $request->user()), $request, 'paused');
@@ -74,7 +99,13 @@ class ChineseChessRoomController extends Controller
     private function respond(ChineseChessRoom $room, Request $request, string $action, int $status = 200): JsonResponse
     {
         $state = $this->rooms->state($room, $request->user());
-        broadcast(new ChineseChessRoomUpdated($room->id, $room->version, $action))->toOthers();
+        $realtimeState = $action === 'moved' ? $this->rooms->realtimeMoveState($room) : null;
+        $event = (new ChineseChessRoomUpdated($room->id, $room->version, $action, $realtimeState))
+            ->dontBroadcastToCurrentUser();
+
+        // Publishing to Pusher is an external network call. Run it after the
+        // HTTP response so the player who moved never waits for that round trip.
+        app()->terminating(static fn () => event($event));
 
         return response()->json(['room' => $state], $status);
     }

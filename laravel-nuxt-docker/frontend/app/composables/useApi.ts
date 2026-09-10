@@ -1,5 +1,6 @@
 export const useApi = () => {
   const config = useRuntimeConfig()
+  const realtimeSocketId = useState<string | null>('chinese-chess-socket-id', () => null)
 
   const getXsrfToken = () => {
     if (import.meta.server) {
@@ -37,6 +38,10 @@ export const useApi = () => {
           'X-XSRF-TOKEN',
           token,
         )
+      }
+
+      if (realtimeSocketId.value) {
+        headers.set('X-Socket-ID', realtimeSocketId.value)
       }
 
       options.headers = headers

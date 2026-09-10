@@ -1,28 +1,56 @@
 import Echo from 'laravel-echo'
 import Pusher from 'pusher-js'
+import type { ChineseChessMoveHistory, ChineseChessPiece, ChineseChessPlayer, ChineseChessRepetitionState, ChineseChessRoomStatus, PieceColor } from '~/types/games/chinese-chess'
+
+export interface ChineseChessRealtimeMoveState {
+  board: ChineseChessPiece[]
+  move: ChineseChessMoveHistory | null
+  move_count: number
+  status: ChineseChessRoomStatus
+  current_turn: PieceColor
+  repetition: ChineseChessRepetitionState
+  red_time_seconds: number
+  black_time_seconds: number
+  winner: ChineseChessPlayer | null
+  finish_reason: string | null
+  last_move_at: string | null
+}
 
 export interface ChineseChessRoomEvent {
   room_id: number
   version: number
   action: string
+  state?: ChineseChessRealtimeMoveState
+}
+
+export interface ChineseChessPresenceMember {
+  id: number
+  name: string
 }
 
 export function useChineseChessRealtime() {
   const config = useRuntimeConfig()
   const echo = shallowRef<any>(null)
   const channelName = ref<string | null>(null)
+  const socketId = useState<string | null>('chinese-chess-socket-id', () => null)
 
   function xsrfToken(): string {
     const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/)
     return match ? decodeURIComponent(match[1] ?? '') : ''
   }
 
-  function connect(roomId: number, onUpdate: (event: ChineseChessRoomEvent) => void): boolean {
+  function connect(
+    roomId: number,
+    onUpdate: (event: ChineseChessRoomEvent) => void,
+    onConnectionChange: (connected: boolean) => void,
+    onMembersChange: (members: ChineseChessPresenceMember[]) => void,
+  ): void {
     disconnect()
 
     const key = String(config.public.pusherAppKey ?? '')
     if (!key) {
-      return false
+      onConnectionChange(false)
+      return
     }
 
     const baseUrl = String(config.public.apiUrl ?? '').replace(/\/$/, '')
@@ -58,9 +86,38 @@ export function useChineseChessRealtime() {
     })
 
     channelName.value = `chinese-chess.${roomId}`
-    echo.value.private(channelName.value).listen('.chinese-chess.room.updated', onUpdate)
-
-    return true
+    const members = new Map<number, ChineseChessPresenceMember>()
+    const notifyMembers = () => onMembersChange([...members.values()])
+    echo.value.join(channelName.value)
+      .here((present: ChineseChessPresenceMember[]) => {
+        members.clear()
+        present.forEach(member => members.set(Number(member.id), member))
+        notifyMembers()
+      })
+      .joining((member: ChineseChessPresenceMember) => {
+        members.set(Number(member.id), member)
+        notifyMembers()
+      })
+      .leaving((member: ChineseChessPresenceMember) => {
+        members.delete(Number(member.id))
+        notifyMembers()
+      })
+      .listen('.chinese-chess.room.updated', onUpdate)
+    const connection = echo.value.connector?.pusher?.connection
+    const markConnected = () => {
+      socketId.value = connection?.socket_id ?? null
+      onConnectionChange(true)
+    }
+    const markDisconnected = () => {
+      socketId.value = null
+      onConnectionChange(false)
+    }
+    connection?.bind('connected', markConnected)
+    connection?.bind('disconnected', markDisconnected)
+    connection?.bind('unavailable', markDisconnected)
+    connection?.bind('failed', markDisconnected)
+    connection?.bind('error', markDisconnected)
+    onConnectionChange(connection?.state === 'connected')
   }
 
   function disconnect(): void {
@@ -70,6 +127,7 @@ export function useChineseChessRealtime() {
     }
     echo.value = null
     channelName.value = null
+    socketId.value = null
   }
 
   return { connect, disconnect }

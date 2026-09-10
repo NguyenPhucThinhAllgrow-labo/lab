@@ -51,8 +51,11 @@ class ChineseChessRoomService
             if ($room->colorFor($user->id)) {
                 return $room;
             }
+            if ($room->status === 'cancelled') {
+                throw ValidationException::withMessages(['room' => 'Phòng này đã đóng.']);
+            }
             if ($room->status !== 'waiting' || $room->black_player_id) {
-                throw ValidationException::withMessages(['room' => 'Phòng đã đủ người hoặc ván đấu đã bắt đầu.']);
+                return $room;
             }
 
             $room->fill([
@@ -110,7 +113,6 @@ class ChineseChessRoomService
     {
         $room = DB::transaction(function () use ($code, $user): ChineseChessRoom {
             $room = $this->findLocked($code);
-            $this->assertPlayer($room, $user);
             $this->syncClock($room);
             if ($room->isDirty()) {
                 $room->save();
@@ -136,6 +138,9 @@ class ChineseChessRoomService
             }
             if ((int) $payload['version'] !== $room->version) {
                 throw ValidationException::withMessages(['version' => 'Bàn cờ đã thay đổi. Đang đồng bộ lại dữ liệu mới nhất.']);
+            }
+            if ($room->undo_requested_by_id) {
+                throw ValidationException::withMessages(['undo' => 'Hãy phản hồi yêu cầu đi lại trước khi tiếp tục ván đấu.']);
             }
             if ($room->current_turn !== $color) {
                 throw ValidationException::withMessages(['turn' => 'Chưa đến lượt của bạn.']);
@@ -213,11 +218,120 @@ class ChineseChessRoomService
         return $this->finishByPlayerAction($code, $user, 'surrender');
     }
 
+    public function requestUndo(string $code, User $user, int $version): ChineseChessRoom
+    {
+        $room = DB::transaction(function () use ($code, $user, $version): ChineseChessRoom {
+            $room = $this->findLocked($code);
+            $color = $this->assertPlayer($room, $user);
+
+            if ($room->status !== 'playing') {
+                throw ValidationException::withMessages(['game' => 'Chỉ có thể đi lại khi ván đấu đang diễn ra.']);
+            }
+
+            $this->syncClock($room);
+
+            if ($room->status !== 'playing') {
+                $room->save();
+
+                return $room;
+            }
+            if ($version !== $room->version) {
+                throw ValidationException::withMessages(['version' => 'Bàn cờ đã thay đổi. Đang đồng bộ lại dữ liệu mới nhất.']);
+            }
+            if ($room->undo_requested_by_id) {
+                throw ValidationException::withMessages(['undo' => 'Đang có một yêu cầu đi lại chờ phản hồi.']);
+            }
+
+            $history = $room->move_history ?? [];
+            $lastMove = $history[array_key_last($history)] ?? null;
+            if (! $lastMove) {
+                throw ValidationException::withMessages(['undo' => 'Chưa có nước đi nào để hoàn tác.']);
+            }
+            if (($lastMove['color'] ?? null) !== $color) {
+                throw ValidationException::withMessages(['undo' => 'Bạn chỉ có thể đi lại nước vừa đi của mình.']);
+            }
+
+            $remainingField = $color.'_undos_remaining';
+            if ($room->{$remainingField} <= 0) {
+                throw ValidationException::withMessages(['undo' => 'Bạn đã sử dụng hết 3 lượt đi lại trong ván này.']);
+            }
+
+            $room->fill([
+                'undo_requested_by_id' => $user->id,
+                'undo_requested_at' => now(),
+                'last_move_at' => null,
+                'version' => $room->version + 1,
+            ])->save();
+
+            return $room;
+        });
+
+        return $this->load($room);
+    }
+
+    public function respondToUndo(string $code, User $user, int $version, bool $accepted): ChineseChessRoom
+    {
+        $room = DB::transaction(function () use ($code, $user, $version, $accepted): ChineseChessRoom {
+            $room = $this->findLocked($code);
+            $color = $this->assertPlayer($room, $user);
+
+            if ($room->status !== 'playing' || ! $room->undo_requested_by_id) {
+                throw ValidationException::withMessages(['undo' => 'Không có yêu cầu đi lại nào đang chờ phản hồi.']);
+            }
+            if ($version !== $room->version) {
+                throw ValidationException::withMessages(['version' => 'Bàn cờ đã thay đổi. Đang đồng bộ lại dữ liệu mới nhất.']);
+            }
+            if ((int) $room->undo_requested_by_id === (int) $user->id) {
+                throw ValidationException::withMessages(['undo' => 'Yêu cầu phải được đối thủ phản hồi.']);
+            }
+
+            $history = $room->move_history ?? [];
+            $lastMove = $history[array_key_last($history)] ?? null;
+            $requesterColor = $room->colorFor((int) $room->undo_requested_by_id);
+            if (! $lastMove || ! $requesterColor || ($lastMove['color'] ?? null) !== $requesterColor || $color === $requesterColor) {
+                throw ValidationException::withMessages(['undo' => 'Yêu cầu đi lại không còn hợp lệ.']);
+            }
+
+            $updates = [
+                'undo_requested_by_id' => null,
+                'undo_requested_at' => null,
+                'last_move_at' => now(),
+                'version' => $room->version + 1,
+            ];
+
+            if ($accepted) {
+                array_pop($history);
+                $positionHistory = $room->position_history ?? [];
+                if (count($positionHistory) > 1) {
+                    array_pop($positionHistory);
+                }
+                $remainingField = $requesterColor.'_undos_remaining';
+                $updates += [
+                    'board' => $this->restoreBoardBeforeMove($room->board, $lastMove),
+                    'move_history' => $history,
+                    'position_history' => $positionHistory,
+                    'repetition_state' => $this->repetition->adjudicate($positionHistory),
+                    'current_turn' => $requesterColor,
+                    $remainingField => $room->{$remainingField} - 1,
+                ];
+            }
+
+            $room->fill($updates)->save();
+
+            return $room;
+        });
+
+        return $this->load($room);
+    }
+
     public function pause(string $code, User $user): ChineseChessRoom
     {
         $room = DB::transaction(function () use ($code, $user): ChineseChessRoom {
             $room = $this->findLocked($code);
             $this->assertPlayer($room, $user);
+            if ($room->undo_requested_by_id) {
+                throw ValidationException::withMessages(['undo' => 'Hãy phản hồi yêu cầu đi lại trước khi tạm dừng.']);
+            }
             $this->syncClock($room);
 
             if ($room->status === 'playing') {
@@ -319,6 +433,10 @@ class ChineseChessRoomService
                     'repetition_state' => $this->emptyRepetitionState(),
                     'red_time_seconds' => 600,
                     'black_time_seconds' => 600,
+                    'red_undos_remaining' => 3,
+                    'black_undos_remaining' => 3,
+                    'undo_requested_by_id' => null,
+                    'undo_requested_at' => null,
                     'started_at' => now(),
                     'last_move_at' => now(),
                     'winner_id' => null,
@@ -337,7 +455,7 @@ class ChineseChessRoomService
 
     public function state(ChineseChessRoom $room, User $viewer): array
     {
-        $room->loadMissing(['redPlayer:id,name', 'blackPlayer:id,name', 'winner:id,name', 'pausedBy:id,name']);
+        $room->loadMissing(['redPlayer:id,name', 'blackPlayer:id,name', 'winner:id,name', 'pausedBy:id,name', 'undoRequestedBy:id,name']);
 
         return [
             'id' => $room->id,
@@ -351,12 +469,21 @@ class ChineseChessRoomService
             'repetition' => $room->repetition_state ?? $this->emptyRepetitionState(),
             'red_time_seconds' => $this->displayTime($room, 'red'),
             'black_time_seconds' => $this->displayTime($room, 'black'),
+            'red_undos_remaining' => $room->red_undos_remaining,
+            'black_undos_remaining' => $room->black_undos_remaining,
+            'undo_request' => $room->undo_requested_by_id ? [
+                'requester_id' => $room->undo_requested_by_id,
+                'requester_name' => $room->undoRequestedBy?->name,
+                'color' => $room->colorFor((int) $room->undo_requested_by_id),
+                'requested_at' => $room->undo_requested_at?->toISOString(),
+            ] : null,
             'red_player' => $room->redPlayer,
             'black_player' => $room->blackPlayer,
             'winner' => $room->winner,
             'finish_reason' => $room->finish_reason,
             'version' => $room->version,
             'your_color' => $room->colorFor($viewer->id),
+            'is_spectator' => $room->colorFor($viewer->id) === null,
             'red_ready' => $room->red_ready,
             'black_ready' => $room->black_ready,
             'red_rematch' => $room->red_rematch,
@@ -365,6 +492,34 @@ class ChineseChessRoomService
             'last_move_at' => $room->last_move_at?->toISOString(),
             'paused_by' => $room->pausedBy,
             'paused_at' => $room->paused_at?->toISOString(),
+        ];
+    }
+
+    public function realtimeMoveState(ChineseChessRoom $room): array
+    {
+        $room->loadMissing(['winner:id,name']);
+        $history = $room->move_history ?? [];
+        $lastMove = $history[array_key_last($history)] ?? null;
+
+        if ($lastMove) {
+            $lastMove = array_intersect_key($lastMove, array_flip([
+                'number', 'color', 'piece', 'from', 'to', 'captured',
+                'is_check', 'rule_action', 'played_at',
+            ]));
+        }
+
+        return [
+            'board' => $room->board,
+            'move' => $lastMove,
+            'move_count' => count($history),
+            'status' => $room->status,
+            'current_turn' => $room->current_turn,
+            'repetition' => $room->repetition_state ?? $this->emptyRepetitionState(),
+            'red_time_seconds' => $this->displayTime($room, 'red'),
+            'black_time_seconds' => $this->displayTime($room, 'black'),
+            'winner' => $room->winner,
+            'finish_reason' => $room->finish_reason,
+            'last_move_at' => $room->last_move_at?->toISOString(),
         ];
     }
 
@@ -388,6 +543,30 @@ class ChineseChessRoomService
         });
 
         return $this->load($room);
+    }
+
+    private function restoreBoardBeforeMove(array $board, array $move): array
+    {
+        $pieceId = $move['piece']['id'] ?? null;
+        $restored = array_values(array_filter(
+            $board,
+            static fn (array $piece): bool => $piece['id'] !== ($move['captured']['id'] ?? null)
+        ));
+
+        foreach ($restored as &$piece) {
+            if ($piece['id'] === $pieceId) {
+                $piece['row'] = (int) $move['from']['row'];
+                $piece['col'] = (int) $move['from']['col'];
+                break;
+            }
+        }
+        unset($piece);
+
+        if (! empty($move['captured'])) {
+            $restored[] = $move['captured'];
+        }
+
+        return $restored;
     }
 
     private function syncClock(ChineseChessRoom $room): void
@@ -431,6 +610,8 @@ class ChineseChessRoomService
             'last_move_at' => null,
             'paused_by_id' => null,
             'paused_at' => null,
+            'undo_requested_by_id' => null,
+            'undo_requested_at' => null,
         ]);
     }
 
@@ -451,7 +632,7 @@ class ChineseChessRoomService
 
     private function load(ChineseChessRoom $room): ChineseChessRoom
     {
-        return $room->fresh(['redPlayer:id,name', 'blackPlayer:id,name', 'winner:id,name', 'pausedBy:id,name']);
+        return $room->fresh(['redPlayer:id,name', 'blackPlayer:id,name', 'winner:id,name', 'pausedBy:id,name', 'undoRequestedBy:id,name']);
     }
 
     private function emptyRepetitionState(): array

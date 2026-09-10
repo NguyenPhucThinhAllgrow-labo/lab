@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, ArrowLeft, Globe, Monitor, Play, RotateCcw, Swords, Trophy, Users, X } from 'lucide-vue-next'
+import { AlertTriangle, ArrowLeft, Globe, Monitor, Play, RotateCcw, Swords, Trophy, Undo2, Users, X } from 'lucide-vue-next'
 import {
   computed,
   onBeforeUnmount,
@@ -13,7 +13,8 @@ import type {
   PieceColor,
 } from '~/types/games/chinese-chess'
 import { createInitialBoard } from '~/utils/chinese-chess/board'
-import { initialPositionHistory, recordPosition, type PositionRecord } from '~/utils/chinese-chess/repetition'
+import { isInCheck } from '~/utils/chinese-chess/check'
+import { adjudicateRepetition, initialPositionHistory, recordPosition, type PositionRecord } from '~/utils/chinese-chess/repetition'
 
 useHead({
   title: 'Chinese Chess',
@@ -129,6 +130,11 @@ const localBoard = ref(createInitialBoard())
 const positionHistory = ref<PositionRecord[]>(initialPositionHistory(localBoard.value, 'red'))
 const repetitionState = ref<ChineseChessRepetitionState>({ status: 'none', count: 1, obligated_color: null, reason: null })
 const repetitionModal = ref(false)
+const mobilePanel = ref<'history' | 'players' | null>(null)
+
+function toggleMobilePanel(panel: 'history' | 'players'): void {
+  mobilePanel.value = mobilePanel.value === panel ? null : panel
+}
 
 /**
  * ==========================================
@@ -141,6 +147,12 @@ const redCaptured =
 
 const blackCaptured =
   ref<ChineseChessPiece[]>([])
+
+const redUndosRemaining = ref(3)
+const blackUndosRemaining = ref(3)
+const lastMove = computed(() => moveHistory.value.at(-1) ?? null)
+const undoRemaining = computed(() => lastMove.value?.color === 'black' ? blackUndosRemaining.value : redUndosRemaining.value)
+const canUndo = computed(() => gameStarted.value && !gameOver.value && !!lastMove.value && undoRemaining.value > 0)
 
 /**
  * ==========================================
@@ -578,6 +590,8 @@ function startGame() {
   positionHistory.value = initialPositionHistory(localBoard.value, 'red')
   repetitionState.value = { status: 'none', count: 1, obligated_color: null, reason: null }
   repetitionModal.value = false
+  redUndosRemaining.value = 3
+  blackUndosRemaining.value = 3
 
   startTimer()
 }
@@ -649,6 +663,8 @@ function restartGame() {
   positionHistory.value = initialPositionHistory(localBoard.value, 'red')
   repetitionState.value = { status: 'none', count: 1, obligated_color: null, reason: null }
   repetitionModal.value = false
+  redUndosRemaining.value = 3
+  blackUndosRemaining.value = 3
 }
 
 /**
@@ -735,6 +751,34 @@ function handleMove(
   startTimer()
 }
 
+function undoLastMove(): void {
+  if (!canUndo.value) return
+
+  const move = moveHistory.value.pop()
+  if (!move) return
+
+  if (move.color === 'red') {
+    redUndosRemaining.value--
+    if (move.captured) redCaptured.value.pop()
+  } else {
+    blackUndosRemaining.value--
+    if (move.captured) blackCaptured.value.pop()
+  }
+
+  const previous = moveHistory.value.at(-1)?.position ?? createInitialBoard()
+  localBoard.value = previous.map(piece => ({ ...piece }))
+  positionHistory.value = positionHistory.value.slice(0, -1)
+  if (!positionHistory.value.length) {
+    positionHistory.value = initialPositionHistory(localBoard.value, move.color)
+  }
+  repetitionState.value = adjudicateRepetition(positionHistory.value)
+  repetitionModal.value = false
+  currentTurn.value = move.color
+  isCheck.value = isInCheck(localBoard.value, move.color)
+  checkColor.value = isCheck.value ? move.color : null
+  startTimer()
+}
+
 /**
  * ==========================================
  * CHECKMATE
@@ -809,8 +853,17 @@ onBeforeUnmount(() => {
     </section>
 
     <section class="online-match">
-      <aside class="match-panel match-panel--history">
-        <div class="match-panel__title"><span>Lịch sử nước đi</span><b>{{ moveHistory.length }}</b></div>
+      <nav class="mobile-chess-toolbar" aria-label="Thông tin ván đấu">
+        <div>
+          <strong>{{ gameOver ? 'Đã kết thúc' : gameStarted ? `Lượt ${currentPlayerName}` : 'Chưa bắt đầu' }}</strong>
+          <small>Đen {{ blackTimeText }} · Đỏ {{ redTimeText }}</small>
+        </div>
+        <button type="button" :class="{ 'is-active': mobilePanel === 'history' }" @click="toggleMobilePanel('history')">Lịch sử <b>{{ moveHistory.length }}</b></button>
+        <button type="button" :class="{ 'is-active': mobilePanel === 'players' }" @click="toggleMobilePanel('players')">Trận đấu</button>
+      </nav>
+
+      <aside class="match-panel match-panel--history" :class="{ 'is-mobile-open': mobilePanel === 'history' }">
+        <div class="match-panel__title"><span>Lịch sử nước đi</span><b>{{ moveHistory.length }}</b><button type="button" class="mobile-panel-close" aria-label="Đóng lịch sử" @click="mobilePanel = null"><X :size="16" /></button></div>
         <div class="move-list">
           <p v-if="!moveHistory.length" class="match-empty">Chưa có nước đi nào</p>
           <div v-for="move in moveHistory" :key="`${move.number}-${move.piece.id}`" class="move-item">
@@ -850,14 +903,15 @@ onBeforeUnmount(() => {
           :current-turn="currentTurn"
           :game-started="gameStarted && !gameOver"
           :position="localBoard"
+          :last-move="lastMove"
           @move="handleMove"
           @checkmate="handleCheckmate"
           @check="handleCheck"
         />
       </section>
 
-      <aside class="match-panel match-panel--players">
-        <div class="match-panel__title"><span>Người chơi</span><Users :size="17" /></div>
+      <aside class="match-panel match-panel--players" :class="{ 'is-mobile-open': mobilePanel === 'players' }">
+        <div class="match-panel__title"><span>Người chơi</span><Users :size="17" /><button type="button" class="mobile-panel-close" aria-label="Đóng bảng trận đấu" @click="mobilePanel = null"><X :size="16" /></button></div>
           <div v-if="gameStarted && !gameOver" class="player-turn" role="status">
             <span class="player-turn__dot" :class="{ 'is-red': currentTurn === 'red' }"></span>
             Lượt quân {{ currentTurn === 'red' ? 'Đỏ' : 'Đen' }}
@@ -887,6 +941,9 @@ onBeforeUnmount(() => {
           </div>
           <button v-if="!gameStarted" class="chess-button chess-button--primary" @click="startGame"><Play :size="17" /> Bắt đầu</button>
           <button v-else class="chess-button" @click="restartGame"><RotateCcw :size="17" /> Chơi lại</button>
+          <button v-if="gameStarted && !gameOver" class="chess-button chess-button--undo" :disabled="!canUndo" @click="undoLastMove">
+            <Undo2 :size="17" /> Đi lại <span>({{ undoRemaining }}/3)</span>
+          </button>
           <button v-if="gameStarted && !gameOver" class="chess-button chess-button--danger-ghost" @click="surrender">Đầu hàng</button>
         </div>
       </aside>

@@ -60,12 +60,14 @@ class ChineseChessRoomApiTest extends TestCase
         Event::assertDispatched(ChineseChessRoomUpdated::class, function (ChineseChessRoomUpdated $event): bool {
             $payload = $event->broadcastWith();
 
-            return array_keys($payload) === ['room_id', 'version', 'action']
-                && strlen((string) json_encode($payload)) < 1024;
+            return array_keys($payload) === ['room_id', 'version', 'action', 'state']
+                && $payload['state']['move']['piece']['id'] === 'red-soldier-1'
+                && count($payload['state']['board']) === 32
+                && strlen((string) json_encode($payload)) < 10240;
         });
     }
 
-    public function test_room_rejects_a_third_player_and_out_of_turn_move(): void
+    public function test_third_user_joins_as_spectator_and_cannot_move(): void
     {
         Event::fake([ChineseChessRoomUpdated::class]);
         [$red, $black, $third] = User::factory()->count(3)->create(['role' => 'user']);
@@ -73,12 +75,122 @@ class ChineseChessRoomApiTest extends TestCase
         $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/join");
         $version = $this->startGame($code, $red, $black);
 
-        $this->actingAs($third)->postJson("/api/chinese-chess/rooms/{$code}/join")->assertUnprocessable();
+        $this->actingAs($third)->postJson("/api/chinese-chess/rooms/{$code}/join")
+            ->assertOk()
+            ->assertJsonPath('room.your_color', null)
+            ->assertJsonPath('room.is_spectator', true);
+        $this->actingAs($third)->getJson("/api/chinese-chess/rooms/{$code}")
+            ->assertOk()
+            ->assertJsonPath('room.is_spectator', true);
+        $this->actingAs($third)->postJson("/api/chinese-chess/rooms/{$code}/moves", [
+            'piece_id' => 'red-soldier-1',
+            'to' => ['row' => 5, 'col' => 0],
+            'version' => $version,
+        ])->assertForbidden();
         $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/moves", [
             'piece_id' => 'black-soldier-1',
             'to' => ['row' => 4, 'col' => 0],
             'version' => $version,
         ])->assertUnprocessable()->assertJsonValidationErrors('turn');
+    }
+
+    public function test_player_can_undo_only_their_latest_move_three_times(): void
+    {
+        Event::fake([ChineseChessRoomUpdated::class]);
+        $red = User::factory()->create(['role' => 'user']);
+        $black = User::factory()->create(['role' => 'user']);
+        $code = $this->actingAs($red)->postJson('/api/chinese-chess/rooms')->json('room.code');
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/join");
+        $version = $this->startGame($code, $red, $black);
+
+        foreach ([5, 5, 5] as $index => $row) {
+            $moved = $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/moves", [
+                'piece_id' => 'red-soldier-1',
+                'to' => ['row' => $row, 'col' => 0],
+                'version' => $version,
+            ])->assertOk();
+
+            $requested = $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/undo", [
+                'version' => $moved->json('room.version'),
+            ])->assertOk()
+                ->assertJsonPath('room.undo_request.requester_id', $red->id)
+                ->assertJsonPath('room.move_history.0.piece.id', 'red-soldier-1')
+                ->assertJsonPath('room.red_undos_remaining', 3 - $index);
+
+            $undone = $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/undo/respond", [
+                'version' => $requested->json('room.version'),
+                'accepted' => true,
+            ])->assertOk()
+                ->assertJsonPath('room.current_turn', 'red')
+                ->assertJsonPath('room.move_history', [])
+                ->assertJsonPath('room.undo_request', null)
+                ->assertJsonPath('room.red_undos_remaining', 2 - $index)
+                ->assertJsonPath('room.black_undos_remaining', 3);
+
+            $restoredSoldier = collect($undone->json('room.board'))->firstWhere('id', 'red-soldier-1');
+            $this->assertSame(6, $restoredSoldier['row']);
+            $this->assertSame(0, $restoredSoldier['col']);
+
+            $version = $undone->json('room.version');
+        }
+
+        $moved = $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/moves", [
+            'piece_id' => 'red-soldier-1',
+            'to' => ['row' => 5, 'col' => 0],
+            'version' => $version,
+        ])->assertOk();
+
+        $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/undo", [
+            'version' => $moved->json('room.version'),
+        ])->assertUnprocessable()->assertJsonValidationErrors('undo');
+    }
+
+    public function test_rejected_undo_keeps_the_move_and_does_not_consume_an_attempt(): void
+    {
+        Event::fake([ChineseChessRoomUpdated::class]);
+        $red = User::factory()->create(['role' => 'user']);
+        $black = User::factory()->create(['role' => 'user']);
+        $code = $this->actingAs($red)->postJson('/api/chinese-chess/rooms')->json('room.code');
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/join");
+        $version = $this->startGame($code, $red, $black);
+
+        $moved = $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/moves", [
+            'piece_id' => 'red-soldier-1',
+            'to' => ['row' => 5, 'col' => 0],
+            'version' => $version,
+        ])->assertOk();
+        $requested = $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/undo", [
+            'version' => $moved->json('room.version'),
+        ])->assertOk();
+
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/undo/respond", [
+            'version' => $requested->json('room.version'),
+            'accepted' => false,
+        ])->assertOk()
+            ->assertJsonPath('room.current_turn', 'black')
+            ->assertJsonCount(1, 'room.move_history')
+            ->assertJsonPath('room.undo_request', null)
+            ->assertJsonPath('room.red_undos_remaining', 3);
+    }
+
+    public function test_opponent_cannot_undo_the_latest_move(): void
+    {
+        Event::fake([ChineseChessRoomUpdated::class]);
+        $red = User::factory()->create(['role' => 'user']);
+        $black = User::factory()->create(['role' => 'user']);
+        $code = $this->actingAs($red)->postJson('/api/chinese-chess/rooms')->json('room.code');
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/join");
+        $version = $this->startGame($code, $red, $black);
+
+        $moved = $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/moves", [
+            'piece_id' => 'red-soldier-1',
+            'to' => ['row' => 5, 'col' => 0],
+            'version' => $version,
+        ])->assertOk();
+
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/undo", [
+            'version' => $moved->json('room.version'),
+        ])->assertUnprocessable()->assertJsonValidationErrors('undo');
     }
 
     public function test_surrender_finishes_the_game_for_the_opponent(): void
