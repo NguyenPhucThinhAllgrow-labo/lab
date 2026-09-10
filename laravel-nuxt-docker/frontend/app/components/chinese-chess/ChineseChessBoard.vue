@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  onBeforeUnmount,
   ref,
   watch,
 } from 'vue'
@@ -86,6 +87,63 @@ const emit = defineEmits<{
 const flipped = computed(() => props.playerColor === 'black')
 const displayRow = (row: number) => flipped.value ? 9 - row : row
 const displayCol = (col: number) => flipped.value ? 8 - col : col
+
+const opponentReminderVisible = ref(false)
+let opponentReminderTimer: ReturnType<typeof setTimeout> | null = null
+let opponentReminderAutoHideTimer: ReturnType<typeof setTimeout> | null = null
+
+const opponentReminderKey = computed(() => {
+  if (!props.lastMove) return ''
+  return `${props.currentTurn}:${props.lastMove.from.row}-${props.lastMove.from.col}:${props.lastMove.to.row}-${props.lastMove.to.col}`
+})
+
+const canShowOpponentReminder = computed(() =>
+  props.gameStarted
+  && !!props.playerColor,
+)
+
+function clearOpponentReminderTimer(): void {
+  if (opponentReminderTimer) clearTimeout(opponentReminderTimer)
+  opponentReminderTimer = null
+}
+
+function clearOpponentReminderAutoHideTimer(): void {
+  if (opponentReminderAutoHideTimer) clearTimeout(opponentReminderAutoHideTimer)
+  opponentReminderAutoHideTimer = null
+}
+
+function clearOpponentReminderTimers(): void {
+  clearOpponentReminderTimer()
+  clearOpponentReminderAutoHideTimer()
+}
+
+function dismissOpponentReminder(): void {
+  clearOpponentReminderAutoHideTimer()
+  opponentReminderVisible.value = false
+}
+
+watch(
+  [opponentReminderKey, canShowOpponentReminder],
+  ([moveKey, canShow]) => {
+    clearOpponentReminderTimers()
+    opponentReminderVisible.value = false
+
+    if (!moveKey || !canShow) return
+
+    opponentReminderTimer = setTimeout(() => {
+      opponentReminderVisible.value = true
+      opponentReminderTimer = null
+
+      opponentReminderAutoHideTimer = setTimeout(() => {
+        opponentReminderVisible.value = false
+        opponentReminderAutoHideTimer = null
+      }, 10000)
+    }, 15000)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(clearOpponentReminderTimers)
 
 const board = ref<ChineseChessPiece[]>(
   props.position?.map(piece => ({ ...piece })) ?? createInitialBoard(),
@@ -733,15 +791,23 @@ const displayedRankLabels = computed(() =>
     <!-- ================================= -->
 
     <div
-      class="
-        chess-board-surface
-        relative
-        aspect-[8/9]
-        w-full
-        overflow-hidden
-        rounded-lg
-      "
+      class="chess-board-frame"
+      :class="{
+        'has-turn-glow': gameStarted && playerColor === currentTurn,
+        'is-red-turn': gameStarted && playerColor === 'red' && currentTurn === 'red',
+        'is-black-turn': gameStarted && playerColor === 'black' && currentTurn === 'black',
+      }"
     >
+      <div
+        class="
+          chess-board-surface
+          relative
+          aspect-[8/9]
+          w-full
+          overflow-hidden
+          rounded-lg
+        "
+      >
       <!-- ================================= -->
       <!-- CHECK EFFECT -->
       <!-- ================================= -->
@@ -778,6 +844,37 @@ const displayedRankLabels = computed(() =>
           aspectRatio: '1',
         }"
       />
+
+      <Transition name="opponent-reminder">
+        <div
+          v-if="opponentReminderVisible && lastMove"
+          class="opponent-turn-reminder"
+          :class="{
+            'is-below': displayRow(lastMove.to.row) < 2,
+            'is-left-edge': displayCol(lastMove.to.col) < 2,
+            'is-right-edge': displayCol(lastMove.to.col) > 6,
+          }"
+          :style="{
+            left: `${5 + (displayCol(lastMove.to.col) / 8) * 90}%`,
+            top: `${5 + (displayRow(lastMove.to.row) / 9) * 90}%`,
+          }"
+          role="status"
+        >
+          <button
+            type="button"
+            aria-label="Đóng lời nhắc"
+            @click.stop="dismissOpponentReminder"
+          >
+            ×
+          </button>
+          <div class="opponent-turn-reminder__cue" aria-hidden="true">
+            <span><i></i><i></i><i></i></span>
+            <small>NHẮC LƯỢT</small>
+          </div>
+          <strong>Đã tới lượt của ngươi rồi đó!</strong>
+          <span>Hãy hành động đi.</span>
+        </div>
+      </Transition>
 
       <!-- ================================= -->
       <!-- BOARD SVG -->
@@ -1158,6 +1255,7 @@ const displayedRankLabels = computed(() =>
         </div>
       </div>
     </div>
+    </div>
 
     <div aria-hidden="true" />
 
@@ -1179,19 +1277,20 @@ const displayedRankLabels = computed(() =>
 <style scoped>
 .chess-board-surface {
   isolation: isolate;
-  border-width: clamp(5px, 1vw, 8px);
+  border-width: clamp(5px, 0.8vw, 7px);
   border-style: solid;
-  border-color: #986035 #683817 #3e1e0d #7a431e;
+  border-color: #704523;
+  border-radius: clamp(10px, 1.4vw, 14px);
   background:
-    linear-gradient(112deg, rgb(255 244 194 / 26%), transparent 24% 74%, rgb(105 55 18 / 13%)),
-    repeating-linear-gradient(2deg, transparent 0 18px, rgb(112 67 25 / 4%) 19px 20px),
-    linear-gradient(145deg, #efd292 0%, #e5bf76 52%, #d7a85f 100%);
+    linear-gradient(112deg, rgb(255 247 218 / 15%), transparent 26% 76%, rgb(91 52 24 / 8%)),
+    repeating-linear-gradient(2deg, transparent 0 21px, rgb(91 59 31 / 3.5%) 22px 23px),
+    linear-gradient(145deg, #dfc38f 0%, #d7b77d 54%, #cda568 100%);
   box-shadow:
-    0 clamp(4px, 0.7vw, 7px) 0 #35190b,
-    0 clamp(10px, 1.7vw, 18px) clamp(18px, 3vw, 32px) rgb(0 0 0 / 38%),
-    0 0 0 2px rgb(43 20 8 / 85%),
-    inset 0 0 0 2px rgb(255 224 157 / 58%),
-    inset 0 0 clamp(18px, 4vw, 38px) rgb(102 53 17 / 18%);
+    0 clamp(3px, 0.5vw, 5px) 0 #422713,
+    0 clamp(8px, 1.4vw, 14px) clamp(14px, 2.5vw, 26px) rgb(0 0 0 / 30%),
+    0 0 0 1px #2f1b0d,
+    inset 0 0 0 2px rgb(240 207 151 / 38%),
+    inset 0 0 clamp(16px, 3vw, 30px) rgb(84 48 20 / 12%);
 }
 
 .chess-board-surface::before {
@@ -1199,14 +1298,249 @@ const displayedRankLabels = computed(() =>
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(circle at 28% 16%, rgb(255 249 218 / 20%), transparent 30%),
-    linear-gradient(90deg, rgb(255 255 255 / 6%), transparent 15% 84%, rgb(73 35 11 / 8%));
+    radial-gradient(circle at 28% 16%, rgb(255 250 226 / 13%), transparent 32%),
+    linear-gradient(90deg, rgb(255 255 255 / 4%), transparent 16% 84%, rgb(73 42 20 / 5%));
   box-shadow:
-    inset 8px 0 12px -12px rgb(255 246 211 / 85%),
-    inset -9px 0 15px -12px rgb(60 27 8 / 70%),
-    inset 0 -10px 18px -15px rgb(49 22 7 / 82%);
+    inset 7px 0 12px -12px rgb(255 243 211 / 56%),
+    inset -8px 0 14px -12px rgb(62 38 19 / 46%),
+    inset 0 -8px 16px -14px rgb(54 31 14 / 52%);
   content: "";
   pointer-events: none;
+}
+
+.chess-board-frame {
+  position: relative;
+  isolation: isolate;
+  border-radius: clamp(10px, 1.4vw, 14px);
+}
+
+.chess-board-frame.has-turn-glow::after {
+  position: absolute;
+  z-index: 0;
+  inset: -3px;
+  border-radius: inherit;
+  padding: clamp(1px, 0.2vw, 2px);
+  background: conic-gradient(
+    from var(--turn-glow-angle),
+    transparent 0 69%,
+    var(--turn-glow-soft) 77%,
+    var(--turn-glow-color) 84%,
+    #fff8dc 87%,
+    var(--turn-glow-color) 90%,
+    transparent 98% 100%
+  );
+  content: "";
+  filter: drop-shadow(0 0 4px var(--turn-glow-color));
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: chess-turn-border-run 5.5s linear infinite;
+}
+
+.chess-board-frame.has-turn-glow .chess-board-surface {
+  position: relative;
+  z-index: 1;
+}
+
+.chess-board-frame.is-red-turn {
+  --turn-glow-color: #fb5a4f;
+  --turn-glow-soft: rgb(245 158 11 / 45%);
+}
+
+.chess-board-frame.is-black-turn {
+  --turn-glow-color: #67d7f5;
+  --turn-glow-soft: rgb(56 189 248 / 38%);
+}
+
+@property --turn-glow-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes chess-turn-border-run {
+  to {
+    --turn-glow-angle: 360deg;
+  }
+}
+
+.opponent-turn-reminder {
+  --reminder-x: -50%;
+  --reminder-tail-x: 50%;
+  position: absolute;
+  z-index: 45;
+  width: clamp(220px, 44%, 280px);
+  max-width: calc(100% - 16px);
+  border: 1px solid #c88a3c;
+  border-radius: 14px 14px 14px 5px;
+  padding: 10px 30px 11px 12px;
+  background: linear-gradient(145deg, rgb(255 249 231 / 98%), rgb(241 220 176 / 98%));
+  box-shadow:
+    0 10px 24px rgb(64 35 13 / 28%),
+    inset 0 1px rgb(255 255 255 / 78%);
+  color: #3f2b18;
+  pointer-events: auto;
+  transform: translate(var(--reminder-x), calc(-100% - clamp(30px, 5.5vw, 40px)));
+  animation: opponent-reminder-enter 220ms cubic-bezier(0.2, 0.85, 0.3, 1.12);
+}
+
+.opponent-reminder-leave-active {
+  transition:
+    opacity 900ms ease,
+    filter 900ms ease;
+}
+
+.opponent-reminder-leave-to {
+  opacity: 0;
+  filter: blur(2px);
+}
+
+.opponent-turn-reminder::after {
+  position: absolute;
+  bottom: -6px;
+  left: var(--reminder-tail-x);
+  width: 11px;
+  height: 11px;
+  border-right: 1px solid #c88a3c;
+  border-bottom: 1px solid #c88a3c;
+  background: #f1dcb0;
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.opponent-turn-reminder.is-left-edge {
+  --reminder-x: -8%;
+  --reminder-tail-x: 8%;
+}
+
+.opponent-turn-reminder.is-right-edge {
+  --reminder-x: -92%;
+  --reminder-tail-x: 92%;
+}
+
+.opponent-turn-reminder.is-below {
+  border-radius: 5px 14px 14px;
+  transform: translate(var(--reminder-x), clamp(30px, 5.5vw, 40px));
+}
+
+.opponent-turn-reminder.is-below::after {
+  top: -6px;
+  bottom: auto;
+  border: 0;
+  border-top: 1px solid #c88a3c;
+  border-left: 1px solid #c88a3c;
+  background: #fff8e5;
+}
+
+.opponent-turn-reminder > strong,
+.opponent-turn-reminder > span {
+  display: block;
+}
+
+.opponent-turn-reminder > strong {
+  padding-right: 2px;
+  font-family: Inter, "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+  font-size: clamp(0.72rem, 1.8vw, 0.86rem);
+  font-weight: 750;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.opponent-turn-reminder > span {
+  margin-top: 3px;
+  color: #7d674d;
+  font-family: Inter, "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+  font-size: clamp(0.54rem, 1.4vw, 0.65rem);
+  line-height: 1.45;
+}
+
+.opponent-turn-reminder__cue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.opponent-turn-reminder__cue > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 999px;
+  padding: 4px 6px;
+  background: #b7772d;
+}
+
+.opponent-turn-reminder__cue i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff5dc;
+  animation: reminder-speaking-dot 1.2s ease-in-out infinite;
+}
+
+.opponent-turn-reminder__cue i:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.opponent-turn-reminder__cue i:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+.opponent-turn-reminder__cue small {
+  color: #a56522;
+  font-family: Inter, "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+  font-size: 0.48rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.opponent-turn-reminder button {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 6px;
+  color: #8c7357;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.opponent-turn-reminder button:hover {
+  background: rgb(112 73 35 / 10%);
+  color: #4c3017;
+}
+
+@keyframes opponent-reminder-enter {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes reminder-speaking-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.55;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
 }
 
 .chess-board-grid {
@@ -1218,13 +1552,13 @@ const displayedRankLabels = computed(() =>
 .chess-board-river {
   background: linear-gradient(
     90deg,
-    rgb(221 177 103 / 42%),
-    rgb(239 207 146 / 72%) 50%,
-    rgb(210 158 82 / 38%)
+    rgb(190 145 84 / 16%),
+    rgb(232 204 151 / 28%) 50%,
+    rgb(178 129 70 / 14%)
   );
   box-shadow:
-    inset 0 1px rgb(255 235 190 / 30%),
-    inset 0 -1px rgb(98 51 17 / 14%);
+    inset 0 1px rgb(255 235 197 / 18%),
+    inset 0 -1px rgb(91 56 27 / 9%);
 }
 
 .chess-board-layout {
@@ -1310,6 +1644,22 @@ const displayedRankLabels = computed(() =>
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .chess-board-frame.has-turn-glow::after {
+    animation: none;
+  }
+
+  .opponent-turn-reminder {
+    animation: none;
+  }
+
+  .opponent-reminder-leave-active {
+    transition: none;
+  }
+
+  .opponent-turn-reminder__cue i {
+    animation: none;
+  }
+
   .chess-last-move-marker.is-to,
   .chess-last-moved-piece {
     animation: none;

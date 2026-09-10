@@ -26,7 +26,7 @@ const timeoutSyncing = ref(false)
 const receivedAt = ref(Date.now())
 const clockTick = ref(Date.now())
 const surrenderConfirmOpen = ref(false)
-const surrenderResult = ref<{ title: string; message: string; won: boolean } | null>(null)
+const surrenderResult = ref<{ title: string; message: string; won: boolean; eyebrow?: string } | null>(null)
 const repetitionBlockedMessage = ref('')
 const mobilePanel = ref<'history' | 'players' | null>(null)
 const pendingMove = ref<ChineseChessMoveHistory | null>(null)
@@ -130,7 +130,7 @@ function applyRoom(next: ChineseChessRoom, keepColor = false): void {
     !!updatedRoom.your_color
     && (previousStatus === 'playing' || previousStatus === 'paused')
     && updatedRoom.status === 'finished'
-    && ['surrender', 'perpetual_check', 'perpetual_chase', 'perpetual_check_chase', 'repetition_draw'].includes(updatedRoom.finish_reason ?? '')
+    && ['checkmate', 'surrender', 'perpetual_check', 'perpetual_chase', 'perpetual_check_chase', 'repetition_draw'].includes(updatedRoom.finish_reason ?? '')
     && announcedFinishVersion !== updatedRoom.version
   ) {
     announcedFinishVersion = updatedRoom.version
@@ -148,6 +148,23 @@ function applyRoom(next: ChineseChessRoom, keepColor = false): void {
     const loser = winnerColor === 'red'
       ? updatedRoom.black_player
       : updatedRoom.red_player
+
+    if (updatedRoom.finish_reason === 'checkmate') {
+      surrenderResult.value = won
+        ? {
+            eyebrow: 'KẾT THÚC · CHIẾU BÍ',
+            title: 'Chiếu bí! Bạn đã chiến thắng',
+            message: `${loser?.name ?? 'Đối thủ'} không còn nước đi hợp lệ. Bạn giành chiến thắng ván đấu này.`,
+            won: true,
+          }
+        : {
+            eyebrow: 'KẾT THÚC · CHIẾU BÍ',
+            title: 'Bạn đã bị chiếu bí',
+            message: `${updatedRoom.winner?.name ?? 'Đối thủ'} đã chiếu bí Tướng của bạn và giành chiến thắng ván đấu này.`,
+            won: false,
+          }
+      return
+    }
 
     if (updatedRoom.finish_reason !== 'surrender') {
       surrenderResult.value = {
@@ -533,28 +550,6 @@ onBeforeUnmount(() => {
     </section>
 
     <template v-else>
-      <section class="chess-roombar">
-        <div>
-          <span class="online-chess__eyebrow">ROOM CODE</span>
-          <button class="chess-roombar__code" title="Sao chép mã phòng" @click="copyCode">
-            {{ room.code }} <Check v-if="copied" :size="16" /><Copy v-else :size="16" />
-          </button>
-        </div>
-        <div class="chess-roombar__match">
-          <div class="chess-round">
-            <strong>Ván {{ room.round_number }}</strong>
-            <small>{{ room.starting_color === 'red' ? 'Quân Đỏ' : 'Quân Đen' }} đi trước</small>
-          </div>
-          <div class="chess-roombar__status" :class="`is-${room.status}`"><span></span>
-            <div v-if="hasWinner" class="chess-result-text"><strong class="chess-result-winner">{{ room.winner?.name }} thắng</strong> · <em :class="{ 'chess-result-left': playerLeft }">{{ finishReasonText || 'Kết thúc' }}</em></div>
-            <div v-else :class="{ 'chess-result-left': playerLeft }">{{ statusText }}</div>
-          </div>
-        </div>
-        <button class="chess-button chess-button--danger-ghost" :disabled="busy" @click="leaveRoom">
-          <DoorOpen :size="17" /> Rời phòng
-        </button>
-      </section>
-
       <p v-if="errorMessage" class="chess-error chess-error--room">{{ errorMessage }}</p>
 
       <section class="online-match">
@@ -635,7 +630,7 @@ onBeforeUnmount(() => {
           </div>
           <ChineseChessBoard
             :current-turn="displayedCurrentTurn"
-            :game-started="gameStarted"
+            :game-started="room.status === 'playing'"
             :position="displayedBoard"
             :player-color="room.your_color"
             :last-move="lastMove"
@@ -645,7 +640,33 @@ onBeforeUnmount(() => {
           />
         </section>
 
-        <aside class="match-panel match-panel--players" :class="{ 'is-mobile-open': mobilePanel === 'players' }">
+        <div class="match-player-column" :class="{ 'is-mobile-open': mobilePanel === 'players' }">
+          <section class="chess-roombar chess-roombar--sidebar">
+            <div class="chess-roombar__room">
+              <span class="online-chess__eyebrow">MÃ PHÒNG</span>
+              <button class="chess-roombar__code" title="Sao chép mã phòng" @click="copyCode">
+                {{ room.code }} <Check v-if="copied" :size="15" /><Copy v-else :size="15" />
+              </button>
+            </div>
+            <div class="chess-roombar__match">
+              <div class="chess-round">
+                <strong>Ván {{ room.round_number }}</strong>
+                <small>{{ room.starting_color === 'red' ? 'Quân Đỏ' : 'Quân Đen' }} đi trước</small>
+              </div>
+              <div class="chess-roombar__status" :class="`is-${room.status}`"><span></span>
+                <div v-if="hasWinner" class="chess-result-text">
+                  <strong class="chess-result-winner">{{ room.winner?.name }} thắng</strong>
+                  <em :class="{ 'chess-result-left': playerLeft }">{{ finishReasonText || 'Kết thúc' }}</em>
+                </div>
+                <div v-else :class="{ 'chess-result-left': playerLeft }">{{ statusText }}</div>
+              </div>
+            </div>
+            <button class="chess-button chess-button--danger-ghost chess-roombar__leave" :disabled="busy" @click="leaveRoom">
+              <DoorOpen :size="16" /> Rời phòng
+            </button>
+          </section>
+
+          <aside class="match-panel match-panel--players">
           <div class="match-panel__title"><span>Người chơi</span><Users :size="17" /><button type="button" class="mobile-panel-close" aria-label="Đóng bảng trận đấu" @click="mobilePanel = null"><X :size="16" /></button></div>
           <div v-if="room.status === 'playing'" class="player-turn" role="status">
             <span class="player-turn__dot" :class="{ 'is-red': room.current_turn === 'red' }"></span>
@@ -696,15 +717,20 @@ onBeforeUnmount(() => {
           </div>
 
           <section class="spectator-list" aria-live="polite">
-            <header><span><Eye :size="15" /> Người xem</span><b>{{ spectators.length }}</b></header>
-            <div v-if="spectators.length" class="spectator-list__members">
-              <span v-for="viewer in spectators" :key="viewer.id" class="spectator-chip">
-                <i>{{ viewer.name.slice(0, 1).toUpperCase() }}</i>{{ viewer.name }}
-              </span>
+            <button type="button" class="spectator-list__trigger" aria-haspopup="true">
+              <span><Eye :size="15" /> Người xem</span><b>{{ spectators.length }}</b>
+            </button>
+            <div class="spectator-list__popover">
+              <div v-if="spectators.length" class="spectator-list__members">
+                <span v-for="viewer in spectators" :key="viewer.id" class="spectator-chip">
+                  <i>{{ viewer.name.slice(0, 1).toUpperCase() }}</i>{{ viewer.name }}
+                </span>
+              </div>
+              <p v-else>{{ realtimeConnected ? 'Chưa có người xem khác' : 'Danh sách sẽ hiện khi realtime kết nối' }}</p>
             </div>
-            <p v-else>{{ realtimeConnected ? 'Chưa có người xem khác' : 'Danh sách sẽ hiện khi realtime kết nối' }}</p>
           </section>
-        </aside>
+          </aside>
+        </div>
       </section>
     </template>
 
@@ -768,7 +794,7 @@ onBeforeUnmount(() => {
               <Trophy v-if="surrenderResult.won" :size="30" />
               <Flag v-else :size="28" />
             </div>
-            <span class="chess-dialog__eyebrow">VÁN ĐẤU KẾT THÚC</span>
+            <span class="chess-dialog__eyebrow">{{ surrenderResult.eyebrow ?? 'VÁN ĐẤU KẾT THÚC' }}</span>
             <h2 id="surrender-result-title">{{ surrenderResult.title }}</h2>
             <p>{{ surrenderResult.message }}</p>
             <div class="chess-dialog__actions is-centered">
