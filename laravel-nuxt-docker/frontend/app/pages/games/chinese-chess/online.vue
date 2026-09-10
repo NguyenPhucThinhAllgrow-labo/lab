@@ -27,6 +27,7 @@ const receivedAt = ref(Date.now())
 const clockTick = ref(Date.now())
 const surrenderConfirmOpen = ref(false)
 const surrenderResult = ref<{ title: string; message: string; won: boolean } | null>(null)
+const repetitionBlockedMessage = ref('')
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let clockTimer: ReturnType<typeof setInterval> | null = null
@@ -61,6 +62,8 @@ const finishReasonText = computed(() => {
   const reasons: Record<string, string> = {
     checkmate: 'Chiếu bí', stalemate: 'Bí nước', timeout: 'Hết giờ',
     surrender: 'Đầu hàng', player_left: 'Đối thủ rời phòng', host_left: 'Chủ phòng đã rời đi',
+    perpetual_check: 'Thua do chiếu liên tục', perpetual_chase: 'Thua do đuổi quân liên tục',
+    perpetual_check_chase: 'Thua do chiếu và đuổi quân liên tục', repetition_draw: 'Hòa do lặp lại thế cờ',
   }
   return reasons[room.value?.finish_reason ?? ''] ?? ''
 })
@@ -99,15 +102,35 @@ function applyRoom(next: ChineseChessRoom, keepColor = false): void {
   if (
     (previousStatus === 'playing' || previousStatus === 'paused')
     && updatedRoom.status === 'finished'
-    && updatedRoom.finish_reason === 'surrender'
+    && ['surrender', 'perpetual_check', 'perpetual_chase', 'perpetual_check_chase', 'repetition_draw'].includes(updatedRoom.finish_reason ?? '')
     && announcedFinishVersion !== updatedRoom.version
   ) {
     announcedFinishVersion = updatedRoom.version
+    if (updatedRoom.finish_reason === 'repetition_draw') {
+      surrenderResult.value = {
+        title: 'Ván đấu hòa',
+        message: 'Thế cờ đã xuất hiện lần thứ ba và không bên nào có mức vi phạm cao hơn.',
+        won: false,
+      }
+      return
+    }
+
     const winnerColor: PieceColor = updatedRoom.winner?.id === updatedRoom.red_player.id ? 'red' : 'black'
     const won = updatedRoom.your_color === winnerColor
     const loser = winnerColor === 'red'
       ? updatedRoom.black_player
       : updatedRoom.red_player
+
+    if (updatedRoom.finish_reason !== 'surrender') {
+      surrenderResult.value = {
+        title: won ? 'Đối thủ vi phạm luật lặp' : 'Bạn vi phạm luật lặp',
+        message: won
+          ? `${loser?.name ?? 'Đối thủ'} bị xử thua. ${finishReasonText.value}.`
+          : `${finishReasonText.value}. Bạn đã không phá chuỗi lặp sau cảnh báo.`,
+        won,
+      }
+      return
+    }
 
     surrenderResult.value = won
       ? {
@@ -155,7 +178,7 @@ async function loadRoom(code = room.value?.code, silent = false): Promise<void> 
   try {
     const response = await api<{ room: ChineseChessRoom }>(`/api/chinese-chess/rooms/${code}`)
     applyRoom(response.room)
-  } catch (error) {
+  } catch (error: any) {
     if (!silent) errorMessage.value = messageFrom(error)
   }
 }
@@ -248,7 +271,13 @@ async function request(callback: () => Promise<void>, reloadOnError = false): Pr
   try {
     await callback()
   } catch (error) {
-    errorMessage.value = messageFrom(error)
+    const repetitionError = error?.data?.errors?.repetition?.[0]
+    if (repetitionError) {
+      repetitionBlockedMessage.value = String(repetitionError)
+      errorMessage.value = ''
+    } else {
+      errorMessage.value = messageFrom(error)
+    }
     if (reloadOnError) await loadRoom()
   } finally {
     busy.value = false
@@ -452,6 +481,7 @@ onBeforeUnmount(() => {
                   <strong class="move-piece-token is-captured" :class="`is-${move.captured.color}`">{{ pieceName(move.captured) }}</strong>
                 </template>
                 <strong v-if="move.is_check" class="move-check-badge" title="Nước đi này chiếu tướng">Chiếu</strong>
+                <strong v-if="move.rule_action === 'chase' || move.rule_action === 'check_chase'" class="move-chase-badge" title="Nước đi này tạo truy đuổi">Tróc</strong>
               </span>
             </div>
           </div>
@@ -542,6 +572,10 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="match-actions">
+            <div v-if="room.repetition?.status === 'warning'" class="repetition-warning" role="alert">
+              <strong>{{ room.repetition.obligated_color ? `${room.repetition.obligated_color === room.your_color ? 'Bạn' : 'Đối thủ'} phải phá lặp` : 'Thế cờ đã lặp lần hai' }}</strong>
+              <span>{{ room.repetition.obligated_color ? 'Hãy đổi nước để phá chuỗi lặp. Ván đấu không tự động xử thua.' : 'Lặp lần ba sẽ xử hòa.' }}</span>
+            </div>
             <button v-if="room.status === 'playing'" class="chess-button chess-button--pause" :disabled="busy" @click="togglePause"><Pause :size="17" /> Tạm dừng</button>
             <button v-if="room.status === 'paused'" class="chess-button chess-button--resume" :disabled="busy" @click="togglePause"><Play :size="17" /> Tiếp tục</button>
             <button v-if="room.status === 'playing' || room.status === 'paused'" class="chess-button chess-button--danger-ghost" :disabled="busy" @click="surrender">Đầu hàng</button>
@@ -573,6 +607,21 @@ onBeforeUnmount(() => {
       </Transition>
 
       <Transition name="chess-dialog">
+        <div v-if="repetitionBlockedMessage" class="chess-dialog-backdrop" role="presentation">
+          <section class="chess-dialog" role="alertdialog" aria-modal="true" aria-labelledby="online-repetition-title">
+            <button class="chess-dialog__close" aria-label="Đóng" @click="repetitionBlockedMessage = ''"><X :size="18" /></button>
+            <div class="chess-dialog__icon is-warning"><AlertTriangle :size="28" /></div>
+            <span class="chess-dialog__eyebrow">PHẢI PHÁ THẾ LẶP</span>
+            <h2 id="online-repetition-title">Nước đi đã được hoàn lại</h2>
+            <p>{{ repetitionBlockedMessage }}</p>
+            <div class="chess-dialog__actions is-centered">
+              <button class="chess-button chess-button--primary" @click="repetitionBlockedMessage = ''">Chọn nước khác</button>
+            </div>
+          </section>
+        </div>
+      </Transition>
+
+      <Transition name="chess-dialog">
         <div v-if="surrenderResult" class="chess-dialog-backdrop" role="presentation">
           <section class="chess-dialog chess-dialog--result" :class="{ 'is-winner': surrenderResult.won }" role="alertdialog" aria-modal="true" aria-labelledby="surrender-result-title">
             <button class="chess-dialog__close" aria-label="Đóng" @click="surrenderResult = null"><X :size="18" /></button>
@@ -596,6 +645,7 @@ onBeforeUnmount(() => {
 <style scoped src="~/assets/css/pages/games/chinese-chess/online.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/history-pieces.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/ready.css"></style>
+<style scoped src="~/assets/css/pages/games/chinese-chess/repetition.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/dialogs.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/typography.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/rounds.css"></style>

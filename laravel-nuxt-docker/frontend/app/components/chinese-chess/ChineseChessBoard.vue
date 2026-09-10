@@ -61,6 +61,8 @@ const emit = defineEmits<{
       from: Position
       to: Position
       captured: ChineseChessPiece | null
+      position: ChineseChessPiece[]
+      is_check: boolean
     },
   ]
 
@@ -542,6 +544,10 @@ function performMove(
     ...piece,
   }
 
+  const nextBoard = movePiece(board.value, piece.id, { row, col })
+  const opponentColor: PieceColor = piece.color === 'red' ? 'black' : 'red'
+  const isCheck = isInCheck(nextBoard, opponentColor)
+
   if (props.position) {
     clearSelection()
     emit('move', {
@@ -551,23 +557,18 @@ function performMove(
       from,
       to: { row, col },
       captured,
+      position: nextBoard,
+      is_check: isCheck,
     })
+    if (isCheckmate(nextBoard, opponentColor)) {
+      emit('checkmate', piece.color)
+    }
     return
   }
 
   /**
    * Thực hiện nước đi.
    */
-
-  const nextBoard =
-    movePiece(
-      board.value,
-      piece.id,
-      {
-        row,
-        col,
-      },
-    )
 
   /**
    * Cập nhật board.
@@ -594,12 +595,6 @@ function performMove(
    * kiểm tra Đỏ.
    */
 
-  const opponentColor:
-    PieceColor =
-      piece.color === 'red'
-        ? 'black'
-        : 'red'
-
   /**
    * Nếu đối thủ đã bị chiếu bí
    */
@@ -625,6 +620,8 @@ function performMove(
         col,
       },
       captured,
+      position: nextBoard,
+      is_check: isCheck,
     })
 
     /**
@@ -655,6 +652,8 @@ function performMove(
       col,
     },
     captured,
+    position: nextBoard,
+    is_check: isCheck,
   })
 }
 

@@ -1,0 +1,35 @@
+.repetition-warning {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid rgb(217 151 45 / 38%);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgb(91 54 12 / 46%), rgb(30 19 8 / 82%));
+  color: #f5d79b;
+}
+
+.repetition-warning strong {
+  font-size: 12px;
+  letter-spacing: .03em;
+}
+
+.repetition-warning span {
+  color: #bcae98;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.move-chase-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid rgb(230 161 48 / 42%);
+  border-radius: 999px;
+  background: rgb(130 76 13 / 35%);
+  color: #f1c46d;
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: .04em;
+}

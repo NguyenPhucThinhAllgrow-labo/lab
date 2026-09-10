@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Events\ChineseChessRoomUpdated;
 use App\Models\ChineseChessRoom;
 use App\Models\User;
+use App\Services\ChineseChessEngine;
+use App\Services\ChineseChessRepetitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
@@ -21,7 +23,8 @@ class ChineseChessRoomApiTest extends TestCase
 
         $created = $this->actingAs($red)->postJson('/api/chinese-chess/rooms')->assertCreated();
         $created->assertJsonPath('room.your_color', 'red')
-            ->assertJsonPath('room.red_player.id', $red->id);
+            ->assertJsonPath('room.red_player.id', $red->id)
+            ->assertJsonPath('room.repetition.status', 'none');
         $code = $created->json('room.code');
 
         $joined = $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/join")
@@ -51,7 +54,8 @@ class ChineseChessRoomApiTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('room.current_turn', 'black')
             ->assertJsonPath('room.move_history.0.piece.id', 'red-soldier-1')
-            ->assertJsonPath('room.move_history.0.is_check', false);
+            ->assertJsonPath('room.move_history.0.is_check', false)
+            ->assertJsonPath('room.move_history.0.rule_action', 'quiet');
 
         Event::assertDispatched(ChineseChessRoomUpdated::class, function (ChineseChessRoomUpdated $event): bool {
             $payload = $event->broadcastWith();
@@ -135,6 +139,57 @@ class ChineseChessRoomApiTest extends TestCase
             'version' => $version,
         ])->assertOk()
             ->assertJsonPath('room.move_history.0.is_check', true);
+    }
+
+    public function test_repeating_violation_is_rejected_and_board_is_rolled_back(): void
+    {
+        Event::fake([ChineseChessRoomUpdated::class]);
+        $red = User::factory()->create(['role' => 'user']);
+        $black = User::factory()->create(['role' => 'user']);
+        $code = $this->actingAs($red)->postJson('/api/chinese-chess/rooms')->json('room.code');
+        $this->actingAs($black)->postJson("/api/chinese-chess/rooms/{$code}/join");
+        $version = $this->startGame($code, $red, $black);
+
+        $board = [
+            ['id' => 'black-general', 'type' => 'general', 'color' => 'black', 'row' => 0, 'col' => 4],
+            ['id' => 'red-chariot-1', 'type' => 'chariot', 'color' => 'red', 'row' => 1, 'col' => 3],
+            ['id' => 'red-soldier-1', 'type' => 'soldier', 'color' => 'red', 'row' => 5, 'col' => 4],
+            ['id' => 'red-general', 'type' => 'general', 'color' => 'red', 'row' => 9, 'col' => 4],
+        ];
+        $engine = app(ChineseChessEngine::class);
+        [$repeatedBoard] = $engine->move($board, 'red-chariot-1', 1, 4);
+        $key = app(ChineseChessRepetitionService::class)->positionKey($repeatedBoard, 'black');
+        $record = static fn (string $positionKey, ?string $mover, bool $check): array => [
+            'key' => $positionKey,
+            'turn' => $mover === 'red' ? 'black' : 'red',
+            'move_number' => 0,
+            'mover' => $mover,
+            'gave_check' => $check,
+            'chases' => [],
+        ];
+
+        $room = ChineseChessRoom::where('code', $code)->firstOrFail();
+        $room->fill([
+            'board' => $board,
+            'position_history' => [
+                $record($key, null, false),
+                $record('cycle-b', 'red', true),
+                $record('cycle-c', 'black', false),
+                $record('cycle-d', 'red', true),
+                $record($key, 'black', false),
+            ],
+        ])->save();
+
+        $this->actingAs($red)->postJson("/api/chinese-chess/rooms/{$code}/moves", [
+            'piece_id' => 'red-chariot-1',
+            'to' => ['row' => 1, 'col' => 4],
+            'version' => $version,
+        ])->assertUnprocessable()->assertJsonValidationErrors('repetition');
+
+        $room->refresh();
+        $this->assertSame($board, $room->board);
+        $this->assertSame([], $room->move_history);
+        $this->assertSame('playing', $room->status);
     }
 
     public function test_timeout_is_authoritative_and_persisted_before_a_move(): void

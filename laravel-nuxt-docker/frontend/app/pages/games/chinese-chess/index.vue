@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Globe, Monitor, Play, RotateCcw, Swords, Trophy, Users } from 'lucide-vue-next'
+import { AlertTriangle, ArrowLeft, Globe, Monitor, Play, RotateCcw, Swords, Trophy, Users, X } from 'lucide-vue-next'
 import {
   computed,
   onBeforeUnmount,
@@ -7,9 +7,13 @@ import {
 } from 'vue'
 
 import type {
+  ChineseChessChaseRelation,
   ChineseChessPiece,
+  ChineseChessRepetitionState,
   PieceColor,
 } from '~/types/games/chinese-chess'
+import { createInitialBoard } from '~/utils/chinese-chess/board'
+import { initialPositionHistory, recordPosition, type PositionRecord } from '~/utils/chinese-chess/repetition'
 
 useHead({
   title: 'Chinese Chess',
@@ -37,6 +41,10 @@ interface MoveHistory {
   }
 
   captured: ChineseChessPiece | null
+  position: ChineseChessPiece[]
+  is_check: boolean
+  rule_action?: 'quiet' | 'check' | 'chase' | 'check_chase'
+  chases?: ChineseChessChaseRelation[]
 }
 
 /**
@@ -67,6 +75,10 @@ const winReason =
     'checkmate' |
     'timeout' |
     'surrender' |
+    'perpetual_check' |
+    'perpetual_chase' |
+    'perpetual_check_chase' |
+    'repetition_draw' |
     null
   >(null)
 
@@ -112,6 +124,11 @@ let timer:
 
 const moveHistory =
   ref<MoveHistory[]>([])
+
+const localBoard = ref(createInitialBoard())
+const positionHistory = ref<PositionRecord[]>(initialPositionHistory(localBoard.value, 'red'))
+const repetitionState = ref<ChineseChessRepetitionState>({ status: 'none', count: 1, obligated_color: null, reason: null })
+const repetitionModal = ref(false)
 
 /**
  * ==========================================
@@ -254,6 +271,18 @@ const winReasonText =
 
       case 'surrender':
         return 'Đầu hàng'
+
+      case 'perpetual_check':
+        return 'Thua do chiếu liên tục'
+
+      case 'perpetual_chase':
+        return 'Thua do đuổi quân liên tục'
+
+      case 'perpetual_check_chase':
+        return 'Thua do chiếu và đuổi quân liên tục'
+
+      case 'repetition_draw':
+        return 'Hòa do lặp lại thế cờ'
 
       default:
         return ''
@@ -492,11 +521,15 @@ function startTimer() {
  */
 
 function finishGame(
-  winningColor: PieceColor,
+  winningColor: PieceColor | null,
   reason:
     | 'checkmate'
     | 'timeout'
-    | 'surrender',
+    | 'surrender'
+    | 'perpetual_check'
+    | 'perpetual_chase'
+    | 'perpetual_check_chase'
+    | 'repetition_draw',
 ) {
   stopTimer()
 
@@ -505,10 +538,7 @@ function finishGame(
   winner.value =
     winningColor
 
-  loser.value =
-    winningColor === 'red'
-      ? 'black'
-      : 'red'
+  loser.value = winningColor ? (winningColor === 'red' ? 'black' : 'red') : null
 
   winReason.value =
     reason
@@ -543,6 +573,11 @@ function startGame() {
   isCheck.value = false
 
   checkColor.value = null
+
+  localBoard.value = createInitialBoard()
+  positionHistory.value = initialPositionHistory(localBoard.value, 'red')
+  repetitionState.value = { status: 'none', count: 1, obligated_color: null, reason: null }
+  repetitionModal.value = false
 
   startTimer()
 }
@@ -609,6 +644,11 @@ function restartGame() {
   redCaptured.value = []
 
   blackCaptured.value = []
+
+  localBoard.value = createInitialBoard()
+  positionHistory.value = initialPositionHistory(localBoard.value, 'red')
+  repetitionState.value = { status: 'none', count: 1, obligated_color: null, reason: null }
+  repetitionModal.value = false
 }
 
 /**
@@ -626,8 +666,31 @@ function handleMove(
     return
   }
 
+  const nextTurn: PieceColor = move.color === 'red' ? 'black' : 'red'
+  const repetition = recordPosition(
+    positionHistory.value,
+    localBoard.value,
+    move.position,
+    move.piece,
+    nextTurn,
+    moveHistory.value.length + 1,
+  )
+
+  if (repetition.state.count >= 3 && repetition.state.obligated_color === move.color) {
+    repetitionState.value = repetition.state
+    repetitionModal.value = true
+    return
+  }
+
+  positionHistory.value = repetition.history
+  repetitionState.value = repetition.state
+  localBoard.value = move.position.map(piece => ({ ...piece }))
+
   moveHistory.value.push({
     ...move,
+    is_check: repetition.record.gave_check,
+    rule_action: repetition.record.action,
+    chases: repetition.record.chases,
 
     number:
       moveHistory.value.length +
@@ -658,10 +721,12 @@ function handleMove(
    * Đổi lượt.
    */
 
-  currentTurn.value =
-    currentTurn.value === 'red'
-      ? 'black'
-      : 'red'
+  currentTurn.value = nextTurn
+
+  if (repetition.state.status === 'draw') {
+    finishGame(null, 'repetition_draw')
+    return
+  }
 
   /**
    * Timer chuyển sang người mới.
@@ -679,6 +744,7 @@ function handleMove(
 function handleCheckmate(
   winningColor: PieceColor,
 ) {
+  if (gameOver.value) return
   finishGame(
     winningColor,
     'checkmate',
@@ -757,6 +823,8 @@ onBeforeUnmount(() => {
                 <span class="move-capture-mark">×</span>
                 <strong class="move-piece-token is-captured" :class="`is-${move.captured.color}`" :title="getPieceName(move.captured)">{{ getPieceSymbol(move.captured) }}</strong>
               </template>
+              <strong v-if="move.is_check" class="move-check-badge">Chiếu</strong>
+              <strong v-if="move.rule_action === 'chase' || move.rule_action === 'check_chase'" class="move-chase-badge">Tróc</strong>
             </span>
           </div>
         </div>
@@ -781,6 +849,7 @@ onBeforeUnmount(() => {
           :key="gameKey"
           :current-turn="currentTurn"
           :game-started="gameStarted && !gameOver"
+          :position="localBoard"
           @move="handleMove"
           @checkmate="handleCheckmate"
           @check="handleCheck"
@@ -812,6 +881,10 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="match-actions">
+          <div v-if="repetitionState.status === 'warning'" class="repetition-warning" role="alert">
+            <strong>{{ repetitionState.obligated_color ? `Quân ${repetitionState.obligated_color === 'red' ? 'Đỏ' : 'Đen'} phải phá lặp` : 'Thế cờ đã lặp lần hai' }}</strong>
+            <span>{{ repetitionState.obligated_color ? 'Hãy đổi nước để phá chuỗi lặp. Ván đấu sẽ không tự động xử thua.' : 'Lặp lại lần ba sẽ được xử hòa.' }}</span>
+          </div>
           <button v-if="!gameStarted" class="chess-button chess-button--primary" @click="startGame"><Play :size="17" /> Bắt đầu</button>
           <button v-else class="chess-button" @click="restartGame"><RotateCcw :size="17" /> Chơi lại</button>
           <button v-if="gameStarted && !gameOver" class="chess-button chess-button--danger-ghost" @click="surrender">Đầu hàng</button>
@@ -824,12 +897,29 @@ onBeforeUnmount(() => {
         <section class="chess-dialog chess-dialog--result is-winner" role="alertdialog" aria-modal="true" aria-labelledby="local-result-title" aria-describedby="local-result-description">
           <div class="chess-dialog__icon is-winner"><Trophy :size="28" /></div>
           <span class="chess-dialog__eyebrow">VÁN ĐẤU KẾT THÚC</span>
-          <h2 id="local-result-title">Quân {{ winnerName }} thắng!</h2>
-          <p id="local-result-description">{{ winReasonText }} · Quân {{ loserName }} đã thua.</p>
+          <h2 id="local-result-title">{{ winner ? `Quân ${winnerName} thắng!` : 'Ván đấu hòa' }}</h2>
+          <p id="local-result-description">{{ winner ? `${winReasonText} · Quân ${loserName} đã thua.` : winReasonText }}</p>
           <div class="chess-dialog__actions is-centered"><button class="chess-button chess-button--primary" @click="restartGame"><RotateCcw :size="17" /> Chơi lại</button></div>
         </section>
       </div>
     </Transition>
+
+    <Teleport to="body">
+      <Transition name="chess-dialog">
+        <div v-if="repetitionModal" class="chess-dialog-backdrop" role="presentation">
+          <section class="chess-dialog" role="alertdialog" aria-modal="true" aria-labelledby="local-repetition-title">
+            <button class="chess-dialog__close" aria-label="Đóng" @click="repetitionModal = false"><X :size="18" /></button>
+            <div class="chess-dialog__icon is-warning"><AlertTriangle :size="28" /></div>
+            <span class="chess-dialog__eyebrow">PHẢI PHÁ THẾ LẶP</span>
+            <h2 id="local-repetition-title">Nước đi đã được hoàn lại</h2>
+            <p>Quân {{ currentTurn === 'red' ? 'Đỏ' : 'Đen' }} đang tiếp tục chuỗi chiếu hoặc đuổi quân. Hãy chọn một nước khác.</p>
+            <div class="chess-dialog__actions is-centered">
+              <button class="chess-button chess-button--primary" @click="repetitionModal = false">Chọn nước khác</button>
+            </div>
+          </section>
+        </div>
+      </Transition>
+    </Teleport>
   </main>
 </template>
 
@@ -841,3 +931,4 @@ onBeforeUnmount(() => {
 <style scoped src="~/assets/css/pages/games/chinese-chess/index.css"></style>
 
 <style scoped src="~/assets/css/pages/games/chinese-chess/player-turn.css"></style>
+<style scoped src="~/assets/css/pages/games/chinese-chess/repetition.css"></style>

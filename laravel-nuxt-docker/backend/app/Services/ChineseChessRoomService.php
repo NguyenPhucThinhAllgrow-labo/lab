@@ -10,7 +10,10 @@ use Illuminate\Validation\ValidationException;
 
 class ChineseChessRoomService
 {
-    public function __construct(private readonly ChineseChessEngine $engine) {}
+    public function __construct(
+        private readonly ChineseChessEngine $engine,
+        private readonly ChineseChessRepetitionService $repetition,
+    ) {}
 
     public function create(User $user): ChineseChessRoom
     {
@@ -28,12 +31,16 @@ class ChineseChessRoomService
             $code = Str::upper(Str::random(6));
         } while (ChineseChessRoom::where('code', $code)->exists());
 
+        $board = $this->engine->initialBoard();
+
         return $this->load(ChineseChessRoom::create([
             'code' => $code,
             'host_id' => $user->id,
             'red_player_id' => $user->id,
-            'board' => $this->engine->initialBoard(),
+            'board' => $board,
             'move_history' => [],
+            'position_history' => $this->repetition->initialHistory($board, 'red'),
+            'repetition_state' => $this->emptyRepetitionState(),
         ]));
     }
 
@@ -146,6 +153,24 @@ class ChineseChessRoomService
             $opponent = $color === 'red' ? 'black' : 'red';
             $isCheck = $this->engine->isInCheck($board, $opponent);
             $history = $room->move_history ?? [];
+            $repetition = $this->repetition->recordMove(
+                $room->position_history ?? [],
+                $room->board,
+                $board,
+                $piece,
+                $opponent,
+                count($history) + 1,
+            );
+
+            if (
+                $repetition['state']['count'] >= 3
+                && $repetition['state']['obligated_color'] === $color
+            ) {
+                throw ValidationException::withMessages([
+                    'repetition' => 'Nước đi này tiếp tục chuỗi chiếu hoặc đuổi quân lặp lại. Hãy chọn một nước khác để phá lặp.',
+                ]);
+            }
+
             $history[] = [
                 'number' => count($history) + 1,
                 'color' => $color,
@@ -154,12 +179,16 @@ class ChineseChessRoomService
                 'to' => ['row' => (int) $payload['to']['row'], 'col' => (int) $payload['to']['col']],
                 'captured' => $captured,
                 'is_check' => $isCheck,
+                'rule_action' => $repetition['history'][array_key_last($repetition['history'])]['action'],
+                'chases' => $repetition['history'][array_key_last($repetition['history'])]['chases'],
                 'played_at' => now()->toISOString(),
             ];
 
             $room->fill([
                 'board' => $board,
                 'move_history' => $history,
+                'position_history' => $repetition['history'],
+                'repetition_state' => $repetition['state'],
                 'current_turn' => $opponent,
                 'last_move_at' => now(),
                 'version' => $room->version + 1,
@@ -167,6 +196,8 @@ class ChineseChessRoomService
 
             if (! $this->engine->hasLegalMove($board, $opponent)) {
                 $this->finish($room, $user->id, $isCheck ? 'checkmate' : 'stalemate');
+            } elseif ($repetition['state']['status'] === 'draw') {
+                $this->finish($room, null, 'repetition_draw');
             }
 
             $room->save();
@@ -275,14 +306,17 @@ class ChineseChessRoomService
                     (int) $room->black_player_id => 'red',
                     default => 'red',
                 };
+                $board = $this->engine->initialBoard();
 
                 $room->fill([
                     'status' => 'playing',
                     'current_turn' => $nextStartingColor,
                     'starting_color' => $nextStartingColor,
                     'round_number' => $room->round_number + 1,
-                    'board' => $this->engine->initialBoard(),
+                    'board' => $board,
                     'move_history' => [],
+                    'position_history' => $this->repetition->initialHistory($board, $nextStartingColor),
+                    'repetition_state' => $this->emptyRepetitionState(),
                     'red_time_seconds' => 600,
                     'black_time_seconds' => 600,
                     'started_at' => now(),
@@ -314,6 +348,7 @@ class ChineseChessRoomService
             'starting_color' => $room->starting_color,
             'board' => $room->board,
             'move_history' => $room->move_history ?? [],
+            'repetition' => $room->repetition_state ?? $this->emptyRepetitionState(),
             'red_time_seconds' => $this->displayTime($room, 'red'),
             'black_time_seconds' => $this->displayTime($room, 'black'),
             'red_player' => $room->redPlayer,
@@ -417,5 +452,15 @@ class ChineseChessRoomService
     private function load(ChineseChessRoom $room): ChineseChessRoom
     {
         return $room->fresh(['redPlayer:id,name', 'blackPlayer:id,name', 'winner:id,name', 'pausedBy:id,name']);
+    }
+
+    private function emptyRepetitionState(): array
+    {
+        return [
+            'status' => 'none',
+            'count' => 1,
+            'obligated_color' => null,
+            'reason' => null,
+        ];
     }
 }

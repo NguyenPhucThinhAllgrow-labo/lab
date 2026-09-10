@@ -102,7 +102,7 @@ class ChineseChessEngine
         return collect($board)->first(fn (array $piece): bool => $piece['id'] === $id);
     }
 
-    private function pseudoMoves(array $board, array $piece): array
+    public function pseudoMoves(array $board, array $piece): array
     {
         return match ($piece['type']) {
             'general' => $this->stepMoves($board, $piece, [[-1, 0], [1, 0], [0, -1], [0, 1]], true),
@@ -114,6 +114,52 @@ class ChineseChessEngine
             'soldier' => $this->soldierMoves($board, $piece),
             default => [],
         };
+    }
+
+    /**
+     * Return every material chase created by the given side. A relation is kept
+     * separate per attacker/target so an adjudicator can follow chases made by
+     * several pieces during the same repeating sequence.
+     */
+    public function chaseRelations(array $board, string $color): array
+    {
+        $relations = [];
+
+        foreach ($board as $attacker) {
+            if ($attacker['color'] !== $color) {
+                continue;
+            }
+
+            foreach ($this->pseudoMoves($board, $attacker) as $move) {
+                $target = $this->pieceAt($board, $move['row'], $move['col']);
+                if (! $target || $target['color'] === $color || $target['type'] === 'general') {
+                    continue;
+                }
+
+                $protected = $this->isProtected($board, $target);
+                $pinned = $this->isPinnedToGeneral($board, $target);
+                $soldierMayBeChased = $target['type'] !== 'soldier' || $this->hasCrossedRiver($target);
+                $sameTypeException = $attacker['type'] === $target['type'] && ! $pinned;
+                $kingOrPawnException = in_array($attacker['type'], ['general', 'soldier'], true);
+                $protectedRookException = $target['type'] === 'chariot'
+                    && in_array($attacker['type'], ['horse', 'cannon'], true);
+
+                $relations[] = [
+                    'attacker_id' => $attacker['id'],
+                    'attacker_type' => $attacker['type'],
+                    'target_id' => $target['id'],
+                    'target_type' => $target['type'],
+                    'protected' => $protected,
+                    'pinned' => $pinned,
+                    'prohibited' => $soldierMayBeChased
+                        && ! $sameTypeException
+                        && ! $kingOrPawnException
+                        && (! $protected || $protectedRookException),
+                ];
+            }
+        }
+
+        return $relations;
     }
 
     private function stepMoves(array $board, array $piece, array $directions, bool $palace): array
@@ -219,9 +265,54 @@ class ChineseChessEngine
         return $this->stepMoves($board, $piece, $directions, false);
     }
 
-    private function pieceAt(array $board, int $row, int $col): ?array
+    public function pieceAt(array $board, int $row, int $col): ?array
     {
         return collect($board)->first(fn (array $piece): bool => $piece['row'] === $row && $piece['col'] === $col);
+    }
+
+    private function isProtected(array $board, array $target): bool
+    {
+        foreach ($board as $defender) {
+            if ($defender['color'] !== $target['color'] || $defender['id'] === $target['id']) {
+                continue;
+            }
+
+            // Recolour the occupied target square so pseudoMoves can test a
+            // defending capture without special-casing Cannon screens.
+            $probe = array_map(static function (array $piece) use ($target, $defender): array {
+                if ($piece['id'] === $target['id']) {
+                    $piece['color'] = $defender['color'] === 'red' ? 'black' : 'red';
+                }
+
+                return $piece;
+            }, $board);
+
+            $probeDefender = $this->piece($probe, $defender['id']);
+            if ($probeDefender && $this->isLegalMove($probe, $probeDefender, $target['row'], $target['col'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isPinnedToGeneral(array $board, array $piece): bool
+    {
+        if ($this->isInCheck($board, $piece['color'])) {
+            return false;
+        }
+
+        $withoutPiece = array_values(array_filter(
+            $board,
+            fn (array $candidate): bool => $candidate['id'] !== $piece['id']
+        ));
+
+        return $this->isInCheck($withoutPiece, $piece['color']);
+    }
+
+    private function hasCrossedRiver(array $piece): bool
+    {
+        return $piece['color'] === 'red' ? $piece['row'] <= 4 : $piece['row'] >= 5;
     }
 
     private function inside(int $row, int $col): bool

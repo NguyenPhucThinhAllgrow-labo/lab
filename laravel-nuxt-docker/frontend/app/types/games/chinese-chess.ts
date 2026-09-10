@@ -37,7 +37,28 @@ export interface ChineseChessMoveHistory {
   to: Position
   captured: ChineseChessPiece | null
   is_check?: boolean
+  rule_action?: 'quiet' | 'check' | 'chase' | 'check_chase'
+  chases?: ChineseChessChaseRelation[]
+  position?: ChineseChessPiece[]
   played_at?: string
+}
+
+export interface ChineseChessChaseRelation {
+  attacker_id: string
+  attacker_type: PieceType
+  target_id: string
+  target_type: PieceType
+  protected: boolean
+  pinned: boolean
+  prohibited: boolean
+}
+
+export interface ChineseChessRepetitionState {
+  status: 'none' | 'warning' | 'violation' | 'draw'
+  count: number
+  obligated_color: PieceColor | null
+  violator_color?: PieceColor | null
+  reason: 'perpetual_check' | 'perpetual_chase' | 'perpetual_check_chase' | 'repetition_draw' | null
 }
 
 export interface ChineseChessPlayer {
@@ -56,6 +77,7 @@ export interface ChineseChessRoom {
   starting_color: PieceColor
   board: ChineseChessPiece[]
   move_history: ChineseChessMoveHistory[]
+  repetition: ChineseChessRepetitionState
   red_time_seconds: number
   black_time_seconds: number
   red_player: ChineseChessPlayer
