@@ -734,15 +734,12 @@ const displayedRankLabels = computed(() =>
 
     <div
       class="
+        chess-board-surface
         relative
         aspect-[8/9]
         w-full
         overflow-hidden
         rounded-lg
-        border-[6px]
-        border-[#5b3218]
-        bg-[#e7c681]
-        shadow-2xl
       "
     >
       <!-- ================================= -->
@@ -788,6 +785,7 @@ const displayedRankLabels = computed(() =>
 
       <svg
         class="
+          chess-board-grid
           absolute
           inset-[5%]
           h-[90%]
@@ -900,13 +898,13 @@ const displayedRankLabels = computed(() =>
 
       <div
         class="
+          chess-board-river
           pointer-events-none
           absolute
           left-[5%]
           right-[5%]
           top-[45%]
           h-[10%]
-          bg-[#e7c681]
         "
       >
         <div
@@ -1179,6 +1177,56 @@ const displayedRankLabels = computed(() =>
 </template>
 
 <style scoped>
+.chess-board-surface {
+  isolation: isolate;
+  border-width: clamp(5px, 1vw, 8px);
+  border-style: solid;
+  border-color: #986035 #683817 #3e1e0d #7a431e;
+  background:
+    linear-gradient(112deg, rgb(255 244 194 / 26%), transparent 24% 74%, rgb(105 55 18 / 13%)),
+    repeating-linear-gradient(2deg, transparent 0 18px, rgb(112 67 25 / 4%) 19px 20px),
+    linear-gradient(145deg, #efd292 0%, #e5bf76 52%, #d7a85f 100%);
+  box-shadow:
+    0 clamp(4px, 0.7vw, 7px) 0 #35190b,
+    0 clamp(10px, 1.7vw, 18px) clamp(18px, 3vw, 32px) rgb(0 0 0 / 38%),
+    0 0 0 2px rgb(43 20 8 / 85%),
+    inset 0 0 0 2px rgb(255 224 157 / 58%),
+    inset 0 0 clamp(18px, 4vw, 38px) rgb(102 53 17 / 18%);
+}
+
+.chess-board-surface::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(circle at 28% 16%, rgb(255 249 218 / 20%), transparent 30%),
+    linear-gradient(90deg, rgb(255 255 255 / 6%), transparent 15% 84%, rgb(73 35 11 / 8%));
+  box-shadow:
+    inset 8px 0 12px -12px rgb(255 246 211 / 85%),
+    inset -9px 0 15px -12px rgb(60 27 8 / 70%),
+    inset 0 -10px 18px -15px rgb(49 22 7 / 82%);
+  content: "";
+  pointer-events: none;
+}
+
+.chess-board-grid {
+  filter:
+    drop-shadow(0 1px 0 rgb(255 231 172 / 42%))
+    drop-shadow(0 1.2px 0.35px rgb(70 35 12 / 28%));
+}
+
+.chess-board-river {
+  background: linear-gradient(
+    90deg,
+    rgb(221 177 103 / 42%),
+    rgb(239 207 146 / 72%) 50%,
+    rgb(210 158 82 / 38%)
+  );
+  box-shadow:
+    inset 0 1px rgb(255 235 190 / 30%),
+    inset 0 -1px rgb(98 51 17 / 14%);
+}
+
 .chess-board-layout {
   display: grid;
   grid-template-columns: 1.4rem minmax(0, 1fr);
