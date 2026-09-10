@@ -12,6 +12,7 @@ import type {
   PieceColor,
   Position,
 } from '~/types/games/chinese-chess'
+import type { ChineseChessSuggestedMove } from '~/utils/chinese-chess/advisor'
 
 import {
   createInitialBoard,
@@ -45,6 +46,7 @@ const props = defineProps<{
   readonly?: boolean
   showWaitingOverlay?: boolean
   lastMove?: Pick<ChineseChessMoveHistory, 'from' | 'to'> | null
+  suggestedMove?: ChineseChessSuggestedMove | null
 }>()
 
 /**
@@ -406,7 +408,32 @@ function selectPiece(
           piece,
           position,
         ),
-    )
+      )
+}
+
+watch(
+  () => props.suggestedMove,
+  (suggestedMove) => {
+    if (!suggestedMove || !canInteract.value) return
+
+    const piece = board.value.find(candidate =>
+      candidate.id === suggestedMove.pieceId
+      && candidate.row === suggestedMove.from.row
+      && candidate.col === suggestedMove.from.col)
+
+    if (piece) selectPiece(piece)
+  },
+  { deep: true },
+)
+
+function isSuggestedMoveFrom(row: number, col: number): boolean {
+  return props.suggestedMove?.from.row === row
+    && props.suggestedMove.from.col === col
+}
+
+function isSuggestedMoveTo(row: number, col: number): boolean {
+  return props.suggestedMove?.to.row === row
+    && props.suggestedMove.to.col === col
 }
 
 /**
@@ -1101,6 +1128,20 @@ const displayedRankLabels = computed(() =>
               class="chess-last-move-marker is-to"
             />
 
+            <span
+              v-if="isSuggestedMoveFrom(row - 1, col - 1)"
+              class="chess-move-suggestion is-from"
+              aria-hidden="true"
+            />
+
+            <span
+              v-if="isSuggestedMoveTo(row - 1, col - 1)"
+              class="chess-move-suggestion is-to"
+              aria-hidden="true"
+            >
+              <small>ĐI</small>
+            </span>
+
             <!-- =========================== -->
             <!-- VALID MOVE -->
             <!-- =========================== -->
@@ -1604,6 +1645,61 @@ const displayedRankLabels = computed(() =>
   border-radius: 50%;
 }
 
+.chess-move-suggestion {
+  position: absolute;
+  z-index: 4;
+  width: 94%;
+  height: 94%;
+  pointer-events: none;
+  border-radius: 50%;
+}
+
+.chess-move-suggestion.is-from {
+  border: 2px dashed #38bdf8;
+  background: rgb(14 165 233 / 10%);
+  box-shadow:
+    0 0 0 3px rgb(14 165 233 / 14%),
+    0 0 18px rgb(56 189 248 / 62%);
+  animation: chess-suggestion-source 1.6s ease-in-out infinite;
+}
+
+.chess-move-suggestion.is-to {
+  width: 54%;
+  height: 54%;
+  border: 2px solid #fef3c7;
+  background: rgb(16 185 129 / 82%);
+  box-shadow:
+    0 0 0 5px rgb(16 185 129 / 20%),
+    0 0 20px rgb(52 211 153 / 88%);
+  animation: chess-suggestion-target 1.15s ease-in-out infinite;
+}
+
+.chess-move-suggestion.is-to small {
+  color: #052e25;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: clamp(0.42rem, 1.2vw, 0.62rem);
+  font-weight: 950;
+  line-height: 1;
+}
+
+@keyframes chess-suggestion-source {
+  50% {
+    border-color: #bae6fd;
+    box-shadow:
+      0 0 0 5px rgb(14 165 233 / 9%),
+      0 0 24px rgb(56 189 248 / 76%);
+  }
+}
+
+@keyframes chess-suggestion-target {
+  50% {
+    transform: scale(0.84);
+    box-shadow:
+      0 0 0 9px rgb(16 185 129 / 9%),
+      0 0 25px rgb(52 211 153 / 72%);
+  }
+}
+
 .chess-last-move-marker.is-from {
   border: 2px dashed rgb(180 83 9 / 72%);
   background: rgb(245 158 11 / 14%);
@@ -1661,7 +1757,8 @@ const displayedRankLabels = computed(() =>
   }
 
   .chess-last-move-marker.is-to,
-  .chess-last-moved-piece {
+  .chess-last-moved-piece,
+  .chess-move-suggestion {
     animation: none;
   }
 }

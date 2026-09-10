@@ -7,7 +7,9 @@ import type {
   PieceColor,
 } from '~/types/games/chinese-chess'
 import type { ChineseChessPresenceMember, ChineseChessRoomEvent } from '~/composables/useChineseChessRealtime'
+import type { ChineseChessSuggestedMove } from '~/utils/chinese-chess/advisor'
 import { isInCheck } from '~/utils/chinese-chess/check'
+import { findBestChineseChessMove } from '~/utils/chinese-chess/advisor'
 
 useHead({ title: 'Chinese Chess Online' })
 
@@ -31,6 +33,9 @@ const repetitionBlockedMessage = ref('')
 const mobilePanel = ref<'history' | 'players' | null>(null)
 const pendingMove = ref<ChineseChessMoveHistory | null>(null)
 const presenceMembers = ref<ChineseChessPresenceMember[]>([])
+const suggestedMove = ref<ChineseChessSuggestedMove | null>(null)
+const advisorMessage = ref('')
+const advisorThinking = ref(false)
 
 function toggleMobilePanel(panel: 'history' | 'players'): void {
   mobilePanel.value = mobilePanel.value === panel ? null : panel
@@ -43,6 +48,7 @@ let pollingEnabled = false
 let announcedFinishVersion: number | null = null
 let realtimeTargetVersion = 0
 let realtimeSyncPending = false
+let advisorMessageTimer: ReturnType<typeof setTimeout> | null = null
 
 const gameStarted = computed(() => room.value?.status === 'playing' || room.value?.status === 'paused')
 const spectatorMode = computed(() => room.value?.is_spectator || !room.value?.your_color)
@@ -118,11 +124,20 @@ function applyRoom(next: ChineseChessRoom, keepColor = false): void {
   if (room.value?.id === next.id && next.version < room.value.version) return
 
   const previousStatus = room.value?.status
+  const previousVersion = room.value?.version
   const ownColor = keepColor ? room.value?.your_color ?? null : next.your_color
   const updatedRoom = { ...next, your_color: next.your_color ?? ownColor }
   room.value = updatedRoom
   receivedAt.value = Date.now()
   errorMessage.value = ''
+
+  if (
+    previousVersion !== updatedRoom.version
+    || updatedRoom.status !== 'playing'
+    || updatedRoom.your_color !== updatedRoom.current_turn
+  ) {
+    suggestedMove.value = null
+  }
 
   if (updatedRoom.status === 'playing') surrenderResult.value = null
 
@@ -189,6 +204,81 @@ function applyRoom(next: ChineseChessRoom, keepColor = false): void {
           won: false,
         }
   }
+}
+
+function showAdvisorMessage(message: string, duration = 2800): void {
+  if (advisorMessageTimer) clearTimeout(advisorMessageTimer)
+  advisorMessage.value = message
+  advisorMessageTimer = null
+
+  if (duration > 0) {
+    advisorMessageTimer = setTimeout(() => {
+      advisorMessage.value = ''
+      advisorMessageTimer = null
+    }, duration)
+  }
+}
+
+async function suggestBestMove(): Promise<void> {
+  if (!room.value || advisorThinking.value) return
+
+  if (spectatorMode.value) {
+    showAdvisorMessage('Người xem không thể sử dụng gợi ý nước đi.')
+    return
+  }
+
+  if (room.value.status !== 'playing') {
+    showAdvisorMessage('Gợi ý chỉ hoạt động khi ván đấu đang diễn ra.')
+    return
+  }
+
+  if (!isMyTurn.value || !room.value.your_color) {
+    showAdvisorMessage('Hãy chờ đến lượt của bạn để phân tích nước đi.')
+    return
+  }
+
+  const roomVersion = room.value.version
+  const playerColor = room.value.your_color
+  const board = displayedBoard.value.map(piece => ({ ...piece }))
+
+  suggestedMove.value = null
+  advisorThinking.value = true
+  showAdvisorMessage('Đang phân tích phản công tốt nhất của đối thủ…', 0)
+
+  // Yield once so the analyzing state is painted before the synchronous search.
+  await new Promise(resolve => setTimeout(resolve, 30))
+
+  const result = findBestChineseChessMove(board, playerColor)
+  advisorThinking.value = false
+
+  if (
+    !room.value
+    || room.value.version !== roomVersion
+    || room.value.status !== 'playing'
+    || room.value.current_turn !== playerColor
+  ) {
+    showAdvisorMessage('Thế cờ đã thay đổi, hãy nhấn Ctrl + H để phân tích lại.')
+    return
+  }
+
+  if (!result) {
+    showAdvisorMessage('Không tìm thấy nước đi hợp lệ.')
+    return
+  }
+
+  suggestedMove.value = result
+  const piece = board.find(candidate => candidate.id === result.pieceId)
+  showAdvisorMessage(
+    `Gợi ý: ${piece ? pieceName(piece) : 'quân cờ'} ${positionText({ from: result.from, to: result.to })}.`,
+    4200,
+  )
+}
+
+function handleAdvisorShortcut(event: KeyboardEvent): void {
+  if (!room.value || (!event.ctrlKey && !event.altKey) || event.key.toLowerCase() !== 'h') return
+
+  event.preventDefault()
+  if (!event.repeat) void suggestBestMove()
 }
 
 function messageFrom(error: any): string {
@@ -401,6 +491,11 @@ function resetLobby(): void {
   realtimeConnected.value = false
   surrenderConfirmOpen.value = false
   surrenderResult.value = null
+  suggestedMove.value = null
+  advisorThinking.value = false
+  advisorMessage.value = ''
+  if (advisorMessageTimer) clearTimeout(advisorMessageTimer)
+  advisorMessageTimer = null
   announcedFinishVersion = null
   realtimeTargetVersion = 0
   realtimeSyncPending = false
@@ -427,7 +522,7 @@ function timeText(color: PieceColor): string {
   return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
 }
 
-function positionText(move: ChineseChessMoveHistory): string {
+function positionText(move: Pick<ChineseChessMoveHistory, 'from' | 'to'>): string {
   const columns = 'ABCDEFGHI'
   return `${columns[move.from.col]}${move.from.row + 1} → ${columns[move.to.col]}${move.to.row + 1}`
 }
@@ -483,6 +578,7 @@ watch(clockTick, async () => {
 })
 
 onMounted(async () => {
+  window.addEventListener('keydown', handleAdvisorShortcut, true)
   clockTimer = setInterval(() => { clockTick.value = Date.now() }, 1000)
   const code = typeof route.query.room === 'string' ? route.query.room.toUpperCase() : ''
   if (code) {
@@ -496,9 +592,11 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleAdvisorShortcut, true)
   realtime.disconnect()
   stopPolling()
   if (clockTimer) clearInterval(clockTimer)
+  if (advisorMessageTimer) clearTimeout(advisorMessageTimer)
 })
 </script>
 
@@ -589,6 +687,20 @@ onBeforeUnmount(() => {
         </aside>
 
         <section class="online-board-wrap">
+          <Transition name="advisor-toast">
+            <div
+              v-if="advisorMessage"
+              class="online-advisor-toast"
+              :class="{ 'is-thinking': advisorThinking }"
+              role="status"
+            >
+              <LoaderCircle v-if="advisorThinking" class="animate-spin" :size="15" />
+              <span v-else>✦</span>
+              <strong>{{ advisorMessage }}</strong>
+              <kbd>Ctrl/Alt + H</kbd>
+            </div>
+          </Transition>
+
           <div v-if="room.status === 'waiting'" class="board-overlay">
             <div class="board-waiting-card" aria-live="polite">
               <div class="board-waiting-card__icon" :class="{ 'is-ready': isReady }">
@@ -634,6 +746,7 @@ onBeforeUnmount(() => {
             :position="displayedBoard"
             :player-color="room.your_color"
             :last-move="lastMove"
+            :suggested-move="suggestedMove"
             :readonly="spectatorMode || busy || room.status === 'paused' || !!room.undo_request"
             :show-waiting-overlay="false"
             @move="submitMove"
@@ -820,6 +933,79 @@ onBeforeUnmount(() => {
 .chess-result-text em { font-style: normal; }
 .match-notice .chess-result-reason { color: #b2aca2; }
 .chess-result-left, .match-notice .chess-result-left { color: #f87171; }
+
+.online-advisor-toast {
+  position: absolute;
+  z-index: 70;
+  top: 42px;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  max-width: calc(100% - 28px);
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgb(56 189 248 / 45%);
+  border-radius: 999px;
+  padding: 8px 10px 8px 12px;
+  color: #dff7ff;
+  background: rgb(7 25 35 / 92%);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 42%), 0 0 20px rgb(14 165 233 / 14%);
+  backdrop-filter: blur(9px);
+  transform: translateX(-50%);
+}
+
+.online-advisor-toast > span,
+.online-advisor-toast > svg {
+  flex: none;
+  color: #67e8f9;
+}
+
+.online-advisor-toast strong {
+  overflow: hidden;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.online-advisor-toast kbd {
+  flex: none;
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 5px;
+  padding: 2px 5px;
+  color: #8fcddd;
+  background: rgb(255 255 255 / 5%);
+  font-family: ui-monospace, monospace;
+  font-size: 8px;
+}
+
+.online-advisor-toast.is-thinking {
+  border-color: rgb(245 158 11 / 42%);
+  color: #ffedc6;
+  background: rgb(39 25 8 / 94%);
+}
+
+.advisor-toast-enter-active,
+.advisor-toast-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.advisor-toast-enter-from,
+.advisor-toast-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -8px);
+}
+
+@media (max-width: 520px) {
+  .online-advisor-toast {
+    top: 30px;
+  }
+
+  .online-advisor-toast kbd {
+    display: none;
+  }
+}
 </style>
 
 <style scoped src="~/assets/css/pages/games/chinese-chess/player-turn.css"></style>
