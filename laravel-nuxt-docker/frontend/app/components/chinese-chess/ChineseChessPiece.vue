@@ -90,7 +90,7 @@ defineProps<{
   font-size: clamp(1.04rem, 4.55vw, 2rem);
   font-weight: 900;
   line-height: 1;
-  transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease;
+  transition: transform 150ms ease, filter 150ms ease;
   user-select: none;
   isolation: isolate;
 }

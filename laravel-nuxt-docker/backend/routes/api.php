@@ -54,6 +54,8 @@ Route::middleware(['auth:sanctum', 'role:user'])->group(function (): void {
 
 Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(function (): void {
     Route::get('/user', [AuthController::class, 'user']);
+    Route::get('/chinese-chess/history', [\App\Http\Controllers\Api\Admin\ChineseChessHistoryController::class, 'index']);
+    Route::get('/chinese-chess/history/{round}', [\App\Http\Controllers\Api\Admin\ChineseChessHistoryController::class, 'show']);
     Route::get('/users', [AdminUserController::class, 'index']);
     Route::get('/pandora/leaderboard/best', [DetectiveLeaderboardController::class, 'best']);
     Route::get('/pandora/leaderboard/history', [DetectiveLeaderboardController::class, 'history']);

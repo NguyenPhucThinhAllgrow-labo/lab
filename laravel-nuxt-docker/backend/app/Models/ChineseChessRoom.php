@@ -21,6 +21,19 @@ class ChineseChessRoom extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $room): void {
+            // Reload database defaults on creation before recording the first round.
+            ChineseChessRound::record($room->fresh());
+        });
+    }
+
+    public function rounds(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ChineseChessRound::class, 'room_id')->orderBy('round_number');
+    }
+
     protected function casts(): array
     {
         return [

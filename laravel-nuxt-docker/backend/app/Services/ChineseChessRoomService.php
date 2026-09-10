@@ -33,7 +33,7 @@ class ChineseChessRoomService
 
         $board = $this->engine->initialBoard();
 
-        return $this->load(ChineseChessRoom::create([
+        return DB::transaction(fn () => $this->load(ChineseChessRoom::create([
             'code' => $code,
             'host_id' => $user->id,
             'red_player_id' => $user->id,
@@ -41,7 +41,7 @@ class ChineseChessRoomService
             'move_history' => [],
             'position_history' => $this->repetition->initialHistory($board, 'red'),
             'repetition_state' => $this->emptyRepetitionState(),
-        ]));
+        ])));
     }
 
     public function join(string $code, User $user): ChineseChessRoom
