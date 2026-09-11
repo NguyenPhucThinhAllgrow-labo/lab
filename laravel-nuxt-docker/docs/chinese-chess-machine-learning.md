@@ -44,46 +44,11 @@ Model JSON đã train nằm trong `backend/resources/ml/chinese-chess-model.json
 | Model fallback | `backend/resources/ml/chinese-chess-model.json` | Trọng số đang sử dụng |
 | Trainer tùy chọn | `scripts/train-chinese-chess-ml.py` | Train lại model fallback từ JSONL |
 
-## 3. Khởi động
+## 3. Cài đặt project
 
-Đứng tại thư mục chứa `Makefile` và `docker-compose.yml`:
+Xem tài liệu riêng [Hướng dẫn setup source](./setup-source.md) để cài project trên máy mới, cấu hình môi trường, khởi động Docker và kiểm tra Pikafish/NNUE.
 
-```bash
-cd laravel-nuxt-docker
-```
-
-Nếu terminal đã ở trong thư mục này thì không chạy lại `cd`.
-
-Khởi động project và engine:
-
-```bash
-make up
-make pikafish-build
-```
-
-Kiểm tra engine:
-
-```bash
-make pikafish-health
-```
-
-Kết quả hợp lệ:
-
-```json
-{"status":"ok","engine":"Pikafish dev-20260910-99793311"}
-```
-
-Mở game:
-
-```text
-http://localhost/games/chinese-chess
-```
-
-Chọn **Chơi với máy**. Khung người chơi Đen cho biết engine thực tế:
-
-- `Máy tính · Pikafish NNUE`: đang dùng Pikafish.
-- `Máy tính · ML + Minimax`: Pikafish không khả dụng, đang dùng fallback.
-- `Máy tính · Minimax`: cả Pikafish và model JSON đều không khả dụng.
+Không cần tải dataset hoặc chạy `ml-train` để sử dụng chế độ chơi với máy.
 
 ## 4. Pikafish/NNUE
 
