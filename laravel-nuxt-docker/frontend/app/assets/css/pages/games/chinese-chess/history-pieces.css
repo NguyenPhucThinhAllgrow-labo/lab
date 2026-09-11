@@ -1,11 +1,34 @@
 .move-item {
-  grid-template-columns: 20px 7px 34px minmax(48px, 1fr) auto;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  grid-template-columns: 20px 7px 34px minmax(42px, 1fr) minmax(0, auto);
+}
+
+.match-panel--history,
+.move-list,
+.captured-block {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.move-list {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.move-item > * {
+  min-width: 0;
 }
 
 .move-item__result {
   display: flex;
+  min-width: 0;
+  max-width: 116px;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 5px;
 }
 
@@ -78,6 +101,31 @@
   border-radius: 50%;
   background: radial-gradient(circle at 34% 27%, #f0dcae, #c39a5a 68%, #74502a);
   font-size: 15px;
+}
+
+.captured-block > .captured-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 35px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+}
+
+.captured-block > .captured-row > span {
+  width: auto;
+  padding-top: 8px;
+}
+
+.captured-piece-list {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.captured-piece-list > small {
+  padding-top: 8px;
 }
 
 .move-item small {

@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\Admin\DetectiveLeaderboardController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ChineseChessEngineController;
+use App\Http\Controllers\Api\ChineseChessMlController;
 use App\Http\Controllers\Api\ChineseChessRoomController;
 use App\Http\Controllers\Api\DetectiveCaseController;
 use App\Http\Controllers\Api\DetectiveHistoryController;
@@ -18,6 +20,10 @@ Route::get('/ping', function () {
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
+Route::post('/chinese-chess/ml/predict', ChineseChessMlController::class)
+    ->middleware('throttle:120,1');
+Route::post('/chinese-chess/engine/best-move', ChineseChessEngineController::class)
+    ->middleware('throttle:120,1');
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/user', [AuthController::class, 'user']);

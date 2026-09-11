@@ -1,0 +1,28 @@
+{
+  "version": "linear-policy-20260911044024",
+  "algorithm": "pairwise-logistic-ranking",
+  "trained_at": "2026-09-11T04:40:24.119272+00:00",
+  "training_examples": 557002,
+  "feature_names": [
+    "capture_value",
+    "gives_check",
+    "gives_checkmate",
+    "material_balance",
+    "own_mobility",
+    "opponent_mobility",
+    "piece_position"
+  ],
+  "training_pairs": 415168,
+  "validation_pairs": 46522,
+  "validation_accuracy": 0.611388,
+  "bias": 0.0,
+  "weights": {
+    "capture_value": 2.22343115,
+    "gives_check": 0.19284584,
+    "gives_checkmate": 11.98782182,
+    "material_balance": 2.60540702,
+    "own_mobility": 0.55,
+    "opponent_mobility": -1.45994671,
+    "piece_position": 0.9919088
+  }
+}

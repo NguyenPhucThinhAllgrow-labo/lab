@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { AlertTriangle, ArrowLeft, Globe, Monitor, Play, RotateCcw, Swords, Trophy, Undo2, Users, X } from 'lucide-vue-next'
+import { AlertTriangle, ArrowLeft, Bot, Globe, Monitor, Play, RotateCcw, Swords, Trophy, Undo2, Users, X } from 'lucide-vue-next'
 import {
   computed,
   onBeforeUnmount,
   ref,
+  watch,
 } from 'vue'
 
 import type {
@@ -13,8 +14,11 @@ import type {
   PieceColor,
 } from '~/types/games/chinese-chess'
 import { createInitialBoard } from '~/utils/chinese-chess/board'
-import { isInCheck } from '~/utils/chinese-chess/check'
+import { buildChineseChessMlCandidates, evaluateChineseChessMove, findBestChineseChessMove, type ChineseChessSuggestedMove } from '~/utils/chinese-chess/advisor'
+import { isCheckmate, isInCheck } from '~/utils/chinese-chess/check'
+import { movePiece } from '~/utils/chinese-chess/game'
 import { adjudicateRepetition, initialPositionHistory, recordPosition, type PositionRecord } from '~/utils/chinese-chess/repetition'
+import { chineseChessBoardToFen, chineseChessMoveToUci } from '~/utils/chinese-chess/uci'
 
 useHead({
   title: 'Chinese Chess',
@@ -55,6 +59,12 @@ interface MoveHistory {
  */
 
 const gameKey = ref(0)
+const gameMode = ref<'local' | 'computer'>('local')
+const computerThinking = ref(false)
+const computerEngine = ref<'pikafish' | 'hybrid' | 'minimax'>('pikafish')
+const COMPUTER_COLOR: PieceColor = 'black'
+let computerMoveTimer: ReturnType<typeof setTimeout> | null = null
+const api = useApi()
 
 const gameStarted =
   ref(false)
@@ -151,8 +161,14 @@ const blackCaptured =
 const redUndosRemaining = ref(3)
 const blackUndosRemaining = ref(3)
 const lastMove = computed(() => moveHistory.value.at(-1) ?? null)
-const undoRemaining = computed(() => lastMove.value?.color === 'black' ? blackUndosRemaining.value : redUndosRemaining.value)
-const canUndo = computed(() => gameStarted.value && !gameOver.value && !!lastMove.value && undoRemaining.value > 0)
+const undoRemaining = computed(() => gameMode.value === 'computer'
+  ? redUndosRemaining.value
+  : lastMove.value?.color === 'black' ? blackUndosRemaining.value : redUndosRemaining.value)
+const canUndo = computed(() => gameStarted.value
+  && !gameOver.value
+  && !!lastMove.value
+  && undoRemaining.value > 0
+  && (gameMode.value === 'local' || moveHistory.value.some(move => move.color === 'red')))
 
 /**
  * ==========================================
@@ -447,6 +463,12 @@ function stopTimer() {
   }
 }
 
+function clearComputerMoveTimer(): void {
+  if (computerMoveTimer) clearTimeout(computerMoveTimer)
+  computerMoveTimer = null
+  computerThinking.value = false
+}
+
 function startTimer() {
   stopTimer()
 
@@ -544,6 +566,7 @@ function finishGame(
     | 'repetition_draw',
 ) {
   stopTimer()
+  clearComputerMoveTimer()
 
   gameOver.value = true
 
@@ -604,6 +627,7 @@ function startGame() {
 
 function restartGame() {
   stopTimer()
+  clearComputerMoveTimer()
 
   /**
    * Tạo ChineseChessBoard mới.
@@ -675,11 +699,12 @@ function restartGame() {
 
 function handleMove(
   move: MoveHistory,
-) {
+  source: 'player' | 'computer' = 'player',
+): boolean {
   if (
     gameOver.value
   ) {
-    return
+    return false
   }
 
   const nextTurn: PieceColor = move.color === 'red' ? 'black' : 'red'
@@ -694,8 +719,8 @@ function handleMove(
 
   if (repetition.state.count >= 3 && repetition.state.obligated_color === move.color) {
     repetitionState.value = repetition.state
-    repetitionModal.value = true
-    return
+    repetitionModal.value = source === 'player'
+    return false
   }
 
   positionHistory.value = repetition.history
@@ -741,7 +766,7 @@ function handleMove(
 
   if (repetition.state.status === 'draw') {
     finishGame(null, 'repetition_draw')
-    return
+    return true
   }
 
   /**
@@ -749,10 +774,215 @@ function handleMove(
    */
 
   startTimer()
+  return true
+}
+
+function computerMoveKey(pieceId: string, row: number, col: number): string {
+  return `${pieceId}:${row}:${col}`
+}
+
+async function findComputerMove(excludedMoves: ReadonlySet<string>): Promise<ChineseChessSuggestedMove | null> {
+  const candidates = buildChineseChessMlCandidates(localBoard.value, COMPUTER_COLOR)
+    .filter(candidate => !excludedMoves.has(candidate.id))
+
+  if (!candidates.length) return null
+
+  try {
+    const response = await api<{
+      candidate_id: string
+      bestmove: string
+      engine: { name: string; depth: number | null; score_cp: number | null; nodes: number | null }
+    }>('/api/chinese-chess/engine/best-move', {
+      method: 'POST',
+      body: {
+        fen: chineseChessBoardToFen(
+          localBoard.value,
+          COMPUTER_COLOR,
+          0,
+          Math.floor(moveHistory.value.length / 2) + 1,
+        ),
+        candidates: candidates.map(candidate => ({
+          id: candidate.id,
+          uci: chineseChessMoveToUci(candidate.from, candidate.to),
+        })),
+      },
+    })
+    const selected = candidates.find(candidate => candidate.id === response.candidate_id)
+
+    if (selected) {
+      computerEngine.value = 'pikafish'
+      return selected
+    }
+  } catch {
+    // Fall through to the lightweight learned model when Pikafish is offline.
+  }
+
+  try {
+    const response = await api<{
+      candidate_id: string
+      score: number
+      confidence: number
+      model: { version: string; algorithm: string }
+    }>('/api/chinese-chess/ml/predict', {
+      method: 'POST',
+      body: {
+        candidates: candidates.map(candidate => ({
+          id: candidate.id,
+          features: candidate.features,
+        })),
+      },
+    })
+    const selected = candidates.find(candidate => candidate.id === response.candidate_id)
+
+    if (selected) {
+      const tacticalBest = findBestChineseChessMove(localBoard.value, COMPUTER_COLOR, excludedMoves)
+      const selectedTacticalScore = evaluateChineseChessMove(localBoard.value, COMPUTER_COLOR, selected)
+
+      computerEngine.value = 'hybrid'
+      if (
+        tacticalBest
+        && selectedTacticalScore !== null
+        && selectedTacticalScore < tacticalBest.score - 60
+      ) return tacticalBest
+
+      return { ...selected, score: response.score }
+    }
+  } catch {
+    // The local minimax engine keeps the game usable while the model is offline.
+  }
+
+  computerEngine.value = 'minimax'
+  return findBestChineseChessMove(localBoard.value, COMPUTER_COLOR, excludedMoves)
+}
+
+async function performComputerMove(): Promise<void> {
+  computerMoveTimer = null
+
+  if (
+    gameMode.value !== 'computer'
+    || !gameStarted.value
+    || gameOver.value
+    || currentTurn.value !== COMPUTER_COLOR
+  ) {
+    computerThinking.value = false
+    return
+  }
+
+  computerThinking.value = true
+  const excludedMoves = new Set<string>()
+
+  while (true) {
+    const positionBeforeThinking = localBoard.value
+      .map(piece => `${piece.id}:${piece.row}:${piece.col}`)
+      .sort()
+      .join('|')
+    const suggestion = await findComputerMove(excludedMoves)
+
+    const currentPosition = localBoard.value
+      .map(piece => `${piece.id}:${piece.row}:${piece.col}`)
+      .sort()
+      .join('|')
+    if (
+      positionBeforeThinking !== currentPosition
+      || gameMode.value !== 'computer'
+      || !gameStarted.value
+      || gameOver.value
+      || currentTurn.value !== COMPUTER_COLOR
+    ) {
+      computerThinking.value = false
+      return
+    }
+
+    if (!suggestion) {
+      computerThinking.value = false
+      if (isCheckmate(localBoard.value, COMPUTER_COLOR)) handleCheckmate('red')
+      return
+    }
+
+    const piece = localBoard.value.find(candidate => candidate.id === suggestion.pieceId)
+    if (!piece) {
+      excludedMoves.add(computerMoveKey(suggestion.pieceId, suggestion.to.row, suggestion.to.col))
+      continue
+    }
+
+    const captured = localBoard.value.find(candidate =>
+      candidate.row === suggestion.to.row && candidate.col === suggestion.to.col) ?? null
+    const nextBoard = movePiece(localBoard.value, piece.id, suggestion.to)
+    const accepted = handleMove({
+      number: 0,
+      color: piece.color,
+      piece: { ...piece },
+      from: { row: piece.row, col: piece.col },
+      to: { ...suggestion.to },
+      captured: captured ? { ...captured } : null,
+      position: nextBoard,
+      is_check: isInCheck(nextBoard, 'red'),
+    }, 'computer')
+
+    if (!accepted) {
+      excludedMoves.add(computerMoveKey(piece.id, suggestion.to.row, suggestion.to.col))
+      continue
+    }
+
+    computerThinking.value = false
+    if (isCheckmate(nextBoard, 'red')) handleCheckmate(COMPUTER_COLOR)
+    return
+  }
+}
+
+function scheduleComputerMove(): void {
+  clearComputerMoveTimer()
+
+  if (
+    gameMode.value !== 'computer'
+    || !gameStarted.value
+    || gameOver.value
+    || currentTurn.value !== COMPUTER_COLOR
+  ) return
+
+  computerThinking.value = true
+  computerMoveTimer = setTimeout(() => { void performComputerMove() }, 650)
+}
+
+function selectGameMode(mode: 'local' | 'computer'): void {
+  if (gameStarted.value && !gameOver.value) return
+  if (gameStarted.value || moveHistory.value.length) restartGame()
+  gameMode.value = mode
+  gameKey.value++
 }
 
 function undoLastMove(): void {
   if (!canUndo.value) return
+
+  clearComputerMoveTimer()
+
+  if (gameMode.value === 'computer') {
+    let removedMoves = 0
+
+    while (moveHistory.value.length) {
+      const move = moveHistory.value.pop()
+      if (!move) break
+      removedMoves++
+      if (move.captured) {
+        if (move.color === 'red') redCaptured.value.pop()
+        else blackCaptured.value.pop()
+      }
+      if (move.color === 'red') break
+    }
+
+    redUndosRemaining.value--
+    const previous = moveHistory.value.at(-1)?.position ?? createInitialBoard()
+    localBoard.value = previous.map(piece => ({ ...piece }))
+    positionHistory.value = positionHistory.value.slice(0, -removedMoves)
+    if (!positionHistory.value.length) positionHistory.value = initialPositionHistory(localBoard.value, 'red')
+    repetitionState.value = adjudicateRepetition(positionHistory.value)
+    repetitionModal.value = false
+    currentTurn.value = 'red'
+    isCheck.value = isInCheck(localBoard.value, 'red')
+    checkColor.value = isCheck.value ? 'red' : null
+    startTimer()
+    return
+  }
 
   const move = moveHistory.value.pop()
   if (!move) return
@@ -811,7 +1041,9 @@ function surrender() {
 
   const winningColor:
     PieceColor =
-      currentTurn.value === 'red'
+      gameMode.value === 'computer'
+        ? 'black'
+        : currentTurn.value === 'red'
         ? 'black'
         : 'red'
 
@@ -827,8 +1059,11 @@ function surrender() {
  * ==========================================
  */
 
+watch([gameMode, gameStarted, gameOver, currentTurn], scheduleComputerMove)
+
 onBeforeUnmount(() => {
   stopTimer()
+  clearComputerMoveTimer()
 })
 </script>
 
@@ -843,8 +1078,12 @@ onBeforeUnmount(() => {
 
     <section class="chess-roombar">
       <div>
-        <span class="online-chess__eyebrow">CHƠI CÙNG THIẾT BỊ</span>
-        <p class="local-chess__subtitle">Hai người chơi · 10 phút mỗi bên</p>
+        <span class="online-chess__eyebrow">{{ gameMode === 'computer' ? 'ĐẤU VỚI MÁY' : 'CHƠI CÙNG THIẾT BỊ' }}</span>
+        <p class="local-chess__subtitle">{{ gameMode === 'computer' ? 'Bạn cầm quân Đỏ · Máy cầm quân Đen' : 'Hai người chơi · 10 phút mỗi bên' }}</p>
+      </div>
+      <div class="local-mode-switch" aria-label="Chọn chế độ chơi">
+        <button type="button" :class="{ 'is-active': gameMode === 'local' }" :disabled="gameStarted && !gameOver" @click="selectGameMode('local')"><Users :size="15" /> Hai người</button>
+        <button type="button" :class="{ 'is-active': gameMode === 'computer' }" :disabled="gameStarted && !gameOver" @click="selectGameMode('computer')"><Bot :size="15" /> Chơi với máy</button>
       </div>
       <div class="chess-roombar__status" :class="gameStarted && !gameOver ? 'is-playing' : 'is-waiting'">
         <span></span>{{ gameOver ? 'Ván đấu kết thúc' : gameStarted ? `Lượt quân ${currentPlayerName}` : 'Sẵn sàng bắt đầu' }}
@@ -883,8 +1122,14 @@ onBeforeUnmount(() => {
         </div>
         <div class="captured-block">
           <p>Quân đã ăn</p>
-          <div><span>Đỏ</span><b v-for="piece in redCaptured" :key="piece.id" class="captured-piece-token" :class="`is-${piece.color}`" :title="getPieceName(piece)">{{ getPieceSymbol(piece) }}</b><small v-if="!redCaptured.length">—</small></div>
-          <div><span>Đen</span><b v-for="piece in blackCaptured" :key="piece.id" class="captured-piece-token" :class="`is-${piece.color}`" :title="getPieceName(piece)">{{ getPieceSymbol(piece) }}</b><small v-if="!blackCaptured.length">—</small></div>
+          <div class="captured-row">
+            <span>Đỏ</span>
+            <div class="captured-piece-list"><b v-for="piece in redCaptured" :key="piece.id" class="captured-piece-token" :class="`is-${piece.color}`" :title="getPieceName(piece)">{{ getPieceSymbol(piece) }}</b><small v-if="!redCaptured.length">—</small></div>
+          </div>
+          <div class="captured-row">
+            <span>Đen</span>
+            <div class="captured-piece-list"><b v-for="piece in blackCaptured" :key="piece.id" class="captured-piece-token" :class="`is-${piece.color}`" :title="getPieceName(piece)">{{ getPieceSymbol(piece) }}</b><small v-if="!blackCaptured.length">—</small></div>
+          </div>
         </div>
       </aside>
 
@@ -892,9 +1137,9 @@ onBeforeUnmount(() => {
         <div v-if="!gameStarted" class="board-overlay">
           <div class="board-waiting-card">
             <div class="board-waiting-card__icon"><Swords :size="24" /></div>
-            <span class="board-waiting-card__eyebrow">HAI NGƯỜI · CÙNG THIẾT BỊ</span>
+            <span class="board-waiting-card__eyebrow">{{ gameMode === 'computer' ? 'NGƯỜI CHƠI · MÁY TÍNH' : 'HAI NGƯỜI · CÙNG THIẾT BỊ' }}</span>
             <h2>Sẵn sàng khai cuộc?</h2>
-            <p>Quân Đỏ đi trước. Mỗi bên có 10 phút để thi đấu.</p>
+            <p>{{ gameMode === 'computer' ? 'Bạn cầm quân Đỏ và đi trước. Máy sẽ tự phân tích nước đáp trả.' : 'Quân Đỏ đi trước. Mỗi bên có 10 phút để thi đấu.' }}</p>
             <button class="chess-button chess-button--primary" @click="startGame"><Play :size="17" /> Bắt đầu ván đấu</button>
           </div>
         </div>
@@ -903,6 +1148,7 @@ onBeforeUnmount(() => {
           :current-turn="currentTurn"
           :game-started="gameStarted && !gameOver"
           :position="localBoard"
+          :player-color="gameMode === 'computer' ? 'red' : null"
           :last-move="lastMove"
           @move="handleMove"
           @checkmate="handleCheckmate"
@@ -918,7 +1164,7 @@ onBeforeUnmount(() => {
           </div>
         <div class="player-card" :class="{ 'is-active': gameStarted && !gameOver && currentTurn === 'black' }">
           <div class="player-avatar is-black">將</div>
-          <div><span>QUÂN ĐEN</span><strong>Người chơi Đen</strong></div>
+          <div><span>QUÂN ĐEN</span><strong>{{ gameMode === 'computer' ? `Máy tính · ${computerEngine === 'pikafish' ? 'Pikafish NNUE' : computerEngine === 'hybrid' ? 'ML + Minimax' : 'Minimax'}` : 'Người chơi Đen' }}</strong></div>
           <time>{{ blackTimeText }}</time>
         </div>
         <div class="match-versus">VS</div>
@@ -930,7 +1176,7 @@ onBeforeUnmount(() => {
         <div class="match-notice" :class="{ 'is-mine': gameStarted && !gameOver }" aria-live="polite">
           <Swords :size="17" />
           <div>
-            <strong>{{ gameOver ? `Quân ${winnerName} thắng` : gameStarted ? `Lượt quân ${currentPlayerName}` : 'Bấm Bắt đầu để khai cuộc' }}</strong>
+            <strong>{{ gameOver ? `Quân ${winnerName} thắng` : computerThinking ? 'Máy đang phân tích nước đi…' : gameStarted ? `Lượt quân ${currentPlayerName}` : 'Bấm Bắt đầu để khai cuộc' }}</strong>
             <span v-if="gameStarted && !gameOver && isCheck">{{ checkPlayerName }} đang bị chiếu! Hãy tìm nước đi để thoát chiếu.</span>
           </div>
         </div>
