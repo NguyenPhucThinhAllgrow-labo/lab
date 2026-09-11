@@ -2062,6 +2062,15 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
+  function hintPenaltyFor(level: number): number {
+    const normalizedLevel = Math.min(3, Math.max(1, level)) as 1 | 2 | 3
+    const penalties = scenario.id === 'case003'
+      ? ({ 1: 0, 2: 2, 3: 5 } as const)
+      : ({ 1: 2, 2: 5, 3: 10 } as const)
+
+    return penalties[normalizedLevel]
+  }
+
   function showEvidenceHint(
     evidence: Evidence,
     level = 1,
@@ -2333,9 +2342,7 @@ export function useDetectiveGame(
     }
 
     const normalizedLevel = Math.min(3, Math.max(1, level))
-    const penalty = ({ 1: 2, 2: 5, 3: 10 } as const)[
-      normalizedLevel as 1 | 2 | 3
-    ]
+    const penalty = hintPenaltyFor(normalizedLevel)
     const alreadyCharged = state.hintHistory.some(usage =>
       usage.task_id === taskId &&
       usage.evidence_id === evidence.id &&
@@ -2364,10 +2371,14 @@ export function useDetectiveGame(
     lines.push(state.locale === 'vi'
       ? alreadyCharged
         ? `→ Gợi ý đã mở khóa · Không trừ thêm điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
-        : `→ Chi phí: -${penalty} điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
+        : penalty === 0
+          ? `→ Gợi ý cấp 1 miễn phí · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
+          : `→ Chi phí: -${penalty} điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
       : alreadyCharged
         ? `→ Hint already unlocked · No additional cost · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`
-        : `→ Cost: -${penalty} points · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`)
+        : penalty === 0
+          ? `→ Free level-one hint · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`
+          : `→ Cost: -${penalty} points · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`)
 
     if (normalizedLevel >= 2) {
       lines.push(
@@ -2528,8 +2539,8 @@ export function useDetectiveGame(
         addLine(
           'warning',
           state.locale === 'vi'
-            ? `Gợi ý cấp ${level} sẽ trừ ${level === 2 ? 5 : 10} điểm. Gõ "confirm hint ${level}" để xác nhận.`
-            : `Level ${level} costs ${level === 2 ? 5 : 10} points. Type "confirm hint ${level}" to continue.`,
+            ? `Gợi ý cấp ${level} sẽ trừ ${hintPenaltyFor(level)} điểm. Gõ "confirm hint ${level}" để xác nhận.`
+            : `Level ${level} costs ${hintPenaltyFor(level)} points. Type "confirm hint ${level}" to continue.`,
         )
         return
       }
@@ -2595,8 +2606,8 @@ export function useDetectiveGame(
       addLine(
         'warning',
         state.locale === 'vi'
-          ? `Gợi ý cấp ${level} sẽ trừ ${level === 2 ? 5 : 10} điểm. Gõ "confirm hint ${level}" để xác nhận.`
-          : `Level ${level} costs ${level === 2 ? 5 : 10} points. Type "confirm hint ${level}" to continue.`,
+          ? `Gợi ý cấp ${level} sẽ trừ ${hintPenaltyFor(level)} điểm. Gõ "confirm hint ${level}" để xác nhận.`
+          : `Level ${level} costs ${hintPenaltyFor(level)} points. Type "confirm hint ${level}" to continue.`,
       )
       return
     }

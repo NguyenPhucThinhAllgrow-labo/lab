@@ -108,3 +108,8 @@ optimize: ## Tạo cache cấu hình, route và view
 
 db: ## Mở MySQL CLI
 	$(DOCKER_COMPOSE) exec mysql mysql -uuser123 -proot laravel_nuxt
+
+cloudflared:
+	docker compose logs cloudflared \
+	| grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' \
+	| tail -n 1
