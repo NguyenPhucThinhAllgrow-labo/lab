@@ -10,15 +10,15 @@ Các Evidence cần nối cho từng task trong lượt giải chuẩn:
 
 | Task | Evidence cần đối chiếu |
 | --- | --- |
-| 1 | Evidence 01, 02, 07, 08 |
+| 1 | Evidence 01, 02 |
 | 2 | Evidence 03, 04 |
-| 3 | Evidence 05, 06, 07, 08, 09 |
-| 4 | Evidence 10, 11, 12, 13 |
-| 5 | Evidence 15, 16, 17, 18 |
-| 6 | Evidence 18, 19, 22 |
+| 3 | Evidence 07, 08, 09 |
+| 4 | Evidence 11, 12, 13 |
+| 5 | Evidence 16, 17, 18 |
+| 6 | Evidence 18, 19 |
 | 7 | Evidence 20, 21, 22 |
-| 8 | Evidence 23, 24, 25 |
-| 9 | Evidence 14, 23, 26 |
+| 8 | Evidence 24, 25 |
+| 9 | Evidence 14, 26 |
 
 Nếu muốn chơi lại từ đầu, nhấn **Reset game** và xác nhận xóa tiến trình hiện tại.
 
@@ -47,29 +47,24 @@ Các lệnh phân tích giúp hình thành giả thuyết; dùng `cat` khi cần
 
 ## 1. Tái dựng dòng thời gian kỹ thuật số
 
-Đọc hoạt động hệ thống trước, sau đó lần theo quá trình xác thực, kết nối từ xa và tiến trình tạo archive:
+Đọc hoạt động hệ thống và đối chiếu lần đăng nhập hợp lệ với lần đăng nhập bất thường:
 
 ```bash
 cat /logs/system.log
 cat /logs/auth.log
-cat /network/network.log
-cat /scripts/maintenance.txt
-cat /users/service-accounts.txt
-cat /server/remote-session.log
-cat /server/process.log
 ```
 
 Kết luận cần nhận ra:
 
 - Phiên hợp lệ của Daniel đã chuyển sang trạng thái không hoạt động.
-- Một endpoint lạ bỏ qua MFA rồi truy cập máy trạm từ xa.
-- `svc-archive`, `remote-sync` và `archive-worker` được dùng để tạo archive Phoenix.
+- Một endpoint lạ đã bỏ qua MFA rồi sử dụng danh tính của Daniel.
 
-Sau `process.log`, mở hai panel và đối chiếu Evidence 01, 02, 07, 08. Khi cả bốn liên kết đúng, cảnh sát mới giao nhiệm vụ xác định nguồn tấn công.
+Mở hai panel và đối chiếu Evidence 01, 02. Khi cả hai liên kết đúng, cảnh sát giao nhiệm vụ truy nguồn endpoint lạ.
 
 ## 2. Xác định nguồn tấn công
 
 ```bash
+cat /network/network.log
 cat /network/dhcp.log
 ```
 
@@ -77,9 +72,13 @@ DHCP ánh xạ địa chỉ `10.44.12.77` tới `VICTOR-LAPTOP`. Đối chiếu 
 
 ## 3. Xác định đường thực thi
 
-Các mắt xích `MAINT-7`, `svc-archive`, phiên từ xa và `archive-worker` đã được tìm thấy. Thu thập thêm bằng chứng độc lập trong bộ nhớ:
+Lần theo endpoint bảo trì, tài khoản dịch vụ, phiên từ xa và tiến trình tạo archive; sau đó xác nhận độc lập bằng bộ nhớ:
 
 ```bash
+cat /scripts/maintenance.txt
+cat /users/service-accounts.txt
+cat /server/remote-session.log
+cat /server/process.log
 cat /forensics/memory.txt
 ```
 
@@ -118,10 +117,17 @@ Kết luận:
 
 ## 6. Truy tìm động cơ và chỉ đạo
 
-Đọc thông điệp gửi cho Victor, sau đó truy dấu hạ tầng bên ngoài:
+Đọc thông điệp gửi cho Victor để xác định hắn có nhận chỉ đạo từ bên ngoài hay không:
 
 ```bash
 cat /emails/deleted-mail.txt
+```
+
+## 7. Truy dấu dữ liệu bị đánh cắp
+
+Lần theo đích của archive và kiểm tra hạ tầng NODE-OMEGA:
+
+```bash
 cat /external/destination.txt
 cat /external/certificate.txt
 cat /external/connection-history.txt
@@ -133,10 +139,6 @@ Kết luận:
 - Archive được chuyển tới `NODE-OMEGA` tại `10.44.19.88`.
 - NODE-OMEGA không phải hệ thống production thuộc công ty.
 - Máy chủ này từng liên lạc với Security Lab và laptop của Victor.
-
-## 7. Truy dấu dữ liệu bị đánh cắp
-
-Ba evidence của nhiệm vụ này đã được thu thập ở chặng trước, nhưng task không tự hoàn thành. Hãy đối chiếu Evidence 20, 21 và 22 với task mới được giao.
 
 ## 8. Phân biệt ba danh tính
 

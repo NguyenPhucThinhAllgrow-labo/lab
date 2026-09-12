@@ -10,7 +10,7 @@ BACKEND_TTY_OFF := $(DOCKER_COMPOSE) exec -T backend
 	composer composer-install artisan key-generate wait-db migrate \
 	migrate-status migrate-rollback migrate-fresh seed test test-filter \
 	pint pint-test routes tinker queue-work cache-clear optimize db \
-	detective-export
+	detective-export ml-train pikafish-build pikafish-logs pikafish-health
 
 help: ## Hiển thị danh sách lệnh
 	@awk 'BEGIN {FS = ":.*## "; printf "Backend commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -78,6 +78,22 @@ seed: wait-db ## Chạy database seeders
 detective-export: ## Đồng bộ các file case TypeScript sang dữ liệu seed JSON
 	node scripts/export-detective-cases.mjs
 
+ml-train: ## Train model fallback từ JSONL tại data/generated/chinese-chess-training.jsonl
+	@test -f data/generated/chinese-chess-training.jsonl || (printf 'Thiếu data/generated/chinese-chess-training.jsonl\n' && exit 1)
+	python3 scripts/train-chinese-chess-ml.py \
+		data/generated/chinese-chess-training.jsonl \
+		--output backend/resources/ml/chinese-chess-model.json
+
+pikafish-build: ## Build và khởi động Pikafish/NNUE
+	$(DOCKER_COMPOSE) build pikafish
+	$(DOCKER_COMPOSE) up -d pikafish backend
+
+pikafish-logs: ## Xem log Pikafish
+	$(DOCKER_COMPOSE) logs -f pikafish
+
+pikafish-health: ## Kiểm tra engine từ container backend
+	$(BACKEND_TTY_OFF) php -r 'echo file_get_contents("http://pikafish:8080/health"), PHP_EOL;'
+
 test: ## Chạy toàn bộ backend tests
 	$(BACKEND) php artisan test
 
@@ -108,3 +124,8 @@ optimize: ## Tạo cache cấu hình, route và view
 
 db: ## Mở MySQL CLI
 	$(DOCKER_COMPOSE) exec mysql mysql -uuser123 -proot laravel_nuxt
+
+cloudflared:
+	docker compose logs cloudflared \
+	| grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' \
+	| tail -n 1

@@ -30,6 +30,20 @@ services:
     depends_on:
       - mysql
       - redis
+      - pikafish
+
+  pikafish:
+    build:
+      context: .
+      dockerfile: docker/pikafish/Dockerfile
+      args:
+        PIKAFISH_REF: 99793311968f59cf5be2dd03f646b25ab8ab56e3
+        PIKAFISH_NNUE_SHA256: 7d13d73569a9b571ba0eb20cf1596247bc2a42738967e61afef6482b231e900e
+        PIKAFISH_ARCH: ${PIKAFISH_ARCH:-auto}
+    environment:
+      PIKAFISH_THREADS: ${PIKAFISH_THREADS:-1}
+      PIKAFISH_HASH_MB: ${PIKAFISH_HASH_MB:-128}
+    restart: unless-stopped
 
   frontend:
     image: node:22-alpine

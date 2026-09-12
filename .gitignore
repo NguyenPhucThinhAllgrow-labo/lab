@@ -3,5 +3,6 @@ laravel-nuxt-docker/frontend/node_modules/
 laravel-nuxt-docker/frontend/.nuxt/
 laravel-nuxt-docker/frontend/yarn.lock
 laravel-nuxt-docker/frontend/package-lock.json
+laravel-nuxt-docker/data/
 # Backend PHP dependencies
 laravel-nuxt-docker/backend/vendor/

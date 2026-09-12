@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    'chinese_chess_ml' => [
+        'model_path' => env(
+            'CHINESE_CHESS_ML_MODEL_PATH',
+            resource_path('ml/chinese-chess-model.json'),
+        ),
+    ],
+
+    'chinese_chess_engine' => [
+        'url' => env('CHINESE_CHESS_ENGINE_URL', 'http://pikafish:8080'),
+        'move_time_ms' => env('CHINESE_CHESS_ENGINE_MOVE_TIME_MS', 700),
+        'timeout_seconds' => env('CHINESE_CHESS_ENGINE_TIMEOUT_SECONDS', 5),
+    ],
+
 ];

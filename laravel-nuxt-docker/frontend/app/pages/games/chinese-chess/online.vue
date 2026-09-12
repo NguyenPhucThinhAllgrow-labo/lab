@@ -700,8 +700,14 @@ onBeforeUnmount(() => {
           </div>
           <div class="captured-block">
             <p>Quân đã ăn</p>
-            <div><span>Đỏ</span><b v-for="piece in redCaptured" :key="piece.id" class="captured-piece-token" :class="`is-${piece.color}`">{{ pieceName(piece) }}</b><small v-if="!redCaptured.length">—</small></div>
-            <div><span>Đen</span><b v-for="piece in blackCaptured" :key="piece.id" class="captured-piece-token" :class="`is-${piece.color}`">{{ pieceName(piece) }}</b><small v-if="!blackCaptured.length">—</small></div>
+            <div class="captured-row">
+              <span>Đỏ</span>
+              <div class="captured-piece-list"><b v-for="piece in redCaptured" :key="piece.id" class="captured-piece-token" :class="`is-${piece.color}`">{{ pieceName(piece) }}</b><small v-if="!redCaptured.length">—</small></div>
+            </div>
+            <div class="captured-row">
+              <span>Đen</span>
+              <div class="captured-piece-list"><b v-for="piece in blackCaptured" :key="piece.id" class="captured-piece-token" :class="`is-${piece.color}`">{{ pieceName(piece) }}</b><small v-if="!blackCaptured.length">—</small></div>
+            </div>
           </div>
         </aside>
 
