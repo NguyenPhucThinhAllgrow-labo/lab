@@ -3,7 +3,7 @@
 .player-turn__dot.is-red { background: #f87171; }
 .player-card { position: relative; isolation: isolate; }
 .player-card.is-active { border-color: rgb(103 232 249 / 65%); background: linear-gradient(115deg, rgb(8 145 178 / 12%), rgb(139 92 246 / 12%), rgb(52 211 153 / 8%)); box-shadow: 0 0 16px rgb(34 211 238 / 16%), inset 0 0 12px rgb(103 232 249 / 5%); }
-.player-card.is-active::before { position: absolute; z-index: -1; inset: -2px; border: 1px solid transparent; border-radius: inherit; background: linear-gradient(110deg, #67e8f9, #c4b5fd, #6ee7b7, #67e8f9) border-box; background-size: 300% 100%; mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0); mask-composite: exclude; content: ''; pointer-events: none; animation: chess-holo-flow 5s linear infinite; }
+.player-card.is-active::before { position: absolute; z-index: -1; inset: -2px; border: 1px solid transparent; border-radius: inherit; background: linear-gradient(110deg, #67e8f9, #c4b5fd, #6ee7b7, #67e8f9) border-box; background-size: 300% 100%; mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0); mask-composite: exclude; content: ''; pointer-events: none; animation: chess-holo-pulse 3s ease-in-out infinite alternate; }
 .player-card.is-active .player-avatar { box-shadow: 0 0 12px rgb(103 232 249 / 25%); }
 .player-card.is-active time { color: #cffafe; text-shadow: 0 0 12px rgb(103 232 249 / 35%); }
 @keyframes chess-holo-flow { from { background-position: 0% 50%; } to { background-position: 150% 50%; } }
@@ -11,3 +11,5 @@
 
 .player-card > div:nth-child(2) > span { color: #e7e5e4; }
 .player-card:has(.player-avatar.is-red) > div:nth-child(2) > span { color: #fca5a5; }
+
+@keyframes chess-holo-pulse { from { opacity: .5; } to { opacity: 1; } }

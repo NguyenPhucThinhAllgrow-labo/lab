@@ -14,7 +14,7 @@ import type {
   PieceColor,
 } from '~/types/games/chinese-chess'
 import { createInitialBoard } from '~/utils/chinese-chess/board'
-import { buildChineseChessMlCandidates, evaluateChineseChessMove, findBestChineseChessMove, type ChineseChessSuggestedMove } from '~/utils/chinese-chess/advisor'
+import { type ChineseChessSuggestedMove } from '~/utils/chinese-chess/advisor'
 import { isCheckmate, isInCheck } from '~/utils/chinese-chess/check'
 import { movePiece } from '~/utils/chinese-chess/game'
 import { adjudicateRepetition, initialPositionHistory, recordPosition, type PositionRecord } from '~/utils/chinese-chess/repetition'
@@ -781,9 +781,13 @@ function computerMoveKey(pieceId: string, row: number, col: number): string {
   return `${pieceId}:${row}:${col}`
 }
 
+const chessWorker = useChineseChessWorker()
+const computerError = ref('')
+let computerDisposed = false
+
 async function findComputerMove(excludedMoves: ReadonlySet<string>): Promise<ChineseChessSuggestedMove | null> {
-  const candidates = buildChineseChessMlCandidates(localBoard.value, COMPUTER_COLOR)
-    .filter(candidate => !excludedMoves.has(candidate.id))
+  const board = localBoard.value.map(piece => ({ ...piece }))
+  const candidates = await chessWorker.candidates(board, COMPUTER_COLOR, excludedMoves)
 
   if (!candidates.length) return null
 
@@ -835,8 +839,7 @@ async function findComputerMove(excludedMoves: ReadonlySet<string>): Promise<Chi
     const selected = candidates.find(candidate => candidate.id === response.candidate_id)
 
     if (selected) {
-      const tacticalBest = findBestChineseChessMove(localBoard.value, COMPUTER_COLOR, excludedMoves)
-      const selectedTacticalScore = evaluateChineseChessMove(localBoard.value, COMPUTER_COLOR, selected)
+      const { best: tacticalBest, selectedScore: selectedTacticalScore } = await chessWorker.tactics(board, COMPUTER_COLOR, excludedMoves, selected)
 
       computerEngine.value = 'hybrid'
       if (
@@ -852,7 +855,7 @@ async function findComputerMove(excludedMoves: ReadonlySet<string>): Promise<Chi
   }
 
   computerEngine.value = 'minimax'
-  return findBestChineseChessMove(localBoard.value, COMPUTER_COLOR, excludedMoves)
+  return (await chessWorker.tactics(board, COMPUTER_COLOR, excludedMoves)).best
 }
 
 async function performComputerMove(): Promise<void> {
@@ -869,6 +872,8 @@ async function performComputerMove(): Promise<void> {
   }
 
   computerThinking.value = true
+  computerError.value = ''
+  const thinkingGame = gameKey.value
   const excludedMoves = new Set<string>()
 
   while (true) {
@@ -876,14 +881,25 @@ async function performComputerMove(): Promise<void> {
       .map(piece => `${piece.id}:${piece.row}:${piece.col}`)
       .sort()
       .join('|')
-    const suggestion = await findComputerMove(excludedMoves)
+    let suggestion: ChineseChessSuggestedMove | null
+    try {
+      suggestion = await findComputerMove(excludedMoves)
+    } catch {
+      if (!computerDisposed && thinkingGame === gameKey.value) {
+        computerThinking.value = false
+        computerError.value = 'Không thể tính nước đi. Vui lòng thử lại.'
+      }
+      return
+    }
 
     const currentPosition = localBoard.value
       .map(piece => `${piece.id}:${piece.row}:${piece.col}`)
       .sort()
       .join('|')
     if (
-      positionBeforeThinking !== currentPosition
+      computerDisposed
+      || thinkingGame !== gameKey.value
+      || positionBeforeThinking !== currentPosition
       || gameMode.value !== 'computer'
       || !gameStarted.value
       || gameOver.value
@@ -1062,6 +1078,7 @@ function surrender() {
 watch([gameMode, gameStarted, gameOver, currentTurn], scheduleComputerMove)
 
 onBeforeUnmount(() => {
+  computerDisposed = true
   stopTimer()
   clearComputerMoveTimer()
 })
@@ -1091,6 +1108,9 @@ onBeforeUnmount(() => {
       <NuxtLink to="/games/chinese-chess/online" class="chess-button"><Globe :size="17" /><span>Chơi online với bạn bè</span></NuxtLink>
     </section>
 
+    <div v-if="computerError" class="chess-error chess-error--room" role="alert">
+      {{ computerError }} <button class="chess-button" :disabled="computerThinking" @click="scheduleComputerMove">Thử lại</button>
+    </div>
     <section class="online-match">
       <nav class="mobile-chess-toolbar" aria-label="Thông tin ván đấu">
         <div>

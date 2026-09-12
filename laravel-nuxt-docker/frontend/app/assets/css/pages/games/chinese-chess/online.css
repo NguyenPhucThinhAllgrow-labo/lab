@@ -393,3 +393,8 @@
     transform: scale(.86);
   }
 }
+
+/* Keep large background effects out of the viewport's scrolling layers. */
+.online-chess::before { position: absolute; }
+.online-chess .online-chess__glow { position: absolute; background: radial-gradient(ellipse, rgb(217 119 6 / 9%), transparent 70%); filter: none; }
+.move-list { overscroll-behavior: contain; }

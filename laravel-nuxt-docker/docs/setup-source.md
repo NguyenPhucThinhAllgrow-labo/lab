@@ -146,18 +146,20 @@ Nếu chưa cần realtime online, có thể để public key trống; các ch�
 File `.env` ở root `laravel-nuxt-docker` là tùy chọn. Docker Compose đã có giá trị mặc định, nhưng có thể cấu hình:
 
 ```dotenv
-PIKAFISH_ARCH=x86-64-sse41-popcnt
+PIKAFISH_ARCH=auto
 PIKAFISH_THREADS=1
 PIKAFISH_HASH_MB=128
 ```
 
-Kiến trúc thường dùng:
+Mặc định `auto` chọn theo kiến trúc container Docker: `amd64` → `x86-64-sse41-popcnt`, `arm64` → `armv8`. Mac Apple Silicon, Mac Intel và Windows dùng chung lệnh cài đặt. Nếu root `.env` cũ có `PIKAFISH_ARCH`, đổi thành `auto` hoặc bỏ dòng đó.
+
+Có thể ghi đè khi cần:
 
 | Máy | `PIKAFISH_ARCH` |
 |---|---|
 | Intel/AMD 64-bit phổ thông | `x86-64-sse41-popcnt` |
 | Intel/AMD cũ | `x86-64` |
-| ARM64/Linux | `armv8` |
+| Mac Apple Silicon / Windows ARM / Linux ARM64 | `armv8` |
 
 ## 5. Cài đặt lần đầu
 
@@ -361,7 +363,9 @@ docker compose ps pikafish
 docker compose logs --tail=100 pikafish
 ```
 
-Nếu gặp `Illegal instruction`, đổi root `.env`:
+Nếu gặp lỗi `unrecognized command-line option -m64` hoặc `-msse`, đặt `PIKAFISH_ARCH=auto` trong root `.env` để tránh dùng cấu hình Intel trên ARM64.
+
+Nếu gặp `Illegal instruction` trên CPU Intel/AMD cũ, đổi root `.env`:
 
 ```dotenv
 PIKAFISH_ARCH=x86-64
@@ -370,7 +374,7 @@ PIKAFISH_ARCH=x86-64
 Sau đó build lại:
 
 ```bash
-docker compose build --no-cache pikafish
+docker compose build pikafish
 docker compose up -d --force-recreate pikafish backend
 make pikafish-health
 ```

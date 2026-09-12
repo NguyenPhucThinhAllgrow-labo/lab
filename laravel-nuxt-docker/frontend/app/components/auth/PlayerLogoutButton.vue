@@ -31,13 +31,18 @@ let pointerStartY = 0
 let positionStartX = 0
 let positionStartY = 0
 let sizeObserver: ResizeObserver | null = null
+let dragFrame: number | null = null
+let pendingPosition: { x: number; y: number } | null = null
+let dragBounds = { width: 0, height: 0, viewportWidth: 0, viewportHeight: 0 }
+let resizeSaveTimer: ReturnType<typeof setTimeout> | undefined
 
 const displayName = computed(() => user.value?.name?.trim() || 'Người chơi')
 const initial = computed(() => displayName.value.slice(0, 1).toLocaleUpperCase('vi'))
 
 const positionStyle = computed(() => ({
-  left: `${position.x}px`,
-  top: `${position.y}px`,
+  left: '0px',
+  top: '0px',
+  transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
   right: 'auto',
   bottom: 'auto',
   visibility: positionReady.value ? 'visible' : 'hidden',
@@ -45,12 +50,14 @@ const positionStyle = computed(() => ({
 
 function clampPosition(x: number, y: number) {
   const element = sessionElement.value
-  const width = element?.offsetWidth ?? 0
-  const height = element?.offsetHeight ?? 0
+  const width = activePointerId !== null ? dragBounds.width : element?.offsetWidth ?? 0
+  const height = activePointerId !== null ? dragBounds.height : element?.offsetHeight ?? 0
+  const viewportWidth = activePointerId !== null ? dragBounds.viewportWidth : window.innerWidth
+  const viewportHeight = activePointerId !== null ? dragBounds.viewportHeight : window.innerHeight
 
   return {
-    x: Math.min(Math.max(VIEWPORT_GAP, x), Math.max(VIEWPORT_GAP, window.innerWidth - width - VIEWPORT_GAP)),
-    y: Math.min(Math.max(VIEWPORT_GAP, y), Math.max(VIEWPORT_GAP, window.innerHeight - height - VIEWPORT_GAP)),
+    x: Math.min(Math.max(VIEWPORT_GAP, x), Math.max(VIEWPORT_GAP, viewportWidth - width - VIEWPORT_GAP)),
+    y: Math.min(Math.max(VIEWPORT_GAP, y), Math.max(VIEWPORT_GAP, viewportHeight - height - VIEWPORT_GAP)),
   }
 }
 
@@ -73,6 +80,11 @@ function handlePointerDown(event: PointerEvent) {
   // Keep native button clicks out of the draggable container's pointer capture.
   if (event.target instanceof Element && event.target.closest('button, a') && !event.target.closest('[data-drag-handle]')) return
 
+  dragBounds = {
+    width: sessionElement.value?.offsetWidth ?? 0,
+    height: sessionElement.value?.offsetHeight ?? 0,
+    viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
+  }
   activePointerId = event.pointerId
   pointerStartX = event.clientX
   pointerStartY = event.clientY
@@ -88,24 +100,38 @@ function handlePointerMove(event: PointerEvent) {
   const deltaX = event.clientX - pointerStartX
   const deltaY = event.clientY - pointerStartY
 
-  setPosition(positionStartX + deltaX, positionStartY + deltaY)
+  pendingPosition = { x: positionStartX + deltaX, y: positionStartY + deltaY }
+  if (dragFrame === null) dragFrame = requestAnimationFrame(flushDrag)
   event.preventDefault()
+}
+
+function flushDrag() {
+  dragFrame = null
+  if (pendingPosition) {
+    setPosition(pendingPosition.x, pendingPosition.y)
+    pendingPosition = null
+  }
 }
 
 function finishDragging(event: PointerEvent) {
   if (activePointerId !== event.pointerId) return
-
+  if (dragFrame !== null) cancelAnimationFrame(dragFrame)
+  flushDrag()
+  activePointerId = null
   if (sessionElement.value?.hasPointerCapture(event.pointerId)) {
     sessionElement.value.releasePointerCapture(event.pointerId)
   }
-  activePointerId = null
   dragging.value = false
+  setPosition(position.x, position.y)
   savePosition()
 }
 
 function handleResize() {
+  // Don't move the origin underneath an active pointer.
+  if (activePointerId !== null) return
   setPosition(position.x, position.y)
-  savePosition()
+  clearTimeout(resizeSaveTimer)
+  resizeSaveTimer = setTimeout(savePosition, 180)
 }
 
 function handleDragKeydown(event: KeyboardEvent) {
@@ -190,6 +216,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  if (dragFrame !== null) cancelAnimationFrame(dragFrame)
+  clearTimeout(resizeSaveTimer)
   sizeObserver?.disconnect()
   window.removeEventListener('resize', handleResize)
 })
@@ -303,8 +331,8 @@ onBeforeUnmount(() => {
 .player-session__drag:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .player-session.is-dragging .player-session__drag { cursor: grabbing; }
 .player-session--hacker .player-session__drag { border-radius: 1px; color: #6ee7b7; }
-.player-session { position: fixed; z-index: 1000; display: flex; height: 48px; align-items: center; gap: 7px; padding: 5px 6px 5px 7px; border: 1px solid rgb(214 224 211 / 16%); border-radius: 15px; background: rgb(24 27 25 / 96%); color: #e2e8f0; box-shadow: 0 14px 36px rgb(2 6 23 / 32%), inset 0 1px rgb(255 255 255 / 6%); font-family: Inter, ui-sans-serif, system-ui, sans-serif; cursor: grab; touch-action: none; user-select: none; backdrop-filter: blur(14px); }
-.player-session.is-dragging { cursor: grabbing; box-shadow: 0 18px 48px rgb(2 6 23 / 45%), 0 0 0 2px rgb(125 211 252 / 14%); }
+.player-session { position: fixed; z-index: 1000; display: flex; height: 48px; align-items: center; gap: 7px; padding: 5px 6px 5px 7px; border: 1px solid rgb(214 224 211 / 16%); border-radius: 15px; background: rgb(24 27 25 / 96%); color: #e2e8f0; box-shadow: 0 14px 36px rgb(2 6 23 / 32%), inset 0 1px rgb(255 255 255 / 6%); font-family: Inter, ui-sans-serif, system-ui, sans-serif; cursor: grab; touch-action: none; user-select: none;  }
+.player-session.is-dragging { cursor: grabbing; will-change: transform; box-shadow: 0 8px 18px rgb(2 6 23 / 45%), 0 0 0 2px rgb(125 211 252 / 14%); }
 .player-session__user { display: flex; min-width: 0; align-items: center; gap: 9px; }
 .player-session__avatar { display: grid; width: 34px; height: 34px; flex: none; place-items: center; border: 1px solid rgb(213 244 135 / 24%); border-radius: 10px; background: #303b2e; color: #d5f487; font-size: 12px; font-weight: 800; box-shadow: inset 0 1px rgb(255 255 255 / 6%); }
 .player-session__identity { display: grid; min-width: 0; max-width: 145px; gap: 1px; }

@@ -1371,14 +1371,14 @@ const displayedRankLabels = computed(() =>
     transparent 98% 100%
   );
   content: "";
-  filter: drop-shadow(0 0 4px var(--turn-glow-color));
+
   pointer-events: none;
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  animation: chess-turn-border-run 5.5s linear infinite;
+  animation: chess-turn-glow-pulse 3s ease-in-out infinite alternate;
 }
 
 .chess-board-frame.has-turn-glow .chess-board-surface {
@@ -1400,6 +1400,11 @@ const displayedRankLabels = computed(() =>
   syntax: "<angle>";
   inherits: false;
   initial-value: 0deg;
+}
+
+@keyframes chess-turn-glow-pulse {
+  from { opacity: .55; }
+  to { opacity: 1; }
 }
 
 @keyframes chess-turn-border-run {
