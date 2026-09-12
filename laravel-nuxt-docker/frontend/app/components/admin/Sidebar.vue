@@ -41,36 +41,16 @@ const algorithmMenuOpen = ref(false)
 const sortingMenuOpen = ref(false)
 
 const menuItems = [
+  { label: 'Lịch sử chơi cờ', to: '/admin/chinese-chess/history', icon: Trophy },
   {
     label: 'Dashboard',
     to: '/admin',
     icon: LayoutDashboard
   },
   {
-    label: 'Analytics',
-    to: '/analytics',
-    icon: BarChart3
-  },
-  {
     label: 'Users',
     to: '/admin/users',
     icon: Users
-  },
-  {
-    label: 'Products',
-    to: '/products',
-    icon: Package
-  },
-  {
-    label: 'Orders',
-    to: '/orders',
-    icon: ShoppingBag,
-    badge: '12'
-  },
-  {
-    label: 'Reports',
-    to: '/reports',
-    icon: FileText
   },
   {
     label: 'Pandora Ranking',
@@ -264,7 +244,7 @@ const handleLogout = async () => {
             {{ item.label }}
           </span>
 
-          <span
+          <!-- <span
             v-if="item.badge"
             class="
               ml-auto
@@ -276,7 +256,7 @@ const handleLogout = async () => {
             "
           >
             {{ item.badge }}
-          </span>
+          </span> -->
         </NuxtLink>
 
         <!-- Game -->

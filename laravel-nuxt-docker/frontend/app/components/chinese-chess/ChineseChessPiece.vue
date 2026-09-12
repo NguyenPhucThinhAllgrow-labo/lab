@@ -90,22 +90,9 @@ defineProps<{
   font-size: clamp(1.04rem, 4.55vw, 2rem);
   font-weight: 900;
   line-height: 1;
-  transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease;
+  transition: transform 150ms ease, filter 150ms ease;
   user-select: none;
   isolation: isolate;
-}
-
-.chess-piece::before {
-  position: absolute;
-  inset: 10%;
-  z-index: -1;
-  border: clamp(1px, 0.25vw, 2px) solid currentcolor;
-  border-radius: inherit;
-  box-shadow:
-    inset 1px 1px 1px rgb(255 255 255 / 58%),
-    1px 1px 1px rgb(92 49 18 / 28%);
-  content: "";
-  opacity: 0.5;
 }
 
 .chess-piece::after {

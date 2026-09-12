@@ -46,7 +46,7 @@
   font-weight: 900;
   line-height: 1;
   text-shadow: 0 1px rgb(255 255 255 / 24%);
-  box-shadow: inset 0 0 0 2px rgb(70 42 17 / 24%), 0 4px 9px rgb(0 0 0 / 30%);
+  box-shadow: 0 4px 9px rgb(0 0 0 / 30%);
 }
 
 .move-piece-token {
@@ -57,7 +57,7 @@
 
 .move-piece-token.is-captured {
   opacity: 0.78;
-  box-shadow: inset 0 0 0 2px rgb(70 42 17 / 24%), 0 0 0 2px rgb(239 68 68 / 24%);
+  box-shadow: 0 0 0 2px rgb(239 68 68 / 24%);
 }
 
 .move-capture-mark {

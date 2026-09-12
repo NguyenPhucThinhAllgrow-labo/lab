@@ -36,6 +36,14 @@ const presenceMembers = ref<ChineseChessPresenceMember[]>([])
 const suggestedMove = ref<ChineseChessSuggestedMove | null>(null)
 const advisorMessage = ref('')
 const advisorThinking = ref(false)
+const resizingViewport = ref(false)
+let resizeIdleTimer: ReturnType<typeof setTimeout> | undefined
+function handleViewportResize(): void {
+  // Change reactive state only at the start/end of a resize burst.
+  if (!resizingViewport.value) resizingViewport.value = true
+  clearTimeout(resizeIdleTimer)
+  resizeIdleTimer = setTimeout(() => { resizingViewport.value = false }, 180)
+}
 
 function toggleMobilePanel(panel: 'history' | 'players'): void {
   mobilePanel.value = mobilePanel.value === panel ? null : panel
@@ -219,21 +227,24 @@ function showAdvisorMessage(message: string, duration = 2800): void {
   }
 }
 
-async function suggestBestMove(): Promise<void> {
+async function suggestBestMove(silent = false): Promise<void> {
+  const notify = (message: string, duration = 2800) => {
+    if (!silent) showAdvisorMessage(message, duration)
+  }
   if (!room.value || advisorThinking.value) return
 
   if (spectatorMode.value) {
-    showAdvisorMessage('Người xem không thể sử dụng gợi ý nước đi.')
+    notify('Người xem không thể sử dụng gợi ý nước đi.')
     return
   }
 
   if (room.value.status !== 'playing') {
-    showAdvisorMessage('Gợi ý chỉ hoạt động khi ván đấu đang diễn ra.')
+    notify('Gợi ý chỉ hoạt động khi ván đấu đang diễn ra.')
     return
   }
 
   if (!isMyTurn.value || !room.value.your_color) {
-    showAdvisorMessage('Hãy chờ đến lượt của bạn để phân tích nước đi.')
+    notify('Hãy chờ đến lượt của bạn để phân tích nước đi.')
     return
   }
 
@@ -243,7 +254,7 @@ async function suggestBestMove(): Promise<void> {
 
   suggestedMove.value = null
   advisorThinking.value = true
-  showAdvisorMessage('Đang phân tích phản công tốt nhất của đối thủ…', 0)
+  notify('Đang phân tích phản công tốt nhất của đối thủ…', 0)
 
   // Yield once so the analyzing state is painted before the synchronous search.
   await new Promise(resolve => setTimeout(resolve, 30))
@@ -257,18 +268,18 @@ async function suggestBestMove(): Promise<void> {
     || room.value.status !== 'playing'
     || room.value.current_turn !== playerColor
   ) {
-    showAdvisorMessage('Thế cờ đã thay đổi, hãy nhấn Ctrl + H để phân tích lại.')
+    notify('Thế cờ đã thay đổi, hãy nhấn Ctrl + H để phân tích lại.')
     return
   }
 
   if (!result) {
-    showAdvisorMessage('Không tìm thấy nước đi hợp lệ.')
+    notify('Không tìm thấy nước đi hợp lệ.')
     return
   }
 
   suggestedMove.value = result
   const piece = board.find(candidate => candidate.id === result.pieceId)
-  showAdvisorMessage(
+  notify(
     `Gợi ý: ${piece ? pieceName(piece) : 'quân cờ'} ${positionText({ from: result.from, to: result.to })}.`,
     4200,
   )
@@ -278,7 +289,12 @@ function handleAdvisorShortcut(event: KeyboardEvent): void {
   if (!room.value || (!event.ctrlKey && !event.altKey) || event.key.toLowerCase() !== 'h') return
 
   event.preventDefault()
-  if (!event.repeat) void suggestBestMove()
+  if (event.ctrlKey) {
+    if (advisorMessageTimer) clearTimeout(advisorMessageTimer)
+    advisorMessageTimer = null
+    advisorMessage.value = ''
+  }
+  if (!event.repeat) void suggestBestMove(event.ctrlKey)
 }
 
 function messageFrom(error: any): string {
@@ -578,6 +594,7 @@ watch(clockTick, async () => {
 })
 
 onMounted(async () => {
+  window.addEventListener('resize', handleViewportResize, { passive: true })
   window.addEventListener('keydown', handleAdvisorShortcut, true)
   clockTimer = setInterval(() => { clockTick.value = Date.now() }, 1000)
   const code = typeof route.query.room === 'string' ? route.query.room.toUpperCase() : ''
@@ -592,6 +609,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleViewportResize)
+  clearTimeout(resizeIdleTimer)
   window.removeEventListener('keydown', handleAdvisorShortcut, true)
   realtime.disconnect()
   stopPolling()
@@ -601,7 +620,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="online-chess" :class="{ 'has-active-room': room }">
+  <main class="online-chess" :class="{ 'has-active-room': room, 'is-resizing': resizingViewport }">
     <div class="online-chess__glow" aria-hidden="true"></div>
 
     <header class="online-chess__header">
@@ -760,6 +779,7 @@ onBeforeUnmount(() => {
         </section>
 
         <div class="match-player-column" :class="{ 'is-mobile-open': mobilePanel === 'players' }">
+          <header class="mobile-match-header"><strong>Trận đấu</strong><button type="button" class="mobile-panel-close" aria-label="Đóng bảng trận đấu" @click="mobilePanel = null"><X :size="16" /></button></header>
           <section class="chess-roombar chess-roombar--sidebar">
             <div class="chess-roombar__room">
               <span class="online-chess__eyebrow">MÃ PHÒNG</span>
@@ -786,7 +806,7 @@ onBeforeUnmount(() => {
           </section>
 
           <aside class="match-panel match-panel--players">
-          <div class="match-panel__title"><span>Người chơi</span><Users :size="17" /><button type="button" class="mobile-panel-close" aria-label="Đóng bảng trận đấu" @click="mobilePanel = null"><X :size="16" /></button></div>
+          <div class="match-panel__title"><span>Người chơi</span><Users :size="17" /></div>
           <div v-if="room.status === 'playing'" class="player-turn" role="status">
             <span class="player-turn__dot" :class="{ 'is-red': room.current_turn === 'red' }"></span>
             Lượt quân {{ room.current_turn === 'red' ? 'Đỏ' : 'Đen' }}
@@ -1016,3 +1036,28 @@ onBeforeUnmount(() => {
 
 <style scoped src="~/assets/css/pages/games/chinese-chess/player-turn.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/spectators.css"></style>
+
+<style scoped>
+/* Keep layout responsive, but avoid repainting animated effects on each resize. */
+.online-chess.is-resizing :deep(*),
+.online-chess.is-resizing :deep(*::before),
+.online-chess.is-resizing :deep(*::after) {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+.online-chess.is-resizing :deep(.chess-board-frame::after) { filter: none; }
+.online-chess.is-resizing :deep(.chess-piece),
+.online-chess.is-resizing :deep(.chess-piece::after) { filter: none; }
+.online-chess.is-resizing :deep(.board-overlay),
+.online-chess.is-resizing .online-advisor-toast { backdrop-filter: none; }
+.online-chess.is-resizing :deep(.chess-piece) {
+  box-shadow: 0 2px 0 #75451f, inset 0 1px 2px rgb(255 249 215 / 50%);
+}
+.online-chess.is-resizing :deep(.chess-piece.is-selected) {
+  box-shadow: 0 0 0 3px #facc15;
+}
+.online-chess .online-chess__glow {
+  background: radial-gradient(ellipse, rgb(217 119 6 / 9%), transparent 70%);
+  filter: none;
+}
+</style>

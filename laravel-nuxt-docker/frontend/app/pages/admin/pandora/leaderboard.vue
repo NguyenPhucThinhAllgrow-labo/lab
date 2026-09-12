@@ -145,24 +145,31 @@ const leaderboardGroups = computed(() => {
 
 const tableGroups = computed(() => leaderboardGroups.value.map(group => ({ key: group.case.id, title: group.case.title, rows: group.entries })))
 
+let bestRequest = 0
+let historyRequest = 0
+
 async function loadBest(page = bestPagination.value.current_page) {
+  const request = ++bestRequest
   bestLoading.value = true
   errorMessage.value = ''
   try {
     const response = await api<BestResponse>('/api/admin/pandora/leaderboard/best', {
       query: { case_id: selectedCase.value || undefined, locale: 'vi', page, per_page: bestPagination.value.per_page },
     })
+    if (request !== bestRequest) return
     bestEntries.value = response.data.items
     bestPagination.value = response.data.pagination
     leaderboard.value = { summary: response.data.summary, cases: response.data.cases }
   } catch (error: any) {
+    if (request !== bestRequest) return
     errorMessage.value = error?.data?.message || 'Không thể tải thành tích tốt nhất.'
   } finally {
-    bestLoading.value = false
+    if (request === bestRequest) bestLoading.value = false
   }
 }
 
 async function loadHistory(page = historyPagination.value.current_page) {
+  const request = ++historyRequest
   historyLoading.value = true
   historyError.value = ''
   try {
@@ -173,12 +180,14 @@ async function loadHistory(page = historyPagination.value.current_page) {
         locale: 'vi', page, per_page: historyPagination.value.per_page,
       },
     })
+    if (request !== historyRequest) return
     historyEntries.value = response.data.items
     historyPagination.value = response.data.pagination
   } catch (error: any) {
+    if (request !== historyRequest) return
     historyError.value = error?.data?.message || 'Không thể tải lịch sử lượt chơi.'
   } finally {
-    historyLoading.value = false
+    if (request === historyRequest) historyLoading.value = false
   }
 }
 
@@ -218,11 +227,12 @@ let historySearchTimer: ReturnType<typeof setTimeout> | undefined
 watch(selectedCase, () => loadBest(1))
 watch(historyCase, () => loadHistory(1))
 watch(historyNameQuery, () => {
+  ++historyRequest
   clearTimeout(historySearchTimer)
   historySearchTimer = setTimeout(() => loadHistory(1), 300)
 })
 onMounted(() => Promise.all([loadBest(1), loadHistory(1)]))
-onBeforeUnmount(() => clearTimeout(historySearchTimer))
+onBeforeUnmount(() => { ++bestRequest; ++historyRequest; clearTimeout(historySearchTimer) })
 </script>
 
 <template>
