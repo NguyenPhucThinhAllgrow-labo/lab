@@ -62,7 +62,11 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/chinese-chess/history', [\App\Http\Controllers\Api\Admin\ChineseChessHistoryController::class, 'index']);
     Route::get('/chinese-chess/history/{round}', [\App\Http\Controllers\Api\Admin\ChineseChessHistoryController::class, 'show']);
+    Route::delete('/chinese-chess/history/{round}', [\App\Http\Controllers\Api\Admin\ChineseChessHistoryController::class, 'destroy']);
     Route::get('/users', [AdminUserController::class, 'index']);
+    Route::post('/users', [AdminUserController::class, 'store']);
+    Route::put('/users/{user}', [AdminUserController::class, 'update']);
+    Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
     Route::get('/pandora/leaderboard/best', [DetectiveLeaderboardController::class, 'best']);
     Route::get('/pandora/leaderboard/history', [DetectiveLeaderboardController::class, 'history']);
 });

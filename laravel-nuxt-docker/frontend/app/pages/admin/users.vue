@@ -4,6 +4,7 @@ import AdminFilterBar from '~/components/admin/AdminFilterBar.vue'
 import AdminPagination from '~/components/admin/AdminPagination.vue'
 import type { AdminPagination as Pagination } from '~/types/admin/table'
 import {
+  Plus, Pencil, Trash2, X,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -32,6 +33,50 @@ interface UserListResponse {
 useHead({ title: 'Users | Admin' })
 
 const api = useApi()
+const { user: currentUser } = useAuth()
+const dialog = ref<HTMLDialogElement | null>(null)
+const mode = ref<'create' | 'edit' | 'delete'>('create')
+const selectedUser = ref<AdminUser | null>(null)
+const saving = ref(false)
+const formError = ref('')
+const fieldErrors = ref<Record<string, string[]>>({})
+const form = reactive({ name: '', email: '', role: 'user' as 'admin' | 'user', password: '', password_confirmation: '' })
+const dialogTitle = computed(() => ({ create: 'Thêm người dùng', edit: 'Sửa người dùng', delete: 'Xóa người dùng?' })[mode.value])
+function openDialog(action: 'create' | 'edit' | 'delete', item: AdminUser | null = null) {
+  mode.value = action
+  selectedUser.value = item
+  formError.value = ''
+  fieldErrors.value = {}
+  Object.assign(form, { name: item?.name || '', email: item?.email || '', role: item?.role || 'user', password: '', password_confirmation: '' })
+  dialog.value?.showModal()
+}
+function closeDialog() {
+  if (saving.value) return
+  dialog.value?.close()
+  form.password = form.password_confirmation = ''
+}
+async function submitUser() {
+  if (saving.value) return
+  saving.value = true
+  formError.value = ''
+  fieldErrors.value = {}
+  try {
+    const id = selectedUser.value?.id
+    const response = await api<{ data?: AdminUser }>(`/api/admin/users${mode.value === 'create' ? '' : `/${id}`}`, {
+      method: mode.value === 'delete' ? 'DELETE' : mode.value === 'create' ? 'POST' : 'PUT',
+      ...(mode.value === 'delete' ? {} : { body: { ...form } }),
+    })
+    if (response.data && currentUser.value?.id === response.data.id) {
+      currentUser.value = { id: response.data.id, name: response.data.name, email: response.data.email, role: response.data.role }
+    }
+    dialog.value?.close()
+    form.password = form.password_confirmation = ''
+    await loadUsers(mode.value === 'create' ? 1 : mode.value === 'delete' && users.value.length === 1 ? Math.max(1, pagination.value.current_page - 1) : pagination.value.current_page)
+  } catch (error: any) {
+    formError.value = error?.data?.message || 'Không thể lưu thay đổi. Vui lòng thử lại.'
+    fieldErrors.value = error?.data?.errors || {}
+  } finally { saving.value = false }
+}
 const users = ref<AdminUser[]>([])
 const pagination = ref<Pagination>({
   current_page: 1,
@@ -116,10 +161,13 @@ onBeforeUnmount(() => {
         <p>Quản lý và tra cứu các tài khoản đang có trong hệ thống.</p>
       </div>
 
+      <div class="admin-users-actions">
+      <button class="admin-users-button is-primary" type="button" @click="openDialog('create')"><Plus :size="16" /> Thêm mới</button>
       <button class="admin-users-refresh" type="button" :disabled="loading" @click="loadUsers()">
         <RefreshCw :class="{ 'is-spinning': loading }" />
         Làm mới
       </button>
+      </div>
     </header>
 
     <section class="rounded-2xl border border-white/[0.06] bg-[#11111b]">
@@ -142,7 +190,7 @@ onBeforeUnmount(() => {
 
       </AdminFilterBar>
       <AdminDataTable
-      title="Danh sách người dùng" :rows="users" :columns="['ID', 'Người dùng', 'Vai trò', 'Xác thực email', 'Ngày tạo']"
+      title="Danh sách người dùng" :rows="users" :columns="['ID', 'Người dùng', 'Vai trò', 'Xác thực email', 'Ngày tạo', 'Thao tác']"
       :row-key="item => item.id" :loading="loading" :error="errorMessage" empty-text="Không tìm thấy người dùng" empty-description="Thử thay đổi từ khóa hoặc vai trò đang lọc." @retry="loadUsers(1)"
     >
       <template #row="{ row: item }">
@@ -170,11 +218,32 @@ onBeforeUnmount(() => {
                   </span>
                 </td>
                 <td class="admin-users-date">{{ formatDate(item.created_at) }}</td>
+                <td><div class="admin-users-actions">
+                  <button class="admin-users-button is-icon" type="button" :aria-label="`Sửa ${item.name}`" title="Sửa người dùng" @click="openDialog('edit', item)"><Pencil :size="16" /></button>
+                  <button class="admin-users-button is-icon is-danger" type="button" :disabled="item.id === currentUser?.id" :aria-label="`Xóa ${item.name}`" :title="item.id === currentUser?.id ? 'Không thể xóa tài khoản đang đăng nhập' : 'Xóa người dùng'" @click="openDialog('delete', item)"><Trash2 :size="16" /></button>
+                </div></td>
 
       </template>
     </AdminDataTable>
       <AdminPagination v-if="!errorMessage" :pagination="pagination" :loading="loading" item-label="tài khoản" @page-change="changePage" />
     </section>
+    <Teleport to="body">
+      <dialog ref="dialog" class="admin-users-dialog" aria-labelledby="user-dialog-title" @cancel.prevent="closeDialog">
+        <header><h2 id="user-dialog-title">{{ dialogTitle }}</h2><button type="button" class="admin-users-button is-icon" aria-label="Đóng" :disabled="saving" @click="closeDialog"><X :size="20" /></button></header>
+        <form @submit.prevent="submitUser">
+          <p v-if="mode === 'delete'" class="admin-users-delete-description">Xóa tài khoản <strong>{{ selectedUser?.name }}</strong> ({{ selectedUser?.email }})? Người dùng sẽ không thể đăng nhập bằng tài khoản này nữa.</p>
+          <fieldset v-else :disabled="saving">
+            <label>Họ tên<input v-model="form.name" required maxlength="255" autocomplete="name" autofocus><span v-if="fieldErrors.name" class="admin-users-form-error">{{ fieldErrors.name[0] }}</span></label>
+            <label>Email<input v-model="form.email" type="email" required maxlength="255" autocomplete="email"><span v-if="fieldErrors.email" class="admin-users-form-error">{{ fieldErrors.email[0] }}</span></label>
+            <label>Vai trò<select v-model="form.role" :disabled="selectedUser?.id === currentUser?.id"><option value="user">Người chơi</option><option value="admin">Quản trị viên</option></select><span v-if="fieldErrors.role" class="admin-users-form-error">{{ fieldErrors.role[0] }}</span></label>
+            <label>{{ mode === 'edit' ? 'Mật khẩu mới (để trống nếu giữ nguyên)' : 'Mật khẩu' }}<input v-model="form.password" type="password" :required="mode === 'create'" minlength="8" maxlength="255" autocomplete="new-password"><span v-if="fieldErrors.password" class="admin-users-form-error">{{ fieldErrors.password[0] }}</span></label>
+            <label>Xác nhận mật khẩu<input v-model="form.password_confirmation" type="password" :required="!!form.password" autocomplete="new-password"></label>
+          </fieldset>
+          <p v-if="formError" class="admin-users-form-error" role="alert">{{ formError }}</p>
+          <footer><button type="button" class="admin-users-button" :autofocus="mode === 'delete'" :disabled="saving" @click="closeDialog">Hủy</button><button type="submit" class="admin-users-button" :class="mode === 'delete' ? 'is-danger-solid' : 'is-primary'" :disabled="saving">{{ saving ? 'Đang xử lý…' : mode === 'delete' ? 'Xóa người dùng' : 'Lưu' }}</button></footer>
+        </form>
+      </dialog>
+    </Teleport>
   </main>
 </template>
 

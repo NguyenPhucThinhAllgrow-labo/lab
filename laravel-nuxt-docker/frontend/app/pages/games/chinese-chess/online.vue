@@ -128,7 +128,18 @@ const statusText = computed(() => {
     : finishReasonText.value || 'Ván đấu kết thúc'
 })
 
+const deletedRoomIds = new Set<number>()
+function handleDeletedRoom(id: number): void {
+  deletedRoomIds.add(id)
+  resetLobby()
+  errorMessage.value = 'Ván đấu đã bị quản trị viên xóa. Bạn đã được đưa ra khỏi phòng.'
+}
+
 function applyRoom(next: ChineseChessRoom, keepColor = false): void {
+  if (deletedRoomIds.has(next.id) || next.finish_reason === 'admin_deleted') {
+    handleDeletedRoom(next.id)
+    return
+  }
   if (room.value?.id === next.id && next.version < room.value.version) return
 
   const previousStatus = room.value?.status
@@ -335,6 +346,7 @@ async function loadRoom(code = room.value?.code, silent = false): Promise<void> 
 }
 
 async function enterRoom(next: ChineseChessRoom): Promise<void> {
+  if (deletedRoomIds.has(next.id) || next.finish_reason === 'admin_deleted') return
   roomCode.value = next.code
   await router.replace({ query: { room: next.code } })
   realtime.connect(next.id, syncRoomFromRealtime, (connected) => {
@@ -370,6 +382,10 @@ function applyRealtimeMove(event: ChineseChessRoomEvent): boolean {
 
 async function syncRoomFromRealtime(event: ChineseChessRoomEvent): Promise<void> {
   if (!room.value || event.room_id !== room.value.id || event.version <= room.value.version) return
+  if (event.action === 'admin_deleted') {
+    handleDeletedRoom(event.room_id)
+    return
+  }
   if (event.action === 'moved' && applyRealtimeMove(event)) return
 
   realtimeTargetVersion = Math.max(realtimeTargetVersion, event.version)

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ChineseChessRound extends Model
 {
+    use \Illuminate\Database\Eloquent\SoftDeletes;
+
     protected $guarded = ['id'];
 
     protected function casts(): array
@@ -22,8 +24,9 @@ class ChineseChessRound extends Model
 
     public static function record(ChineseChessRoom $room): void
     {
-        $round = static::firstOrNew(['room_id' => $room->id, 'round_number' => $room->round_number]);
+        $round = static::withTrashed()->firstOrNew(['room_id' => $room->id, 'round_number' => $room->round_number]);
         // Rematch requests and leaving a finished room must not rewrite its result.
+        if ($round->trashed()) return;
         if ($round->exists && in_array($round->status, ['finished', 'cancelled'], true)) {
             return;
         }

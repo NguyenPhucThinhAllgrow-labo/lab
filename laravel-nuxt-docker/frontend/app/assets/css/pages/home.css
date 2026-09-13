@@ -214,3 +214,31 @@
 @media (prefers-reduced-motion: reduce) {
   .home-page *, .home-page *::before, .home-page *::after { transition: none !important; animation: none !important; }
 }
+
+/* Featured challenge: a light radar sweep and responsive card interaction. */
+.home-feature { animation: home-feature-enter .65s ease-out backwards; transition: transform .25s ease, border-color .25s ease; }
+.home-feature__art::before { content: ''; position: absolute; width: 190px; height: 190px; border-radius: 50%; background: conic-gradient(from 0deg, transparent 65%, #d5f48704 80%, #d5f48730 99%, transparent); animation: home-feature-scan 9s linear infinite; pointer-events: none; }
+.home-feature__orbit--inner { animation: home-feature-scan 36s linear infinite reverse; }
+.home-feature__orbit--outer::after { content: ''; position: absolute; top: 50%; left: 10px; width: 6px; height: 6px; border-radius: 50%; background: #d5f487; box-shadow: 0 0 10px #d5f48760; animation: home-feature-signal 3s ease-in-out infinite; }
+.home-feature__art > svg { position: relative; transition: transform .3s ease; }
+.home-feature__evidence { transition: transform .3s ease, border-color .3s ease; }
+.home-feature__cta svg { transition: transform .25s ease; }
+.home-feature:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 5px; border-color: #d5f48790; }
+.home-feature:focus-visible .home-feature__cta svg { transform: translateX(4px); }
+@media (hover: hover) and (pointer: fine) {
+  .home-feature:hover { transform: translateY(-4px); }
+  .home-feature:hover .home-feature__art > svg { transform: scale(1.06); }
+  .home-feature:hover .home-feature__evidence--one { transform: translateY(-4px) rotate(-3deg); border-color: #d5f48760; }
+  .home-feature:hover .home-feature__evidence--two { transform: translateY(-4px) rotate(2deg); border-color: #d5f48760; }
+  .home-feature:hover .home-feature__cta svg { transform: translateX(4px); }
+}
+@keyframes home-feature-enter { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes home-feature-scan { to { transform: rotate(360deg); } }
+@keyframes home-feature-signal { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .home-feature, .home-feature__art::before, .home-feature__orbit--inner, .home-feature__orbit--outer::after { animation: none; }
+  .home-feature, .home-feature__art > svg, .home-feature__evidence, .home-feature__cta svg { transition: none; }
+  .home-feature:hover, .home-feature:hover .home-feature__art > svg, .home-feature:hover .home-feature__cta svg, .home-feature:focus-visible .home-feature__cta svg { transform: none; }
+  .home-feature:hover .home-feature__evidence--one { transform: rotate(-6deg); }
+  .home-feature:hover .home-feature__evidence--two { transform: rotate(5deg); }
+}

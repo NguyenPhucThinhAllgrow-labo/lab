@@ -59,3 +59,22 @@
 @keyframes admin-users-spin { to { transform: rotate(360deg); } }
 @keyframes admin-users-shimmer { to { background-position: -200% 0; } }
 @media (max-width: 720px) { .admin-users-page { padding: 18px 14px; }.admin-users-header, .admin-users-toolbar { align-items: stretch; flex-direction: column; }.admin-users-refresh { align-self: flex-start; }.admin-users-search, .admin-users-role-filter { width: 100%; min-width: 0; }.admin-users-total { align-self: flex-start; margin-left: 0; }.admin-users-pagination { align-items: flex-start; flex-direction: column; } }
+.admin-users-actions { display: flex; width: max-content; align-items: center; gap: 8px; }
+.admin-users-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 14px; border: 1px solid #ffffff20; border-radius: 9px; background: #1d1d2b; color: #e4e4e7; font-size: 12px; cursor: pointer; }
+.admin-users-button.is-icon { width: 34px; height: 34px; padding: 0; flex-shrink: 0; }
+.admin-users-button.is-primary { background: #7c3aed; border-color: #8b5cf6; color: white; }
+.admin-users-button.is-danger { color: #fca5a5; }
+.admin-users-button.is-danger-solid { background: #b91c1c; color: white; }
+.admin-users-button:hover:not(:disabled) { filter: brightness(1.15); }
+.admin-users-button:disabled { opacity: .45; cursor: not-allowed; }
+.admin-users-button:focus-visible, .admin-users-dialog input:focus-visible, .admin-users-dialog select:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
+.admin-users-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; margin: auto; padding: 24px; border: 1px solid #ffffff20; border-radius: 16px; background: #181824; color: #e4e4e7; box-shadow: 0 24px 80px #0008; }
+.admin-users-dialog::backdrop { background: #000a; }
+.admin-users-dialog header, .admin-users-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-users-dialog h2 { font-size: 20px; font-weight: 700; }
+.admin-users-dialog fieldset { display: grid; gap: 16px; margin-top: 20px; min-width: 0; }
+.admin-users-dialog label { display: grid; gap: 7px; font-size: 13px; }
+.admin-users-dialog input, .admin-users-dialog select { width: 100%; padding: 10px 12px; border: 1px solid #ffffff20; border-radius: 8px; background: #11111b; color: #f4f4f5; }
+.admin-users-dialog footer { justify-content: flex-end; margin-top: 24px; }
+.admin-users-form-error { color: #fca5a5; font-size: 12px; margin-top: 8px; }
+.admin-users-delete-description { margin-top: 20px; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }

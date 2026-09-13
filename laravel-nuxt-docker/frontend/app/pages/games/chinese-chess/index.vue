@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { AlertTriangle, ArrowLeft, Bot, Globe, Monitor, Play, RotateCcw, Swords, Trophy, Undo2, Users, X } from 'lucide-vue-next'
+import { AlertTriangle, ArrowLeft, Bot, Globe, Pause, Play, RotateCcw, Swords, Trophy, Undo2, Users, X } from 'lucide-vue-next'
 import {
   computed,
   onBeforeUnmount,
+  onMounted,
   ref,
   watch,
 } from 'vue'
@@ -60,6 +61,18 @@ interface MoveHistory {
 
 const gameKey = ref(0)
 const gameMode = ref<'local' | 'computer'>('local')
+const modeDialog = ref<HTMLDialogElement | null>(null)
+onMounted(() => modeDialog.value?.showModal())
+function chooseMode(mode: 'local' | 'computer'): void {
+  selectGameMode(mode)
+  modeDialog.value?.close()
+}
+function openModeDialog(): void {
+  if (gameStarted.value && !gameOver.value) return
+  modeDialog.value?.showModal()
+}
+const paused = ref(false)
+let computerGeneration = 0
 const computerThinking = ref(false)
 const computerEngine = ref<'pikafish' | 'hybrid' | 'minimax'>('pikafish')
 const COMPUTER_COLOR: PieceColor = 'black'
@@ -164,7 +177,7 @@ const lastMove = computed(() => moveHistory.value.at(-1) ?? null)
 const undoRemaining = computed(() => gameMode.value === 'computer'
   ? redUndosRemaining.value
   : lastMove.value?.color === 'black' ? blackUndosRemaining.value : redUndosRemaining.value)
-const canUndo = computed(() => gameStarted.value
+const canUndo = computed(() => !paused.value && gameStarted.value
   && !gameOver.value
   && !!lastMove.value
   && undoRemaining.value > 0
@@ -464,9 +477,21 @@ function stopTimer() {
 }
 
 function clearComputerMoveTimer(): void {
+  computerGeneration++
   if (computerMoveTimer) clearTimeout(computerMoveTimer)
   computerMoveTimer = null
   computerThinking.value = false
+}
+
+function togglePause(): void {
+  if (!gameStarted.value || gameOver.value) return
+  paused.value = !paused.value
+  if (paused.value) {
+    stopTimer()
+    clearComputerMoveTimer()
+  } else {
+    startTimer()
+  }
 }
 
 function startTimer() {
@@ -474,7 +499,7 @@ function startTimer() {
 
   timer = setInterval(() => {
     if (
-      !gameStarted.value ||
+      !gameStarted.value || paused.value ||
       gameOver.value
     ) {
       stopTimer()
@@ -593,6 +618,7 @@ function startGame() {
     return
   }
 
+  paused.value = false
   gameStarted.value = true
 
   gameOver.value = false
@@ -626,6 +652,7 @@ function startGame() {
  */
 
 function restartGame() {
+  paused.value = false
   stopTimer()
   clearComputerMoveTimer()
 
@@ -702,7 +729,7 @@ function handleMove(
   source: 'player' | 'computer' = 'player',
 ): boolean {
   if (
-    gameOver.value
+    gameOver.value || paused.value || !gameStarted.value
   ) {
     return false
   }
@@ -863,6 +890,7 @@ async function performComputerMove(): Promise<void> {
 
   if (
     gameMode.value !== 'computer'
+    || paused.value
     || !gameStarted.value
     || gameOver.value
     || currentTurn.value !== COMPUTER_COLOR
@@ -873,6 +901,7 @@ async function performComputerMove(): Promise<void> {
 
   computerThinking.value = true
   computerError.value = ''
+  const generation = computerGeneration
   const thinkingGame = gameKey.value
   const excludedMoves = new Set<string>()
 
@@ -885,6 +914,7 @@ async function performComputerMove(): Promise<void> {
     try {
       suggestion = await findComputerMove(excludedMoves)
     } catch {
+      if (generation !== computerGeneration) return
       if (!computerDisposed && thinkingGame === gameKey.value) {
         computerThinking.value = false
         computerError.value = 'Không thể tính nước đi. Vui lòng thử lại.'
@@ -892,6 +922,7 @@ async function performComputerMove(): Promise<void> {
       return
     }
 
+    if (generation !== computerGeneration) return
     const currentPosition = localBoard.value
       .map(piece => `${piece.id}:${piece.row}:${piece.col}`)
       .sort()
@@ -901,7 +932,8 @@ async function performComputerMove(): Promise<void> {
       || thinkingGame !== gameKey.value
       || positionBeforeThinking !== currentPosition
       || gameMode.value !== 'computer'
-      || !gameStarted.value
+      || paused.value
+    || !gameStarted.value
       || gameOver.value
       || currentTurn.value !== COMPUTER_COLOR
     ) {
@@ -951,6 +983,7 @@ function scheduleComputerMove(): void {
 
   if (
     gameMode.value !== 'computer'
+    || paused.value
     || !gameStarted.value
     || gameOver.value
     || currentTurn.value !== COMPUTER_COLOR
@@ -1075,7 +1108,7 @@ function surrender() {
  * ==========================================
  */
 
-watch([gameMode, gameStarted, gameOver, currentTurn], scheduleComputerMove)
+watch([gameMode, gameStarted, gameOver, currentTurn, paused], scheduleComputerMove)
 
 onBeforeUnmount(() => {
   computerDisposed = true
@@ -1090,31 +1123,22 @@ onBeforeUnmount(() => {
     <header class="online-chess__header">
       <NuxtLink to="/" class="online-chess__back"><ArrowLeft :size="16" /> Trang chủ</NuxtLink>
       <div><span class="online-chess__eyebrow">CHINESE CHESS</span><h1>Cờ Tướng</h1></div>
-      <span class="online-chess__connection"><Monitor :size="16" /> Cùng thiết bị</span>
-    </header>
 
-    <section class="chess-roombar">
-      <div>
-        <span class="online-chess__eyebrow">{{ gameMode === 'computer' ? 'ĐẤU VỚI MÁY' : 'CHƠI CÙNG THIẾT BỊ' }}</span>
-        <p class="local-chess__subtitle">{{ gameMode === 'computer' ? 'Bạn cầm quân Đỏ · Máy cầm quân Đen' : 'Hai người chơi · 10 phút mỗi bên' }}</p>
-      </div>
-      <div class="local-mode-switch" aria-label="Chọn chế độ chơi">
-        <button type="button" :class="{ 'is-active': gameMode === 'local' }" :disabled="gameStarted && !gameOver" @click="selectGameMode('local')"><Users :size="15" /> Hai người</button>
-        <button type="button" :class="{ 'is-active': gameMode === 'computer' }" :disabled="gameStarted && !gameOver" @click="selectGameMode('computer')"><Bot :size="15" /> Chơi với máy</button>
-      </div>
-      <div class="chess-roombar__status" :class="gameStarted && !gameOver ? 'is-playing' : 'is-waiting'">
-        <span></span>{{ gameOver ? 'Ván đấu kết thúc' : gameStarted ? `Lượt quân ${currentPlayerName}` : 'Sẵn sàng bắt đầu' }}
-      </div>
-      <NuxtLink to="/games/chinese-chess/online" class="chess-button"><Globe :size="17" /><span>Chơi online với bạn bè</span></NuxtLink>
-    </section>
+    </header>
 
     <div v-if="computerError" class="chess-error chess-error--room" role="alert">
       {{ computerError }} <button class="chess-button" :disabled="computerThinking" @click="scheduleComputerMove">Thử lại</button>
     </div>
+    <div class="local-mode-toolbar">
+      <button type="button" class="local-mode-button" :disabled="gameStarted && !gameOver" :title="gameStarted && !gameOver ? 'Kết thúc ván đấu để đổi chế độ' : 'Chọn chế độ chơi'" @click="openModeDialog">
+        <Swords :size="20" /> Chọn chế độ
+      </button>
+      <span>{{ gameMode === 'computer' ? 'Chơi với máy' : 'Hai người cùng thiết bị' }}</span>
+    </div>
     <section class="online-match">
       <nav class="mobile-chess-toolbar" aria-label="Thông tin ván đấu">
         <div>
-          <strong>{{ gameOver ? 'Đã kết thúc' : gameStarted ? `Lượt ${currentPlayerName}` : 'Chưa bắt đầu' }}</strong>
+          <strong>{{ gameOver ? 'Đã kết thúc' : paused ? 'Tạm dừng' : gameStarted ? `Lượt ${currentPlayerName}` : 'Chưa bắt đầu' }}</strong>
           <small>Đen {{ blackTimeText }} · Đỏ {{ redTimeText }}</small>
         </div>
         <button type="button" :class="{ 'is-active': mobilePanel === 'history' }" @click="toggleMobilePanel('history')">Lịch sử <b>{{ moveHistory.length }}</b></button>
@@ -1154,6 +1178,14 @@ onBeforeUnmount(() => {
       </aside>
 
       <section class="online-board-wrap">
+        <div v-if="paused" class="board-overlay">
+          <div class="board-waiting-card">
+            <div class="board-waiting-card__icon"><Pause :size="24" /></div>
+            <h2>Ván đấu tạm dừng</h2>
+            <p>Đồng hồ đã dừng. Tiếp tục khi bạn sẵn sàng.</p>
+            <button type="button" class="chess-button chess-button--primary" @click="togglePause"><Play :size="17" /> Tiếp tục</button>
+          </div>
+        </div>
         <div v-if="!gameStarted" class="board-overlay">
           <div class="board-waiting-card">
             <div class="board-waiting-card__icon"><Swords :size="24" /></div>
@@ -1166,7 +1198,7 @@ onBeforeUnmount(() => {
         <ChineseChessBoard
           :key="gameKey"
           :current-turn="currentTurn"
-          :game-started="gameStarted && !gameOver"
+          :game-started="gameStarted && !gameOver && !paused"
           :position="localBoard"
           :player-color="gameMode === 'computer' ? 'red' : null"
           :last-move="lastMove"
@@ -1178,17 +1210,17 @@ onBeforeUnmount(() => {
 
       <aside class="match-panel match-panel--players" :class="{ 'is-mobile-open': mobilePanel === 'players' }">
         <div class="match-panel__title"><span>Người chơi</span><Users :size="17" /><button type="button" class="mobile-panel-close" aria-label="Đóng bảng trận đấu" @click="mobilePanel = null"><X :size="16" /></button></div>
-          <div v-if="gameStarted && !gameOver" class="player-turn" role="status">
+          <div v-if="gameStarted && !gameOver && !paused" class="player-turn" role="status">
             <span class="player-turn__dot" :class="{ 'is-red': currentTurn === 'red' }"></span>
             Lượt quân {{ currentTurn === 'red' ? 'Đỏ' : 'Đen' }}
           </div>
-        <div class="player-card" :class="{ 'is-active': gameStarted && !gameOver && currentTurn === 'black' }">
+        <div class="player-card" :class="{ 'is-active': gameStarted && !gameOver && !paused && currentTurn === 'black' }">
           <div class="player-avatar is-black">將</div>
-          <div><span>QUÂN ĐEN</span><strong>{{ gameMode === 'computer' ? `Máy tính · ${computerEngine === 'pikafish' ? 'Pikafish NNUE' : computerEngine === 'hybrid' ? 'ML + Minimax' : 'Minimax'}` : 'Người chơi Đen' }}</strong></div>
+          <div><span>QUÂN ĐEN</span><strong>{{ gameMode === 'computer' ? 'Máy tính' : 'Người chơi Đen' }}</strong></div>
           <time>{{ blackTimeText }}</time>
         </div>
         <div class="match-versus">VS</div>
-        <div class="player-card" :class="{ 'is-active': gameStarted && !gameOver && currentTurn === 'red' }">
+        <div class="player-card" :class="{ 'is-active': gameStarted && !gameOver && !paused && currentTurn === 'red' }">
           <div class="player-avatar is-red">帥</div>
           <div><span>QUÂN ĐỎ</span><strong>Người chơi Đỏ</strong></div>
           <time>{{ redTimeText }}</time>
@@ -1196,17 +1228,17 @@ onBeforeUnmount(() => {
         <div class="match-notice" :class="{ 'is-mine': gameStarted && !gameOver }" aria-live="polite">
           <Swords :size="17" />
           <div>
-            <strong>{{ gameOver ? `Quân ${winnerName} thắng` : computerThinking ? 'Máy đang phân tích nước đi…' : gameStarted ? `Lượt quân ${currentPlayerName}` : 'Bấm Bắt đầu để khai cuộc' }}</strong>
+            <strong>{{ gameOver ? `Quân ${winnerName} thắng` : paused ? 'Ván đấu tạm dừng' : computerThinking ? 'Máy đang phân tích nước đi…' : gameStarted ? `Lượt quân ${currentPlayerName}` : 'Bấm Bắt đầu để khai cuộc' }}</strong>
             <span v-if="gameStarted && !gameOver && isCheck">{{ checkPlayerName }} đang bị chiếu! Hãy tìm nước đi để thoát chiếu.</span>
           </div>
         </div>
         <div class="match-actions">
+          <button v-if="gameStarted && !gameOver" type="button" class="chess-button" @click="togglePause"><Play v-if="paused" :size="17" /><Pause v-else :size="17" /> {{ paused ? 'Tiếp tục' : 'Tạm dừng' }}</button>
           <div v-if="repetitionState.status === 'warning'" class="repetition-warning" role="alert">
             <strong>{{ repetitionState.obligated_color ? `Quân ${repetitionState.obligated_color === 'red' ? 'Đỏ' : 'Đen'} phải phá lặp` : 'Thế cờ đã lặp lần hai' }}</strong>
             <span>{{ repetitionState.obligated_color ? 'Hãy đổi nước để phá chuỗi lặp. Ván đấu sẽ không tự động xử thua.' : 'Lặp lại lần ba sẽ được xử hòa.' }}</span>
           </div>
-          <button v-if="!gameStarted" class="chess-button chess-button--primary" @click="startGame"><Play :size="17" /> Bắt đầu</button>
-          <button v-else class="chess-button" @click="restartGame"><RotateCcw :size="17" /> Chơi lại</button>
+          <button v-if="gameStarted" class="chess-button" @click="restartGame"><RotateCcw :size="17" /> Chơi lại</button>
           <button v-if="gameStarted && !gameOver" class="chess-button chess-button--undo" :disabled="!canUndo" @click="undoLastMove">
             <Undo2 :size="17" /> Đi lại <span>({{ undoRemaining }}/3)</span>
           </button>
@@ -1228,6 +1260,17 @@ onBeforeUnmount(() => {
     </Transition>
 
     <Teleport to="body">
+      <dialog ref="modeDialog" class="mode-picker" aria-labelledby="mode-picker-title" aria-describedby="mode-picker-description" @cancel.prevent>
+        <span class="mode-picker__eyebrow">CHINESE CHESS</span>
+        <h2 id="mode-picker-title">Chọn chế độ chơi</h2>
+        <p id="mode-picker-description">Bạn muốn chơi cờ theo cách nào?</p>
+        <div class="mode-picker__options">
+          <button type="button" autofocus @click="chooseMode('computer')"><Bot :size="26" /><span><strong>Chơi với máy</strong><small>Bạn cầm quân Đỏ, thử sức với máy tính.</small></span></button>
+          <button type="button" @click="chooseMode('local')"><Users :size="26" /><span><strong>Hai người</strong><small>Cùng chơi trên một thiết bị.</small></span></button>
+          <NuxtLink to="/games/chinese-chess/online"><Globe :size="26" /><span><strong>Chơi online</strong><small>Tạo hoặc tham gia phòng để đấu với bạn bè.</small></span></NuxtLink>
+        </div>
+        <NuxtLink to="/" class="mode-picker__back"><ArrowLeft :size="16" /> Về trang chủ</NuxtLink>
+      </dialog>
       <Transition name="chess-dialog">
         <div v-if="repetitionModal" class="chess-dialog-backdrop" role="presentation">
           <section class="chess-dialog" role="alertdialog" aria-modal="true" aria-labelledby="local-repetition-title">
@@ -1255,3 +1298,31 @@ onBeforeUnmount(() => {
 
 <style scoped src="~/assets/css/pages/games/chinese-chess/player-turn.css"></style>
 <style scoped src="~/assets/css/pages/games/chinese-chess/repetition.css"></style>
+
+<style scoped>
+.mode-picker { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; margin: auto; padding: 28px; border: 1px solid #b98a463d; border-radius: 22px; background: #19150f; color: #f7ead3; box-shadow: 0 24px 80px #0009; }
+.mode-picker::backdrop { background: #080706d9; }
+.mode-picker__eyebrow { color: #d5a75e; font-size: 11px; letter-spacing: .18em; }
+.mode-picker h2 { margin: 10px 0; font-size: 26px; font-weight: 700; }
+.mode-picker p { color: #b9ad99; font-size: 14px; }
+.mode-picker__options { display: grid; gap: 12px; margin: 24px 0; }
+.mode-picker__options > button, .mode-picker__options > a { display: flex; align-items: center; gap: 16px; padding: 18px; border: 1px solid #b98a4633; border-radius: 14px; background: #241d14; color: #e8bd7b; text-align: left; cursor: pointer; }
+.mode-picker__options span { display: grid; gap: 5px; }
+.mode-picker__options svg { flex-shrink: 0; }
+.mode-picker__options strong { color: #fff0d8; font-size: 16px; }
+.mode-picker__options small { color: #bfb29e; font-size: 13px; line-height: 1.5; }
+.mode-picker__options > :hover { background: #322617; border-color: #d5a75e80; }
+.mode-picker a:focus-visible, .mode-picker button:focus-visible { outline: 2px solid #e8bd7b; outline-offset: 3px; }
+.mode-picker__back { display: inline-flex; align-items: center; gap: 8px; color: #cabcaa; font-size: 13px; }
+@media (max-width: 480px) { .mode-picker { padding: 22px; } }
+</style>
+
+<style scoped>
+.local-mode-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; margin: 0 auto 20px; }
+.local-mode-toolbar > span { color: #cabcaa; font-size: 13px; }
+.local-mode-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 46px; padding: 12px 22px; border: 1px solid #fcd778; border-radius: 12px; background: #f5bd4f; color: #271807; font-size: 15px; font-weight: 800; box-shadow: 0 4px 18px #f5bd4f24; cursor: pointer; }
+.local-mode-button:hover:not(:disabled) { background: #ffd579; }
+.local-mode-button:focus-visible { outline: 3px solid #fff0c5; outline-offset: 4px; }
+.local-mode-button:disabled { background: #6e5732; border-color: #8a7046; color: #e2d1b2; box-shadow: none; cursor: not-allowed; }
+@media(max-width: 520px) { .local-mode-toolbar { flex-direction: column; gap: 8px; } }
+</style>

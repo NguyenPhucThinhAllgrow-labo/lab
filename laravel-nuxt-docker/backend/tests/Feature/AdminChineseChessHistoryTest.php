@@ -84,4 +84,62 @@ class AdminChineseChessHistoryTest extends TestCase
         $this->assertDatabaseMissing('chinese_chess_rooms', ['id' => $room->id]);
         $this->assertDatabaseCount('chinese_chess_rounds', 0);
     }
+    public function test_admin_can_delete_finished_history_without_it_reappearing(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $red = User::factory()->create(['role' => 'user']);
+        $black = User::factory()->create(['role' => 'user']);
+        $service = app(ChineseChessRoomService::class);
+        $room = $service->create($red);
+        $id = $room->rounds()->first()->id;
+        $url = '/api/admin/chinese-chess/history/'.$id;
+        $this->deleteJson($url)->assertUnauthorized();
+        $this->actingAs($red)->deleteJson($url)->assertForbidden();
+        $this->actingAs($admin);
+        $service->join($room->code, $black);
+        $service->ready($room->code, $red);
+        $service->ready($room->code, $black);
+        $service->surrender($room->code, $black);
+        $service->rematch($room->code, $red);
+        $service->rematch($room->code, $black);
+        $this->deleteJson($url)->assertOk();
+        $this->getJson($url)->assertNotFound();
+        $this->assertSame('playing', $room->fresh()->status);
+        $this->assertSoftDeleted('chinese_chess_rounds', ['id' => $id]);
+        $this->assertSame(1, $room->rounds()->count());
+        $this->getJson('/api/admin/chinese-chess/history')->assertJsonPath('data.pagination.total', 1);
+    }
+    public function test_admin_can_delete_live_round_and_close_room(): void
+    {
+        \Illuminate\Support\Facades\Event::fake([\App\Events\ChineseChessRoomUpdated::class]);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $red = User::factory()->create();
+        $black = User::factory()->create();
+        $service = app(ChineseChessRoomService::class);
+        foreach (['waiting', 'playing', 'paused'] as $status) {
+            $room = $service->create($red);
+            if ($status !== 'waiting') {
+                $service->join($room->code, $black);
+                $service->ready($room->code, $red);
+                $room = $service->ready($room->code, $black);
+            }
+            if ($status === 'paused') {
+                $room->update(['status' => 'paused', 'paused_by_id' => $red->id, 'paused_at' => now()]);
+            }
+            $id = $room->rounds()->firstOrFail()->id;
+            $version = $room->version;
+            $this->actingAs($admin)->deleteJson('/api/admin/chinese-chess/history/'.$id)->assertOk();
+            $this->assertSoftDeleted('chinese_chess_rounds', ['id' => $id]);
+            $room->refresh();
+            $this->assertSame('cancelled', $room->status);
+            $this->assertSame('admin_deleted', $room->finish_reason);
+            $this->assertSame($version + 1, $room->version);
+            $this->assertNull($room->last_move_at);
+            $this->assertNull($room->paused_at);
+            $this->actingAs($red)->getJson('/api/chinese-chess/rooms/'.$room->code)
+                ->assertOk()->assertJsonPath('room.finish_reason', 'admin_deleted');
+            \Illuminate\Support\Facades\Event::assertDispatched(\App\Events\ChineseChessRoomUpdated::class,
+                fn ($event) => $event->roomId === $room->id && $event->action === 'admin_deleted');
+        }
+    }
 }

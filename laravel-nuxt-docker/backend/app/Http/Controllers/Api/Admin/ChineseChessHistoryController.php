@@ -4,12 +4,46 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ChineseChessRound;
+use App\Models\ChineseChessRoom;
+use App\Events\ChineseChessRoomUpdated;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class ChineseChessHistoryController extends Controller
 {
+    public function destroy(ChineseChessRound $round): JsonResponse
+    {
+        $event = DB::transaction(function () use ($round) {
+            // Match the lock order used by live room mutations and rematches.
+            $room = ChineseChessRoom::query()->lockForUpdate()->findOrFail($round->room_id);
+            $lockedRound = ChineseChessRound::query()->lockForUpdate()->findOrFail($round->id);
+            $lockedRound->delete();
+            if ($room->round_number !== $lockedRound->round_number) {
+                return null;
+            }
+            $room->fill([
+                'status' => 'cancelled', 'finish_reason' => 'admin_deleted', 'winner_id' => null,
+                'last_move_at' => null, 'paused_by_id' => null, 'paused_at' => null,
+                'undo_requested_by_id' => null, 'undo_requested_at' => null,
+                'red_ready' => false, 'black_ready' => false,
+                'red_rematch' => false, 'black_rematch' => false,
+                'version' => $room->version + 1,
+            ])->save();
+            return new ChineseChessRoomUpdated($room->id, $room->version, 'admin_deleted');
+        });
+        if ($event) {
+            try {
+                event($event);
+            } catch (\Throwable $exception) {
+                // Polling still delivers the cancelled room if broadcasting is unavailable.
+                report($exception);
+            }
+        }
+        return response()->json(['message' => 'Đã xóa lịch sử ván đấu.']);
+    }
+
     public function show(ChineseChessRound $round): JsonResponse
     {
         $round->load(['room:id,code', 'redPlayer:id,name', 'blackPlayer:id,name']);
