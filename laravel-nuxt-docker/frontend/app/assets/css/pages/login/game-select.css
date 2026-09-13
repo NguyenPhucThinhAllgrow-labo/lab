@@ -109,7 +109,7 @@
 .game-login-chinese-chess-piece::before { content: ""; position: absolute; inset: 5px; border: 1px solid currentColor; border-radius: inherit; opacity: .46; }
 .game-login-chinese-chess-piece.is-red { color: #a52d27; }
 .game-login-chinese-chess-piece.is-black { color: #202728; }
-.game-login-chinese-chess-piece i { position: relative; font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 64%; line-height: 1; font-style: normal; font-weight: 900; text-shadow: 0 1px rgb(255 255 255 / 26%); }
+.game-login-chinese-chess-piece i { position: relative; font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 1em; line-height: 1; font-style: normal; font-weight: 900; text-shadow: 0 1px rgb(255 255 255 / 26%); }
 
 @keyframes chinese-chess-piece-arrive {
   0% { opacity: 0; transform: translateY(-22px) rotate(-18deg) scale(.35); filter: blur(5px); }
@@ -755,4 +755,35 @@
 
 @media (max-width: 760px) {
   .game-login-home { margin-bottom: 20px; }
+}
+
+/* Fit short desktop viewports without clipping the form or nesting scroll areas. */
+.game-login { min-height: 100dvh; box-sizing: border-box; padding: clamp(12px, 2.5vh, 28px); }
+.game-login-shell { min-height: min(620px, calc(100dvh - 32px)); min-width: 0; }
+.game-login-intro, .game-login-form { min-width: 0; }
+.game-login-backdrop { overflow: clip; }
+@media (min-width: 761px) and (max-height: 850px) {
+  .game-login-intro, .game-login-form { padding: 24px 30px; }
+  .game-login-home { margin-bottom: 16px; }
+  .game-login-copy { margin: 24px 0 18px; }
+  .game-login-copy h1 { font-size: clamp(28px, 3vw, 36px); }
+  .game-login--pandora .game-login-copy h1 { font-size: clamp(26px, 3vw, 34px); }
+  .game-login-list { gap: 4px; }
+  .game-login-list button { padding: 8px 10px; }
+  .game-login-selection { margin: 28px 0 22px; }
+  .game-login-security { margin: -4px 0 18px; padding: 10px 12px; }
+  .game-login-field { margin-bottom: 16px; }
+  .game-login-account-links { padding-top: 20px; }
+}
+@media (max-width: 760px) {
+  .game-login { padding: 12px; }
+  .game-login-shell { min-height: 0; }
+  .game-login-intro, .game-login-form { padding: 24px 20px; }
+  .game-login-list { max-height: none; overflow: visible; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .game-login-list button { grid-template-columns: minmax(0, 1fr) 16px; gap: 6px; padding: 10px; min-height: 44px; }
+  .game-login-list .game-login-code, .game-login-list .game-login-game small { display: none; }
+  .game-login-game b { overflow-wrap: anywhere; }
+  .game-login-home { margin-bottom: 16px; }
+  .game-login-copy { margin: 20px 0; }
+  .game-login-selection { margin: 22px 0; }
 }

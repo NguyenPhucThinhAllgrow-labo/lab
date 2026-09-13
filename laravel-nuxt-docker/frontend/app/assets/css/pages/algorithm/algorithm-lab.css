@@ -6,7 +6,7 @@
   isolation: isolate;
   min-height: 100vh;
   overflow-x: clip;
-  color: #e8edf6;
+  color: var(--algorithm-text);
   background:
     radial-gradient(circle at 82% 2%, rgb(var(--algorithm-accent-rgb) / 13%), transparent 27rem),
     radial-gradient(circle at 4% 45%, rgb(99 102 241 / 8%), transparent 24rem),
@@ -64,18 +64,18 @@
   border: 1px solid rgb(255 255 255 / 7%);
   border-radius: 10px !important;
   background: rgb(255 255 255 / 3%);
-  color: #a4adbd !important;
+  color: var(--algorithm-text) !important;
   font-size: 12px !important;
 }
 
 .algorithm-lab > header button:hover {
   border-color: rgb(var(--algorithm-accent-rgb) / 30%);
   background: rgb(var(--algorithm-accent-rgb) / 9%) !important;
-  color: #fff !important;
+  color: var(--algorithm-text) !important;
 }
 
 .algorithm-lab > header h1 {
-  color: #f8fafc;
+  color: var(--algorithm-text);
   font-size: 13px !important;
   letter-spacing: -0.015em;
 }
@@ -109,9 +109,9 @@
   border-color: rgb(255 255 255 / 7%) !important;
 }
 
-.algorithm-lab .text-slate-400 { color: #9aa3b3 !important; }
-.algorithm-lab .text-slate-500 { color: #737d8e !important; }
-.algorithm-lab .text-slate-600 { color: #596273 !important; }
+.algorithm-lab .text-slate-400 { color: var(--algorithm-text) !important; }
+.algorithm-lab .text-slate-500 { color: var(--algorithm-text) !important; }
+.algorithm-lab .text-slate-600 { color: var(--algorithm-text) !important; }
 .algorithm-lab .rounded-3xl { border-radius: 20px !important; }
 .algorithm-lab .rounded-2xl { border-radius: 14px !important; }
 .algorithm-lab .rounded-xl { border-radius: 10px !important; }
@@ -135,7 +135,7 @@
   right: 34px;
   bottom: -23px;
   content: var(--algorithm-mark);
-  color: rgb(var(--algorithm-accent-rgb) / 6%);
+  color: var(--algorithm-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: clamp(64px, 11vw, 142px);
   font-weight: 900;
@@ -149,7 +149,7 @@
 }
 
 .algorithm-lab > main > section:first-child h2 {
-  color: #fff;
+  color: var(--algorithm-text);
   font-size: clamp(38px, 5vw, 60px) !important;
   line-height: 1.02;
   letter-spacing: -0.055em !important;
@@ -157,7 +157,7 @@
 
 .algorithm-lab > main > section:first-child p {
   max-width: 690px;
-  color: #9aa3b3 !important;
+  color: var(--algorithm-text) !important;
   font-size: 15px !important;
   line-height: 1.75 !important;
 }
@@ -235,7 +235,7 @@
 .algorithm-lab > main > section:nth-child(4) input:not([type="range"]) {
   border-color: rgb(255 255 255 / 9%) !important;
   background: rgb(5 7 13 / 72%) !important;
-  color: #f8fafc;
+  color: var(--algorithm-text);
 }
 
 .algorithm-lab > main > section:nth-child(4) input:focus {
@@ -284,7 +284,7 @@
 }
 
 .algorithm-lab ::selection {
-  color: #fff;
+  color: var(--algorithm-text);
   background: rgb(var(--algorithm-accent-rgb) / 34%);
 }
 
@@ -313,3 +313,92 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Shared reading and simulation workspace. */
+.algorithm-lab { background: #0d121b !important; }
+.algorithm-lab::before { display: none; }
+.algorithm-lab > header { background: #131b28 !important; border-bottom: 1px solid #ffffff14; }
+.algorithm-lab > main { padding-top: 28px !important; }
+.algorithm-lab > main > section { scroll-margin-top: 155px; background: #151d2a !important; box-shadow: none; border-color: #ffffff18 !important; }
+.algorithm-lab > main > section:first-child { min-height: auto; padding: 32px 36px !important; background: linear-gradient(110deg, rgb(var(--algorithm-accent-rgb) / 9%), transparent 70%), #151d2a !important; box-shadow: none; }
+.algorithm-lab > main > section:first-child::after { display: none; }
+.algorithm-lab > main > section:first-child > .pointer-events-none { display: none; }
+.algorithm-lab > main > section:first-child h2 { font-size: clamp(30px, 4vw, 46px) !important; line-height: 1.15; letter-spacing: -.035em !important; }
+.algorithm-lab > main > section:first-child p { color: var(--algorithm-text) !important; font-size: 14px !important; }
+.algorithm-lab .text-slate-400 { color: var(--algorithm-text) !important; }
+.algorithm-lab .text-slate-500 { color: var(--algorithm-text) !important; }
+.algorithm-lab .text-slate-600 { color: var(--algorithm-text) !important; }
+.algorithm-lab h3 { letter-spacing: -.015em; }
+.algorithm-section-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0; }
+.algorithm-section-links a { display: inline-flex; align-items: center; gap: 14px; padding: 10px 14px; border: 1px solid #ffffff20; border-radius: 9px; color: var(--algorithm-text); font-size: 12px; font-weight: 600; }
+.algorithm-section-links a:hover { border-color: var(--algorithm-accent); color: var(--algorithm-text); }
+.algorithm-section-links .algorithm-section-links__primary { background: var(--algorithm-accent); border-color: var(--algorithm-accent); color: var(--algorithm-text); }
+.algorithm-lab #simulation { border-top: 3px solid var(--algorithm-accent) !important; background: #151f2d !important; box-shadow: none !important; }
+.algorithm-lab #simulation button { min-height: 42px; font-size: 12px; }
+.algorithm-lab #simulation input[type="range"] { min-height: 20px; }
+.algorithm-lab #pseudocode > div, .algorithm-lab #implementation { box-shadow: none !important; }
+.algorithm-lab pre { tab-size: 4; overscroll-behavior-x: contain; }
+.algorithm-lab a:focus-visible, .algorithm-lab button:focus-visible, .algorithm-lab input:focus-visible, .algorithm-lab select:focus-visible { outline: 2px solid var(--algorithm-accent); outline-offset: 3px; }
+@media(max-width: 768px) {
+  .algorithm-lab > main > section:first-child { padding: 24px !important; }
+  .algorithm-lab #simulation { border-radius: 14px !important; }
+  .algorithm-section-links { gap: 8px; }
+  .algorithm-section-links a { padding: 10px 12px; }
+}
+@media(prefers-reduced-motion: reduce) { .algorithm-lab *, .algorithm-lab *::before, .algorithm-lab *::after { animation: none !important; } }
+
+/* Light learning workspace: black labels on light surfaces. */
+.algorithm-lab:where([data-theme="light"]) { --algorithm-accent: #b9d6ee; --algorithm-accent-rgb: 185 214 238; background: #eef1f5 !important; color: var(--algorithm-text); }
+.algorithm-lab--selection:where([data-theme="light"]), .algorithm-lab--insertion:where([data-theme="light"]) { --algorithm-accent: #d6c8ef; --algorithm-accent-rgb: 214 200 239; }
+.algorithm-lab--greedy:where([data-theme="light"]) { --algorithm-accent: #bce4ce; --algorithm-accent-rgb: 188 228 206; }
+.algorithm-lab:where([data-theme="light"]) :where(div, span, p, a, button, h1, h2, h3, h4, small, strong, b, label, input, select, li, code, pre, th, td) { color: var(--algorithm-text) !important; }
+.algorithm-lab:where([data-theme="light"]) > header { background: #fff !important; border-color: #cfd6e0 !important; }
+.algorithm-lab:where([data-theme="light"]) > main > section, .algorithm-lab:where([data-theme="light"]) > main > section:first-child, .algorithm-lab:where([data-theme="light"]) #simulation, .algorithm-lab:where([data-theme="light"]) #implementation { background: #fff !important; border-color: #cfd6e0 !important; box-shadow: none !important; }
+.algorithm-lab:where([data-theme="light"]) > main > section:first-child { background: linear-gradient(110deg, rgb(var(--algorithm-accent-rgb) / 45%), #fff 75%) !important; }
+.algorithm-lab:where([data-theme="light"]) :is(div, section, pre, code)[class*="bg-slate-"], .algorithm-lab:where([data-theme="light"]) :is(div, pre)[class*="bg-[#"] { background-color: #f3f5f8 !important; background-image: none !important; border-color: #d5dce5 !important; }
+.algorithm-lab:where([data-theme="light"]) #simulation > div:first-of-type, .algorithm-lab:where([data-theme="light"]) #pseudocode > div { background: #f8fafc !important; }
+.algorithm-lab:where([data-theme="light"]) #simulation input:not([type="range"]), .algorithm-lab:where([data-theme="light"]) select { background: #fff !important; border-color: #aebaca !important; }
+.algorithm-lab:where([data-theme="light"]) button, .algorithm-lab:where([data-theme="light"]) .algorithm-section-links a { border-color: #b9c5d2 !important; }
+.algorithm-lab:where([data-theme="light"]) button:not(:disabled):hover, .algorithm-lab:where([data-theme="light"]) .algorithm-section-links a:hover { filter: brightness(.96); }
+.algorithm-lab:where([data-theme="light"]) button[class*="bg-"], .algorithm-lab:where([data-theme="light"]) .algorithm-section-links__primary { background-color: var(--algorithm-accent) !important; }
+.algorithm-lab:where([data-theme="light"]) .algorithm-navigation__tabs a[aria-current="page"] { background: rgb(var(--algorithm-accent-rgb) / 50%); border-color: #9caec1; }
+.algorithm-lab:where([data-theme="light"]) .algorithm-section-links a { background: #edf1f6; }
+.algorithm-lab:where([data-theme="light"]) :is(a, button, input, select):focus-visible { outline-color: #000; }
+.algorithm-lab:where([data-theme="light"]) input::placeholder { color: var(--algorithm-text); opacity: .6; }
+.algorithm-lab:where([data-theme="light"]) ::selection { background: #c8ddf1; color: var(--algorithm-text); }
+/* Override legacy high-specificity dark-theme text rules in every section. */
+.algorithm-lab:where([data-theme="light"]).algorithm-lab.algorithm-lab.algorithm-lab :where(div, span, p, a, button, h1, h2, h3, h4, small, strong, b, label, input, select, li, code, pre, th, td) { color: var(--algorithm-text) !important; }
+.algorithm-lab:where([data-theme="light"]).algorithm-lab > main > section:nth-child(3) > div,
+.algorithm-lab:where([data-theme="light"]).algorithm-lab > main > section:nth-child(5) > div,
+.algorithm-lab:where([data-theme="light"]).algorithm-lab > main > section:nth-child(5) [class*="grid-cols-4"] > div { background: #f3f5f8 !important; border-color: #d5dce5 !important; box-shadow: none !important; }
+.algorithm-lab:where([data-theme="light"]).algorithm-lab > main > section:nth-child(4) > div:first-of-type { background: #f8fafc !important; }
+.algorithm-lab:where([data-theme="light"]).algorithm-lab button[class*="bg-slate-"] { background-color: #e8edf3 !important; }
+
+/* One text token for both themes, including legacy utility classes. */
+.algorithm-lab[data-theme="dark"] { --algorithm-text: #fff; }
+.algorithm-lab[data-theme="light"] { --algorithm-text: #000; }
+.algorithm-lab { --algorithm-text: #fff; }
+.algorithm-lab[data-theme].algorithm-lab.algorithm-lab.algorithm-lab :where(div, span, p, a, button, h1, h2, h3, h4, small, strong, b, label, input, select, option, li, code, pre, th, td, dt, dd, output, em, i, svg, text) { color: var(--algorithm-text) !important; }
+.algorithm-lab[data-theme] input::placeholder { color: var(--algorithm-text); opacity: .65; }
+.algorithm-lab[data-theme="dark"] .algorithm-section-links__primary,
+.algorithm-lab[data-theme="dark"] #simulation button[class*="bg-"] { background: #24435c !important; border-color: #526f88 !important; }
+.algorithm-lab[data-theme="dark"] select, .algorithm-lab[data-theme="dark"] option { background: #151d2a; }
+.algorithm-lab[data-theme] :is(a, button, input, select):focus-visible { outline-color: var(--algorithm-text); }
+
+/* Status and speed are spans, so surface rules for divs do not cover them. */
+.algorithm-lab[data-theme="light"] #simulation :is(.algorithm-status-badge, .algorithm-speed-value) { background: #e8edf3 !important; border: 1px solid #bac6d4 !important; color: #000 !important; }
+.algorithm-lab[data-theme="dark"] #simulation :is(.algorithm-status-badge, .algorithm-speed-value) { background: #253348 !important; border: 1px solid #506078 !important; color: #fff !important; }
+
+.algorithm-lab[data-theme="light"] { --control-bg: #e8edf3; --control-hover: #d7e1ec; --control-border: #aebed0; --control-primary: #bcd8ef; --control-disabled: #f0f2f5; }
+.algorithm-lab[data-theme="dark"] { --control-bg: #253348; --control-hover: #344962; --control-border: #526780; --control-primary: #285276; --control-disabled: #1b2533; }
+.algorithm-lab[data-theme] #simulation .algorithm-simulation-controls button {
+  background: var(--control-bg) !important;
+  background-image: none !important;
+  border: 1px solid var(--control-border) !important;
+  color: var(--algorithm-text) !important;
+  box-shadow: none !important;
+}
+.algorithm-lab[data-theme] #simulation .algorithm-simulation-controls button[class*="bg-gradient"] { background: var(--control-primary) !important; }
+.algorithm-lab[data-theme] #simulation .algorithm-simulation-controls button:hover:not(:disabled) { background: var(--control-hover) !important; filter: none; }
+.algorithm-lab[data-theme] #simulation .algorithm-simulation-controls button:disabled { background: var(--control-disabled) !important; border-style: dashed !important; opacity: 1 !important; cursor: not-allowed; }
+.algorithm-lab[data-theme] #simulation .algorithm-simulation-controls button svg { color: var(--algorithm-text) !important; }

@@ -26,6 +26,14 @@ const chineseChessPieces = [
   { symbol: '象', side: 'red', x: '83%', y: '37%', size: 43, delay: .65 },
   { symbol: '卒', side: 'black', x: '93%', y: '69%', size: 48, delay: 1.1 },
   { symbol: '兵', side: 'red', x: '76%', y: '87%', size: 36, delay: 1.55 },
+  { symbol: '仕', side: 'red', x: '18%', y: '8%', size: 40, delay: .3 },
+  { symbol: '士', side: 'black', x: '72%', y: '7%', size: 42, delay: .55 },
+  { symbol: '相', side: 'red', x: '3%', y: '46%', size: 44, delay: .75 },
+  { symbol: '馬', side: 'red', x: '90%', y: '44%', size: 46, delay: 1 },
+  { symbol: '車', side: 'red', x: '12%', y: '88%', size: 42, delay: 1.2 },
+  { symbol: '炮', side: 'black', x: '87%', y: '86%', size: 40, delay: 1.4 },
+  { symbol: '卒', side: 'black', x: '39%', y: '5%', size: 34, delay: .85 },
+  { symbol: '兵', side: 'red', x: '54%', y: '91%', size: 36, delay: 1.6 },
 ]
 
 function safeGamePath(value: unknown): string {
@@ -260,6 +268,7 @@ const handleLogin = async () => {
             top: piece.y,
             width: `${piece.size}px`,
             height: `${piece.size}px`,
+            fontSize: `${Math.round(piece.size * 0.56)}px`,
             animationDelay: `${piece.delay}s`,
           }"
         >

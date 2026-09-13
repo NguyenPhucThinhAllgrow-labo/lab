@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ThemeToggle from '~/components/common/ThemeToggle.vue'
 import {
   ArrowRight,
   Blocks,
@@ -218,6 +219,7 @@ onMounted(async () => {
         <span v-else class="home-account__loading"></span>
         <p v-if="logoutError" class="home-account__error" role="alert">{{ logoutError }}</p>
       </div>
+      <ThemeToggle class="home-theme-toggle" />
     </header>
 
     <section class="home-hero">
@@ -256,9 +258,9 @@ onMounted(async () => {
       </NuxtLink>
     </section>
 
-    <section id="games" class="home-section">
+    <section id="games" class="home-section" aria-labelledby="home-games-title">
       <header class="home-section__header">
-        <div><small>TÌM THỬ THÁCH CỦA BẠN</small><h2>Hôm nay bạn muốn chơi gì?</h2></div>
+        <div><small class="home-zone-label"><Gamepad2 :size="16" /> KHU TRÒ CHƠI · 06 THỬ THÁCH</small><h2 id="home-games-title">Hôm nay bạn muốn chơi gì?</h2></div>
         <p>Chọn thử thách phù hợp với kỹ năng bạn muốn chinh phục.</p>
       </header>
 
@@ -274,9 +276,9 @@ onMounted(async () => {
       </div>
     </section>
 
-    <section id="algorithm-lab" class="home-lab">
+    <section id="algorithm-lab" class="home-lab" aria-labelledby="home-lab-title">
       <div class="home-lab__icon"><BrainCircuit /></div>
-      <div class="home-lab__copy"><small>HỌC QUA TRẢI NGHIỆM</small><h2>Algorithm Lab</h2><p>Quan sát thuật toán vận hành từng bước qua các mô phỏng trực quan và tương tác.</p></div>
+      <div class="home-lab__copy"><small class="home-zone-label">KHU HỌC TẬP · 04 MÔ PHỎNG</small><h2 id="home-lab-title">Algorithm Lab</h2><p>Quan sát thuật toán vận hành từng bước qua các mô phỏng trực quan và tương tác.</p></div>
       <div class="home-lab__links">
         <NuxtLink v-for="lab in algorithmLabs" :key="lab.path" :to="lab.path"><Braces /><span>{{ lab.name }}</span><ChevronRight /></NuxtLink>
       </div>

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import PlayerLogoutButton from '~/components/auth/PlayerLogoutButton.vue'
 
+const { theme } = useSiteTheme()
+useHead(() => ({ htmlAttrs: { 'data-site-theme': theme.value } }))
+
 const route = useRoute()
 
 const layout = computed(() => {

@@ -117,11 +117,11 @@ async function confirmLogout() {
       <button type="button" class="player-dock__handle" title="Kéo lên xuống hoặc dùng phím mũi tên" aria-label="Di chuyển dock lên xuống" @pointerdown="startDrag" @pointermove="moveDrag" @pointerup="endDrag" @pointercancel="endDrag" @lostpointercapture="endDrag" @keydown="moveWithKeyboard"><GripHorizontal :size="20" /></button>
       <template v-if="!verticallyCollapsed">
       <button class="player-dock__avatar" type="button" :title="displayName" :aria-label="`${displayName}: ${expanded ? 'thu gọn' : 'mở rộng'} menu`" :aria-expanded="expanded" @click="expanded = !expanded">
-        <b>{{ initial }}</b><span v-if="expanded" class="player-dock__identity"><small>Đang đăng nhập</small><strong>{{ displayName }}</strong></span>
+        <b>{{ initial }}</b><span v-if="expanded" class="player-dock__identity"><small>{{ props.variant === 'hacker' ? 'AUTHENTICATED' : 'Đang đăng nhập' }}</small><strong>{{ displayName }}</strong></span>
       </button>
       <div class="player-dock__divider"></div>
       <NuxtLink v-if="props.showHome" to="/" class="player-dock__action" title="Trang chủ" aria-label="Về trang chủ"><House :size="20" /><span v-if="expanded">Trang chủ</span></NuxtLink>
-      <button type="button" class="player-dock__action player-dock__exit" :disabled="loading" :title="loading ? 'Đang đăng xuất…' : 'Đăng xuất'" aria-label="Đăng xuất" @click="logoutConfirmOpen = true"><LoaderCircle v-if="loading" :size="20" class="is-spinning" /><LogOut v-else :size="20" /><span v-if="expanded">{{ loading ? 'Đang thoát…' : 'Đăng xuất' }}</span></button>
+      <button type="button" class="player-dock__action player-dock__exit" :disabled="loading" :title="loading ? 'Đang đăng xuất…' : 'Đăng xuất'" aria-label="Đăng xuất" @click="logoutConfirmOpen = true"><LoaderCircle v-if="loading" :size="20" class="is-spinning" /><LogOut v-else :size="20" /><span v-if="expanded">{{ loading ? 'Đang thoát…' : props.variant === 'hacker' ? 'EXIT' : 'Đăng xuất' }}</span></button>
       <button type="button" class="player-dock__action player-dock__toggle" :title="expanded ? 'Thu gọn dock' : 'Mở rộng dock'" :aria-label="expanded ? 'Thu gọn dock' : 'Mở rộng dock'" :aria-expanded="expanded" @click="expanded = !expanded"><ChevronRight v-if="expanded" :size="18" /><ChevronLeft v-else :size="18" /><span v-if="expanded">Thu gọn</span></button>
       </template>
       <button type="button" class="player-dock__action player-dock__toggle" :title="verticallyCollapsed ? 'Mở dock xuống' : 'Thu gọn dock lên'" :aria-label="verticallyCollapsed ? 'Mở dock xuống' : 'Thu gọn dock theo chiều dọc'" :aria-expanded="!verticallyCollapsed" @click="toggleVertical"><ChevronDown v-if="verticallyCollapsed" :size="18" /><ChevronUp v-else :size="18" /><span v-if="expanded && !verticallyCollapsed">Thu gọn lên</span></button>
@@ -156,4 +156,16 @@ async function confirmLogout() {
 @keyframes dock-spin { to { transform: rotate(360deg); } }
 @media (max-width: 600px) { .player-dock { right: max(4px, env(safe-area-inset-right)); width: 54px; padding: 4px; border-radius: 14px; } }
 @media (prefers-reduced-motion: reduce) { .is-spinning { animation: none; } }
+/* Pandora terminal theme, including the compact and mobile dock. */
+.player-dock.player-dock--hacker { border-radius: 3px; border-color: #34d39970; background: #07120e; color: #a7f3d0; box-shadow: 0 0 20px #10b98118, inset 0 0 16px #10b98108; font-family: "Lucida Console", Monaco, "Courier New", monospace; }
+.player-dock--hacker .player-dock__avatar, .player-dock--hacker .player-dock__action, .player-dock--hacker .player-dock__handle { border-radius: 2px; }
+.player-dock--hacker .player-dock__avatar b { border: 1px solid #34d39980; border-radius: 2px; background: #0b3022; color: #6ee7b7; text-shadow: 0 0 8px #34d39940; }
+.player-dock--hacker .player-dock__identity small { color: #6ee7b7; font-size: 9px; letter-spacing: .04em; }
+.player-dock--hacker .player-dock__identity strong { color: #ecfdf5; font-size: 12px; }
+.player-dock--hacker .player-dock__identity strong::before { content: 'user@'; color: #34d399; }
+.player-dock--hacker .player-dock__divider { background: #34d39938; }
+.player-dock--hacker .player-dock__handle, .player-dock--hacker .player-dock__toggle { background: #10b98109; color: #6ee7b7; }
+.player-dock--hacker .player-dock__exit { border-color: #34d39940; background: #10b98112; color: #a7f3d0; }
+.player-dock--hacker .player-dock__action:hover:not(:disabled), .player-dock--hacker .player-dock__avatar:hover, .player-dock--hacker .player-dock__handle:hover { background: #064e3b80; border-color: #34d39980; color: #d1fae5; }
+.player-dock--hacker button:focus-visible, .player-dock--hacker a:focus-visible { outline-color: #6ee7b7; }
 </style>

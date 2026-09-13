@@ -1129,12 +1129,6 @@ onBeforeUnmount(() => {
     <div v-if="computerError" class="chess-error chess-error--room" role="alert">
       {{ computerError }} <button class="chess-button" :disabled="computerThinking" @click="scheduleComputerMove">Thử lại</button>
     </div>
-    <div class="local-mode-toolbar">
-      <button type="button" class="local-mode-button" :disabled="gameStarted && !gameOver" :title="gameStarted && !gameOver ? 'Kết thúc ván đấu để đổi chế độ' : 'Chọn chế độ chơi'" @click="openModeDialog">
-        <Swords :size="20" /> Chọn chế độ
-      </button>
-      <span>{{ gameMode === 'computer' ? 'Chơi với máy' : 'Hai người cùng thiết bị' }}</span>
-    </div>
     <section class="online-match">
       <nav class="mobile-chess-toolbar" aria-label="Thông tin ván đấu">
         <div>
@@ -1209,6 +1203,11 @@ onBeforeUnmount(() => {
       </section>
 
       <aside class="match-panel match-panel--players" :class="{ 'is-mobile-open': mobilePanel === 'players' }">
+        <div class="local-mode-toolbar">
+          <span class="local-mode-label">CHẾ ĐỘ ĐANG CHƠI</span>
+          <strong class="local-mode-name"><Bot v-if="gameMode === 'computer'" :size="22" /><Users v-else :size="22" />{{ gameMode === 'computer' ? 'Chơi với máy' : 'Hai người' }}</strong>
+          <button type="button" class="local-mode-button" :disabled="gameStarted && !gameOver" :title="gameStarted && !gameOver ? 'Kết thúc ván đấu để đổi chế độ' : 'Chọn chế độ chơi'" @click="openModeDialog"><Swords :size="17" /> Chọn chế độ</button>
+        </div>
         <div class="match-panel__title"><span>Người chơi</span><Users :size="17" /><button type="button" class="mobile-panel-close" aria-label="Đóng bảng trận đấu" @click="mobilePanel = null"><X :size="16" /></button></div>
           <div v-if="gameStarted && !gameOver && !paused" class="player-turn" role="status">
             <span class="player-turn__dot" :class="{ 'is-red': currentTurn === 'red' }"></span>
@@ -1260,7 +1259,8 @@ onBeforeUnmount(() => {
     </Transition>
 
     <Teleport to="body">
-      <dialog ref="modeDialog" class="mode-picker" aria-labelledby="mode-picker-title" aria-describedby="mode-picker-description" @cancel.prevent>
+      <dialog ref="modeDialog" class="mode-picker" aria-labelledby="mode-picker-title" aria-describedby="mode-picker-description">
+        <button type="button" class="mode-picker__close" aria-label="Đóng chọn chế độ" title="Đóng" @click="modeDialog?.close()"><X :size="20" /></button>
         <span class="mode-picker__eyebrow">CHINESE CHESS</span>
         <h2 id="mode-picker-title">Chọn chế độ chơi</h2>
         <p id="mode-picker-description">Bạn muốn chơi cờ theo cách nào?</p>
@@ -1302,6 +1302,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .mode-picker { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; margin: auto; padding: 28px; border: 1px solid #b98a463d; border-radius: 22px; background: #19150f; color: #f7ead3; box-shadow: 0 24px 80px #0009; }
 .mode-picker::backdrop { background: #080706d9; }
+.mode-picker__close { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #b98a4633; border-radius: 9px; background: #241d14; color: #f7ead3; cursor: pointer; }
+.mode-picker__close:hover { background: #322617; border-color: #d5a75e80; }
+.mode-picker h2 { padding-right: 32px; }
 .mode-picker__eyebrow { color: #d5a75e; font-size: 11px; letter-spacing: .18em; }
 .mode-picker h2 { margin: 10px 0; font-size: 26px; font-weight: 700; }
 .mode-picker p { color: #b9ad99; font-size: 14px; }
@@ -1318,11 +1321,12 @@ onBeforeUnmount(() => {
 </style>
 
 <style scoped>
-.local-mode-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; margin: 0 auto 20px; }
-.local-mode-toolbar > span { color: #cabcaa; font-size: 13px; }
-.local-mode-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 46px; padding: 12px 22px; border: 1px solid #fcd778; border-radius: 12px; background: #f5bd4f; color: #271807; font-size: 15px; font-weight: 800; box-shadow: 0 4px 18px #f5bd4f24; cursor: pointer; }
+.local-mode-toolbar { display: grid; gap: 12px; margin-bottom: 20px; padding: 16px; border: 1px solid #f5bd4f50; border-radius: 14px; background: #f5bd4f0c; }
+.local-mode-label { color: #d8bf91; font-size: 10px; font-weight: 700; letter-spacing: .1em; }
+.local-mode-name { display: flex; align-items: center; gap: 10px; color: #ffda85; font-size: 22px; font-weight: 800; line-height: 1.3; }
+.local-mode-name svg { flex-shrink: 0; }
+.local-mode-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 42px; padding: 10px 14px; border: 1px solid #fcd778; border-radius: 10px; background: #f5bd4f; color: #271807; font-size: 13px; font-weight: 800; cursor: pointer; }
 .local-mode-button:hover:not(:disabled) { background: #ffd579; }
-.local-mode-button:focus-visible { outline: 3px solid #fff0c5; outline-offset: 4px; }
-.local-mode-button:disabled { background: #6e5732; border-color: #8a7046; color: #e2d1b2; box-shadow: none; cursor: not-allowed; }
-@media(max-width: 520px) { .local-mode-toolbar { flex-direction: column; gap: 8px; } }
+.local-mode-button:focus-visible { outline: 3px solid #fff0c5; outline-offset: 3px; }
+.local-mode-button:disabled { background: #6e5732; border-color: #8a7046; color: #e2d1b2; cursor: not-allowed; }
 </style>

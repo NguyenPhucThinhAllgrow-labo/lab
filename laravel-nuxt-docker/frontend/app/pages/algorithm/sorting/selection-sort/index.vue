@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { theme: siteTheme } = useSiteTheme()
+import AlgorithmNavigation from '~/components/algorithm/AlgorithmNavigation.vue'
 import {
   ArrowLeft,
   ArrowUp,
@@ -541,47 +543,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div
+    :data-theme="siteTheme"
     class="algorithm-lab algorithm-lab--selection min-h-screen bg-slate-950 text-slate-100"
   >
     <!-- =====================================================
          HEADER
     ====================================================== -->
 
-    <header
-      class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-xl"
-    >
-      <div
-        class="mx-auto flex max-w-7xl items-center gap-4 px-6 py-4"
-      >
-        <button
-          type="button"
-          class="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-white"
-          @click="$router.back()"
-        >
-          <ArrowLeft class="h-4 w-4" />
-
-          Algorithms
-        </button>
-
-        <div
-          class="h-5 w-px bg-slate-800"
-        />
-
-        <div>
-          <div
-            class="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-400"
-          >
-            Sorting
-          </div>
-
-          <h1
-            class="text-sm font-bold text-white"
-          >
-            Selection Sort
-          </h1>
-        </div>
-      </div>
-    </header>
+    <AlgorithmNavigation />
 
     <main
       class="mx-auto max-w-7xl space-y-8 px-6 py-8 lg:py-10"
@@ -590,7 +559,7 @@ onBeforeUnmount(() => {
            HERO
       ==================================================== -->
 
-      <section
+      <section id="overview"
         class="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-7 lg:p-10"
       >
         <div
@@ -613,6 +582,12 @@ onBeforeUnmount(() => {
           >
             Selection Sort
           </h2>
+          <nav class="algorithm-section-links" aria-label="Điều hướng nội dung">
+            <a href="#simulation" class="algorithm-section-links__primary">Bắt đầu mô phỏng <span aria-hidden="true">↓</span></a>
+            <a href="#introduction">Tổng quan</a>
+            <a href="#pseudocode">Mã giả &amp; độ phức tạp</a>
+            <a href="#implementation">Mã PHP</a>
+          </nav>
 
           <p
             class="mt-5 max-w-3xl text-base leading-8 text-slate-400 sm:text-lg"
@@ -628,7 +603,7 @@ onBeforeUnmount(() => {
            INTRODUCTION
       ==================================================== -->
 
-      <section
+      <section id="introduction"
         class="rounded-3xl border border-slate-800 bg-slate-900 p-6 lg:p-8"
       >
         <div
@@ -713,7 +688,7 @@ onBeforeUnmount(() => {
            USE CASES
       ==================================================== -->
 
-      <section
+      <section id="applications"
         class="grid gap-5 md:grid-cols-2"
       >
         <div
@@ -820,10 +795,10 @@ onBeforeUnmount(() => {
       </section>
 
       <!-- ===================================================
-           LIVE SIMULATION
+           Mô phỏng tương tác
       ==================================================== -->
 
-      <section
+      <section id="simulation"
         class="relative overflow-hidden rounded-3xl border border-purple-500/20 bg-slate-900 shadow-2xl shadow-purple-950/20"
       >
         <div
@@ -880,11 +855,11 @@ onBeforeUnmount(() => {
                   <h3
                     class="text-xl font-black tracking-tight text-white"
                   >
-                    LIVE SIMULATION
+                    Mô phỏng tương tác
                   </h3>
 
                   <span
-                    class="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
+                    class="algorithm-status-badge rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
                     :class="{
                       'border-emerald-500/20 bg-emerald-500/10 text-emerald-400':
                         status === 'running',
@@ -1210,7 +1185,7 @@ onBeforeUnmount(() => {
           <!-- Controls -->
 
           <div
-            class="mt-8 flex flex-col gap-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-5"
+            class="algorithm-simulation-controls mt-8 flex flex-col gap-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-5"
           >
             <div
               class="flex flex-wrap items-center justify-center gap-2"
@@ -1307,7 +1282,7 @@ onBeforeUnmount(() => {
                 </span>
 
                 <span
-                  class="rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-300"
+                  class="algorithm-speed-value rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-300"
                 >
                   {{ speed }} ms
                 </span>
@@ -1335,10 +1310,10 @@ onBeforeUnmount(() => {
       </section>
 
       <!-- ===================================================
-           PSEUDOCODE + COMPLEXITY
+           Mã giả + Độ phức tạp
       ==================================================== -->
 
-      <section
+      <section id="pseudocode"
         class="grid gap-6 lg:grid-cols-5"
       >
         <!-- Pseudocode -->
@@ -1366,7 +1341,7 @@ onBeforeUnmount(() => {
                 <h3
                   class="text-lg font-black text-white"
                 >
-                  PSEUDOCODE
+                  Mã giả
                 </h3>
 
                 <p
@@ -1473,7 +1448,7 @@ onBeforeUnmount(() => {
                 <h3
                   class="text-lg font-black text-white"
                 >
-                  COMPLEXITY
+                  Độ phức tạp
                 </h3>
 
                 <p
@@ -1683,7 +1658,7 @@ onBeforeUnmount(() => {
            PHP
       ==================================================== -->
 
-      <section
+      <section id="implementation"
         class="overflow-hidden rounded-3xl border border-indigo-500/20 bg-slate-900 shadow-xl shadow-indigo-950/10"
       >
         <div
@@ -1706,7 +1681,7 @@ onBeforeUnmount(() => {
               <h3
                 class="text-lg font-black text-white"
               >
-                PHP IMPLEMENTATION
+                Cài đặt bằng PHP
               </h3>
 
               <p
@@ -1784,7 +1759,7 @@ onBeforeUnmount(() => {
            EXPLANATION
       ==================================================== -->
 
-      <section
+      <section id="explanation"
         class="rounded-3xl border border-slate-800 bg-slate-900 p-6 lg:p-8"
       >
         <div
