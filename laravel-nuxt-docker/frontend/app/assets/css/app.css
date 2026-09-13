@@ -26,3 +26,20 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #3f3f46;
 }
+
+/* Avoid repaint-heavy decoration while resizing the chess viewport. */
+html.viewport-resizing .online-chess *,
+html.viewport-resizing .online-chess *::before,
+html.viewport-resizing .online-chess *::after {
+  transition: none !important;
+  animation-play-state: paused !important;
+}
+html.viewport-resizing .online-chess .chess-piece,
+html.viewport-resizing .online-chess .chess-board-surface,
+html.viewport-resizing .online-chess .player-card {
+  box-shadow: none !important;
+  filter: none !important;
+}
+html.viewport-resizing .online-chess .chess-board-grid { filter: none !important; }
+html.viewport-resizing .online-chess .chess-board-frame::after,
+html.viewport-resizing .online-chess .chess-piece::after { visibility: hidden; }

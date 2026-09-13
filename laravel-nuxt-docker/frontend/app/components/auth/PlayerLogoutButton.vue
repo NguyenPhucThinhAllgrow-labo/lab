@@ -32,6 +32,7 @@ let maxTop = 0
 let pendingTop = 0
 let frame: number | null = null
 let observer: ResizeObserver | null = null
+let fitFrame: number | null = null
 function clampTop(top: number) {
   return Math.max(12, Math.min(top, Math.max(12, window.innerHeight - (dock.value?.offsetHeight ?? 0) - 12)))
 }
@@ -76,7 +77,11 @@ function moveWithKeyboard(event: KeyboardEvent) {
   saveTop()
 }
 function fitDock() {
-  if (pointerId === null && dockTop.value !== null) dockTop.value = clampTop(dockTop.value)
+  if (fitFrame !== null) return
+  fitFrame = requestAnimationFrame(() => {
+    fitFrame = null
+    if (pointerId === null && dockTop.value !== null) dockTop.value = clampTop(dockTop.value)
+  })
 }
 onMounted(() => {
   try {
@@ -90,6 +95,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   if (frame !== null) cancelAnimationFrame(frame)
+  if (fitFrame !== null) cancelAnimationFrame(fitFrame)
   observer?.disconnect()
   window.removeEventListener('resize', fitDock)
 })

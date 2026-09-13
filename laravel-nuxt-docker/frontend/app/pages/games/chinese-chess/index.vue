@@ -1330,3 +1330,5 @@ onBeforeUnmount(() => {
 .local-mode-button:focus-visible { outline: 3px solid #fff0c5; outline-offset: 3px; }
 .local-mode-button:disabled { background: #6e5732; border-color: #8a7046; color: #e2d1b2; cursor: not-allowed; }
 </style>
+
+
