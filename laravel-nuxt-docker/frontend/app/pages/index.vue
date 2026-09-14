@@ -12,6 +12,7 @@ import {
   LogOut,
   Mail,
   Radar,
+  Shield,
   Swords,
   X,
   Zap,
@@ -150,6 +151,15 @@ const games = [
     icon: Radar,
     tone: 'indigo',
   },
+  {
+    name: 'Kingdom Defense',
+    code: 'TDF-06',
+    category: 'Tower Defense',
+    description: 'Xây tháp, đẩy lùi quái vật và bảo vệ lâu đài qua từng đợt tiến công.',
+    path: '/games/tower-defense',
+    icon: Shield,
+    tone: 'cyan',
+  },
 ]
 
 const algorithmLabs = [
@@ -223,7 +233,7 @@ onMounted(async () => {
           <a href="#algorithm-lab" class="home-button home-button--ghost">Khám phá thuật toán <ChevronRight /></a>
         </div>
         <div class="home-hero__metrics">
-          <span><strong>05</strong><small>Trò chơi</small></span>
+          <span><strong>06</strong><small>Trò chơi</small></span>
           <i></i>
           <span><strong>04</strong><small>Mô phỏng thuật toán</small></span>
           <i></i>
@@ -232,7 +242,7 @@ onMounted(async () => {
       </div>
 
       <NuxtLink to="/games/pandora/detective" class="home-feature">
-        <div class="home-feature__top"><span>THỬ THÁCH NỔI BẬT</span><span>01 / 05</span></div>
+        <div class="home-feature__top"><span>THỬ THÁCH NỔI BẬT</span><span>01 / 06</span></div>
         <div class="home-feature__art" aria-hidden="true">
           <div class="home-feature__orbit home-feature__orbit--outer"></div>
           <div class="home-feature__orbit home-feature__orbit--inner"></div>
@@ -251,7 +261,7 @@ onMounted(async () => {
 
     <section id="games" class="home-section" aria-labelledby="home-games-title">
       <header class="home-section__header">
-        <div><small class="home-zone-label"><Gamepad2 :size="16" /> KHU TRÒ CHƠI · 05 THỬ THÁCH</small><h2 id="home-games-title">Hôm nay bạn muốn chơi gì?</h2></div>
+        <div><small class="home-zone-label"><Gamepad2 :size="16" /> KHU TRÒ CHƠI · 06 THỬ THÁCH</small><h2 id="home-games-title">Hôm nay bạn muốn chơi gì?</h2></div>
         <p>Chọn thử thách phù hợp với kỹ năng bạn muốn chinh phục.</p>
       </header>
 
