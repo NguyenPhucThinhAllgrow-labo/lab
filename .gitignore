@@ -6,3 +6,5 @@ laravel-nuxt-docker/frontend/package-lock.json
 laravel-nuxt-docker/data/
 # Backend PHP dependencies
 laravel-nuxt-docker/backend/vendor/
+
+docker-compose.yml
