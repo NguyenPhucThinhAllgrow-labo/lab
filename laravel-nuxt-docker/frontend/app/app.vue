@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PlayerLogoutButton from '~/components/auth/PlayerLogoutButton.vue'
+import PlayerHeader from '~/components/auth/PlayerHeader.vue'
 
 const { theme } = useSiteTheme()
 useHead(() => ({ htmlAttrs: { 'data-site-theme': theme.value } }))
@@ -34,19 +34,13 @@ const layout = computed(() => {
 })
 
 const isGamePage = computed(() => route.path === '/games' || route.path.startsWith('/games/'))
-const isPandoraGame = computed(() => route.path.startsWith('/games/pandora/'))
 </script>
 
 <template>
   <NuxtLayout :name="layout">
+    <PlayerHeader v-if="isGamePage" />
     <NuxtPage />
   </NuxtLayout>
-
-  <PlayerLogoutButton
-    v-if="isGamePage"
-    show-home
-    :variant="isPandoraGame ? 'hacker' : 'default'"
-  />
 </template>
 
 <style src="~/assets/css/app.css"></style>

@@ -13,8 +13,7 @@ const games = [
   { name: 'Chinese Chess', path: '/games/chinese-chess', code: 'XQ-02', description: 'Xiangqi strategy board' },
   { name: 'Reaction Test', path: '/games/reaction', code: 'RFX-03', description: 'Speed challenge' },
   { name: 'Tetris', path: '/games/tetris', code: 'TRS-04', description: 'Block protocol' },
-  { name: 'Pandora: Who Am I?', path: '/games/pandora/whoami', code: 'WHO-05', description: 'Identity puzzle' },
-  { name: 'Pandora Detective', path: '/games/pandora/detective', code: 'PDS-06', description: 'Forensic investigation' },
+  { name: 'Pandora Detective', path: '/games/pandora/detective', code: 'PDS-05', description: 'Forensic investigation' },
 ]
 
 const chineseChessPieces = [

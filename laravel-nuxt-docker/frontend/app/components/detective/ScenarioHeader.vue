@@ -22,7 +22,7 @@ defineProps<{
              justify-between
              px-6 py-5"
     >
-      <div>
+      <div class="min-w-0 flex-1">
         <div
           class="font-mono
                  text-[10px]

@@ -11,8 +11,13 @@ const loading = ref(false)
 const logoutConfirmOpen = ref(false)
 const expanded = ref(false)
 const verticallyCollapsed = ref(false)
+const isMobile = ref(false)
+const horizontallyExpanded = computed(() => expanded.value && !isMobile.value)
+const dockStyle = computed(() => !isMobile.value && dockTop.value !== null
+  ? { top: `${dockTop.value}px`, transform: 'none' }
+  : undefined)
 async function toggleVertical() {
-  if (pointerId !== null) return
+  if (pointerId !== null || isMobile.value) return
   // Preserve the top edge while the dock changes height.
   dockTop.value = dock.value?.getBoundingClientRect().top ?? dockTop.value
   verticallyCollapsed.value = !verticallyCollapsed.value
@@ -33,6 +38,11 @@ let pendingTop = 0
 let frame: number | null = null
 let observer: ResizeObserver | null = null
 let fitFrame: number | null = null
+let mobileQuery: MediaQueryList | null = null
+function syncMobile(event: MediaQueryListEvent | MediaQueryList) {
+  isMobile.value = event.matches
+  if (event.matches) expanded.value = false
+}
 function clampTop(top: number) {
   return Math.max(12, Math.min(top, Math.max(12, window.innerHeight - (dock.value?.offsetHeight ?? 0) - 12)))
 }
@@ -44,7 +54,7 @@ function flushDrag() {
   dockTop.value = Math.max(12, Math.min(pendingTop, maxTop))
 }
 function startDrag(event: PointerEvent) {
-  if (event.button !== 0 || pointerId !== null) return
+  if (isMobile.value || event.button !== 0 || pointerId !== null) return
   const rect = dock.value?.getBoundingClientRect()
   if (!rect) return
   pointerId = event.pointerId
@@ -84,6 +94,9 @@ function fitDock() {
   })
 }
 onMounted(() => {
+  mobileQuery = window.matchMedia('(max-width: 600px)')
+  syncMobile(mobileQuery)
+  mobileQuery.addEventListener('change', syncMobile)
   try {
     verticallyCollapsed.value = localStorage.getItem('player-dock-vertical-collapsed') === 'true'
     const saved = localStorage.getItem(storageKey)
@@ -97,6 +110,7 @@ onBeforeUnmount(() => {
   if (frame !== null) cancelAnimationFrame(frame)
   if (fitFrame !== null) cancelAnimationFrame(fitFrame)
   observer?.disconnect()
+  mobileQuery?.removeEventListener('change', syncMobile)
   window.removeEventListener('resize', fitDock)
 })
 const displayName = computed(() => user.value?.name?.trim() || 'Người chơi')
@@ -119,15 +133,15 @@ async function confirmLogout() {
 
 <template>
   <Teleport to="body">
-    <nav ref="dock" class="player-dock" :style="dockTop !== null ? { top: `${dockTop}px`, transform: 'none' } : undefined" :class="[{ 'is-expanded': expanded && !verticallyCollapsed, 'is-dragging': dragging }, `player-dock--${props.variant}`]" aria-label="Menu người chơi">
+    <nav ref="dock" class="player-dock" :style="dockStyle" :class="[{ 'is-expanded': horizontallyExpanded && !verticallyCollapsed, 'is-dragging': dragging }, `player-dock--${props.variant}`]" aria-label="Menu người chơi">
       <button type="button" class="player-dock__handle" title="Kéo lên xuống hoặc dùng phím mũi tên" aria-label="Di chuyển dock lên xuống" @pointerdown="startDrag" @pointermove="moveDrag" @pointerup="endDrag" @pointercancel="endDrag" @lostpointercapture="endDrag" @keydown="moveWithKeyboard"><GripHorizontal :size="20" /></button>
-      <template v-if="!verticallyCollapsed">
-      <button class="player-dock__avatar" type="button" :title="displayName" :aria-label="`${displayName}: ${expanded ? 'thu gọn' : 'mở rộng'} menu`" :aria-expanded="expanded" @click="expanded = !expanded">
-        <b>{{ initial }}</b><span v-if="expanded" class="player-dock__identity"><small>{{ props.variant === 'hacker' ? 'AUTHENTICATED' : 'Đang đăng nhập' }}</small><strong>{{ displayName }}</strong></span>
+      <template v-if="!verticallyCollapsed || isMobile">
+      <button class="player-dock__avatar" type="button" :title="displayName" :aria-label="isMobile ? displayName : `${displayName}: ${horizontallyExpanded ? 'thu gọn' : 'mở rộng'} menu`" :aria-expanded="isMobile ? undefined : horizontallyExpanded" @click="!isMobile && (expanded = !expanded)">
+        <b>{{ initial }}</b><span v-if="horizontallyExpanded" class="player-dock__identity"><small>{{ props.variant === 'hacker' ? 'AUTHENTICATED' : 'Đang đăng nhập' }}</small><strong>{{ displayName }}</strong></span>
       </button>
       <div class="player-dock__divider"></div>
-      <NuxtLink v-if="props.showHome" to="/" class="player-dock__action" title="Trang chủ" aria-label="Về trang chủ"><House :size="20" /><span v-if="expanded">Trang chủ</span></NuxtLink>
-      <button type="button" class="player-dock__action player-dock__exit" :disabled="loading" :title="loading ? 'Đang đăng xuất…' : 'Đăng xuất'" aria-label="Đăng xuất" @click="logoutConfirmOpen = true"><LoaderCircle v-if="loading" :size="20" class="is-spinning" /><LogOut v-else :size="20" /><span v-if="expanded">{{ loading ? 'Đang thoát…' : props.variant === 'hacker' ? 'EXIT' : 'Đăng xuất' }}</span></button>
+      <NuxtLink v-if="props.showHome" to="/" class="player-dock__action" title="Trang chủ" aria-label="Về trang chủ"><House :size="20" /><span v-if="horizontallyExpanded">Trang chủ</span></NuxtLink>
+      <button type="button" class="player-dock__action player-dock__exit" :disabled="loading" :title="loading ? 'Đang đăng xuất…' : 'Đăng xuất'" aria-label="Đăng xuất" @click="logoutConfirmOpen = true"><LoaderCircle v-if="loading" :size="20" class="is-spinning" /><LogOut v-else :size="20" /><span v-if="horizontallyExpanded">{{ loading ? 'Đang thoát…' : props.variant === 'hacker' ? 'EXIT' : 'Đăng xuất' }}</span></button>
       <button type="button" class="player-dock__action player-dock__toggle" :title="expanded ? 'Thu gọn dock' : 'Mở rộng dock'" :aria-label="expanded ? 'Thu gọn dock' : 'Mở rộng dock'" :aria-expanded="expanded" @click="expanded = !expanded"><ChevronRight v-if="expanded" :size="18" /><ChevronLeft v-else :size="18" /><span v-if="expanded">Thu gọn</span></button>
       </template>
       <button type="button" class="player-dock__action player-dock__toggle" :title="verticallyCollapsed ? 'Mở dock xuống' : 'Thu gọn dock lên'" :aria-label="verticallyCollapsed ? 'Mở dock xuống' : 'Thu gọn dock theo chiều dọc'" :aria-expanded="!verticallyCollapsed" @click="toggleVertical"><ChevronDown v-if="verticallyCollapsed" :size="18" /><ChevronUp v-else :size="18" /><span v-if="expanded && !verticallyCollapsed">Thu gọn lên</span></button>
@@ -160,7 +174,12 @@ async function confirmLogout() {
 .player-dock--hacker .player-dock__avatar b { background: #6ee7b7; color: #063d2a; }
 .is-spinning { animation: dock-spin .8s linear infinite; }
 @keyframes dock-spin { to { transform: rotate(360deg); } }
-@media (max-width: 600px) { .player-dock { right: max(4px, env(safe-area-inset-right)); width: 54px; padding: 4px; border-radius: 14px; } }
+@media (max-width: 600px) {
+  .player-dock, .player-dock.is-expanded { top: auto; right: auto; bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; width: auto; max-width: calc(100vw - 16px); max-height: none; flex-direction: row; align-items: center; gap: 4px; overflow: visible; padding: 5px; border-radius: 14px; transform: translateX(-50%); }
+  .player-dock__handle, .player-dock__divider, .player-dock__toggle { display: none; }
+  .player-dock__avatar, .player-dock__action { width: 44px; min-height: 44px; justify-content: center; gap: 0; padding: 4px; }
+  .player-dock__identity, .player-dock__action span { display: none; }
+}
 @media (prefers-reduced-motion: reduce) { .is-spinning { animation: none; } }
 /* Pandora terminal theme, including the compact and mobile dock. */
 .player-dock.player-dock--hacker { border-radius: 3px; border-color: #34d39970; background: #07120e; color: #a7f3d0; box-shadow: 0 0 20px #10b98118, inset 0 0 16px #10b98108; font-family: "Lucida Console", Monaco, "Courier New", monospace; }

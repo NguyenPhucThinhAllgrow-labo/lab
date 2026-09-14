@@ -13,7 +13,6 @@ import {
   Mail,
   Radar,
   Swords,
-  TerminalSquare,
   X,
   Zap,
 } from 'lucide-vue-next'
@@ -25,6 +24,7 @@ useHead({
 })
 
 const { user, initialized, fetchUser, login, logout } = useAuth()
+const playerUser = computed(() => user.value?.role === 'user' ? user.value : null)
 const loggingOut = ref(false)
 const logoutError = ref('')
 const logoutConfirmOpen = ref(false)
@@ -142,17 +142,8 @@ const games = [
     tone: 'violet',
   },
   {
-    name: 'Who Am I?',
-    code: 'WHO-05',
-    category: 'Terminal puzzle',
-    description: 'Khám phá danh tính ẩn giấu qua một terminal đầy bí mật.',
-    path: '/games/pandora/whoami',
-    icon: TerminalSquare,
-    tone: 'emerald',
-  },
-  {
     name: 'Pandora Detective',
-    code: 'PDS-06',
+    code: 'PDS-05',
     category: 'Investigation',
     description: 'Thu thập chứng cứ, kết nối manh mối và phá giải từng vụ án.',
     path: '/games/pandora/detective',
@@ -192,12 +183,12 @@ onMounted(async () => {
       </nav>
 
       <div class="home-account">
-        <template v-if="user">
+        <template v-if="playerUser">
           <div class="home-account__user">
-            <span class="home-account__avatar" aria-hidden="true">{{ user.name.trim().slice(0, 1).toLocaleUpperCase('vi') }}</span>
+            <span class="home-account__avatar" aria-hidden="true">{{ playerUser.name.trim().slice(0, 1).toLocaleUpperCase('vi') }}</span>
             <div class="home-account__identity">
-              <strong :title="user.name">{{ user.name }}</strong>
-              <small :title="user.email">{{ user.email }}</small>
+              <strong :title="playerUser.name">{{ playerUser.name }}</strong>
+              <small :title="playerUser.email">{{ playerUser.email }}</small>
             </div>
           </div>
           <button
@@ -232,7 +223,7 @@ onMounted(async () => {
           <a href="#algorithm-lab" class="home-button home-button--ghost">Khám phá thuật toán <ChevronRight /></a>
         </div>
         <div class="home-hero__metrics">
-          <span><strong>06</strong><small>Trò chơi</small></span>
+          <span><strong>05</strong><small>Trò chơi</small></span>
           <i></i>
           <span><strong>04</strong><small>Mô phỏng thuật toán</small></span>
           <i></i>
@@ -241,7 +232,7 @@ onMounted(async () => {
       </div>
 
       <NuxtLink to="/games/pandora/detective" class="home-feature">
-        <div class="home-feature__top"><span>THỬ THÁCH NỔI BẬT</span><span>01 / 06</span></div>
+        <div class="home-feature__top"><span>THỬ THÁCH NỔI BẬT</span><span>01 / 05</span></div>
         <div class="home-feature__art" aria-hidden="true">
           <div class="home-feature__orbit home-feature__orbit--outer"></div>
           <div class="home-feature__orbit home-feature__orbit--inner"></div>
@@ -260,7 +251,7 @@ onMounted(async () => {
 
     <section id="games" class="home-section" aria-labelledby="home-games-title">
       <header class="home-section__header">
-        <div><small class="home-zone-label"><Gamepad2 :size="16" /> KHU TRÒ CHƠI · 06 THỬ THÁCH</small><h2 id="home-games-title">Hôm nay bạn muốn chơi gì?</h2></div>
+        <div><small class="home-zone-label"><Gamepad2 :size="16" /> KHU TRÒ CHƠI · 05 THỬ THÁCH</small><h2 id="home-games-title">Hôm nay bạn muốn chơi gì?</h2></div>
         <p>Chọn thử thách phù hợp với kỹ năng bạn muốn chinh phục.</p>
       </header>
 
@@ -287,7 +278,7 @@ onMounted(async () => {
     <footer class="home-footer">
       <div class="home-brand"><span><Gamepad2 /></span><div><strong>GAME LAB</strong><small>PLAY. THINK. IMPROVE.</small></div></div>
       <p>Dành cho những người luôn tò mò.</p>
-      <div><NuxtLink to="/portfolio">Portfolio</NuxtLink><button v-if="!user" type="button" @click="openLoginModal">Đăng nhập</button><NuxtLink to="/admin/login">Admin</NuxtLink></div>
+      <div><NuxtLink to="/portfolio">Portfolio</NuxtLink><button v-if="!playerUser" type="button" @click="openLoginModal">Đăng nhập</button><NuxtLink to="/admin/login">Admin</NuxtLink></div>
     </footer>
 
     <Transition name="home-modal">
@@ -348,7 +339,7 @@ onMounted(async () => {
     <LogoutConfirmModal
       :open="logoutConfirmOpen"
       :loading="loggingOut"
-      :user-name="user?.name"
+      :user-name="playerUser?.name"
       @cancel="logoutConfirmOpen = false"
       @confirm="handleLogout"
     />

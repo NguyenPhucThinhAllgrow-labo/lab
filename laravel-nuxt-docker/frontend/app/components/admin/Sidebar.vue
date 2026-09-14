@@ -85,12 +85,6 @@ const gameMenuItems = [
     newTab: true
   },
   {
-    label: 'WhoAmI',
-    to: '/games/pandora/whoami',
-    icon: Blocks,
-    newTab: true
-  },
-  {
     label: 'I am a detective.',
     to: '/games/pandora/detective',
     icon: SquareTerminal,
