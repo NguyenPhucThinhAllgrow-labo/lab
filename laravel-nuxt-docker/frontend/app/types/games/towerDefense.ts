@@ -1,4 +1,4 @@
-export type TowerKind = 'archer' | 'cannon' | 'frost'
+export type TowerKind = 'archer' | 'cannon' | 'frost' | 'fire'
 
 export interface GridPoint { x: number; y: number }
 
@@ -11,6 +11,10 @@ export interface TowerDefinition {
   range: number
   fireRate: number
   slow?: number
+  burnDuration?: number
+  burnDamagePerSecond?: number
+  splashRadius?: number
+  splashDamageRatio?: number
   color: string
 }
 
@@ -23,16 +27,20 @@ export interface Tower extends GridPoint {
   firingUntil: number
   aimAngle: number
   shotSequence: number
+  canRelocate: boolean
 }
 
 export interface Enemy {
   id: number
+  lane: 0 | 1
   progress: number
   hp: number
   maxHp: number
   speed: number
   reward: number
   slowUntil: number
+  burnRemaining: number
+  burnDamagePerSecond: number
 }
 
 export interface Projectile {
@@ -45,6 +53,10 @@ export interface Projectile {
   targetId: number
   damage: number
   slow?: number
+  burnDuration?: number
+  burnDamagePerSecond?: number
+  splashRadius?: number
+  splashDamageRatio?: number
 }
 
 export interface Impact {
