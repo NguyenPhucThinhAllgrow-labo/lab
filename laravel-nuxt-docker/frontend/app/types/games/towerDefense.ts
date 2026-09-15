@@ -39,6 +39,7 @@ export interface Enemy {
   speed: number
   reward: number
   slowUntil: number
+  isSlowed: boolean
   burnRemaining: number
   burnDamagePerSecond: number
 }

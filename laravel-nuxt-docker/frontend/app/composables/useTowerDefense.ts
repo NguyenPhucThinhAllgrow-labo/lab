@@ -7,12 +7,13 @@ export const DEFENSE_GRID_ROWS = 14
 export const TOWER_RANGE_LEVEL_BONUS = 0.28
 const ENEMY_HIT_RADIUS = 0.28
 const ENEMY_SPAWN_PROGRESS = -0.85
+const BETWEEN_WAVE_DELAY_SECONDS = 30
 
 export const TOWER_DEFINITIONS: Record<TowerKind, TowerDefinition> = {
   archer: { kind: 'archer', name: 'Tháp cung', description: 'Tầm xa, sát thương ổn định.', cost: 80, damage: 18, range: 3.15, fireRate: 0.75, color: '#65a30d' },
   cannon: { kind: 'cannon', name: 'Tháp pháo', description: 'Uy lực lớn, nhịp bắn chậm.', cost: 110, damage: 34, range: 2.8, fireRate: 1.25, color: '#d97706' },
   frost: { kind: 'frost', name: 'Tháp băng', description: 'Đóng băng vùng bán kính 2,1 ô.', cost: 95, damage: 6, range: FROST_EFFECT_RADIUS, fireRate: 1.1, slow: 0.48, color: '#0891b2' },
-  fire: { kind: 'fire', name: 'Tháp lửa', description: 'Cầu lửa nổ lan và thiêu đốt trong 5 giây.', cost: 105, damage: 28, range: 2.65, fireRate: 0.9, burnDuration: 5, burnDamagePerSecond: 5.6, splashRadius: 1.25, splashDamageRatio: 0.6, color: '#dc2626' },
+  fire: { kind: 'fire', name: 'Tháp lửa', description: 'Cầu lửa nổ lan và thiêu đốt trong 5 giây.', cost: 105, damage: 10, range: 2.65, fireRate: 0.9, burnDuration: 5, burnDamagePerSecond: 5.6, splashRadius: 1.25, splashDamageRatio: 0.6, color: '#dc2626' },
 }
 
 export const DEFENSE_PATH: GridPoint[] = [
@@ -22,6 +23,9 @@ export const DEFENSE_PATH: GridPoint[] = [
   { x: 10, y: 6 }, { x: 10, y: 5 }, { x: 10, y: 4 }, { x: 10, y: 3 },
   { x: 11, y: 3 }, { x: 12, y: 3 }, { x: 13, y: 3 }, { x: 14, y: 3 }, { x: 15, y: 3 }, { x: 16, y: 3 }, { x: 17, y: 3 },
 ]
+// Stop at the front of the gate. The enemy model has a visible body radius, so
+// letting its centre travel farther makes its face clip through the castle wall.
+const CASTLE_GATE_PROGRESS = DEFENSE_PATH.length - 1.7
 
 const defensePathTileKeys = new Set<string>()
 for (let index = 0; index < DEFENSE_PATH.length - 1; index++) {
@@ -120,6 +124,7 @@ export function useTowerDefense() {
   const projectiles = shallowRef<Projectile[]>([])
   const impacts = shallowRef<Impact[]>([])
   const pendingEnemies = ref(0)
+  const nextWaveCountdown = ref(0)
   const message = ref('Chọn tháp và đặt vào vùng trống để bắt đầu phòng thủ.')
   let nextTowerId = 1
   let nextEnemyId = 1
@@ -128,6 +133,7 @@ export function useTowerDefense() {
   let spawnCooldown = 0
   let timer: ReturnType<typeof setInterval> | null = null
   let elapsed = 0
+  let lastTickAt = 0
 
   const pathKeys = new Set(DEFENSE_PATH_TILES.map(point => `${point.x}:${point.y}`))
   const selectedTower = computed(() => towers.value.find(tower => tower.id === selectedTowerId.value) ?? null)
@@ -140,18 +146,20 @@ export function useTowerDefense() {
   function selectCell(x: number, y: number) {
     const existing = towerAt(x, y)
     if (existing) {
+      existing.canRelocate = false
+      triggerRef(towers)
       selectedKind.value = null
       selectedTowerId.value = existing.id
-      message.value = canStartWave.value && existing.canRelocate
-        ? `Đã chọn ${TOWER_DEFINITIONS[existing.kind].name}. Chọn một ô trống để di chuyển tháp.`
-        : `Đã chọn ${TOWER_DEFINITIONS[existing.kind].name}. Tháp này đã bị khóa vị trí.`
+      message.value = canStartWave.value
+        ? `Đã chọn ${TOWER_DEFINITIONS[existing.kind].name}. Nhấn Di chuyển nếu muốn đổi vị trí.`
+        : `Đã chọn ${TOWER_DEFINITIONS[existing.kind].name}. Chỉ có thể di chuyển khi round kết thúc.`
       return
     }
 
     const towerToMove = selectedTower.value
     if (towerToMove) {
       if (!canStartWave.value || !towerToMove.canRelocate) {
-        message.value = 'Chỉ tháp vừa mua trong giai đoạn chuẩn bị mới được di chuyển.'
+        message.value = canStartWave.value ? 'Hãy nhấn nút Di chuyển trước khi chọn ô mới.' : 'Chỉ có thể di chuyển tháp trong thời gian chuẩn bị.'
         return
       }
       if (phase.value === 'gameover') return
@@ -162,6 +170,7 @@ export function useTowerDefense() {
 
       towerToMove.x = x
       towerToMove.y = y
+      towerToMove.canRelocate = false
       triggerRef(towers)
       message.value = `Đã di chuyển ${TOWER_DEFINITIONS[towerToMove.kind].name}.`
       return
@@ -175,14 +184,13 @@ export function useTowerDefense() {
     const definition = TOWER_DEFINITIONS[selectedKind.value]
     if (credits.value < definition.cost) { message.value = `Cần ${definition.cost} vàng để xây ${definition.name}.`; return }
     credits.value -= definition.cost
-    const canRelocate = canStartWave.value
-    const tower: Tower = { id: nextTowerId++, kind: definition.kind, x, y, level: 1, cooldown: 0, invested: definition.cost, firingUntil: 0, aimAngle: 0, shotSequence: 0, canRelocate }
+    const tower: Tower = { id: nextTowerId++, kind: definition.kind, x, y, level: 1, cooldown: 0, invested: definition.cost, firingUntil: 0, aimAngle: 0, shotSequence: 0, canRelocate: false }
     towers.value.push(tower)
     selectedKind.value = null
     selectedTowerId.value = null
     triggerRef(towers)
-    message.value = canRelocate
-      ? `${definition.name} đã được xây dựng. Click vào tháp nếu muốn đổi vị trí trước khi round bắt đầu.`
+    message.value = canStartWave.value
+      ? `${definition.name} đã được xây dựng. Chọn tháp và nhấn Di chuyển nếu muốn đổi vị trí.`
       : `${definition.name} đã được xây dựng và khóa vị trí vì round đang diễn ra.`
   }
 
@@ -196,6 +204,14 @@ export function useTowerDefense() {
     message.value = `Đã nâng ${TOWER_DEFINITIONS[tower.kind].name} lên cấp ${tower.level}.`
   }
 
+  function enableSelectedRelocation() {
+    const tower = selectedTower.value
+    if (!tower || !canStartWave.value) return
+    tower.canRelocate = true
+    triggerRef(towers)
+    message.value = `Chọn một ô trống để di chuyển ${TOWER_DEFINITIONS[tower.kind].name}.`
+  }
+
   function sellSelected() {
     const tower = selectedTower.value
     if (!tower) return
@@ -207,6 +223,7 @@ export function useTowerDefense() {
 
   function startWave() {
     if (!canStartWave.value) return
+    nextWaveCountdown.value = 0
     for (const tower of towers.value) tower.canRelocate = false
     triggerRef(towers)
     wave.value++
@@ -219,7 +236,8 @@ export function useTowerDefense() {
   function spawnEnemy() {
     const maxHp = 65 + wave.value * 32 + Math.floor(wave.value * wave.value * 1.1)
     const id = nextEnemyId++
-    enemies.value.push({ id, lane: id % 2 === 0 ? 0 : 1, progress: ENEMY_SPAWN_PROGRESS, hp: maxHp, maxHp, speed: 0.72 + Math.min(wave.value * 0.025, 0.35), reward: 14 + wave.value * 2, slowUntil: 0, burnRemaining: 0, burnDamagePerSecond: 0 })
+    const lane: 0 | 1 = Math.random() < 0.5 ? 0 : 1
+    enemies.value.push({ id, lane, progress: ENEMY_SPAWN_PROGRESS, hp: maxHp, maxHp, speed: 0.72 + Math.min(wave.value * 0.025, 0.35), reward: 7 + wave.value, slowUntil: 0, isSlowed: false, burnRemaining: 0, burnDamagePerSecond: 0 })
     pendingEnemies.value--
   }
 
@@ -227,9 +245,8 @@ export function useTowerDefense() {
     return defensePathPosition(enemy.progress, enemy.lane)
   }
 
-  function tick() {
+  function step(dt: number) {
     if (phase.value !== 'wave') return
-    const dt = 0.1 * speedMultiplier.value
     elapsed += dt
     const arrived: Projectile[] = []
     projectiles.value = projectiles.value.filter((projectile) => {
@@ -250,12 +267,17 @@ export function useTowerDefense() {
           })
         : [target]
       for (const affectedEnemy of affectedEnemies) {
-        const damageRatio = affectedEnemy.id === target.id ? 1 : (projectile.splashDamageRatio ?? 1)
+        const affectedPosition = positionFor(affectedEnemy)
+        const distanceFromCenter = Math.hypot(affectedPosition.x - position.x, affectedPosition.y - position.y)
+        const splashExtent = (projectile.splashRadius ?? 0) + ENEMY_HIT_RADIUS
+        const distanceRatio = splashExtent > 0 ? Math.min(1, distanceFromCenter / splashExtent) : 0
+        const edgeDamageRatio = projectile.splashDamageRatio ?? 1
+        const damageRatio = 1 - distanceRatio * (1 - edgeDamageRatio)
         affectedEnemy.hp -= projectile.damage * damageRatio
-        if (projectile.slow) affectedEnemy.slowUntil = elapsed + 1.4
+        if (projectile.slow) { affectedEnemy.slowUntil = elapsed + 1.4; affectedEnemy.isSlowed = true }
         if (projectile.burnDuration && projectile.burnDamagePerSecond) {
           affectedEnemy.burnRemaining = projectile.burnDuration
-          affectedEnemy.burnDamagePerSecond = Math.max(affectedEnemy.burnDamagePerSecond, projectile.burnDamagePerSecond * damageRatio)
+          affectedEnemy.burnDamagePerSecond = Math.max(affectedEnemy.burnDamagePerSecond, projectile.burnDamagePerSecond)
         }
       }
       impacts.value.push({ id: nextImpactId++, kind: projectile.kind, position, life: projectile.kind === 'fire' ? .65 : .42, radius: projectile.splashRadius })
@@ -271,12 +293,13 @@ export function useTowerDefense() {
         if (enemy.burnRemaining === 0) enemy.burnDamagePerSecond = 0
       }
       const slowed = enemy.slowUntil > elapsed
+      enemy.isSlowed = slowed
       enemy.progress += enemy.speed * dt * (slowed ? 0.52 : 1)
     }
 
-    const escaped = enemies.value.filter(enemy => enemy.progress >= DEFENSE_PATH.length - 1)
+    const escaped = enemies.value.filter(enemy => enemy.progress >= CASTLE_GATE_PROGRESS)
     if (escaped.length) castleHealth.value = Math.max(0, castleHealth.value - escaped.length)
-    enemies.value = enemies.value.filter(enemy => enemy.progress < DEFENSE_PATH.length - 1)
+    enemies.value = enemies.value.filter(enemy => enemy.progress < CASTLE_GATE_PROGRESS)
 
     const enemyPositions = new Map<number, GridPoint>()
     for (const enemy of enemies.value) enemyPositions.set(enemy.id, positionFor(enemy))
@@ -309,6 +332,7 @@ export function useTowerDefense() {
           if (Math.hypot(position.x - tower.x, position.y - tower.y) > frostRadius + ENEMY_HIT_RADIUS) continue
           enemy.hp -= damage
           enemy.slowUntil = elapsed + 1.4
+          enemy.isSlowed = true
         }
         impacts.value.push({ id: nextImpactId++, kind: 'frost', position: { x: tower.x, y: tower.y }, life: 1.05, radius: frostRadius })
         tower.cooldown = definition.fireRate / (1 + (tower.level - 1) * 0.18)
@@ -347,10 +371,11 @@ export function useTowerDefense() {
       message.value = 'Lâu đài đã thất thủ. Hãy tập hợp quân đội và thử lại.'
     } else if (pendingEnemies.value === 0 && enemies.value.length === 0) {
       phase.value = 'between'
+      nextWaveCountdown.value = BETWEEN_WAVE_DELAY_SECONDS
       projectiles.value = []
       impacts.value = []
       credits.value += 45 + wave.value * 8
-      message.value = `Đã đẩy lùi đợt ${wave.value}. Hãy củng cố phòng tuyến.`
+      message.value = `Đã đẩy lùi đợt ${wave.value}. Đợt tiếp theo sẽ tự bắt đầu sau ${BETWEEN_WAVE_DELAY_SECONDS} giây.`
     }
 
     triggerRef(towers)
@@ -359,20 +384,50 @@ export function useTowerDefense() {
     triggerRef(impacts)
   }
 
+  function tick() {
+    const now = Date.now()
+    const realDelta = lastTickAt ? Math.max(0, (now - lastTickAt) / 1000) : 0
+    lastTickAt = now
+
+    // Trình duyệt có thể giảm tần suất timer ở tab nền. Chạy bù theo các bước nhỏ
+    // giúp mô phỏng vẫn đúng mà quái và đạn không nhảy xuyên mục tiêu. Thời gian
+    // dư tiếp tục đi qua giai đoạn chuẩn bị và các round kế tiếp.
+    let remainingRealTime = realDelta
+    while (remainingRealTime > 0) {
+      if (phase.value === 'between') {
+        const consumed = Math.min(remainingRealTime, nextWaveCountdown.value)
+        nextWaveCountdown.value = Math.max(0, nextWaveCountdown.value - consumed)
+        remainingRealTime -= consumed
+        if (nextWaveCountdown.value === 0) startWave()
+        continue
+      }
+      if (phase.value !== 'wave') break
+
+      const realStep = Math.min(0.1 / speedMultiplier.value, remainingRealTime)
+      step(realStep * speedMultiplier.value)
+      remainingRealTime -= realStep
+    }
+  }
+
   function resetGame() {
     credits.value = 260; castleHealth.value = 20; wave.value = 0; score.value = 0
-    phase.value = 'ready'; towers.value = []; enemies.value = []; projectiles.value = []; impacts.value = []; pendingEnemies.value = 0
-    selectedKind.value = null; selectedTowerId.value = null; nextTowerId = 1; nextEnemyId = 1; nextProjectileId = 1; nextImpactId = 1; elapsed = 0; spawnCooldown = 0
+    phase.value = 'ready'; towers.value = []; enemies.value = []; projectiles.value = []; impacts.value = []; pendingEnemies.value = 0; nextWaveCountdown.value = 0
+    selectedKind.value = null; selectedTowerId.value = null; nextTowerId = 1; nextEnemyId = 1; nextProjectileId = 1; nextImpactId = 1; elapsed = 0; spawnCooldown = 0; lastTickAt = Date.now()
     message.value = 'Vương quốc đang chờ lệnh. Hãy xây dựng tuyến phòng thủ.'
   }
 
   onMounted(() => {
     bestWave.value = Number(localStorage.getItem(STORAGE_KEY) ?? 0)
+    lastTickAt = Date.now()
     timer = setInterval(tick, 100)
+    document.addEventListener('visibilitychange', tick)
   })
-  onBeforeUnmount(() => { if (timer) clearInterval(timer) })
+  onBeforeUnmount(() => {
+    if (timer) clearInterval(timer)
+    document.removeEventListener('visibilitychange', tick)
+  })
 
   function isTowerFiring(tower: Tower) { return tower.firingUntil > elapsed }
 
-  return { credits, castleHealth, wave, score, bestWave, phase, speedMultiplier, selectedKind, selectedTowerId, selectedTower, towers, enemies, projectiles, impacts, pendingEnemies, message, canStartWave, upgradeCost, isPath, towerAt, positionFor, isTowerFiring, selectCell, upgradeSelected, sellSelected, startWave, resetGame }
+  return { credits, castleHealth, wave, score, bestWave, phase, speedMultiplier, selectedKind, selectedTowerId, selectedTower, towers, enemies, projectiles, impacts, pendingEnemies, nextWaveCountdown, message, canStartWave, upgradeCost, isPath, towerAt, positionFor, isTowerFiring, selectCell, upgradeSelected, enableSelectedRelocation, sellSelected, startWave, resetGame }
 }

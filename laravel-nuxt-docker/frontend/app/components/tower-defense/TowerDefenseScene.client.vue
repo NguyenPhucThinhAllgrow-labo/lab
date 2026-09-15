@@ -629,6 +629,33 @@ function addEnemyBurnEffect(group: THREE.Group) {
   group.userData.burnEffect = effect
 }
 
+function addEnemyFrostEffect(group: THREE.Group) {
+  const effect = new THREE.Group()
+  effect.name = 'enemyFrostEffect'
+  effect.visible = false
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(.38, .025, 6, 28),
+    new THREE.MeshBasicMaterial({ color: 0x7deaff, transparent: true, opacity: .72, depthWrite: false, blending: THREE.AdditiveBlending }),
+  )
+  ring.name = 'enemyFrostRing'
+  ring.position.y = .07
+  ring.rotation.x = Math.PI / 2
+  effect.add(ring)
+  for (let index = 0; index < 7; index++) {
+    const crystal = new THREE.Mesh(
+      new THREE.OctahedronGeometry(index % 2 ? .035 : .05, 0),
+      new THREE.MeshBasicMaterial({ color: index % 2 ? 0xc8f8ff : 0x56d8f4, transparent: true, opacity: .82, depthWrite: false, blending: THREE.AdditiveBlending }),
+    )
+    crystal.name = 'enemyFrostCrystal'
+    crystal.userData.angle = index / 7 * Math.PI * 2
+    crystal.userData.radius = .28 + index % 2 * .07
+    crystal.userData.baseY = .28 + index % 3 * .25
+    effect.add(crystal)
+  }
+  group.add(effect)
+  group.userData.frostEffect = effect
+}
+
 function createEnemyModel() {
   if (riggedEnemyTemplate) {
     const group = cloneSkeleton(riggedEnemyTemplate) as THREE.Group
@@ -640,6 +667,7 @@ function createEnemyModel() {
     group.userData.mixer = mixer
     group.userData.isSkinnedCharacter = true
     addEnemyBurnEffect(group)
+    addEnemyFrostEffect(group)
     scene!.add(group)
     return group
   }
@@ -659,6 +687,7 @@ function createEnemyModel() {
   group.userData.rig = group.getObjectByName('enemyRigRoot')
   group.userData.health = group.getObjectByName('enemyHealth')
   addEnemyBurnEffect(group)
+  addEnemyFrostEffect(group)
   const bones: THREE.Bone[] = []
   group.traverse((child) => { if (child instanceof THREE.Bone) bones.push(child) })
   group.updateMatrixWorld(true)
@@ -673,6 +702,10 @@ function disposeEnemyModel(model: THREE.Group) {
   const burnEffect = model.userData.burnEffect as THREE.Group | undefined
   burnEffect?.traverse((child) => {
     if (child instanceof THREE.Sprite) child.material.dispose()
+  })
+  const frostEffect = model.userData.frostEffect as THREE.Group | undefined
+  frostEffect?.traverse((child) => {
+    if (child instanceof THREE.Mesh) { child.geometry.dispose(); child.material.dispose() }
   })
   const skeletons = new Set<THREE.Skeleton>()
   model.traverse((child) => { if (child instanceof THREE.SkinnedMesh) skeletons.add(child.skeleton) })
@@ -1003,7 +1036,7 @@ function createCastle() {
   const flagPole = mesh(new THREE.CylinderGeometry(.015, .015, .86, 8), 0x4b3c2d, { metalness: .2, roughness: .5 }); flagPole.position.set(0, 1.62, 0)
   const flag = createBanner(0x6e342d, 0xc19a58); flag.scale.set(1.1, 1.1, 1.1); flag.position.set(.14, 1.84, 0); flag.rotation.y = Math.PI / 2
   const castleCell = DEFENSE_PATH.at(-1)!
-  group.add(flagPole, flag); group.position.copy(worldPosition(castleCell.x, castleCell.y + .5)); group.position.y = .07; group.scale.setScalar(.76); scene!.add(group)
+  group.add(flagPole, flag); group.position.copy(worldPosition(castleCell.x, castleCell.y + .5)); group.position.y = .07; group.rotation.y = -Math.PI / 2; group.scale.setScalar(.76); scene!.add(group)
 }
 
 function syncScene(elapsed: number, frameDelta: number, now: number) {
@@ -1229,6 +1262,22 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
             1,
           )
           flame.material.opacity = Math.sin(cycle * Math.PI) * (.58 + index % 3 * .08)
+        })
+      }
+    }
+    const frostEffect = model.userData.frostEffect as THREE.Group | undefined
+    if (frostEffect) {
+      frostEffect.visible = enemy.isSlowed
+      if (frostEffect.visible) {
+        const ring = frostEffect.getObjectByName('enemyFrostRing')
+        if (ring) { ring.rotation.z = elapsed * 1.8 + enemy.id; ring.scale.setScalar(1 + Math.sin(elapsed * 7 + enemy.id) * .06) }
+        frostEffect.children.forEach((crystal, index) => {
+          if (crystal.name !== 'enemyFrostCrystal') return
+          const angle = Number(crystal.userData.angle) + elapsed * (1.2 + index * .04)
+          const radius = Number(crystal.userData.radius)
+          crystal.position.set(Math.cos(angle) * radius, Number(crystal.userData.baseY) + Math.sin(elapsed * 4 + index) * .07, Math.sin(angle) * radius)
+          crystal.rotation.y = elapsed * 2 + index
+          crystal.rotation.z = elapsed * 1.3
         })
       }
     }
