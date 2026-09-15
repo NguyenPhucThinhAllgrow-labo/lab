@@ -25,6 +25,7 @@ let surfaceDetail: THREE.DataTexture | null = null
 let frostGlowTexture: THREE.CanvasTexture | null = null
 let frostWaveTexture: THREE.CanvasTexture | null = null
 let fireWaveTexture: THREE.CanvasTexture | null = null
+let fireFlameTexture: THREE.CanvasTexture | null = null
 const clock = new THREE.Clock()
 const towerModels = new Map<number, THREE.Group>()
 const enemyModels = new Map<number, THREE.Group>()
@@ -253,6 +254,32 @@ function getFireWaveTexture() {
   fireWaveTexture = new THREE.CanvasTexture(canvas)
   fireWaveTexture.colorSpace = THREE.SRGBColorSpace
   return fireWaveTexture
+}
+
+function getFireFlameTexture() {
+  if (fireFlameTexture) return fireFlameTexture
+  const canvas = document.createElement('canvas')
+  canvas.width = 128
+  canvas.height = 192
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Không thể tạo texture ngọn lửa.')
+  const gradient = context.createLinearGradient(64, 180, 64, 8)
+  gradient.addColorStop(0, 'rgba(255, 238, 125, .98)')
+  gradient.addColorStop(.28, 'rgba(255, 151, 28, .94)')
+  gradient.addColorStop(.62, 'rgba(238, 48, 12, .7)')
+  gradient.addColorStop(1, 'rgba(130, 8, 2, 0)')
+  context.fillStyle = gradient
+  context.beginPath()
+  context.moveTo(64, 4)
+  context.bezierCurveTo(53, 38, 21, 62, 31, 105)
+  context.bezierCurveTo(8, 132, 27, 181, 64, 188)
+  context.bezierCurveTo(103, 180, 121, 139, 96, 105)
+  context.bezierCurveTo(107, 67, 77, 42, 64, 4)
+  context.closePath()
+  context.fill()
+  fireFlameTexture = new THREE.CanvasTexture(canvas)
+  fireFlameTexture.colorSpace = THREE.SRGBColorSpace
+  return fireFlameTexture
 }
 
 function addDoor(group: THREE.Group, y: number, z: number) {
@@ -574,15 +601,28 @@ function addEnemyBurnEffect(group: THREE.Group) {
   const effect = new THREE.Group()
   effect.name = 'enemyBurnEffect'
   effect.visible = false
-  for (let index = 0; index < 5; index++) {
-    const flame = new THREE.Mesh(
-      new THREE.ConeGeometry(.09 + index % 2 * .025, .3 + index % 3 * .07, 7),
-      new THREE.MeshBasicMaterial({ color: index % 2 ? 0xffb126 : 0xff3b18, transparent: true, opacity: .72, depthWrite: false, blending: THREE.AdditiveBlending }),
-    )
-    const angle = index / 5 * Math.PI * 2
-    flame.position.set(Math.cos(angle) * .23, .38 + index % 2 * .28, Math.sin(angle) * .18)
+  for (let index = 0; index < 7; index++) {
+    const material = new THREE.SpriteMaterial({
+      map: getFireFlameTexture(),
+      color: index % 3 === 0 ? 0xffd36b : 0xff7a2c,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      depthTest: true,
+      blending: THREE.AdditiveBlending,
+    })
+    material.toneMapped = false
+    const flame = new THREE.Sprite(material)
+    const angle = index / 7 * Math.PI * 2
+    const radius = .12 + index % 3 * .055
+    flame.position.set(Math.cos(angle) * radius, .25 + index % 3 * .24, Math.sin(angle) * radius)
     flame.userData.baseY = flame.position.y
-    flame.userData.phase = index * 1.17
+    flame.userData.angle = angle
+    flame.userData.radius = radius
+    flame.userData.phase = index / 7
+    flame.userData.riseSpeed = .72 + index % 3 * .16
+    flame.userData.baseWidth = .18 + index % 2 * .045
+    flame.userData.baseHeight = .4 + index % 3 * .07
     effect.add(flame)
   }
   group.add(effect)
@@ -630,6 +670,10 @@ function createEnemyModel() {
 function disposeEnemyModel(model: THREE.Group) {
   const mixer = model.userData.mixer as THREE.AnimationMixer | undefined
   if (mixer) { mixer.stopAllAction(); mixer.uncacheRoot(model) }
+  const burnEffect = model.userData.burnEffect as THREE.Group | undefined
+  burnEffect?.traverse((child) => {
+    if (child instanceof THREE.Sprite) child.material.dispose()
+  })
   const skeletons = new Set<THREE.Skeleton>()
   model.traverse((child) => { if (child instanceof THREE.SkinnedMesh) skeletons.add(child.skeleton) })
   skeletons.forEach(skeleton => skeleton.dispose())
@@ -1168,11 +1212,23 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     if (burnEffect) {
       burnEffect.visible = enemy.burnRemaining > 0
       if (burnEffect.visible) {
-        burnEffect.rotation.y = elapsed * 1.6 + enemy.id
         burnEffect.children.forEach((flame, index) => {
-          const flicker = .82 + Math.sin(elapsed * 12 + Number(flame.userData.phase)) * .18
-          flame.position.y = Number(flame.userData.baseY) + Math.sin(elapsed * 9 + index) * .035
-          flame.scale.set(.82 + flicker * .18, flicker, .82 + flicker * .18)
+          if (!(flame instanceof THREE.Sprite) || !(flame.material instanceof THREE.SpriteMaterial)) return
+          const cycle = (elapsed * Number(flame.userData.riseSpeed) + Number(flame.userData.phase) + enemy.id * .073) % 1
+          const angle = Number(flame.userData.angle) + Math.sin(elapsed * 1.7 + index) * .18
+          const radius = Number(flame.userData.radius) * (1 - cycle * .35)
+          const flicker = .88 + Math.sin(elapsed * 15 + index * 2.1) * .12
+          flame.position.set(
+            Math.cos(angle) * radius + Math.sin(elapsed * 7 + index) * .025,
+            Number(flame.userData.baseY) + cycle * .72,
+            Math.sin(angle) * radius,
+          )
+          flame.scale.set(
+            Number(flame.userData.baseWidth) * flicker * (1 - cycle * .25),
+            Number(flame.userData.baseHeight) * (.72 + cycle * .62) * flicker,
+            1,
+          )
+          flame.material.opacity = Math.sin(cycle * Math.PI) * (.58 + index % 3 * .08)
         })
       }
     }
@@ -1399,7 +1455,7 @@ onBeforeUnmount(() => {
   if (riggedEnemyTemplate) disposeObject(riggedEnemyTemplate)
   riggedEnemyTemplate = null; riggedEnemyAnimations = []
   scene?.traverse(child => { if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) { if (child instanceof THREE.Mesh) child.geometry.dispose(); const materials = Array.isArray(child.material) ? child.material : [child.material]; materials.forEach(material => material.dispose()) } })
-  surfaceDetail?.dispose(); surfaceDetail = null; frostGlowTexture?.dispose(); frostGlowTexture = null; frostWaveTexture?.dispose(); frostWaveTexture = null; fireWaveTexture?.dispose(); fireWaveTexture = null; mysticParticles = null; renderer?.dispose(); renderer?.forceContextLoss(); renderer?.domElement.remove(); renderer = null; scene = null
+  surfaceDetail?.dispose(); surfaceDetail = null; frostGlowTexture?.dispose(); frostGlowTexture = null; frostWaveTexture?.dispose(); frostWaveTexture = null; fireWaveTexture?.dispose(); fireWaveTexture = null; fireFlameTexture?.dispose(); fireFlameTexture = null; mysticParticles = null; renderer?.dispose(); renderer?.forceContextLoss(); renderer?.domElement.remove(); renderer = null; scene = null
 })
 </script>
 
