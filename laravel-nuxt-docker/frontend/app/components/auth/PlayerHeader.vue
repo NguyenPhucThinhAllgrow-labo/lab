@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ChevronDown, ChevronUp, Gamepad2, LoaderCircle, LogOut } from 'lucide-vue-next'
 import LogoutConfirmModal from '~/components/auth/LogoutConfirmModal.vue'
-import ThemeToggle from '~/components/common/ThemeToggle.vue'
 
 const { user, logout } = useAuth()
 const route = useRoute()
@@ -79,8 +78,6 @@ async function confirmLogout() {
         </button>
       </div>
 
-      <ThemeToggle class="home-theme-toggle" />
-
       <button
         type="button"
         class="home-header-toggle"
@@ -114,7 +111,7 @@ async function confirmLogout() {
 .game-header-shell *, .game-header-shell *::before, .game-header-shell *::after { box-sizing: border-box; }
 .game-header-shell a { text-decoration: none; }
 .game-header-shell a:focus-visible, .game-header-shell button:focus-visible { outline: 2px solid var(--home-accent); outline-offset: 5px; }
-.home-header { position: relative; z-index: 10; display: grid; width: min(calc(100% - 80px), 1200px); min-height: 96px; grid-template-columns: auto minmax(0, 1fr) auto 40px 40px; grid-template-areas: "brand nav account theme toggle"; align-items: center; gap: 12px; margin-inline: auto; border-bottom: 1px solid var(--home-border); transition: min-height .2s ease; }
+.home-header { position: relative; z-index: 10; display: grid; width: min(calc(100% - 80px), 1200px); min-height: 96px; grid-template-columns: auto minmax(0, 1fr) auto 40px; grid-template-areas: "brand nav account toggle"; align-items: center; gap: 12px; margin-inline: auto; border-bottom: 1px solid var(--home-border); transition: min-height .2s ease; }
 .home-brand { grid-area: brand; display: flex; flex: none; align-items: center; gap: 12px; color: #f0f3ed; }
 .home-brand > span { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: var(--home-accent); color: #182216; }
 .home-brand svg { width: 23px; height: 23px; }
@@ -135,12 +132,11 @@ async function confirmLogout() {
 .home-account__logout:hover:not(:disabled) { border-color: var(--home-accent); color: var(--home-accent); }
 .home-account__logout:disabled { cursor: wait; opacity: .5; }
 .home-account__logout svg { width: 16px; height: 16px; }
-.home-theme-toggle { grid-area: theme; position: static; justify-self: end; margin: 0; }
 .home-header-toggle { grid-area: toggle; display: inline-grid; width: 40px; height: 40px; place-items: center; padding: 0; border: 1px solid #9ca3af60; border-radius: 9px; background: transparent; color: inherit; cursor: pointer; }
 .home-header-toggle:hover { border-color: var(--home-accent); background: color-mix(in srgb, var(--home-accent) 9%, transparent); color: var(--home-accent); }
 .game-header-shell.is-collapsed { height: 0; background: transparent; box-shadow: none; }
 .game-header-shell.is-collapsed .home-header { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: 44px; min-height: 44px; grid-template-columns: 40px; grid-template-areas: "toggle"; justify-content: center; padding: 2px; border: 1px solid var(--home-border); border-radius: 12px; background: var(--header-bg); box-shadow: 0 8px 24px var(--header-glow); }
-.game-header-shell.is-collapsed :where(.home-brand, .home-nav, .home-account, .home-theme-toggle) { display: none; }
+.game-header-shell.is-collapsed :where(.home-brand, .home-nav, .home-account) { display: none; }
 .game-header-shell.is-collapsed .home-header-toggle { border-color: transparent; }
 .player-header__spinner { animation: player-header-spin .8s linear infinite; }
 @keyframes player-header-spin { to { transform: rotate(1turn); } }
@@ -150,11 +146,11 @@ async function confirmLogout() {
 :global(html:not([data-site-theme="dark"])) .home-brand > span { background: color-mix(in srgb, var(--home-accent) 62%, white); }
 :global(html:not([data-site-theme="dark"])) .home-account__avatar { border-color: color-mix(in srgb, var(--home-accent) 48%, #9ca3af); background: var(--header-avatar-bg); }
 @media (max-width: 1100px) {
-  .home-header { grid-template-columns: minmax(0, 1fr) auto 40px 40px; grid-template-areas: "brand account theme toggle" "nav nav nav nav"; gap: 14px 12px; }
+  .home-header { grid-template-columns: minmax(0, 1fr) auto 40px; grid-template-areas: "brand account toggle" "nav nav nav"; gap: 14px 12px; }
   .home-nav { justify-content: flex-start; gap: 24px; padding-top: 12px; border-top: 1px solid var(--home-border); }
 }
 @media (max-width: 600px) {
-  .home-header { width: min(calc(100% - 28px), 1200px); grid-template-columns: minmax(0, 1fr) 40px 40px; grid-template-areas: "brand theme toggle" "nav nav nav" "account account account"; gap: 12px; padding-block: 12px; }
+  .home-header { width: min(calc(100% - 28px), 1200px); grid-template-columns: minmax(0, 1fr) 40px; grid-template-areas: "brand toggle" "nav nav" "account account"; gap: 12px; padding-block: 12px; }
   .game-header-shell.is-collapsed .home-header { width: 44px; min-height: 44px; grid-template-columns: 40px; grid-template-areas: "toggle"; padding: 2px; }
   .home-nav { justify-content: space-between; gap: 10px; }
   .home-account { width: 100%; justify-content: flex-end; padding-top: 12px; border-top: 1px solid var(--home-border); }

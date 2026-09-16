@@ -4,13 +4,14 @@ import type { BossClass, Enemy, GamePhase, GridPoint, Impact, Projectile, Tower,
 const STORAGE_KEY = 'game-lab:kingdom-defense:best-wave'
 export const FROST_EFFECT_RADIUS = 2.1
 export const FROST_SLOW_DURATION_SECONDS = 1.4
+export const WATER_SLOW_DURATION_SECONDS = 2.2
 export const DEFENSE_GRID_COLUMNS = 18
 export const DEFENSE_GRID_ROWS = 14
 export const TOWER_RANGE_LEVEL_BONUS = 0.28
 const ENEMY_HIT_RADIUS = 0.28
 const ENEMY_SPAWN_PROGRESS = -0.85
 const BETWEEN_WAVE_DELAY_SECONDS = 30
-const STARTING_CREDITS = 300
+const STARTING_CREDITS = 3000
 const WAVE_BASE_REWARD = 35
 const WAVE_REWARD_GROWTH = 5
 const BOSS_HEALTH_MULTIPLIER = 7
@@ -23,8 +24,10 @@ const UPGRADE_COST_MULTIPLIERS = { 1: 0.85, 2: 1.25 } as const
 export const TOWER_DEFINITIONS: Record<TowerKind, TowerDefinition> = {
   archer: { kind: 'archer', name: 'Tháp cung', description: 'Tầm xa, sát thương ổn định.', cost: 75, damage: 11, range: 3.15, fireRate: 0.72, color: '#65a30d' },
   cannon: { kind: 'cannon', name: 'Tháp pháo', description: 'Uy lực lớn, nổ lan quanh mục tiêu.', cost: 120, damage: 32, range: 2.8, fireRate: 1.3, splashRadius: 0.9, splashDamageRatio: 0.45, color: '#d97706' },
-  frost: { kind: 'frost', name: 'Tháp băng', description: 'Đóng băng vùng bán kính 2,1 ô.', cost: 105, damage: 4, range: FROST_EFFECT_RADIUS, fireRate: 1.2, slow: 0.42, color: '#0891b2' },
+  frost: { kind: 'frost', name: 'Tháp băng', description: 'Đóng băng hoàn toàn kẻ địch trong vùng.', cost: 105, damage: 0, range: FROST_EFFECT_RADIUS, fireRate: 2.35, color: '#0891b2' },
   fire: { kind: 'fire', name: 'Tháp lửa', description: 'Cầu lửa nổ lan và thiêu đốt trong 4 giây.', cost: 125, damage: 11, range: 2.65, fireRate: 1, burnDuration: 4, burnDamagePerSecond: 4.5, splashRadius: 1.15, splashDamageRatio: 0.58, color: '#dc2626' },
+  thunder: { kind: 'thunder', name: 'Tháp sét', description: 'Tia điện liên tục, nối chuỗi qua nhiều mục tiêu.', cost: 145, damage: 18, range: 3.2, fireRate: 0, color: '#7c3aed' },
+  water: { kind: 'water', name: 'Tháp nước', description: 'Phun dòng nước gây sát thương và làm chậm.', cost: 130, damage: 14, range: 2.9, fireRate: 0.82, slow: 0.3, slowDuration: WATER_SLOW_DURATION_SECONDS, color: '#0284c7' },
 }
 
 /**
@@ -201,7 +204,7 @@ export function useTowerDefense() {
     const definition = TOWER_DEFINITIONS[selectedKind.value]
     if (credits.value < definition.cost) { message.value = `Cần ${definition.cost} vàng để xây ${definition.name}.`; return }
     credits.value -= definition.cost
-    const tower: Tower = { id: nextTowerId++, kind: definition.kind, x, y, level: 1, cooldown: 0, invested: definition.cost, firingUntil: 0, aimAngle: 0, shotSequence: 0, canRelocate: false }
+    const tower: Tower = { id: nextTowerId++, kind: definition.kind, x, y, level: 1, cooldown: 0, invested: definition.cost, firingUntil: 0, aimAngle: 0, shotSequence: 0, beamTargetIds: [], canRelocate: false }
     towers.value.push(tower)
     if (canStartWave.value) undoableTowerIds.value.push(tower.id)
     selectedKind.value = null
@@ -293,7 +296,7 @@ export function useTowerDefense() {
     const id = nextEnemyId++
     const enemyHp = boss ? maxHp * BOSS_HEALTH_MULTIPLIER : maxHp
     const baseReward = 5 + Math.floor(wave.value * 0.65)
-    enemies.value.push({ id, kind: boss?.kind ?? 'normal', bossClass: boss?.bossClass, lane, progress: ENEMY_SPAWN_PROGRESS, hp: enemyHp, maxHp: enemyHp, speed: (0.72 + Math.min(wave.value * 0.025, 0.35)) * (boss ? .5 : 1), reward: baseReward * (boss ? BOSS_REWARD_MULTIPLIER : 1), slowUntil: 0, isSlowed: false, burnRemaining: 0, burnDamagePerSecond: 0 })
+    enemies.value.push({ id, kind: boss?.kind ?? 'normal', bossClass: boss?.bossClass, lane, progress: ENEMY_SPAWN_PROGRESS, hp: enemyHp, maxHp: enemyHp, speed: (0.72 + Math.min(wave.value * 0.025, 0.35)) * (boss ? .5 : 1), reward: baseReward * (boss ? BOSS_REWARD_MULTIPLIER : 1), slowUntil: 0, slowAmount: 0, isSlowed: false, frozenUntil: 0, isFrozen: false, burnRemaining: 0, burnDamagePerSecond: 0 })
     if (boss) pendingBosses.splice(bossIndex, 1)
     else pendingEnemiesByLane[lane]--
     pendingEnemies.value--
@@ -337,13 +340,17 @@ export function useTowerDefense() {
         const edgeDamageRatio = projectile.splashDamageRatio ?? 1
         const damageRatio = 1 - distanceRatio * (1 - edgeDamageRatio)
         affectedEnemy.hp -= projectile.damage * damageRatio
-        if (projectile.slow) { affectedEnemy.slowUntil = elapsed + FROST_SLOW_DURATION_SECONDS; affectedEnemy.isSlowed = true }
+        if (projectile.slow) {
+          affectedEnemy.slowUntil = elapsed + (projectile.slowDuration ?? WATER_SLOW_DURATION_SECONDS)
+          affectedEnemy.slowAmount = Math.max(affectedEnemy.slowAmount, projectile.slow)
+          affectedEnemy.isSlowed = true
+        }
         if (projectile.burnDuration && projectile.burnDamagePerSecond) {
           affectedEnemy.burnRemaining = projectile.burnDuration
           affectedEnemy.burnDamagePerSecond = Math.max(affectedEnemy.burnDamagePerSecond, projectile.burnDamagePerSecond)
         }
       }
-      impacts.value.push({ id: nextImpactId++, kind: projectile.kind, position, life: projectile.kind === 'fire' ? .65 : .42, radius: projectile.splashRadius, level: projectile.level })
+      impacts.value.push({ id: nextImpactId++, kind: projectile.kind, position, life: projectile.kind === 'fire' ? .65 : projectile.kind === 'thunder' ? .52 : projectile.kind === 'water' ? .58 : .42, radius: projectile.splashRadius, level: projectile.level })
     }
     impacts.value = impacts.value.filter((impact) => { impact.life -= dt; return impact.life > 0 })
     const baseSpawnInterval = Math.max(0.45, 1.15 - wave.value * 0.025)
@@ -360,9 +367,12 @@ export function useTowerDefense() {
         enemy.burnRemaining = Math.max(0, enemy.burnRemaining - dt)
         if (enemy.burnRemaining === 0) enemy.burnDamagePerSecond = 0
       }
+      const frozen = enemy.frozenUntil > elapsed
       const slowed = enemy.slowUntil > elapsed
+      enemy.isFrozen = frozen
       enemy.isSlowed = slowed
-      enemy.progress += enemy.speed * dt * (slowed ? 1 - (TOWER_DEFINITIONS.frost.slow ?? 0) : 1)
+      if (!slowed) enemy.slowAmount = 0
+      enemy.progress += enemy.speed * dt * (frozen ? 0 : slowed ? 1 - enemy.slowAmount : 1)
     }
 
     const escaped = enemies.value.filter(enemy => enemy.progress >= castleGateProgress(enemy.lane))
@@ -374,8 +384,6 @@ export function useTowerDefense() {
     const targetsByProgress = [...enemies.value].filter(enemy => enemy.hp > 0 && enemy.progress >= 0).sort((a, b) => b.progress - a.progress)
 
     for (const tower of towers.value) {
-      tower.cooldown -= dt
-      if (tower.cooldown > 0) continue
       const definition = TOWER_DEFINITIONS[tower.kind]
       const effectiveRange = tower.kind === 'frost' ? definition.range : definition.range + (tower.level - 1) * TOWER_RANGE_LEVEL_BONUS
       const target = targetsByProgress.find((enemy) => {
@@ -384,29 +392,54 @@ export function useTowerDefense() {
         const hitRadius = tower.kind === 'frost' ? ENEMY_HIT_RADIUS : 0
         return Math.hypot(position.x - tower.x, position.y - tower.y) <= effectiveRange + hitRadius
       })
-      if (!target) continue
+      if (tower.kind === 'thunder') {
+        tower.beamTargetIds = []
+        if (!target) continue
+        const chainTargets: Enemy[] = [target]
+        const maxTargets = 2 + tower.level
+        const chainRange = 1.65 + (tower.level - 1) * .12
+        while (chainTargets.length < maxTargets) {
+          const previous = chainTargets[chainTargets.length - 1]!
+          const previousPosition = enemyPositions.get(previous.id)!
+          const next = targetsByProgress.find((enemy) => {
+            if (enemy.hp <= 0 || chainTargets.some(item => item.id === enemy.id)) return false
+            const position = enemyPositions.get(enemy.id)!
+            return Math.hypot(position.x - previousPosition.x, position.y - previousPosition.y) <= chainRange
+          })
+          if (!next) break
+          chainTargets.push(next)
+        }
+        const levelMultiplier = 1 + (tower.level - 1) * .42
+        chainTargets.forEach((enemy, index) => { enemy.hp -= definition.damage * levelMultiplier * Math.pow(.72, index) * dt })
+        tower.beamTargetIds = chainTargets.map(enemy => enemy.id)
+        const targetPosition = enemyPositions.get(target.id)!
+        tower.aimAngle = Math.atan2(targetPosition.y - tower.y, targetPosition.x - tower.x) * 180 / Math.PI
+        tower.firingUntil = elapsed + dt * 2
+        continue
+      }
+      tower.beamTargetIds = []
+      tower.cooldown -= dt
+      if (tower.cooldown > 0 || !target) continue
       const targetPosition = positionFor(target)
       tower.aimAngle = Math.atan2(targetPosition.y - tower.y, targetPosition.x - tower.x) * 180 / Math.PI
       tower.firingUntil = elapsed + .22
       tower.shotSequence++
       if (tower.kind === 'frost') {
         const frostRadius = FROST_EFFECT_RADIUS
-        const damage = definition.damage * (1 + (tower.level - 1) * 0.55)
         for (const enemy of enemies.value) {
           if (enemy.hp <= 0 || enemy.progress < 0) continue
           const position = enemyPositions.get(enemy.id)!
           // Tính cả thân quái khi chạm mép vùng, thay vì yêu cầu tâm quái phải
           // lọt tuyệt đối vào bán kính. Nhờ vậy tick 100 ms không bỏ sót sát thương.
           if (Math.hypot(position.x - tower.x, position.y - tower.y) > frostRadius + ENEMY_HIT_RADIUS) continue
-          enemy.hp -= damage
-          enemy.slowUntil = elapsed + FROST_SLOW_DURATION_SECONDS
-          enemy.isSlowed = true
+          enemy.frozenUntil = elapsed + FROST_SLOW_DURATION_SECONDS
+          enemy.isFrozen = true
         }
         impacts.value.push({ id: nextImpactId++, kind: 'frost', position: { x: tower.x, y: tower.y }, life: 1.05, radius: frostRadius, level: tower.level })
         tower.cooldown = definition.fireRate / (1 + (tower.level - 1) * 0.18)
         continue
       }
-      const shotDuration = tower.kind === 'fire' ? 0.55 : 0.34
+      const shotDuration = tower.kind === 'fire' ? 0.55 : tower.kind === 'water' ? 0.28 : 0.34
       const levelMultiplier = 1 + (tower.level - 1) * 0.55
       projectiles.value.push({
         id: nextProjectileId++,
@@ -419,6 +452,7 @@ export function useTowerDefense() {
         damage: definition.damage * levelMultiplier,
         level: tower.level,
         slow: definition.slow,
+        slowDuration: definition.slowDuration,
         burnDuration: definition.burnDuration,
         burnDamagePerSecond: definition.burnDamagePerSecond ? definition.burnDamagePerSecond * levelMultiplier : undefined,
         splashRadius: definition.splashRadius,

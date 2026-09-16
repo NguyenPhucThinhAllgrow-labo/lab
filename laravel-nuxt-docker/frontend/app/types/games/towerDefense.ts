@@ -1,4 +1,4 @@
-export type TowerKind = 'archer' | 'cannon' | 'frost' | 'fire'
+export type TowerKind = 'archer' | 'cannon' | 'frost' | 'fire' | 'thunder' | 'water'
 export type EnemyKind = 'normal' | 'boss'
 export type BossClass = 'barbarian' | 'knight' | 'mage' | 'ranger' | 'rogue'
 
@@ -13,6 +13,7 @@ export interface TowerDefinition {
   range: number
   fireRate: number
   slow?: number
+  slowDuration?: number
   burnDuration?: number
   burnDamagePerSecond?: number
   splashRadius?: number
@@ -29,6 +30,7 @@ export interface Tower extends GridPoint {
   firingUntil: number
   aimAngle: number
   shotSequence: number
+  beamTargetIds: number[]
   canRelocate: boolean
 }
 
@@ -43,7 +45,10 @@ export interface Enemy {
   speed: number
   reward: number
   slowUntil: number
+  slowAmount: number
   isSlowed: boolean
+  frozenUntil: number
+  isFrozen: boolean
   burnRemaining: number
   burnDamagePerSecond: number
 }
@@ -59,6 +64,7 @@ export interface Projectile {
   damage: number
   level: number
   slow?: number
+  slowDuration?: number
   burnDuration?: number
   burnDamagePerSecond?: number
   splashRadius?: number

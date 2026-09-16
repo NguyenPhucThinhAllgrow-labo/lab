@@ -120,8 +120,7 @@
 .defense-build > button { display: grid; width: 100%; grid-template-columns: 56px 1fr auto; align-items: center; gap: 11px; padding: 9px 10px; margin-top: 7px; border: 1px solid #4b4738; border-radius: 11px; text-align: left; background: #20231c; transition: .15s; }
 .defense-build > button:hover, .defense-build > button.active { border-color: #d3ae61; background: #303225; }
 .defense-build > button > span { display: grid; width: 54px; height: 54px; place-items: center; border-radius: 10px; background: radial-gradient(circle, color-mix(in srgb, var(--tower-color) 24%, transparent), transparent 72%); color: var(--tower-color); }
-.defense-build > button > span img { width: 100%; height: 100%; object-fit: contain; transform: scale(1.18); filter: drop-shadow(0 3px 2px #0007); }
-.defense-build > button > span img.is-fire-tower { filter: hue-rotate(140deg) saturate(1.6) brightness(1.14) drop-shadow(0 3px 2px #0007); }
+.defense-build > button > span > svg { width: 27px; height: 27px; color: var(--tower-color); stroke-width: 2.25; filter: drop-shadow(0 0 7px color-mix(in srgb, var(--tower-color) 75%, transparent)); }
 .defense-build button div { display: grid; gap: 3px; }
 .defense-build button strong { font-size: 12px; }
 .defense-build button small { color: #91846f; font-size: 9px; }
@@ -331,6 +330,8 @@
 .defense-board-footer > div { display: flex; align-items: center; gap: 10px; color: #d5c5a9; font-size: 9px; }
 .defense-board-footer p { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .defense-board-footer p span { margin-right: 6px; }
+.defense-camera-hint { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.defense-camera-hint kbd { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding-inline: 5px; border: 1px solid #827454; border-radius: 5px; background: #29291f; color: var(--gold); font: 800 10px ui-monospace, monospace; box-shadow: inset 0 -2px #0005; }
 .defense-board-footer .defense-speed { gap: 3px; }
 .defense-board-footer .defense-speed svg { width: 13px; }
 .defense-board-footer .defense-speed button { padding: 4px 7px; }

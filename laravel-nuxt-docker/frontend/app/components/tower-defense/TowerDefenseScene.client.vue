@@ -28,7 +28,7 @@ let surfaceDetail: THREE.DataTexture | null = null
 let frostGlowTexture: THREE.CanvasTexture | null = null
 let frostWaveTexture: THREE.CanvasTexture | null = null
 let fireWaveTexture: THREE.CanvasTexture | null = null
-let fireFlameTexture: THREE.CanvasTexture | null = null
+const enemyStatusBadgeTextures = new Map<'fire' | 'frost' | 'water', THREE.CanvasTexture>()
 const clock = new THREE.Clock()
 let visualElapsed = 0
 let visualNow = 0
@@ -58,8 +58,6 @@ const pointerStart = new THREE.Vector2()
 const pointerCurrent = new THREE.Vector2()
 const defaultCameraPosition = new THREE.Vector3(5.7, 12.5, 5.6)
 const defaultCameraTarget = new THREE.Vector3(1.3, 0, 0)
-const defaultCameraOffset = defaultCameraPosition.clone().sub(defaultCameraTarget)
-const cameraReturnPosition = new THREE.Vector3()
 const towerScreenPosition = new THREE.Vector3()
 const defensePathTileSet = new Set(DEFENSE_PATH_TILES.map(point => `${point.x}:${point.y}`))
 let cameraReturning = false
@@ -98,8 +96,8 @@ function groundShadow(radius: number) {
 const disposeObject = (object: THREE.Object3D, disposeResources = true) => {
   object.traverse((child) => {
     if (!disposeResources) return
-    if (!(child instanceof THREE.Mesh) && !(child instanceof THREE.Sprite)) return
-    if (child instanceof THREE.Mesh) child.geometry.dispose()
+    if (!(child instanceof THREE.Mesh) && !(child instanceof THREE.Sprite) && !(child instanceof THREE.Line)) return
+    if (child instanceof THREE.Mesh || child instanceof THREE.Line) child.geometry.dispose()
     const materials = Array.isArray(child.material) ? child.material : [child.material]
     materials.forEach(material => material.dispose())
   })
@@ -287,33 +285,6 @@ function getFireWaveTexture() {
   return fireWaveTexture
 }
 
-/** Vẽ sprite ngọn lửa alpha bằng Canvas và tái sử dụng cho mọi enemy đang cháy. */
-function getFireFlameTexture() {
-  if (fireFlameTexture) return fireFlameTexture
-  const canvas = document.createElement('canvas')
-  canvas.width = 128
-  canvas.height = 192
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('Không thể tạo texture ngọn lửa.')
-  const gradient = context.createLinearGradient(64, 180, 64, 8)
-  gradient.addColorStop(0, 'rgba(255, 238, 125, .98)')
-  gradient.addColorStop(.28, 'rgba(255, 151, 28, .94)')
-  gradient.addColorStop(.62, 'rgba(238, 48, 12, .7)')
-  gradient.addColorStop(1, 'rgba(130, 8, 2, 0)')
-  context.fillStyle = gradient
-  context.beginPath()
-  context.moveTo(64, 4)
-  context.bezierCurveTo(53, 38, 21, 62, 31, 105)
-  context.bezierCurveTo(8, 132, 27, 181, 64, 188)
-  context.bezierCurveTo(103, 180, 121, 139, 96, 105)
-  context.bezierCurveTo(107, 67, 77, 42, 64, 4)
-  context.closePath()
-  context.fill()
-  fireFlameTexture = new THREE.CanvasTexture(canvas)
-  fireFlameTexture.colorSpace = THREE.SRGBColorSpace
-  return fireFlameTexture
-}
-
 // ===== Model tháp và hiệu ứng nâng cấp ======================================
 /** Gắn cửa và vòng tay nắm lên mặt trước của một tower procedural. */
 function addDoor(group: THREE.Group, y: number, z: number) {
@@ -460,6 +431,7 @@ function createFireTowerTemplate(frostTemplate: THREE.Group) {
   group.name = 'FireTower3D'
   group.traverse((child) => {
     if (!(child instanceof THREE.Mesh || child instanceof THREE.Sprite)) return
+    if (child instanceof THREE.Mesh) child.geometry = child.geometry.clone()
     const recolor = (original: THREE.Material) => {
       const material = original.clone()
       if (material instanceof THREE.SpriteMaterial) {
@@ -495,6 +467,24 @@ function createFireTowerTemplate(frostTemplate: THREE.Group) {
     child.material = Array.isArray(child.material) ? child.material.map(recolor) : recolor(child.material)
   })
   return group
+}
+
+/** Gắn quầng sáng nguyên tố lên lõi ở đỉnh các tháp lửa, sét và nước. */
+function decorateElementalTowerGlow(group: THREE.Group, kind: 'fire' | 'thunder' | 'water') {
+  const colors = { fire: 0xff5a18, thunder: 0x9b7cff, water: 0x38bdf8 } as const
+  const heights = { fire: 1.82, thunder: 1.82, water: 1.78 } as const
+  const effect = new THREE.Group()
+  effect.name = 'elementalTowerGlow'
+  effect.userData.kind = kind
+  effect.position.y = heights[kind]
+  const glowMaterial = new THREE.SpriteMaterial({ map: getFrostGlowTexture(), color: colors[kind], transparent: true, opacity: .68, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false })
+  const glow = new THREE.Sprite(glowMaterial)
+  glow.name = 'elementalTowerGlowSprite'
+  glow.userData.baseScale = kind === 'fire' ? .7 : .62
+  glow.scale.setScalar(Number(glow.userData.baseScale))
+  glow.renderOrder = 8
+  effect.add(glow)
+  group.add(effect)
 }
 
 /** Cache các node có tên vào userData để vòng render không phải traverse mỗi frame. */
@@ -540,8 +530,8 @@ function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
   if (previous) disposeObject(previous)
   const effect = new THREE.Group(); effect.name = 'towerLevelEffect'; effect.userData.kind = tower.kind
   if (tower.level === 1) { group.add(effect); return }
-  const colors: Record<TowerKind, number> = { archer: 0x86e45c, cannon: 0xffa53b, frost: 0x6cecff, fire: 0xff5438 }
-  const accentColors: Record<TowerKind, number> = { archer: 0xeaffb8, cannon: 0xffe08a, frost: 0xe8fdff, fire: 0xffd45c }
+  const colors: Record<TowerKind, number> = { archer: 0x86e45c, cannon: 0xffa53b, frost: 0x6cecff, fire: 0xff5438, thunder: 0x9b7cff, water: 0x38bdf8 }
+  const accentColors: Record<TowerKind, number> = { archer: 0xeaffb8, cannon: 0xffe08a, frost: 0xe8fdff, fire: 0xffd45c, thunder: 0xe9ddff, water: 0xe0f7ff }
   const effectMaterial = (opacity: number) => new THREE.MeshBasicMaterial({ color: colors[tower.kind], transparent: true, opacity, depthWrite: false, toneMapped: false })
 
   // Mỗi cấp thêm một lớp kiến trúc cố định, giúp nhận biết level ngay cả khi
@@ -630,7 +620,7 @@ function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
       const shard = new THREE.Mesh(new THREE.OctahedronGeometry(.035, 0), effectMaterial(.68)); const angle = index / count * Math.PI * 2
       shard.name = 'levelFxShard'; shard.userData.angle = angle; shard.userData.index = index; effect.add(shard)
     }
-  } else {
+  } else if (tower.kind === 'fire') {
     const count = tower.level >= 3 ? 6 : 3
     const ringCount = tower.level >= 3 ? 2 : 1
     for (let index = 0; index < ringCount; index++) {
@@ -640,6 +630,17 @@ function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
     for (let index = 0; index < count; index++) {
       const flame = new THREE.Mesh(new THREE.ConeGeometry(.035, .14, 6), effectMaterial(.58)); const angle = index / count * Math.PI * 2
       flame.name = 'levelFxFlame'; flame.userData.angle = angle; flame.userData.index = index; effect.add(flame)
+    }
+  } else {
+    const count = tower.level >= 3 ? 8 : 4
+    const ringCount = tower.level >= 3 ? 2 : 1
+    for (let index = 0; index < ringCount; index++) {
+      const electricRing = new THREE.Mesh(new THREE.TorusGeometry(.31 + index * .13, .013, 6, 36), effectMaterial(.52 - index * .1))
+      electricRing.name = 'levelFxIceRing'; electricRing.userData.index = index; electricRing.rotation.x = Math.PI / 2; electricRing.position.y = .62 + index * .3; effect.add(electricRing)
+    }
+    for (let index = 0; index < count; index++) {
+      const spark = new THREE.Mesh(new THREE.TetrahedronGeometry(.036, 0), effectMaterial(.8)); const angle = index / count * Math.PI * 2
+      spark.name = 'levelFxShard'; spark.userData.angle = angle; spark.userData.index = index; effect.add(spark)
     }
   }
   group.add(effect)
@@ -727,6 +728,33 @@ function animateTowerLevelAppearance(model: THREE.Group, tower: Tower, elapsed: 
   })
 }
 
+/** Tạo sẵn tia điện ba lớp cho mỗi đoạn chuỗi để có lõi dày và quầng sáng. */
+function createThunderBeamEffect() {
+  const effect = new THREE.Group()
+  effect.name = 'thunderBeamEffect'
+  effect.visible = false
+  for (let segmentIndex = 0; segmentIndex < 5; segmentIndex++) {
+    for (const lane of [-2, -1, 0, 1, 2]) {
+      const positions = new Float32Array(10 * 3)
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+      const core = lane === 0
+      const innerGlow = Math.abs(lane) === 1
+      const material = new THREE.LineBasicMaterial({ color: core ? 0xffffff : innerGlow ? 0xc4b5fd : 0x7c3aed, transparent: true, opacity: core ? 1 : innerGlow ? .58 : .32, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
+      const beam = new THREE.Line(geometry, material)
+      beam.name = 'thunderChainBeam'; beam.userData.segmentIndex = segmentIndex; beam.userData.lane = lane; beam.frustumCulled = false; beam.renderOrder = core ? 11 : 10; effect.add(beam)
+    }
+    for (let branchIndex = 0; branchIndex < 2; branchIndex++) {
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(5 * 3), 3))
+      const material = new THREE.LineBasicMaterial({ color: branchIndex ? 0x8b5cf6 : 0xc4b5fd, transparent: true, opacity: .42, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
+      const branch = new THREE.Line(geometry, material)
+      branch.name = 'thunderBranchBeam'; branch.userData.segmentIndex = segmentIndex; branch.userData.branchIndex = branchIndex; branch.frustumCulled = false; branch.renderOrder = 9; effect.add(branch)
+    }
+  }
+  return effect
+}
+
 /** Clone đúng template tower, bind node điều khiển và thêm instance vào scene. */
 function createTowerModel(tower: Tower) {
   const template = towerTemplates.get(tower.kind)
@@ -735,6 +763,7 @@ function createTowerModel(tower: Tower) {
   bindTowerParts(group)
   setTowerScale(group, tower.level)
   applyTowerLevelAppearance(group, tower)
+  if (tower.kind === 'thunder') group.add(createThunderBeamEffect())
   group.position.copy(worldPosition(tower.x, tower.y)); group.position.y = .05
   group.userData.shotSequence = tower.shotSequence; group.userData.firedAt = 0; group.userData.level = tower.level
   scene!.add(group); return group
@@ -746,7 +775,7 @@ function createTowerUpgradeEffect(tower: Tower, now: number) {
   if (existing) disposeObject(existing.group)
   const group = new THREE.Group()
   group.position.copy(worldPosition(tower.x, tower.y)); group.position.y = .1
-  const colors: Record<TowerKind, number> = { archer: 0x8ee85e, cannon: 0xffa83d, frost: 0x6ee7ff, fire: 0xff593d }
+  const colors: Record<TowerKind, number> = { archer: 0x8ee85e, cannon: 0xffa83d, frost: 0x6ee7ff, fire: 0xff593d, thunder: 0xa78bfa, water: 0x38bdf8 }
   const material = (opacity = .9) => new THREE.MeshBasicMaterial({ color: colors[tower.kind], transparent: true, opacity, depthWrite: false, toneMapped: false })
 
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(.18, .42, 2.4, 24, 1, true), material(.3))
@@ -865,59 +894,45 @@ function createTowerPreview(kind: TowerKind) {
 }
 
 // ===== Enemy GLB, boss class và hiệu ứng trạng thái =========================
-/** Gắn sẵn pool sprite lửa vào enemy; vòng render chỉ bật và tái định vị chúng. */
-function addEnemyBurnEffect(group: THREE.Group) {
-  const effect = new THREE.Group()
-  effect.name = 'enemyBurnEffect'
-  effect.visible = false
-  for (let index = 0; index < 10; index++) {
-    const material = new THREE.SpriteMaterial({
-      map: getFireFlameTexture(),
-      color: index % 3 === 0 ? 0xffd36b : 0xff7a2c,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      depthTest: false,
-      blending: THREE.AdditiveBlending,
-    })
-    material.toneMapped = false
-    const flame = new THREE.Sprite(material)
-    flame.renderOrder = 9
-    const angle = index / 10 * Math.PI * 2
-    const radius = .27 + index % 3 * .055
-    flame.position.set(Math.cos(angle) * radius, .2 + index % 4 * .2, Math.sin(angle) * radius)
-    flame.userData.baseY = flame.position.y
-    flame.userData.angle = angle
-    flame.userData.radius = radius
-    flame.userData.phase = index / 10
-    flame.userData.riseSpeed = .72 + index % 3 * .16
-    flame.userData.baseWidth = .32 + index % 2 * .065
-    flame.userData.baseHeight = .68 + index % 3 * .1
-    effect.add(flame)
+/** Vẽ badge trạng thái mang biểu tượng của tháp gây hiệu ứng. */
+function getEnemyStatusBadgeTexture(kind: 'fire' | 'frost' | 'water') {
+  const cached = enemyStatusBadgeTextures.get(kind)
+  if (cached) return cached
+  const canvas = document.createElement('canvas'); canvas.width = 96; canvas.height = 96
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Không thể tạo badge trạng thái enemy.')
+  context.fillStyle = kind === 'fire' ? '#7f1d1d' : kind === 'water' ? '#0c4a6e' : '#075985'
+  context.strokeStyle = kind === 'fire' ? '#fdba74' : kind === 'water' ? '#7dd3fc' : '#bae6fd'
+  context.lineWidth = 6
+  context.beginPath(); context.arc(48, 48, 40, 0, Math.PI * 2); context.fill(); context.stroke()
+  context.strokeStyle = '#fff'; context.fillStyle = '#fff'; context.lineWidth = 7; context.lineCap = 'round'; context.lineJoin = 'round'
+  if (kind === 'fire') {
+    context.beginPath(); context.moveTo(49, 18); context.bezierCurveTo(44, 34, 27, 39, 31, 58); context.bezierCurveTo(34, 74, 61, 79, 68, 58); context.bezierCurveTo(72, 43, 58, 33, 49, 18); context.fill()
+    context.fillStyle = '#fbbf24'; context.beginPath(); context.moveTo(49, 42); context.bezierCurveTo(42, 51, 40, 61, 49, 68); context.bezierCurveTo(60, 61, 58, 51, 49, 42); context.fill()
+  } else if (kind === 'frost') {
+    for (let index = 0; index < 3; index++) {
+      context.save(); context.translate(48, 48); context.rotate(index * Math.PI / 3); context.beginPath(); context.moveTo(-25, 0); context.lineTo(25, 0); context.moveTo(16, -8); context.lineTo(25, 0); context.lineTo(16, 8); context.moveTo(-16, -8); context.lineTo(-25, 0); context.lineTo(-16, 8); context.stroke(); context.restore()
+    }
+  } else {
+    for (let index = 0; index < 3; index++) {
+      const y = 34 + index * 13
+      context.beginPath(); context.moveTo(20, y); context.bezierCurveTo(30, y - 9, 39, y + 9, 49, y); context.bezierCurveTo(59, y - 9, 67, y + 9, 76, y); context.stroke()
+    }
   }
-  group.add(effect)
-  group.userData.burnEffect = effect
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace
+  enemyStatusBadgeTextures.set(kind, texture)
+  return texture
 }
 
-/** Gắn sẵn các tinh thể quay quanh enemy khi trạng thái slow đang hoạt động. */
-function addEnemyFrostEffect(group: THREE.Group) {
-  const effect = new THREE.Group()
-  effect.name = 'enemyFrostEffect'
-  effect.visible = false
-  for (let index = 0; index < 9; index++) {
-    const crystal = new THREE.Mesh(
-      new THREE.OctahedronGeometry(index % 2 ? .065 : .09, 0),
-      new THREE.MeshBasicMaterial({ color: index % 2 ? 0xe3fcff : 0x56d8f4, transparent: true, opacity: .95, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false }),
-    )
-    crystal.name = 'enemyFrostCrystal'
-    crystal.renderOrder = 9
-    crystal.userData.angle = index / 9 * Math.PI * 2
-    crystal.userData.radius = .44 + index % 2 * .08
-    crystal.userData.baseY = .22 + index % 3 * .3
-    effect.add(crystal)
+/** Đặt badge lửa/băng ngay phía trên thanh máu của enemy. */
+function addEnemyStatusBadges(group: THREE.Group) {
+  const badges = new THREE.Group(); badges.name = 'enemyStatusBadges'
+  for (const [index, kind] of (['fire', 'frost', 'water'] as const).entries()) {
+    const material = new THREE.SpriteMaterial({ map: getEnemyStatusBadgeTexture(kind), transparent: true, depthWrite: false, depthTest: false, toneMapped: false })
+    const badge = new THREE.Sprite(material); badge.name = `enemyStatusBadge-${kind}`; badge.position.set(-.13 + index * .26, 2.08, .1); badge.scale.set(.2, .2, 1); badge.visible = false; badge.renderOrder = 12; badges.add(badge)
   }
-  group.add(effect)
-  group.userData.frostEffect = effect
+  group.add(badges)
+  group.userData.statusBadges = badges
 }
 
 /** Clone model theo bossClass, gắn cặp vũ khí vào socket và khởi chạy Walking_A. */
@@ -966,8 +981,7 @@ function createEnemyModel(enemy: Enemy) {
   group.userData.mixer = mixer
   group.userData.isSkinnedCharacter = true
   group.userData.isBoss = enemy.kind === 'boss'
-  addEnemyBurnEffect(group)
-  addEnemyFrostEffect(group)
+  addEnemyStatusBadges(group)
   scene!.add(group)
   return group
 }
@@ -976,15 +990,8 @@ function createEnemyModel(enemy: Enemy) {
 function disposeEnemyModel(model: THREE.Group) {
   const mixer = model.userData.mixer as THREE.AnimationMixer | undefined
   if (mixer) { mixer.stopAllAction(); mixer.uncacheRoot(model) }
-  const burnEffect = model.userData.burnEffect as THREE.Group | undefined
-  burnEffect?.traverse((child) => {
-    if (child instanceof THREE.Sprite) child.material.dispose()
-    if (child instanceof THREE.Mesh) { child.geometry.dispose(); child.material.dispose() }
-  })
-  const frostEffect = model.userData.frostEffect as THREE.Group | undefined
-  frostEffect?.traverse((child) => {
-    if (child instanceof THREE.Mesh) { child.geometry.dispose(); child.material.dispose() }
-  })
+  const statusBadges = model.userData.statusBadges as THREE.Group | undefined
+  statusBadges?.traverse((child) => { if (child instanceof THREE.Sprite) child.material.dispose() })
   const skeletons = new Set<THREE.Skeleton>()
   model.traverse((child) => { if (child instanceof THREE.SkinnedMesh) skeletons.add(child.skeleton) })
   skeletons.forEach(skeleton => skeleton.dispose())
@@ -1112,12 +1119,7 @@ async function loadFrostTower() {
             material.map.anisotropy = Math.min(8, renderer?.capabilities.getMaxAnisotropy() ?? 8)
             material.map.needsUpdate = true
           }
-          material.color.setRGB(1, 1, 1)
-          material.emissive.setRGB(0, 0, 0)
-          material.emissiveIntensity = 0
-          material.roughness = .62
-          material.metalness = .08
-          material.envMapIntensity = .9
+          material.needsUpdate = true
         }
         return material
       }
@@ -1128,22 +1130,183 @@ async function loadFrostTower() {
     template.add(groundShadow(.42))
     optimizeTemplateShadows(template)
 
-    const fireTemplate = createFireTowerTemplate(template)
     const previousTemplate = towerTemplates.get('frost')
-    const previousFireTemplate = towerTemplates.get('fire')
-    if (towerPreviewKind === 'frost' || towerPreviewKind === 'fire') removeTowerPreview()
+    if (towerPreviewKind === 'frost') removeTowerPreview()
     for (const [id, model] of towerModels) {
       const kind = props.towers.find(tower => tower.id === id)?.kind
-      if (kind !== 'frost' && kind !== 'fire') continue
+      if (kind !== 'frost') continue
       disposeObject(model, false)
       towerModels.delete(id)
     }
     if (previousTemplate) disposeObject(previousTemplate)
-    if (previousFireTemplate) disposeObject(previousFireTemplate)
     towerTemplates.set('frost', template)
-    towerTemplates.set('fire', fireTemplate)
   } catch (error) {
     console.warn('[Kingdom Defense] Không thể tải frost-tower-3d.glb, dùng placeholder dự phòng.', error)
+  }
+}
+
+/** Tải model tháp lửa riêng, căn giữa chân model và thay placeholder đang hiển thị. */
+async function loadFireTower() {
+  try {
+    const gltf = await new GLTFLoader().loadAsync('/models/games/tower-defense/fire-tower.glb')
+    if (!scene || !host.value?.isConnected) return
+    const template = new THREE.Group()
+    template.name = 'FireTower3D'
+    const source = gltf.scene
+    source.updateMatrixWorld(true)
+    const sourceBounds = new THREE.Box3().setFromObject(source)
+    const sourceSize = sourceBounds.getSize(new THREE.Vector3())
+    if (!Number.isFinite(sourceSize.y) || sourceSize.y <= 0) throw new Error('Model tháp lửa không có kích thước hợp lệ.')
+    // Tháp băng cao xấp xỉ 2.1 đơn vị sau transform; chuẩn hóa tháp lửa cùng cỡ.
+    source.scale.multiplyScalar(2.1 / sourceSize.y)
+    source.updateMatrixWorld(true)
+    const fittedBounds = new THREE.Box3().setFromObject(source)
+    const fittedCenter = fittedBounds.getCenter(new THREE.Vector3())
+    source.position.x -= fittedCenter.x
+    source.position.z -= fittedCenter.z
+    source.position.y -= fittedBounds.min.y
+    source.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return
+      if (!child.geometry.getAttribute('normal')) child.geometry.computeVertexNormals()
+      child.castShadow = true
+      child.receiveShadow = true
+      const tuneMaterial = (original: THREE.Material) => {
+        const material = original.clone()
+        if (material instanceof THREE.MeshStandardMaterial) {
+          if (material.map) {
+            material.map.anisotropy = Math.min(8, renderer?.capabilities.getMaxAnisotropy() ?? 8)
+            material.map.needsUpdate = true
+          }
+          material.needsUpdate = true
+        }
+        return material
+      }
+      child.material = Array.isArray(child.material) ? child.material.map(tuneMaterial) : tuneMaterial(child.material)
+    })
+    template.add(source)
+    decorateElementalTowerGlow(template, 'fire')
+    template.add(groundShadow(.42))
+    optimizeTemplateShadows(template)
+
+    const previousTemplate = towerTemplates.get('fire')
+    if (towerPreviewKind === 'fire') removeTowerPreview()
+    for (const [id, model] of towerModels) {
+      if (props.towers.find(tower => tower.id === id)?.kind !== 'fire') continue
+      disposeObject(model, false)
+      towerModels.delete(id)
+    }
+    if (previousTemplate) disposeObject(previousTemplate)
+    towerTemplates.set('fire', template)
+  } catch (error) {
+    console.warn('[Kingdom Defense] Không thể tải fire-tower.glb, dùng placeholder dự phòng.', error)
+  }
+}
+
+/** Tải model tháp sét, chuẩn hóa kích thước và thay model dự phòng. */
+async function loadThunderTower() {
+  try {
+    const gltf = await new GLTFLoader().loadAsync('/models/games/tower-defense/thunder-tower.glb')
+    if (!scene || !host.value?.isConnected) return
+    const template = new THREE.Group()
+    template.name = 'ThunderTower3D'
+    const source = gltf.scene
+    source.updateMatrixWorld(true)
+    const sourceBounds = new THREE.Box3().setFromObject(source)
+    const sourceSize = sourceBounds.getSize(new THREE.Vector3())
+    if (!Number.isFinite(sourceSize.y) || sourceSize.y <= 0) throw new Error('Model tháp sét không có kích thước hợp lệ.')
+    source.scale.multiplyScalar(2.1 / sourceSize.y)
+    source.updateMatrixWorld(true)
+    const fittedBounds = new THREE.Box3().setFromObject(source)
+    const fittedCenter = fittedBounds.getCenter(new THREE.Vector3())
+    source.position.set(source.position.x - fittedCenter.x, source.position.y - fittedBounds.min.y, source.position.z - fittedCenter.z)
+    source.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return
+      if (!child.geometry.getAttribute('normal')) child.geometry.computeVertexNormals()
+      child.castShadow = true
+      child.receiveShadow = true
+      const tuneMaterial = (original: THREE.Material) => {
+        const material = original.clone()
+        if (material instanceof THREE.MeshStandardMaterial) {
+          if (material.map) {
+            material.map.anisotropy = Math.min(8, renderer?.capabilities.getMaxAnisotropy() ?? 8)
+            material.map.needsUpdate = true
+          }
+          material.needsUpdate = true
+        }
+        return material
+      }
+      child.material = Array.isArray(child.material) ? child.material.map(tuneMaterial) : tuneMaterial(child.material)
+    })
+    template.add(source)
+    decorateElementalTowerGlow(template, 'thunder')
+    template.add(groundShadow(.42))
+    optimizeTemplateShadows(template)
+
+    const previousTemplate = towerTemplates.get('thunder')
+    if (towerPreviewKind === 'thunder') removeTowerPreview()
+    for (const [id, model] of towerModels) {
+      if (props.towers.find(tower => tower.id === id)?.kind !== 'thunder') continue
+      disposeObject(model, false)
+      towerModels.delete(id)
+    }
+    if (previousTemplate) disposeObject(previousTemplate)
+    towerTemplates.set('thunder', template)
+  } catch (error) {
+    console.warn('[Kingdom Defense] Không thể tải thunder-tower.glb, dùng placeholder dự phòng.', error)
+  }
+}
+
+/** Tải model tháp nước, chuẩn hóa về cùng tỷ lệ với các tháp nguyên tố khác. */
+async function loadWaterTower() {
+  try {
+    const gltf = await new GLTFLoader().loadAsync('/models/games/tower-defense/water-tower.glb')
+    if (!scene || !host.value?.isConnected) return
+    const template = new THREE.Group()
+    template.name = 'WaterTower3D'
+    const source = gltf.scene
+    source.updateMatrixWorld(true)
+    const sourceBounds = new THREE.Box3().setFromObject(source)
+    const sourceSize = sourceBounds.getSize(new THREE.Vector3())
+    if (!Number.isFinite(sourceSize.y) || sourceSize.y <= 0) throw new Error('Model tháp nước không có kích thước hợp lệ.')
+    source.scale.multiplyScalar(2.1 / sourceSize.y)
+    source.updateMatrixWorld(true)
+    const fittedBounds = new THREE.Box3().setFromObject(source)
+    const fittedCenter = fittedBounds.getCenter(new THREE.Vector3())
+    source.position.set(source.position.x - fittedCenter.x, source.position.y - fittedBounds.min.y, source.position.z - fittedCenter.z)
+    source.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return
+      if (!child.geometry.getAttribute('normal')) child.geometry.computeVertexNormals()
+      child.castShadow = true
+      child.receiveShadow = true
+      const tuneMaterial = (original: THREE.Material) => {
+        const material = original.clone()
+        if (material instanceof THREE.MeshStandardMaterial) {
+          if (material.map) {
+            material.map.anisotropy = Math.min(8, renderer?.capabilities.getMaxAnisotropy() ?? 8)
+            material.map.needsUpdate = true
+          }
+          material.needsUpdate = true
+        }
+        return material
+      }
+      child.material = Array.isArray(child.material) ? child.material.map(tuneMaterial) : tuneMaterial(child.material)
+    })
+    template.add(source)
+    decorateElementalTowerGlow(template, 'water')
+    template.add(groundShadow(.42))
+    optimizeTemplateShadows(template)
+
+    const previousTemplate = towerTemplates.get('water')
+    if (towerPreviewKind === 'water') removeTowerPreview()
+    for (const [id, model] of towerModels) {
+      if (props.towers.find(tower => tower.id === id)?.kind !== 'water') continue
+      disposeObject(model, false)
+      towerModels.delete(id)
+    }
+    if (previousTemplate) disposeObject(previousTemplate)
+    towerTemplates.set('water', template)
+  } catch (error) {
+    console.warn('[Kingdom Defense] Không thể tải water-tower.glb, dùng placeholder dự phòng.', error)
   }
 }
 
@@ -1166,6 +1329,21 @@ function createProjectileTemplate(kind: Projectile['kind']) {
     shot.name = 'fireballCore'
     const glow = new THREE.Mesh(new THREE.SphereGeometry(.185, 14, 10), new THREE.MeshBasicMaterial({ color: 0xff4a18, transparent: true, opacity: .34, depthWrite: false, blending: THREE.AdditiveBlending }))
     shot.add(glow)
+  } else if (kind === 'thunder') {
+    shot = new THREE.Mesh(new THREE.OctahedronGeometry(.11, 1), new THREE.MeshBasicMaterial({ color: 0xe9ddff, transparent: true, opacity: .96, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))
+    shot.name = 'thunderBoltCore'
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(.2, 12, 8), new THREE.MeshBasicMaterial({ color: 0x7c3aed, transparent: true, opacity: .38, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))
+    shot.add(glow)
+  } else if (kind === 'water') {
+    shot = new THREE.Mesh(new THREE.SphereGeometry(.13, 18, 12), new THREE.MeshPhysicalMaterial({ color: 0x7dd3fc, emissive: 0x075985, emissiveIntensity: .75, roughness: .08, metalness: 0, transmission: .5, transparent: true, opacity: .88 }))
+    shot.name = 'waterShotCore'
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(.2, 14, 10), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: .24, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))
+    shot.add(glow)
+    for (let index = 0; index < 7; index++) {
+      const droplet = new THREE.Mesh(new THREE.SphereGeometry(.038 + index % 3 * .007, 9, 7), new THREE.MeshBasicMaterial({ color: index % 2 ? 0xbae6fd : 0x38bdf8, transparent: true, opacity: .72, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))
+      const angle = index / 7 * Math.PI * 2
+      droplet.name = 'waterShotDroplet'; droplet.userData.index = index; droplet.userData.angle = angle; droplet.position.set(Math.cos(angle) * .17, Math.sin(angle) * .12, 0); group.add(droplet)
+    }
   } else {
     shot = mesh(new THREE.OctahedronGeometry(.12), 0x74e8ff, { emissive: 0x2389a0 });
   }
@@ -1180,6 +1358,7 @@ function createProjectile(projectile: Projectile, now: number) {
   const group = template.clone(true)
   const levelScale = 1 + (projectile.level - 1) * .2
   group.scale.setScalar(levelScale)
+  group.userData.levelScale = levelScale
   if (projectile.kind === 'archer' && projectile.level >= 2) {
     const trail = new THREE.Mesh(new THREE.CylinderGeometry(.008, .018, .2 + projectile.level * .035, 6), new THREE.MeshBasicMaterial({ color: projectile.level >= 3 ? 0xa8e878 : 0xffdfa0, transparent: true, opacity: projectile.level >= 3 ? .34 : .22, depthWrite: false, toneMapped: false }))
     trail.name = 'arrowTrail'; trail.rotation.x = Math.PI / 2; trail.position.z = -.34; group.add(trail)
@@ -1193,8 +1372,8 @@ function createProjectile(projectile: Projectile, now: number) {
 
 /** Dựng hiệu ứng va chạm theo loại sát thương, bán kính và level của phát bắn. */
 function createImpact(impact: Impact, now: number) {
-  const color = impact.kind === 'frost' ? 0x6ee7ff : impact.kind === 'fire' ? 0xff3b1f : impact.kind === 'cannon' ? 0xff7a2f : 0xffe2a1
-  const group = new THREE.Group(); group.position.copy(worldPosition(impact.position.x, impact.position.y)); group.userData.bornAt = now; group.userData.level = impact.level; group.userData.visualDuration = (impact.kind === 'frost' ? 1050 : impact.kind === 'fire' ? 650 : 420) / props.speedMultiplier
+  const color = impact.kind === 'frost' ? 0x6ee7ff : impact.kind === 'fire' ? 0xff3b1f : impact.kind === 'thunder' ? 0xa78bfa : impact.kind === 'water' ? 0x38bdf8 : impact.kind === 'cannon' ? 0xff7a2f : 0xffe2a1
+  const group = new THREE.Group(); group.position.copy(worldPosition(impact.position.x, impact.position.y)); group.userData.bornAt = now; group.userData.level = impact.level; group.userData.visualDuration = (impact.kind === 'frost' ? 1050 : impact.kind === 'fire' ? 650 : impact.kind === 'water' ? 580 : impact.kind === 'thunder' ? 520 : 420) / props.speedMultiplier
   if (impact.kind === 'frost') {
     group.position.y = .08
     const radius = impact.radius ?? 1
@@ -1239,6 +1418,28 @@ function createImpact(impact: Impact, now: number) {
     }
     group.userData.fireBlastWaves = [outerWave, innerWave]
     group.add(outerWave, innerWave)
+  } else if (impact.kind === 'water') {
+    group.position.y = .1
+    const radius = impact.radius ?? .7
+    for (let index = 0; index < 3; index++) {
+      const ripple = new THREE.Mesh(new THREE.RingGeometry(.12 + index * .07, .17 + index * .08, 40), new THREE.MeshBasicMaterial({ color: index === 1 ? 0x7dd3fc : color, transparent: true, opacity: .78 - index * .14, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))
+      ripple.name = 'waterHitRipple'; ripple.userData.index = index; ripple.userData.radius = radius; ripple.rotation.x = -Math.PI / 2; ripple.position.y = index * .018; group.add(ripple)
+    }
+    const dropletCount = 7 + impact.level * 2
+    for (let index = 0; index < dropletCount; index++) {
+      const droplet = new THREE.Mesh(new THREE.SphereGeometry(.022 + index % 3 * .006, 7, 5), new THREE.MeshBasicMaterial({ color: index % 2 ? 0xbae6fd : 0x38bdf8, transparent: true, opacity: .9, depthWrite: false, toneMapped: false }))
+      droplet.name = 'waterHitDroplet'; droplet.userData.angle = index / dropletCount * Math.PI * 2; droplet.userData.index = index; group.add(droplet)
+    }
+  } else if (impact.kind === 'thunder') {
+    group.position.y = .36
+    const flash = new THREE.Mesh(new THREE.SphereGeometry(.18 + impact.level * .035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xe9ddff, transparent: true, opacity: .95, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))
+    flash.name = 'thunderHitFlash'; group.add(flash)
+    const arcCount = 5 + impact.level * 2
+    for (let index = 0; index < arcCount; index++) {
+      const arc = new THREE.Mesh(new THREE.CapsuleGeometry(.012, .2 + index % 3 * .055, 3, 5), new THREE.MeshBasicMaterial({ color: index % 2 ? 0x8b5cf6 : 0xd8c8ff, transparent: true, opacity: .92, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))
+      const angle = index / arcCount * Math.PI * 2
+      arc.name = 'thunderHitArc'; arc.userData.angle = angle; arc.userData.index = index; arc.rotation.z = -angle; group.add(arc)
+    }
   } else if (impact.kind === 'archer') {
     group.position.y = .42
     const slashCount = impact.level >= 3 ? 3 : impact.level === 2 ? 2 : 1
@@ -1634,6 +1835,68 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       const particles = model.userData.frostParticles as THREE.Mesh[]
       particles.forEach((particle, index) => { const angle = Number(particle.userData.orbitAngle) + elapsed * (.28 + index % 3 * .035); const radius = Number(particle.userData.orbitRadius); particle.position.set(Math.cos(angle) * radius, Number(particle.userData.baseY) + Math.sin(elapsed * 1.25 + index) * .1, Math.sin(angle) * radius); particle.rotation.y = elapsed + index })
     }
+    if (tower.kind === 'fire' || tower.kind === 'thunder' || tower.kind === 'water') {
+      const elementalGlow = model.getObjectByName('elementalTowerGlowSprite') as THREE.Sprite | undefined
+      if (elementalGlow) {
+        const baseScale = Number(elementalGlow.userData.baseScale)
+        const pulse = 1 + Math.sin(elapsed * (tower.kind === 'thunder' ? 8.5 : 5.2) + tower.id) * .12
+        elementalGlow.scale.set(baseScale * pulse, baseScale * pulse, 1)
+      }
+    }
+    if (tower.kind === 'thunder') {
+      const beamEffect = model.getObjectByName('thunderBeamEffect') as THREE.Group | undefined
+      if (beamEffect) {
+        const targets = tower.beamTargetIds.map(id => enemyModels.get(id)).filter((item): item is THREE.Group => Boolean(item))
+        beamEffect.visible = targets.length > 0
+        model.updateMatrixWorld(true)
+        beamEffect.children.forEach((child) => {
+          const beam = child as THREE.Line
+          const segmentIndex = Number(beam.userData.segmentIndex)
+          const lane = Number(beam.userData.lane)
+          const branchIndex = Number(beam.userData.branchIndex)
+          const targetModel = targets[segmentIndex]
+          beam.visible = Boolean(targetModel)
+          if (!targetModel) return
+          const startWorld = new THREE.Vector3()
+          if (segmentIndex === 0) model.localToWorld(startWorld.set(0, 1.72, 0))
+          else targets[segmentIndex - 1]!.getWorldPosition(startWorld).add(new THREE.Vector3(0, .62, 0))
+          const endWorld = targetModel.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, .62, 0))
+          const start = model.worldToLocal(startWorld.clone())
+          const end = model.worldToLocal(endWorld.clone())
+          const position = beam.geometry.getAttribute('position') as THREE.BufferAttribute
+          const flickerFrame = Math.floor(elapsed * 26)
+          const random = (pointIndex: number, salt: number) => {
+            const value = Math.sin((flickerFrame * 17.17 + tower.id * 13.13 + segmentIndex * 31.7 + pointIndex * 7.91 + salt) * 12.9898) * 43758.5453
+            return (value - Math.floor(value)) * 2 - 1
+          }
+          if (child.name === 'thunderBranchBeam') {
+            const branchStartRatio = branchIndex ? .62 : .36
+            const branchStart = new THREE.Vector3().lerpVectors(start, end, branchStartRatio)
+            const branchLength = .28 + Math.abs(random(branchIndex, 19)) * .22
+            const branchEnd = branchStart.clone().add(new THREE.Vector3(random(1, 23) * branchLength, .08 + random(2, 29) * .18, random(3, 37) * branchLength))
+            for (let pointIndex = 0; pointIndex < 5; pointIndex++) {
+              const ratio = pointIndex / 4
+              const edge = Math.sin(ratio * Math.PI)
+              position.setXYZ(pointIndex, THREE.MathUtils.lerp(branchStart.x, branchEnd.x, ratio) + random(pointIndex, 41) * .045 * edge, THREE.MathUtils.lerp(branchStart.y, branchEnd.y, ratio) + random(pointIndex, 47) * .04 * edge, THREE.MathUtils.lerp(branchStart.z, branchEnd.z, ratio) + random(pointIndex, 53) * .045 * edge)
+            }
+            position.needsUpdate = true
+            ;(beam.material as THREE.LineBasicMaterial).opacity = Math.max(0, .25 + random(branchIndex, 61) * .22)
+            return
+          }
+          for (let pointIndex = 0; pointIndex < 10; pointIndex++) {
+            const ratio = pointIndex / 9
+            const edge = Math.sin(ratio * Math.PI)
+            const zigzag = random(pointIndex, 3) * (.065 + Math.abs(random(pointIndex, 11)) * .065) * edge
+            const layerOffset = lane * .019 * edge
+            position.setXYZ(pointIndex, THREE.MathUtils.lerp(start.x, end.x, ratio) + zigzag + layerOffset, THREE.MathUtils.lerp(start.y, end.y, ratio) + random(pointIndex, 71) * .075 * edge + layerOffset, THREE.MathUtils.lerp(start.z, end.z, ratio) + random(pointIndex, 83) * .11 * edge + layerOffset)
+          }
+          position.needsUpdate = true
+          const core = lane === 0
+          const innerGlow = Math.abs(lane) === 1
+          ;(beam.material as THREE.LineBasicMaterial).opacity = THREE.MathUtils.clamp((core ? .92 : innerGlow ? .5 : .26) + random(lane, 97) * (core ? .08 : .12), .1, 1)
+        })
+      }
+    }
   }
   syncTowerUpgradeEffects(now)
 
@@ -1711,43 +1974,20 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     model.scale.setScalar(enemy.kind === 'normal' ? .494 : 1.05)
     const mixer = model.userData.mixer as THREE.AnimationMixer | undefined
     if (mixer) { mixer.timeScale = gaitSpeed * 1.25; mixer.update(frameDelta) }
-    const burnEffect = model.userData.burnEffect as THREE.Group | undefined
-    if (burnEffect) {
-      burnEffect.visible = enemy.burnRemaining > 0
-      if (burnEffect.visible) {
-        burnEffect.children.forEach((flame, index) => {
-          if (!(flame instanceof THREE.Sprite) || !(flame.material instanceof THREE.SpriteMaterial)) return
-          const cycle = (elapsed * Number(flame.userData.riseSpeed) + Number(flame.userData.phase) + enemy.id * .073) % 1
-          const angle = Number(flame.userData.angle) + Math.sin(elapsed * 1.7 + index) * .18
-          const radius = Number(flame.userData.radius) * (1 - cycle * .35)
-          const flicker = .88 + Math.sin(elapsed * 15 + index * 2.1) * .12
-          flame.position.set(
-            Math.cos(angle) * radius + Math.sin(elapsed * 7 + index) * .025,
-            Number(flame.userData.baseY) + cycle * .72,
-            Math.sin(angle) * radius,
-          )
-          flame.scale.set(
-            Number(flame.userData.baseWidth) * flicker * (1 - cycle * .25),
-            Number(flame.userData.baseHeight) * (.72 + cycle * .62) * flicker,
-            1,
-          )
-          flame.material.opacity = Math.sin(cycle * Math.PI) * (.76 + index % 3 * .08)
-        })
-      }
-    }
-    const frostEffect = model.userData.frostEffect as THREE.Group | undefined
-    if (frostEffect) {
-      frostEffect.visible = enemy.isSlowed
-      if (frostEffect.visible) {
-        frostEffect.children.forEach((crystal, index) => {
-          if (crystal.name !== 'enemyFrostCrystal') return
-          const angle = Number(crystal.userData.angle) + elapsed * (1.2 + index * .04)
-          const radius = Number(crystal.userData.radius)
-          crystal.position.set(Math.cos(angle) * radius, Number(crystal.userData.baseY) + Math.sin(elapsed * 4 + index) * .07, Math.sin(angle) * radius)
-          crystal.rotation.y = elapsed * 2 + index
-          crystal.rotation.z = elapsed * 1.3
-        })
-      }
+    const statusBadges = model.userData.statusBadges as THREE.Group | undefined
+    if (statusBadges) {
+      const fireBadge = statusBadges.getObjectByName('enemyStatusBadge-fire')
+      const frostBadge = statusBadges.getObjectByName('enemyStatusBadge-frost')
+      const waterBadge = statusBadges.getObjectByName('enemyStatusBadge-water')
+      if (fireBadge) fireBadge.visible = enemy.burnRemaining > 0
+      if (frostBadge) frostBadge.visible = enemy.isFrozen
+      if (waterBadge) waterBadge.visible = enemy.isSlowed
+      const activeBadges = [fireBadge, frostBadge, waterBadge].filter((badge): badge is THREE.Object3D => Boolean(badge?.visible))
+      activeBadges.forEach((badge, index) => {
+        badge.position.x = (index - (activeBadges.length - 1) / 2) * .24
+        const pulse = 1 + Math.sin(elapsed * 5 + enemy.id + index) * .06
+        badge.scale.set(.2 * pulse, .2 * pulse, 1)
+      })
     }
     const health = model.userData.health as THREE.Mesh; const healthRatio = Math.max(.02, enemy.hp / enemy.maxHp); health.scale.x = healthRatio; health.position.x = -(1 - healthRatio) * .37
   }
@@ -1775,14 +2015,14 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       from.z += directionZ / directionLength * muzzleDistance
       startHeight = .05 + (1.08 + .13 + Math.sin(.2) * .9) * towerScale.vertical
       arcHeight = .42
-    } else if (projectile.kind === 'fire') {
-      const sourceTower = props.towers.find(tower => tower.x === projectile.from.x && tower.y === projectile.from.y && tower.kind === 'fire')
+    } else if (projectile.kind === 'fire' || projectile.kind === 'thunder' || projectile.kind === 'water') {
+      const sourceTower = props.towers.find(tower => tower.x === projectile.from.x && tower.y === projectile.from.y && tower.kind === projectile.kind)
       const towerScale = towerScaleForLevel(sourceTower?.level ?? 1)
       startHeight = .05 + 1.72 * towerScale.vertical
-      arcHeight = 0
+      arcHeight = projectile.kind === 'water' ? .24 : 0
     }
-    item.group.position.lerpVectors(from, to, ratio)
     const fallProgress = projectile.kind === 'fire' ? Math.pow(ratio, 1.55) : ratio
+    item.group.position.lerpVectors(from, to, ratio)
     item.group.position.y = THREE.MathUtils.lerp(startHeight, targetHeight, fallProgress) + Math.sin(ratio * Math.PI) * arcHeight
     item.group.lookAt(to.x, targetHeight, to.z)
     if (projectile.kind === 'fire') {
@@ -1792,6 +2032,23 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
         const pulse = 1 + Math.sin(elapsed * 18 + projectile.id) * .1
         fireball.scale.setScalar(pulse)
       }
+    } else if (projectile.kind === 'thunder') {
+      const bolt = item.group.getObjectByName('thunderBoltCore')
+      if (bolt) { bolt.rotateZ(frameDelta * 18); bolt.scale.setScalar(1 + Math.sin(elapsed * 28 + projectile.id) * .18) }
+    } else if (projectile.kind === 'water') {
+      const drop = item.group.getObjectByName('waterShotCore')
+      if (drop) {
+        const pulse = 1 + Math.sin(elapsed * 17 + projectile.id) * .09
+        drop.scale.set(pulse, pulse * .88, pulse)
+      }
+      item.group.children.forEach((child) => {
+        if (child.name !== 'waterShotDroplet') return
+        const index = Number(child.userData.index)
+        const angle = Number(child.userData.angle) + elapsed * (4.2 + index % 2 * .7) + projectile.id
+        const radius = .15 + index % 3 * .025
+        child.position.set(Math.cos(angle) * radius, Math.sin(angle * 1.3) * .12, Math.sin(angle) * radius)
+        child.scale.setScalar(.75 + Math.sin(elapsed * 9 + index) * .2)
+      })
     }
   }
 
@@ -1823,6 +2080,31 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
         wave.scale.set(scale, scale, scale)
         ;(wave.material as THREE.MeshBasicMaterial).opacity = Number(wave.userData.baseOpacity) * fade * delayedProgress
         wave.rotation.z = (index % 2 ? -1 : 1) * elapsed * .22
+      })
+    } else if (impact.kind === 'water') {
+      const fade = 1 - THREE.MathUtils.smoothstep(progress, .5, 1)
+      model.children.forEach((child) => {
+        const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial
+        material.opacity = fade * (child.name === 'waterHitRipple' ? .72 : .9)
+        if (child.name === 'waterHitRipple') {
+          const index = Number(child.userData.index); const delayed = Math.max(0, progress - index * .1)
+          child.scale.setScalar(.25 + delayed * (3.2 + Number(child.userData.radius)))
+        } else if (child.name === 'waterHitDroplet') {
+          const angle = Number(child.userData.angle); const distance = progress * (.38 + impact.level * .08)
+          child.position.set(Math.cos(angle) * distance, Math.sin(progress * Math.PI) * (.42 + impact.level * .08), Math.sin(angle) * distance)
+        }
+      })
+    } else if (impact.kind === 'thunder') {
+      const fade = 1 - THREE.MathUtils.smoothstep(progress, .32, 1)
+      model.children.forEach((child) => {
+        const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial
+        material.opacity = fade * (child.name === 'thunderHitFlash' ? .85 : .95)
+        if (child.name === 'thunderHitFlash') child.scale.setScalar(.45 + Math.sin(progress * Math.PI) * 2.1)
+        else if (child.name === 'thunderHitArc') {
+          const angle = Number(child.userData.angle); const distance = progress * (.42 + impact.level * .09)
+          child.position.set(Math.cos(angle) * distance, Math.sin(progress * Math.PI) * .35, Math.sin(angle) * distance)
+          child.scale.y = .7 + Math.sin(elapsed * 35 + Number(child.userData.index)) * .3
+        }
       })
     } else if (impact.kind === 'archer') {
       const fade = 1 - THREE.MathUtils.smoothstep(progress, .45, 1)
@@ -1858,16 +2140,21 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   }
 }
 
-/** Nội suy camera về offset mặc định sau thao tác orbit để giữ góc nhìn gameplay. */
+/** Nội suy toàn bộ camera về góc nhìn mặc định khi người chơi yêu cầu. */
 function updateCameraReturn(frameDelta: number) {
   if (!cameraReturning || !camera || !controls) return
   const easing = 1 - Math.exp(-frameDelta * 6.5)
-  cameraReturnPosition.copy(defaultCameraOffset).add(controls.target)
-  camera.position.lerp(cameraReturnPosition, easing)
+  camera.position.lerp(defaultCameraPosition, easing)
+  controls.target.lerp(defaultCameraTarget, easing)
+  camera.zoom = THREE.MathUtils.lerp(camera.zoom, .92, easing)
+  camera.updateProjectionMatrix()
   camera.lookAt(controls.target)
 
-  if (camera.position.distanceToSquared(cameraReturnPosition) < .0004) {
-    camera.position.copy(cameraReturnPosition)
+  if (camera.position.distanceToSquared(defaultCameraPosition) < .0004 && controls.target.distanceToSquared(defaultCameraTarget) < .0004 && Math.abs(camera.zoom - .92) < .001) {
+    camera.position.copy(defaultCameraPosition)
+    controls.target.copy(defaultCameraTarget)
+    camera.zoom = .92
+    camera.updateProjectionMatrix()
     camera.lookAt(controls.target)
     cameraReturning = false
     controls.enabled = true
@@ -1878,9 +2165,11 @@ function updateCameraReturn(frameDelta: number) {
   }
 }
 
-/** Phân biệt drag với click và bắt đầu trả camera về vị trí chuẩn sau khi drag. */
-function handleCameraPointerUp(event: PointerEvent) {
-  if (event.button !== 0 || pointerTravel <= 3 || !controls) return
+/** Chỉ trả camera về mặc định khi nhấn R; bỏ qua lúc đang nhập văn bản. */
+function handleCameraResetShortcut(event: KeyboardEvent) {
+  const target = event.target
+  if (event.code !== 'KeyR' || event.repeat || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable) || !controls) return
+  event.preventDefault()
   cameraReturning = true
   controls.enabled = false
 }
@@ -1900,11 +2189,15 @@ async function createWorld() {
     const cannonTemplate = createCannonTower(); cannonTemplate.add(groundShadow(.42)); applyTowerMetallicFinish(cannonTemplate, 0x776b5d); optimizeTemplateShadows(cannonTemplate); towerTemplates.set('cannon', cannonTemplate)
     const frostPlaceholder = new THREE.Group(); frostPlaceholder.userData.frostEffectCenterY = 1.77; frostPlaceholder.add(groundShadow(.42)); decorateFrostTower(frostPlaceholder); towerTemplates.set('frost', frostPlaceholder)
     towerTemplates.set('fire', createFireTowerTemplate(frostPlaceholder))
+    towerTemplates.set('thunder', createFireTowerTemplate(frostPlaceholder))
+    towerTemplates.set('water', createFireTowerTemplate(frostPlaceholder))
     projectileTemplates.set('archer', createProjectileTemplate('archer'))
     projectileTemplates.set('cannon', createProjectileTemplate('cannon'))
     projectileTemplates.set('frost', createProjectileTemplate('frost'))
     projectileTemplates.set('fire', createProjectileTemplate('fire'))
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08; target.appendChild(renderer.domElement)
+    projectileTemplates.set('thunder', createProjectileTemplate('thunder'))
+    projectileTemplates.set('water', createProjectileTemplate('water'))
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.12; target.appendChild(renderer.domElement)
     renderer.setClearColor(0x1c3627, 1)
     camera = new THREE.OrthographicCamera(-7, 7, 5, -5, .1, 50)
     camera.position.copy(defaultCameraPosition)
@@ -1912,9 +2205,10 @@ async function createWorld() {
     camera.lookAt(defaultCameraTarget)
     camera.updateProjectionMatrix()
     controls = new OrbitControls(camera, renderer.domElement); controls.target.copy(defaultCameraTarget); controls.enableDamping = true; controls.dampingFactor = .075; controls.enablePan = true; controls.panSpeed = .85; controls.zoomToCursor = true; controls.screenSpacePanning = true; controls.minZoom = .72; controls.maxZoom = 3.1; controls.minPolarAngle = .38; controls.maxPolarAngle = 1.32; controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE; controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY; controls.mouseButtons.RIGHT = THREE.MOUSE.PAN; controls.update()
-    scene.add(new THREE.HemisphereLight(0xffe4b5, 0x142e3a, 1.82))
-    const sun = new THREE.DirectionalLight(0xffc976, 3.05); sun.position.set(-6, 12, 7); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.00008; sun.shadow.normalBias = .025; sun.shadow.camera.left = -9; sun.shadow.camera.right = 9; sun.shadow.camera.top = 7; sun.shadow.camera.bottom = -7; scene.add(sun)
-    const fill = new THREE.DirectionalLight(0x708cff, .82); fill.position.set(7, 6, -8); scene.add(fill)
+    scene.add(new THREE.AmbientLight(0xffffff, .72))
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x64706a, 1.45))
+    const sun = new THREE.DirectionalLight(0xffffff, 2.85); sun.position.set(-6, 12, 7); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.00008; sun.shadow.normalBias = .025; sun.shadow.camera.left = -9; sun.shadow.camera.right = 9; sun.shadow.camera.top = 7; sun.shadow.camera.bottom = -7; scene.add(sun)
+    const fill = new THREE.DirectionalLight(0xdbeafe, .58); fill.position.set(7, 6, -8); scene.add(fill)
     createMapFoundation()
     const pathSet = new Set(DEFENSE_PATH_TILES.map(point => `${point.x}:${point.y}`))
     for (let y = 0; y < DEFENSE_GRID_ROWS; y++) for (let x = 0; x < DEFENSE_GRID_COLUMNS; x++) {
@@ -1987,9 +2281,12 @@ async function createWorld() {
       if (!props.isPaused) syncScene(visualElapsed, frameDelta, visualNow)
       renderer!.render(scene!, camera!)
     }
-    window.addEventListener('pointerup', handleCameraPointerUp)
+    window.addEventListener('keydown', handleCameraResetShortcut)
     await Promise.allSettled([
       loadFrostTower(),
+      loadFireTower(),
+      loadThunderTower(),
+      loadWaterTower(),
       loadRiggedEnemy(),
       loadCastleModel(),
     ])
@@ -2014,7 +2311,7 @@ onMounted(async () => {
 // Thu hồi listener, animation frame, controls, skeleton, geometry, material,
 // texture và WebGL context để vào lại route không nhân đôi tài nguyên GPU.
 onBeforeUnmount(() => {
-  window.removeEventListener('pointerup', handleCameraPointerUp)
+  window.removeEventListener('keydown', handleCameraResetShortcut)
   cancelAnimationFrame(animationFrame); resizeObserver?.disconnect(); controls?.dispose(); controls = null; tileMeshes.length = 0
   for (const model of enemyModels.values()) disposeEnemyModel(model)
   enemyModels.clear()
@@ -2031,8 +2328,8 @@ onBeforeUnmount(() => {
   bossEquipmentTemplates.clear()
   enemySwordTemplate = null; enemyShieldTemplate = null
   riggedEnemyTemplate = null; riggedEnemyAnimations = []
-  scene?.traverse(child => { if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) { if (child instanceof THREE.Mesh) child.geometry.dispose(); const materials = Array.isArray(child.material) ? child.material : [child.material]; materials.forEach(material => material.dispose()) } })
-  surfaceDetail?.dispose(); surfaceDetail = null; frostGlowTexture?.dispose(); frostGlowTexture = null; frostWaveTexture?.dispose(); frostWaveTexture = null; fireWaveTexture?.dispose(); fireWaveTexture = null; fireFlameTexture?.dispose(); fireFlameTexture = null; mysticParticles = null; renderer?.dispose(); renderer?.forceContextLoss(); renderer?.domElement.remove(); renderer = null; scene = null
+  scene?.traverse(child => { if (child instanceof THREE.Mesh || child instanceof THREE.Sprite || child instanceof THREE.Line) { if (child instanceof THREE.Mesh || child instanceof THREE.Line) child.geometry.dispose(); const materials = Array.isArray(child.material) ? child.material : [child.material]; materials.forEach(material => material.dispose()) } })
+  surfaceDetail?.dispose(); surfaceDetail = null; frostGlowTexture?.dispose(); frostGlowTexture = null; frostWaveTexture?.dispose(); frostWaveTexture = null; fireWaveTexture?.dispose(); fireWaveTexture = null; enemyStatusBadgeTextures.forEach(texture => texture.dispose()); enemyStatusBadgeTextures.clear(); mysticParticles = null; renderer?.dispose(); renderer?.forceContextLoss(); renderer?.domElement.remove(); renderer = null; scene = null
 })
 </script>
 
