@@ -1639,7 +1639,7 @@ async function loadCastleModel() {
     const center = bounds.getCenter(new THREE.Vector3())
     const largestHorizontalSide = Math.max(size.x, size.z, .001)
     const modelScale = Math.min(8.5 / Math.max(size.y, .001), 8.5 / largestHorizontalSide)
-    source.position.set(-center.x, -bounds.min.y, -center.z)
+    source.position.set(-center.x + 0.3, -bounds.min.y, -center.z)
     source.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return
       child.castShadow = true
@@ -1656,7 +1656,7 @@ async function loadCastleModel() {
     // điểm cuối con đường và hạ nhẹ để móng lâu đài bám vào mặt đất.
     container.position.copy(worldPosition(DEFENSE_GRID_COLUMNS + 1.5, castleCell.y))
     container.position.y = -.22
-    container.rotation.y = -Math.PI / 2
+    container.rotation.y = 0
     if (castleModel) disposeObject(castleModel)
     castleModel = container
     scene.add(container)
