@@ -13,7 +13,9 @@
   border-radius: 11px;
   padding: 9px 10px 9px 12px;
   background: rgba(0, 0, 0, 0.16);
-  transition: border-color 160ms ease, background 160ms ease;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
 }
 
 .spectator-list__trigger > span {
@@ -61,7 +63,10 @@
   pointer-events: none;
   transform: translateY(6px) scale(0.98);
   transform-origin: bottom center;
-  transition: opacity 150ms ease, transform 150ms ease, visibility 150ms ease;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease,
+    visibility 150ms ease;
 }
 
 .spectator-list:hover .spectator-list__trigger,

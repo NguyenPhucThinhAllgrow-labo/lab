@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const { theme: siteTheme } = useSiteTheme()
-import AlgorithmNavigation from '~/components/algorithm/AlgorithmNavigation.vue'
+const { theme: siteTheme } = useSiteTheme();
+import AlgorithmNavigation from "~/components/algorithm/AlgorithmNavigation.vue";
 import {
   ArrowLeft,
   Check,
@@ -13,85 +13,64 @@ import {
   SkipForward,
   Target,
   Zap,
-} from 'lucide-vue-next'
+} from "lucide-vue-next";
 
 useHead({
-  title: 'Greedy Algorithm Playground',
-})
+  title: "Greedy Algorithm Playground",
+});
 
 /* =========================================================
    TYPES
 ========================================================= */
 
-type SimulationStatus =
-  | 'idle'
-  | 'running'
-  | 'paused'
-  | 'completed'
+type SimulationStatus = "idle" | "running" | "paused" | "completed";
 
-type GreedyAction =
-  | 'idle'
-  | 'select'
-  | 'compare'
-  | 'take'
-  | 'complete'
+type GreedyAction = "idle" | "select" | "compare" | "take" | "complete";
 
 interface GreedySimulationStep {
-  coins: number[]
-  selectedCoins: number[]
-  remaining: number
-  target: number
-  currentIndex?: number
-  comparing: number[]
-  selectedIndex?: number
-  action: GreedyAction
-  description: string
+  coins: number[];
+  selectedCoins: number[];
+  remaining: number;
+  target: number;
+  currentIndex?: number;
+  comparing: number[];
+  selectedIndex?: number;
+  action: GreedyAction;
+  description: string;
 }
 
 /* =========================================================
    DATA
 ========================================================= */
 
-const initialCoins: number[] = [
-  1,
-  5,
-  10,
-  25,
-]
+const initialCoins: number[] = [1, 5, 10, 25];
 
-const initialTarget = 63
+const initialTarget = 63;
 
-const coins = ref<number[]>([
-  ...initialCoins,
-])
+const coins = ref<number[]>([...initialCoins]);
 
-const target = ref<number>(
-  initialTarget,
-)
+const target = ref<number>(initialTarget);
 
-const steps = ref<GreedySimulationStep[]>([])
+const steps = ref<GreedySimulationStep[]>([]);
 
-const currentStep = ref<number>(0)
+const currentStep = ref<number>(0);
 
-const status = ref<SimulationStatus>(
-  'idle',
-)
+const status = ref<SimulationStatus>("idle");
 
-const speed = ref<number>(650)
+const speed = ref<number>(650);
 
-let timer: ReturnType<typeof setTimeout> | null =
-  null
+let timer: ReturnType<typeof setTimeout> | null = null;
 
 /* =========================================================
    COMPLEXITY
 ========================================================= */
 
 const complexity = {
-  best: 'O(k)',
-  average: 'O(k)',
-  worst: 'O(k)',
-  space: 'O(k)',
-}
+  best: "O(k)",
+  average: "O(k)",
+  worst: "O(k)",
+  space: "O(k)",
+};
 
 /*
  * k = số loại coin.
@@ -110,250 +89,178 @@ const complexity = {
    COMPUTED
 ========================================================= */
 
-const currentSimulation = computed<
-  GreedySimulationStep | null
->(() => {
+const currentSimulation = computed<GreedySimulationStep | null>(() => {
   if (steps.value.length === 0) {
-    return null
+    return null;
   }
 
-  return (
-    steps.value[currentStep.value] ??
-    null
-  )
-})
+  return steps.value[currentStep.value] ?? null;
+});
 
 const currentRemaining = computed<number>(() => {
-  return (
-    currentSimulation.value?.remaining ??
-    target.value
-  )
-})
+  return currentSimulation.value?.remaining ?? target.value;
+});
 
-const currentSelectedCoins = computed<number[]>(
-  () => {
-    return (
-      currentSimulation.value?.selectedCoins ??
-      []
-    )
-  },
-)
+const currentSelectedCoins = computed<number[]>(() => {
+  return currentSimulation.value?.selectedCoins ?? [];
+});
 
 const currentComparing = computed<number[]>(() => {
+  return currentSimulation.value?.comparing ?? [];
+});
+
+const currentIndex = computed<number | null>(() => {
+  return currentSimulation.value?.currentIndex ?? null;
+});
+
+const currentSelectedIndex = computed<number | null>(() => {
+  return currentSimulation.value?.selectedIndex ?? null;
+});
+
+const currentAction = computed<GreedyAction>(() => {
+  return currentSimulation.value?.action ?? "idle";
+});
+
+const currentDescription = computed<string>(() => {
   return (
-    currentSimulation.value?.comparing ??
-    []
-  )
-})
-
-const currentIndex = computed<number | null>(
-  () => {
-    return (
-      currentSimulation.value?.currentIndex ??
-      null
-    )
-  },
-)
-
-const currentSelectedIndex = computed<
-  number | null
->(() => {
-  return (
-    currentSimulation.value?.selectedIndex ??
-    null
-  )
-})
-
-const currentAction = computed<GreedyAction>(
-  () => {
-    return (
-      currentSimulation.value?.action ??
-      'idle'
-    )
-  },
-)
-
-const currentDescription = computed<string>(
-  () => {
-    return (
-      currentSimulation.value?.description ??
-      'Nhấn Play Simulation để bắt đầu.'
-    )
-  },
-)
+    currentSimulation.value?.description ?? "Nhấn Play Simulation để bắt đầu."
+  );
+});
 
 const selectedTotal = computed<number>(() => {
-  return currentSelectedCoins.value.reduce(
-    (sum, value) => sum + value,
-    0,
-  )
-})
+  return currentSelectedCoins.value.reduce((sum, value) => sum + value, 0);
+});
 
 const progress = computed<number>(() => {
   if (steps.value.length <= 1) {
-    return 0
+    return 0;
   }
 
-  return Math.round(
-    (currentStep.value /
-      (steps.value.length - 1)) *
-      100,
-  )
-})
+  return Math.round((currentStep.value / (steps.value.length - 1)) * 100);
+});
 
 const isFirstStep = computed<boolean>(() => {
-  return currentStep.value <= 0
-})
+  return currentStep.value <= 0;
+});
 
 const isLastStep = computed<boolean>(() => {
-  return (
-    steps.value.length > 0 &&
-    currentStep.value >=
-      steps.value.length - 1
-  )
-})
+  return steps.value.length > 0 && currentStep.value >= steps.value.length - 1;
+});
 
 const statusLabel = computed<string>(() => {
   switch (status.value) {
-    case 'running':
-      return 'Running'
+    case "running":
+      return "Running";
 
-    case 'paused':
-      return 'Paused'
+    case "paused":
+      return "Paused";
 
-    case 'completed':
-      return 'Completed'
+    case "completed":
+      return "Completed";
 
     default:
-      return 'Ready'
+      return "Ready";
   }
-})
+});
 
 const coinMax = computed<number>(() => {
-  return Math.max(
-    ...coins.value,
-    1,
-  )
-})
+  return Math.max(...coins.value, 1);
+});
 
 const solutionCount = computed<number>(() => {
-  return currentSelectedCoins.value.length
-})
+  return currentSelectedCoins.value.length;
+});
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
-function isComparing(
-  index: number,
-): boolean {
-  return currentComparing.value.includes(index)
+function isComparing(index: number): boolean {
+  return currentComparing.value.includes(index);
 }
 
-function isSelected(
-  index: number,
-): boolean {
+function isSelected(index: number): boolean {
   return (
-    currentSimulation.value?.coins[
-      index
-    ] !== undefined &&
-    currentSelectedCoins.value.includes(
-      currentSimulation.value.coins[index]!,
-    )
-  )
+    currentSimulation.value?.coins[index] !== undefined &&
+    currentSelectedCoins.value.includes(currentSimulation.value.coins[index]!)
+  );
 }
 
-function isCurrent(
-  index: number,
-): boolean {
-  return currentIndex.value === index
+function isCurrent(index: number): boolean {
+  return currentIndex.value === index;
 }
 
-function isSelectedIndex(
-  index: number,
-): boolean {
-  return (
-    currentSelectedIndex.value === index
-  )
+function isSelectedIndex(index: number): boolean {
+  return currentSelectedIndex.value === index;
 }
 
-function getCoinHeight(
-  value: number,
-): string {
-  const minHeight = 80
-  const maxHeight = 220
+function getCoinHeight(value: number): string {
+  const minHeight = 80;
+  const maxHeight = 220;
 
-  const height =
-    (value / coinMax.value) *
-    maxHeight
+  const height = (value / coinMax.value) * maxHeight;
 
-  return `${Math.max(height, minHeight)}px`
+  return `${Math.max(height, minHeight)}px`;
 }
 
-function getCoinClass(
-  index: number,
-): string {
+function getCoinClass(index: number): string {
   if (isSelectedIndex(index)) {
-    return 'coin-selected-current'
+    return "coin-selected-current";
   }
 
   if (isSelected(index)) {
-    return 'coin-selected'
+    return "coin-selected";
   }
 
   if (isComparing(index)) {
-    return 'coin-comparing'
+    return "coin-comparing";
   }
 
   if (isCurrent(index)) {
-    return 'coin-current'
+    return "coin-current";
   }
 
-  return 'coin-default'
+  return "coin-default";
 }
 
-function getCoinValueClass(
-  index: number,
-): string {
+function getCoinValueClass(index: number): string {
   if (isSelectedIndex(index)) {
-    return 'text-emerald-300'
+    return "text-emerald-300";
   }
 
   if (isSelected(index)) {
-    return 'text-emerald-400'
+    return "text-emerald-400";
   }
 
   if (isComparing(index)) {
-    return 'text-blue-400'
+    return "text-blue-400";
   }
 
   if (isCurrent(index)) {
-    return 'text-violet-400'
+    return "text-violet-400";
   }
 
-  return 'text-slate-300'
+  return "text-slate-300";
 }
 
-function getCoinStatusLabel(
-  index: number,
-): string {
+function getCoinStatusLabel(index: number): string {
   if (isSelectedIndex(index)) {
-    return 'TAKE'
+    return "TAKE";
   }
 
   if (isComparing(index)) {
-    return 'CHECK'
+    return "CHECK";
   }
 
   if (isCurrent(index)) {
-    return 'CURRENT'
+    return "CURRENT";
   }
 
   if (isSelected(index)) {
-    return 'USED'
+    return "USED";
   }
 
-  return ''
+  return "";
 }
 
 /* =========================================================
@@ -387,41 +294,27 @@ function generateGreedySteps(
   inputCoins: number[],
   inputTarget: number,
 ): GreedySimulationStep[] {
-  const sortedCoins = [
-    ...inputCoins,
-  ]
-    .filter(
-      (value) =>
-        Number.isFinite(value) &&
-        value > 0,
-    )
-    .sort(
-      (a, b) => b - a,
-    )
+  const sortedCoins = [...inputCoins]
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => b - a);
 
-  const steps: GreedySimulationStep[] =
-    []
+  const steps: GreedySimulationStep[] = [];
 
-  const selectedCoins: number[] = []
+  const selectedCoins: number[] = [];
 
-  let remaining =
-    inputTarget
+  let remaining = inputTarget;
 
   const addStep = (
     description: string,
     comparing: number[] = [],
     currentIndex?: number,
     selectedIndex?: number,
-    action: GreedyAction = 'idle',
+    action: GreedyAction = "idle",
   ): void => {
     steps.push({
-      coins: [
-        ...sortedCoins,
-      ],
+      coins: [...sortedCoins],
 
-      selectedCoins: [
-        ...selectedCoins,
-      ],
+      selectedCoins: [...selectedCoins],
 
       remaining,
 
@@ -429,53 +322,46 @@ function generateGreedySteps(
 
       currentIndex,
 
-      comparing: [
-        ...comparing,
-      ],
+      comparing: [...comparing],
 
       selectedIndex,
 
       action,
 
       description,
-    })
-  }
+    });
+  };
 
   /* =======================================================
      EMPTY
   ======================================================= */
 
-  if (
-    sortedCoins.length === 0
-  ) {
+  if (sortedCoins.length === 0) {
     addStep(
-      'Không có mệnh giá tiền hợp lệ để xử lý.',
+      "Không có mệnh giá tiền hợp lệ để xử lý.",
       [],
       undefined,
       undefined,
-      'complete',
-    )
+      "complete",
+    );
 
-    return steps
+    return steps;
   }
 
   /* =======================================================
      INVALID TARGET
   ======================================================= */
 
-  if (
-    !Number.isFinite(inputTarget) ||
-    inputTarget <= 0
-  ) {
+  if (!Number.isFinite(inputTarget) || inputTarget <= 0) {
     addStep(
-      'Số tiền mục tiêu phải lớn hơn 0.',
+      "Số tiền mục tiêu phải lớn hơn 0.",
       [],
       undefined,
       undefined,
-      'complete',
-    )
+      "complete",
+    );
 
-    return steps
+    return steps;
   }
 
   /* =======================================================
@@ -487,25 +373,18 @@ function generateGreedySteps(
     [],
     undefined,
     undefined,
-    'idle',
-  )
+    "idle",
+  );
 
   /* =======================================================
      MAIN LOOP
   ======================================================= */
 
-  while (
-    remaining > 0
-  ) {
-    let selected = false
+  while (remaining > 0) {
+    let selected = false;
 
-    for (
-      let index = 0;
-      index < sortedCoins.length;
-      index++
-    ) {
-      const coin =
-        sortedCoins[index]!
+    for (let index = 0; index < sortedCoins.length; index++) {
+      const coin = sortedCoins[index]!;
 
       /* -----------------------------------------------------
          COMPARE
@@ -513,55 +392,47 @@ function generateGreedySteps(
 
       addStep(
         `Xét đồng ${coin}. Kiểm tra xem ${coin} có ≤ số tiền còn lại ${remaining} hay không.`,
-        [
-          index,
-        ],
+        [index],
         index,
         undefined,
-        'compare',
-      )
+        "compare",
+      );
 
       /* -----------------------------------------------------
          CANNOT TAKE
       ----------------------------------------------------- */
 
-      if (
-        coin > remaining
-      ) {
+      if (coin > remaining) {
         addStep(
           `${coin} > ${remaining} → không thể chọn đồng ${coin}. Tiếp tục xét mệnh giá nhỏ hơn.`,
-          [
-            index,
-          ],
+          [index],
           index,
           undefined,
-          'compare',
-        )
+          "compare",
+        );
 
-        continue
+        continue;
       }
 
       /* -----------------------------------------------------
          TAKE
       ----------------------------------------------------- */
 
-      selectedCoins.push(
-        coin,
-      )
+      selectedCoins.push(coin);
 
-      remaining -= coin
+      remaining -= coin;
 
       addStep(
         `${coin} ≤ số tiền còn lại → chọn đồng ${coin}. Còn lại ${remaining}.`,
         [],
         index,
         index,
-        'take',
-      )
+        "take",
+      );
 
-      selected = true
+      selected = true;
 
-      break
+      break;
     }
 
     /* -------------------------------------------------------
@@ -574,10 +445,10 @@ function generateGreedySteps(
         [],
         undefined,
         undefined,
-        'complete',
-      )
+        "complete",
+      );
 
-      break
+      break;
     }
   }
 
@@ -585,19 +456,17 @@ function generateGreedySteps(
      FINAL
   ======================================================= */
 
-  if (
-    remaining === 0
-  ) {
+  if (remaining === 0) {
     addStep(
       `Hoàn thành Greedy. Đã tạo chính xác ${inputTarget} bằng ${selectedCoins.length} đồng tiền.`,
       [],
       undefined,
       undefined,
-      'complete',
-    )
+      "complete",
+    );
   }
 
-  return steps
+  return steps;
 }
 
 /* =========================================================
@@ -605,187 +474,138 @@ function generateGreedySteps(
 ========================================================= */
 
 function initializeSimulation(): void {
-  stopTimer()
+  stopTimer();
 
-  steps.value =
-    generateGreedySteps(
-      coins.value,
-      target.value,
-    )
+  steps.value = generateGreedySteps(coins.value, target.value);
 
-  currentStep.value = 0
+  currentStep.value = 0;
 
-  status.value = 'idle'
+  status.value = "idle";
 }
 
 function reset(): void {
-  coins.value = [
-    ...initialCoins,
-  ]
+  coins.value = [...initialCoins];
 
-  target.value =
-    initialTarget
+  target.value = initialTarget;
 
-  initializeSimulation()
+  initializeSimulation();
 }
 
 function randomize(): void {
-  stopTimer()
+  stopTimer();
 
-  const generatedCoins =
-    new Set<number>()
+  const generatedCoins = new Set<number>();
 
-  while (
-    generatedCoins.size < 5
-  ) {
-    generatedCoins.add(
-      Math.floor(
-        Math.random() * 45,
-      ) + 1,
-    )
+  while (generatedCoins.size < 5) {
+    generatedCoins.add(Math.floor(Math.random() * 45) + 1);
   }
 
-  coins.value = [
-    ...generatedCoins,
-  ].sort(
-    (a, b) => a - b,
-  )
+  coins.value = [...generatedCoins].sort((a, b) => a - b);
 
-  target.value =
-    Math.floor(
-      Math.random() * 100,
-    ) + 30
+  target.value = Math.floor(Math.random() * 100) + 30;
 
-  steps.value =
-    generateGreedySteps(
-      coins.value,
-      target.value,
-    )
+  steps.value = generateGreedySteps(coins.value, target.value);
 
-  currentStep.value = 0
+  currentStep.value = 0;
 
-  status.value = 'idle'
+  status.value = "idle";
 }
 
 function goToNextStep(): void {
-  if (
-    steps.value.length === 0
-  ) {
-    return
+  if (steps.value.length === 0) {
+    return;
   }
 
-  if (
-    isLastStep.value
-  ) {
-    status.value = 'completed'
+  if (isLastStep.value) {
+    status.value = "completed";
 
-    stopTimer()
+    stopTimer();
 
-    return
+    return;
   }
 
-  currentStep.value += 1
+  currentStep.value += 1;
 
-  if (
-    isLastStep.value
-  ) {
-    status.value = 'completed'
+  if (isLastStep.value) {
+    status.value = "completed";
 
-    stopTimer()
+    stopTimer();
   }
 }
 
 function goToPreviousStep(): void {
-  if (
-    steps.value.length === 0
-  ) {
-    return
+  if (steps.value.length === 0) {
+    return;
   }
 
-  if (
-    isFirstStep.value
-  ) {
-    return
+  if (isFirstStep.value) {
+    return;
   }
 
-  currentStep.value -= 1
+  currentStep.value -= 1;
 
-  status.value = 'paused'
+  status.value = "paused";
 
-  stopTimer()
+  stopTimer();
 }
 
 function play(): void {
-  if (
-    steps.value.length === 0
-  ) {
-    initializeSimulation()
+  if (steps.value.length === 0) {
+    initializeSimulation();
   }
 
-  if (
-    isLastStep.value
-  ) {
-    currentStep.value = 0
+  if (isLastStep.value) {
+    currentStep.value = 0;
   }
 
-  status.value = 'running'
+  status.value = "running";
 
-  scheduleNextStep()
+  scheduleNextStep();
 }
 
 function pause(): void {
-  status.value = 'paused'
+  status.value = "paused";
 
-  stopTimer()
+  stopTimer();
 }
 
 function togglePlay(): void {
-  if (
-    status.value === 'running'
-  ) {
-    pause()
+  if (status.value === "running") {
+    pause();
 
-    return
+    return;
   }
 
-  play()
+  play();
 }
 
 function scheduleNextStep(): void {
-  stopTimer()
+  stopTimer();
 
-  if (
-    status.value !== 'running'
-  ) {
-    return
+  if (status.value !== "running") {
+    return;
   }
 
-  if (
-    isLastStep.value
-  ) {
-    status.value = 'completed'
+  if (isLastStep.value) {
+    status.value = "completed";
 
-    return
+    return;
   }
 
   timer = setTimeout(() => {
-    goToNextStep()
+    goToNextStep();
 
-    if (
-      status.value === 'running'
-    ) {
-      scheduleNextStep()
+    if (status.value === "running") {
+      scheduleNextStep();
     }
-  }, speed.value)
+  }, speed.value);
 }
 
 function stopTimer(): void {
-  if (
-    timer !== null
-  ) {
-    clearTimeout(timer)
+  if (timer !== null) {
+    clearTimeout(timer);
 
-    timer = null
+    timer = null;
   }
 }
 
@@ -793,24 +613,19 @@ function stopTimer(): void {
    WATCHERS / LIFECYCLE
 ========================================================= */
 
-watch(
-  speed,
-  () => {
-    if (
-      status.value === 'running'
-    ) {
-      scheduleNextStep()
-    }
-  },
-)
+watch(speed, () => {
+  if (status.value === "running") {
+    scheduleNextStep();
+  }
+});
 
 onMounted(() => {
-  initializeSimulation()
-})
+  initializeSimulation();
+});
 
 onBeforeUnmount(() => {
-  stopTimer()
-})
+  stopTimer();
+});
 </script>
 
 <template>
@@ -824,14 +639,13 @@ onBeforeUnmount(() => {
 
     <AlgorithmNavigation />
 
-    <main
-      class="mx-auto max-w-7xl space-y-8 px-6 py-8 lg:py-10"
-    >
+    <main class="mx-auto max-w-7xl space-y-8 px-6 py-8 lg:py-10">
       <!-- ===================================================
            HERO
       ==================================================== -->
 
-      <section id="overview"
+      <section
+        id="overview"
         class="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-7 lg:p-10"
       >
         <div
@@ -842,26 +656,22 @@ onBeforeUnmount(() => {
           class="pointer-events-none absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-cyan-500/5 blur-3xl"
         />
 
-        <div
-          class="relative max-w-4xl"
-        >
+        <div class="relative max-w-4xl">
           <div
             class="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400"
           >
-            <span
-              class="h-1.5 w-1.5 rounded-full bg-emerald-400"
-            />
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400" />
 
             ALGORITHM DESIGN
           </div>
 
-          <h2
-            class="text-4xl font-black tracking-tight text-white sm:text-5xl"
-          >
+          <h2 class="text-4xl font-black tracking-tight text-white sm:text-5xl">
             Greedy Algorithm
           </h2>
           <nav class="algorithm-section-links" aria-label="Điều hướng nội dung">
-            <a href="#simulation" class="algorithm-section-links__primary">Bắt đầu mô phỏng <span aria-hidden="true">↓</span></a>
+            <a href="#simulation" class="algorithm-section-links__primary"
+              >Bắt đầu mô phỏng <span aria-hidden="true">↓</span></a
+            >
             <a href="#introduction">Tổng quan</a>
             <a href="#pseudocode">Mã giả &amp; độ phức tạp</a>
             <a href="#implementation">Mã PHP</a>
@@ -870,21 +680,16 @@ onBeforeUnmount(() => {
           <p
             class="mt-5 max-w-3xl text-base leading-8 text-slate-400 sm:text-lg"
           >
-            Thuật toán tham lam xây dựng lời giải bằng cách
-            luôn chọn lựa chọn tốt nhất tại thời điểm hiện tại,
-            với hy vọng chuỗi lựa chọn cục bộ đó tạo ra một
-            lời giải tối ưu toàn cục.
+            Thuật toán tham lam xây dựng lời giải bằng cách luôn chọn lựa chọn
+            tốt nhất tại thời điểm hiện tại, với hy vọng chuỗi lựa chọn cục bộ
+            đó tạo ra một lời giải tối ưu toàn cục.
           </p>
 
-          <div
-            class="mt-7 flex flex-wrap gap-3"
-          >
+          <div class="mt-7 flex flex-wrap gap-3">
             <div
               class="flex items-center gap-2 rounded-xl border border-emerald-500/10 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-300"
             >
-              <Zap
-                class="h-4 w-4"
-              />
+              <Zap class="h-4 w-4" />
 
               Local Optimal Choice
             </div>
@@ -892,9 +697,7 @@ onBeforeUnmount(() => {
             <div
               class="flex items-center gap-2 rounded-xl border border-blue-500/10 bg-blue-500/[0.06] px-4 py-2.5 text-xs text-blue-300"
             >
-              <Target
-                class="h-4 w-4"
-              />
+              <Target class="h-4 w-4" />
 
               Global Solution
             </div>
@@ -906,40 +709,27 @@ onBeforeUnmount(() => {
            INTRODUCTION
       ==================================================== -->
 
-      <section id="introduction"
+      <section
+        id="introduction"
         class="rounded-3xl border border-slate-800 bg-slate-900 p-6 lg:p-8"
       >
-        <div
-          class="mb-6 flex items-center gap-3"
-        >
-          <div
-            class="h-8 w-1 rounded-full bg-emerald-500"
-          />
+        <div class="mb-6 flex items-center gap-3">
+          <div class="h-8 w-1 rounded-full bg-emerald-500" />
 
-          <h3
-            class="text-xl font-black text-white"
-          >
-            Giới thiệu thuật toán
-          </h3>
+          <h3 class="text-xl font-black text-white">Giới thiệu thuật toán</h3>
         </div>
 
-        <div
-          class="grid gap-8 lg:grid-cols-2"
-        >
-          <div
-            class="space-y-4 text-sm leading-7 text-slate-400"
-          >
+        <div class="grid gap-8 lg:grid-cols-2">
+          <div class="space-y-4 text-sm leading-7 text-slate-400">
             <p>
-              Greedy không cố gắng xem xét tất cả các khả năng.
-              Thay vào đó, thuật toán đưa ra quyết định tốt nhất
-              <strong class="text-white">
-                ngay tại thời điểm hiện tại
-              </strong>.
+              Greedy không cố gắng xem xét tất cả các khả năng. Thay vào đó,
+              thuật toán đưa ra quyết định tốt nhất
+              <strong class="text-white"> ngay tại thời điểm hiện tại </strong>.
             </p>
 
             <p>
-              Trong ví dụ Coin Change, ở mỗi bước ta chọn đồng
-              tiền lớn nhất nhưng không vượt quá số tiền còn lại.
+              Trong ví dụ Coin Change, ở mỗi bước ta chọn đồng tiền lớn nhất
+              nhưng không vượt quá số tiền còn lại.
             </p>
 
             <p>
@@ -951,21 +741,15 @@ onBeforeUnmount(() => {
             </p>
           </div>
 
-          <div
-            class="rounded-2xl border border-slate-800 bg-slate-950 p-5"
-          >
+          <div class="rounded-2xl border border-slate-800 bg-slate-950 p-5">
             <div
               class="mb-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500"
             >
               Greedy Strategy
             </div>
 
-            <div
-              class="space-y-3"
-            >
-              <div
-                class="flex items-center gap-3"
-              >
+            <div class="space-y-3">
+              <div class="flex items-center gap-3">
                 <span
                   class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-xs font-bold text-violet-400"
                 >
@@ -977,9 +761,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="flex items-center gap-3"
-              >
+              <div class="flex items-center gap-3">
                 <span
                   class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-xs font-bold text-blue-400"
                 >
@@ -991,9 +773,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="flex items-center gap-3"
-              >
+              <div class="flex items-center gap-3">
                 <span
                   class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-bold text-amber-400"
                 >
@@ -1005,9 +785,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="flex items-center gap-3"
-              >
+              <div class="flex items-center gap-3">
                 <span
                   class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-400"
                 >
@@ -1027,112 +805,62 @@ onBeforeUnmount(() => {
            USE CASES
       ==================================================== -->
 
-      <section id="applications"
-        class="grid gap-5 md:grid-cols-2"
-      >
+      <section id="applications" class="grid gap-5 md:grid-cols-2">
         <div
           class="rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.08] to-slate-900 p-6"
         >
-          <div
-            class="flex items-center gap-3"
-          >
+          <div class="flex items-center gap-3">
             <div
               class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10"
             >
-              <Check
-                class="h-5 w-5 text-emerald-400"
-              />
+              <Check class="h-5 w-5 text-emerald-400" />
             </div>
 
             <div>
-              <h3
-                class="font-bold text-emerald-400"
-              >
-                Khi nào nên sử dụng?
-              </h3>
+              <h3 class="font-bold text-emerald-400">Khi nào nên sử dụng?</h3>
 
-              <p
-                class="text-xs text-slate-600"
-              >
-                Good use cases
-              </p>
+              <p class="text-xs text-slate-600">Good use cases</p>
             </div>
           </div>
 
-          <ul
-            class="mt-6 space-y-3 text-sm text-slate-400"
-          >
-            <li>
-              • Activity Selection.
-            </li>
+          <ul class="mt-6 space-y-3 text-sm text-slate-400">
+            <li>• Activity Selection.</li>
 
-            <li>
-              • Fractional Knapsack.
-            </li>
+            <li>• Fractional Knapsack.</li>
 
-            <li>
-              • Huffman Coding.
-            </li>
+            <li>• Huffman Coding.</li>
 
-            <li>
-              • Minimum Spanning Tree.
-            </li>
+            <li>• Minimum Spanning Tree.</li>
 
-            <li>
-              • Một số bài toán Coin Change.
-            </li>
+            <li>• Một số bài toán Coin Change.</li>
           </ul>
         </div>
 
         <div
           class="rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.08] to-slate-900 p-6"
         >
-          <div
-            class="flex items-center gap-3"
-          >
+          <div class="flex items-center gap-3">
             <div
               class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10"
             >
-              <span
-                class="text-lg font-black text-red-400"
-              >
-                ×
-              </span>
+              <span class="text-lg font-black text-red-400"> × </span>
             </div>
 
             <div>
-              <h3
-                class="font-bold text-red-400"
-              >
-                Khi nào không nên sử dụng?
-              </h3>
+              <h3 class="font-bold text-red-400">Khi nào không nên sử dụng?</h3>
 
-              <p
-                class="text-xs text-slate-600"
-              >
-                Be careful
-              </p>
+              <p class="text-xs text-slate-600">Be careful</p>
             </div>
           </div>
 
-          <ul
-            class="mt-6 space-y-3 text-sm text-slate-400"
-          >
-            <li>
-              • Khi local optimum không đảm bảo global optimum.
-            </li>
+          <ul class="mt-6 space-y-3 text-sm text-slate-400">
+            <li>• Khi local optimum không đảm bảo global optimum.</li>
 
-            <li>
-              • 0/1 Knapsack.
-            </li>
+            <li>• 0/1 Knapsack.</li>
 
-            <li>
-              • Một số biến thể Coin Change.
-            </li>
+            <li>• Một số biến thể Coin Change.</li>
 
-            <li>
-              • Khi cần xét lại quyết định trước đó.
-            </li>
+            <li>• Khi cần xét lại quyết định trước đó.</li>
           </ul>
         </div>
       </section>
@@ -1141,7 +869,8 @@ onBeforeUnmount(() => {
            Mô phỏng tương tác
       ==================================================== -->
 
-      <section id="simulation"
+      <section
+        id="simulation"
         class="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-slate-900 shadow-2xl shadow-emerald-950/20"
       >
         <div
@@ -1157,18 +886,12 @@ onBeforeUnmount(() => {
         <div
           class="relative border-b border-slate-800 bg-slate-900/90 px-6 py-5"
         >
-          <div
-            class="flex flex-wrap items-center justify-between gap-5"
-          >
-            <div
-              class="flex items-center gap-4"
-            >
+          <div class="flex flex-wrap items-center justify-between gap-5">
+            <div class="flex items-center gap-4">
               <div
                 class="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-500/10"
               >
-                <span
-                  class="relative flex h-3 w-3"
-                >
+                <span class="relative flex h-3 w-3">
                   <span
                     v-if="status === 'running'"
                     class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"
@@ -1177,27 +900,19 @@ onBeforeUnmount(() => {
                   <span
                     class="relative inline-flex h-3 w-3 rounded-full"
                     :class="{
-                      'bg-emerald-400':
-                        status === 'running',
+                      'bg-emerald-400': status === 'running',
 
-                      'bg-violet-400':
-                        status === 'completed',
+                      'bg-violet-400': status === 'completed',
 
-                      'bg-slate-500':
-                        status === 'idle' ||
-                        status === 'paused',
+                      'bg-slate-500': status === 'idle' || status === 'paused',
                     }"
                   />
                 </span>
               </div>
 
               <div>
-                <div
-                  class="flex flex-wrap items-center gap-3"
-                >
-                  <h3
-                    class="text-xl font-black tracking-tight text-white"
-                  >
+                <div class="flex flex-wrap items-center gap-3">
+                  <h3 class="text-xl font-black tracking-tight text-white">
                     Mô phỏng tương tác
                   </h3>
 
@@ -1221,17 +936,13 @@ onBeforeUnmount(() => {
                   </span>
                 </div>
 
-                <p
-                  class="mt-1 text-sm text-slate-500"
-                >
+                <p class="mt-1 text-sm text-slate-500">
                   Quan sát cách Greedy luôn chọn lựa chọn tốt nhất hiện tại.
                 </p>
               </div>
             </div>
 
-            <div
-              class="flex gap-3"
-            >
+            <div class="flex gap-3">
               <div
                 class="rounded-2xl border border-slate-800 bg-slate-950/80 px-5 py-3"
               >
@@ -1241,12 +952,8 @@ onBeforeUnmount(() => {
                   Remaining
                 </div>
 
-                <div
-                  class="mt-1 flex items-baseline gap-1"
-                >
-                  <span
-                    class="text-2xl font-black text-white"
-                  >
+                <div class="mt-1 flex items-baseline gap-1">
+                  <span class="text-2xl font-black text-white">
                     {{ currentRemaining }}
                   </span>
                 </div>
@@ -1261,12 +968,8 @@ onBeforeUnmount(() => {
                   Coins
                 </div>
 
-                <div
-                  class="mt-1 flex items-baseline gap-1"
-                >
-                  <span
-                    class="text-2xl font-black text-emerald-400"
-                  >
+                <div class="mt-1 flex items-baseline gap-1">
+                  <span class="text-2xl font-black text-emerald-400">
                     {{ solutionCount }}
                   </span>
                 </div>
@@ -1277,9 +980,7 @@ onBeforeUnmount(() => {
 
         <!-- PROGRESS -->
 
-        <div
-          class="relative h-1 bg-slate-800"
-        >
+        <div class="relative h-1 bg-slate-800">
           <div
             class="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-violet-400 transition-all duration-300"
             :style="{
@@ -1290,9 +991,7 @@ onBeforeUnmount(() => {
 
         <!-- BODY -->
 
-        <div
-          class="relative p-6 lg:p-8"
-        >
+        <div class="relative p-6 lg:p-8">
           <!-- CURRENT OPERATION -->
 
           <div
@@ -1301,9 +1000,7 @@ onBeforeUnmount(() => {
             <div
               class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400"
             >
-              <Coins
-                class="h-5 w-5"
-              />
+              <Coins class="h-5 w-5" />
             </div>
 
             <div class="min-w-0">
@@ -1313,9 +1010,7 @@ onBeforeUnmount(() => {
                 Current Operation
               </div>
 
-              <p
-                class="mt-1 text-base font-medium leading-7 text-slate-200"
-              >
+              <p class="mt-1 text-base font-medium leading-7 text-slate-200">
                 {{ currentDescription }}
               </p>
             </div>
@@ -1323,9 +1018,7 @@ onBeforeUnmount(() => {
 
           <!-- TARGET / REMAINING -->
 
-          <div
-            class="mb-7 grid gap-4 sm:grid-cols-3"
-          >
+          <div class="mb-7 grid gap-4 sm:grid-cols-3">
             <div
               class="rounded-2xl border border-slate-800 bg-slate-950/70 p-5"
             >
@@ -1335,9 +1028,7 @@ onBeforeUnmount(() => {
                 Target
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-white"
-              >
+              <div class="mt-2 text-3xl font-black text-white">
                 {{ target }}
               </div>
             </div>
@@ -1351,9 +1042,7 @@ onBeforeUnmount(() => {
                 Selected Total
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-emerald-400"
-              >
+              <div class="mt-2 text-3xl font-black text-emerald-400">
                 {{ selectedTotal }}
               </div>
             </div>
@@ -1367,9 +1056,7 @@ onBeforeUnmount(() => {
                 Remaining
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-blue-400"
-              >
+              <div class="mt-2 text-3xl font-black text-blue-400">
                 {{ currentRemaining }}
               </div>
             </div>
@@ -1388,8 +1075,15 @@ onBeforeUnmount(() => {
               class="pointer-events-none absolute inset-0 opacity-[0.035]"
               style="
                 background-image:
-                  linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px);
+                  linear-gradient(
+                    rgba(255, 255, 255, 0.5) 1px,
+                    transparent 1px
+                  ),
+                  linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.5) 1px,
+                    transparent 1px
+                  );
                 background-size: 32px 32px;
               "
             />
@@ -1406,9 +1100,7 @@ onBeforeUnmount(() => {
                   Available Denominations
                 </div>
 
-                <div
-                  class="mt-1 text-xs text-slate-500"
-                >
+                <div class="mt-1 text-xs text-slate-500">
                   Greedy xét từ lớn → nhỏ
                 </div>
               </div>
@@ -1423,9 +1115,7 @@ onBeforeUnmount(() => {
 
             <!-- COINS -->
 
-            <div
-              class="relative flex min-h-[350px] items-end gap-3 sm:gap-5"
-            >
+            <div class="relative flex min-h-[350px] items-end gap-3 sm:gap-5">
               <div
                 v-for="(coin, index) in currentSimulation?.coins ?? coins"
                 :key="`${coin}-${index}`"
@@ -1439,23 +1129,18 @@ onBeforeUnmount(() => {
                   <span
                     v-if="getCoinStatusLabel(index)"
                     :class="{
-                        'text-emerald-400':
+                      'text-emerald-400':
                         isSelectedIndex(index) ||
-                        (
-                            isSelected(index) &&
-                            !isSelectedIndex(index)
-                        ),
+                        (isSelected(index) && !isSelectedIndex(index)),
 
-                        'text-blue-400':
-                        isComparing(index),
+                      'text-blue-400': isComparing(index),
 
-                        'text-violet-400':
-                        isCurrent(index) &&
-                        !isComparing(index),
+                      'text-violet-400':
+                        isCurrent(index) && !isComparing(index),
                     }"
-                    >
+                  >
                     {{ getCoinStatusLabel(index) }}
-                    </span>
+                  </span>
                 </div>
 
                 <!-- VALUE -->
@@ -1518,12 +1203,10 @@ onBeforeUnmount(() => {
                       isComparing(index),
 
                     'border-violet-500/40 bg-violet-500/10 text-violet-400':
-                      isCurrent(index) &&
-                      !isComparing(index),
+                      isCurrent(index) && !isComparing(index),
 
                     'border-emerald-500/30 bg-emerald-500/5 text-emerald-400':
-                      isSelected(index) &&
-                      !isSelectedIndex(index),
+                      isSelected(index) && !isSelectedIndex(index),
                   }"
                 >
                   {{ index }}
@@ -1536,9 +1219,7 @@ onBeforeUnmount(() => {
             <div
               class="relative mt-8 rounded-2xl border border-emerald-500/10 bg-emerald-500/[0.04] p-5"
             >
-              <div
-                class="flex flex-wrap items-center justify-between gap-3"
-              >
+              <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div
                     class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400"
@@ -1546,16 +1227,12 @@ onBeforeUnmount(() => {
                     Selected Coins
                   </div>
 
-                  <div
-                    class="mt-1 text-xs text-slate-600"
-                  >
+                  <div class="mt-1 text-xs text-slate-600">
                     Các lựa chọn Greedy đã thực hiện
                   </div>
                 </div>
 
-                <div
-                  class="font-mono text-sm font-bold text-slate-300"
-                >
+                <div class="font-mono text-sm font-bold text-slate-300">
                   {{ selectedTotal }}
                   /
                   {{ target }}
@@ -1567,10 +1244,7 @@ onBeforeUnmount(() => {
                 class="mt-4 flex flex-wrap gap-2"
               >
                 <div
-                  v-for="(
-                    selectedCoin,
-                    index
-                  ) in currentSelectedCoins"
+                  v-for="(selectedCoin, index) in currentSelectedCoins"
                   :key="`${selectedCoin}-${index}`"
                   class="flex h-10 min-w-10 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 text-sm font-black text-emerald-400"
                 >
@@ -1578,10 +1252,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div
-                v-else
-                class="mt-4 text-xs text-slate-600"
-              >
+              <div v-else class="mt-4 text-xs text-slate-600">
                 Chưa chọn đồng tiền nào.
               </div>
             </div>
@@ -1592,32 +1263,20 @@ onBeforeUnmount(() => {
           <div
             class="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-3"
           >
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-violet-400"
-              />
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="h-2.5 w-2.5 rounded-full bg-violet-400" />
 
               Current
             </div>
 
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-blue-400"
-              />
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="h-2.5 w-2.5 rounded-full bg-blue-400" />
 
               Checking
             </div>
 
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-emerald-400"
-              />
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="h-2.5 w-2.5 rounded-full bg-emerald-400" />
 
               Selected
             </div>
@@ -1626,25 +1285,15 @@ onBeforeUnmount(() => {
           <!-- PROGRESS -->
 
           <div class="mt-7">
-            <div
-              class="mb-2 flex justify-between text-xs"
-            >
-              <span
-                class="font-medium text-slate-500"
-              >
+            <div class="mb-2 flex justify-between text-xs">
+              <span class="font-medium text-slate-500">
                 Simulation Progress
               </span>
 
-              <span
-                class="font-bold text-slate-300"
-              >
-                {{ progress }}%
-              </span>
+              <span class="font-bold text-slate-300"> {{ progress }}% </span>
             </div>
 
-            <div
-              class="h-1.5 overflow-hidden rounded-full bg-slate-800"
-            >
+            <div class="h-1.5 overflow-hidden rounded-full bg-slate-800">
               <div
                 class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-300"
                 :style="{
@@ -1659,9 +1308,7 @@ onBeforeUnmount(() => {
           <div
             class="algorithm-simulation-controls mt-8 flex flex-col gap-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-5"
           >
-            <div
-              class="flex flex-wrap items-center justify-center gap-2"
-            >
+            <div class="flex flex-wrap items-center justify-center gap-2">
               <!-- PREVIOUS -->
 
               <button
@@ -1682,21 +1329,11 @@ onBeforeUnmount(() => {
                 class="flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 px-7 font-bold text-white shadow-lg shadow-emerald-500/20 transition hover:from-emerald-500 hover:to-emerald-400 hover:shadow-emerald-500/30 active:scale-[0.98]"
                 @click="togglePlay"
               >
-                <Pause
-                  v-if="status === 'running'"
-                  class="h-4 w-4"
-                />
+                <Pause v-if="status === 'running'" class="h-4 w-4" />
 
-                <Play
-                  v-else
-                  class="h-4 w-4 fill-current"
-                />
+                <Play v-else class="h-4 w-4 fill-current" />
 
-                {{
-                  status === 'running'
-                    ? 'Pause'
-                    : 'Play Simulation'
-                }}
+                {{ status === "running" ? "Pause" : "Play Simulation" }}
               </button>
 
               <!-- NEXT -->
@@ -1719,9 +1356,7 @@ onBeforeUnmount(() => {
                 class="ml-2 flex h-11 items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 text-sm font-medium text-slate-400 transition hover:border-slate-700 hover:bg-slate-800 hover:text-white"
                 @click="reset"
               >
-                <RotateCcw
-                  class="h-4 w-4"
-                />
+                <RotateCcw class="h-4 w-4" />
 
                 Reset
               </button>
@@ -1733,9 +1368,7 @@ onBeforeUnmount(() => {
                 class="flex h-11 items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 text-sm font-medium text-slate-400 transition hover:border-slate-700 hover:bg-slate-800 hover:text-white"
                 @click="randomize"
               >
-                <Shuffle
-                  class="h-4 w-4"
-                />
+                <Shuffle class="h-4 w-4" />
 
                 Randomize
               </button>
@@ -1743,12 +1376,8 @@ onBeforeUnmount(() => {
 
             <!-- SPEED -->
 
-            <div
-              class="mx-auto w-full max-w-xl"
-            >
-              <div
-                class="mb-3 flex items-center justify-between"
-              >
+            <div class="mx-auto w-full max-w-xl">
+              <div class="mb-3 flex items-center justify-between">
                 <span
                   class="text-xs font-bold uppercase tracking-wider text-slate-600"
                 >
@@ -1787,9 +1416,7 @@ onBeforeUnmount(() => {
            Mã giả + Độ phức tạp
       ==================================================== -->
 
-      <section id="pseudocode"
-        class="grid gap-6 lg:grid-cols-5"
-      >
+      <section id="pseudocode" class="grid gap-6 lg:grid-cols-5">
         <!-- Mã giả -->
 
         <div
@@ -1802,31 +1429,19 @@ onBeforeUnmount(() => {
           <div
             class="relative flex items-center justify-between border-b border-slate-800 px-6 py-5"
           >
-            <div
-              class="flex items-center gap-4"
-            >
+            <div class="flex items-center gap-4">
               <div
                 class="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10"
               >
-                <span
-                  class="font-mono text-lg font-black text-emerald-400"
-                >
+                <span class="font-mono text-lg font-black text-emerald-400">
                   &lt;/&gt;
                 </span>
               </div>
 
               <div>
-                <h3
-                  class="text-lg font-black text-white"
-                >
-                  Mã giả
-                </h3>
+                <h3 class="text-lg font-black text-white">Mã giả</h3>
 
-                <p
-                  class="mt-0.5 text-xs text-slate-500"
-                >
-                  Greedy Coin Change
-                </p>
+                <p class="mt-0.5 text-xs text-slate-500">Greedy Coin Change</p>
               </div>
             </div>
 
@@ -1844,31 +1459,19 @@ onBeforeUnmount(() => {
               <div
                 class="flex items-center gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-3"
               >
-                <span
-                  class="h-2.5 w-2.5 rounded-full bg-red-400/70"
-                />
+                <span class="h-2.5 w-2.5 rounded-full bg-red-400/70" />
 
-                <span
-                  class="h-2.5 w-2.5 rounded-full bg-amber-400/70"
-                />
+                <span class="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
 
-                <span
-                  class="h-2.5 w-2.5 rounded-full bg-emerald-400/70"
-                />
+                <span class="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
 
-                <span
-                  class="ml-3 font-mono text-[10px] text-slate-600"
-                >
+                <span class="ml-3 font-mono text-[10px] text-slate-600">
                   greedy-coin-change.pseudo
                 </span>
               </div>
 
-              <div
-                class="overflow-x-auto p-5"
-              >
-                <div
-                  class="min-w-[560px] font-mono text-[13px] leading-8"
-                >
+              <div class="overflow-x-auto p-5">
+                <div class="min-w-[560px] font-mono text-[13px] leading-8">
                   <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
@@ -1889,19 +1492,13 @@ onBeforeUnmount(() => {
                     </span>
 
                     <span class="ml-5">
-                      <span class="text-violet-400">
-                        sort
-                      </span>
+                      <span class="text-violet-400"> sort </span>
 
-                      <span class="text-slate-300">
-                        coins descending
-                      </span>
+                      <span class="text-slate-300"> coins descending </span>
                     </span>
                   </div>
 
-                  <div
-                    class="flex rounded-lg bg-emerald-500/10"
-                  >
+                  <div class="flex rounded-lg bg-emerald-500/10">
                     <span
                       class="w-10 shrink-0 select-none text-right text-emerald-500/50"
                     >
@@ -1909,13 +1506,9 @@ onBeforeUnmount(() => {
                     </span>
 
                     <span class="ml-5">
-                      <span class="text-violet-400">
-                        remaining
-                      </span>
+                      <span class="text-violet-400"> remaining </span>
 
-                      <span class="text-slate-300">
-                        = target
-                      </span>
+                      <span class="text-slate-300"> = target </span>
                     </span>
                   </div>
 
@@ -1927,19 +1520,13 @@ onBeforeUnmount(() => {
                     </span>
 
                     <span class="ml-5">
-                      <span class="text-violet-400">
-                        while
-                      </span>
+                      <span class="text-violet-400"> while </span>
 
-                      <span class="text-slate-300">
-                        remaining &gt; 0
-                      </span>
+                      <span class="text-slate-300"> remaining &gt; 0 </span>
                     </span>
                   </div>
 
-                  <div
-                    class="flex rounded-lg bg-blue-500/10"
-                  >
+                  <div class="flex rounded-lg bg-blue-500/10">
                     <span
                       class="w-10 shrink-0 select-none text-right text-blue-500/50"
                     >
@@ -1947,9 +1534,7 @@ onBeforeUnmount(() => {
                     </span>
 
                     <span class="ml-5">
-                      <span class="text-violet-400">
-                        choose
-                      </span>
+                      <span class="text-violet-400"> choose </span>
 
                       <span class="text-slate-300">
                         largest coin ≤ remaining
@@ -1957,9 +1542,7 @@ onBeforeUnmount(() => {
                     </span>
                   </div>
 
-                  <div
-                    class="flex rounded-lg bg-amber-500/10"
-                  >
+                  <div class="flex rounded-lg bg-amber-500/10">
                     <span
                       class="w-10 shrink-0 select-none text-right text-amber-500/50"
                     >
@@ -1967,13 +1550,9 @@ onBeforeUnmount(() => {
                     </span>
 
                     <span class="ml-5">
-                      <span class="text-violet-400">
-                        take
-                      </span>
+                      <span class="text-violet-400"> take </span>
 
-                      <span class="text-slate-300">
-                        selected coin
-                      </span>
+                      <span class="text-slate-300"> selected coin </span>
                     </span>
                   </div>
 
@@ -1985,19 +1564,13 @@ onBeforeUnmount(() => {
                     </span>
 
                     <span class="ml-5">
-                      <span class="text-violet-400">
-                        remaining
-                      </span>
+                      <span class="text-violet-400"> remaining </span>
 
-                      <span class="text-slate-300">
-                        -= coin
-                      </span>
+                      <span class="text-slate-300"> -= coin </span>
                     </span>
                   </div>
 
-                  <div
-                    class="flex rounded-lg bg-emerald-500/10"
-                  >
+                  <div class="flex rounded-lg bg-emerald-500/10">
                     <span
                       class="w-10 shrink-0 select-none text-right text-emerald-500/50"
                     >
@@ -2005,13 +1578,9 @@ onBeforeUnmount(() => {
                     </span>
 
                     <span class="ml-5">
-                      <span class="text-violet-400">
-                        repeat
-                      </span>
+                      <span class="text-violet-400"> repeat </span>
 
-                      <span class="text-slate-300">
-                        until remaining = 0
-                      </span>
+                      <span class="text-slate-300"> until remaining = 0 </span>
                     </span>
                   </div>
                 </div>
@@ -2027,12 +1596,9 @@ onBeforeUnmount(() => {
                 Greedy Principle
               </div>
 
-              <p
-                class="mt-2 text-sm leading-6 text-slate-400"
-              >
-                Ở mỗi bước, không quay lại quyết định trước đó.
-                Thuật toán chỉ quan tâm lựa chọn tốt nhất
-                trong trạng thái hiện tại.
+              <p class="mt-2 text-sm leading-6 text-slate-400">
+                Ở mỗi bước, không quay lại quyết định trước đó. Thuật toán chỉ
+                quan tâm lựa chọn tốt nhất trong trạng thái hiện tại.
               </p>
             </div>
           </div>
@@ -2047,32 +1613,20 @@ onBeforeUnmount(() => {
             class="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl"
           />
 
-          <div
-            class="relative border-b border-slate-800 px-6 py-5"
-          >
-            <div
-              class="flex items-center gap-4"
-            >
+          <div class="relative border-b border-slate-800 px-6 py-5">
+            <div class="flex items-center gap-4">
               <div
                 class="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10"
               >
-                <span
-                  class="font-mono text-xl font-black text-cyan-400"
-                >
+                <span class="font-mono text-xl font-black text-cyan-400">
                   O
                 </span>
               </div>
 
               <div>
-                <h3
-                  class="text-lg font-black text-white"
-                >
-                  Độ phức tạp
-                </h3>
+                <h3 class="text-lg font-black text-white">Độ phức tạp</h3>
 
-                <p
-                  class="mt-0.5 text-xs text-slate-500"
-                >
+                <p class="mt-0.5 text-xs text-slate-500">
                   Performance analysis
                 </p>
               </div>
@@ -2083,9 +1637,7 @@ onBeforeUnmount(() => {
             <div
               class="group rounded-2xl border border-emerald-500/10 bg-emerald-500/[0.04] p-4 transition hover:border-emerald-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -2099,15 +1651,11 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-emerald-400"
-              >
+              <div class="mt-2 text-3xl font-black text-emerald-400">
                 {{ complexity.best }}
               </div>
 
-              <p
-                class="mt-2 text-xs leading-5 text-slate-600"
-              >
+              <p class="mt-2 text-xs leading-5 text-slate-600">
                 Duyệt qua các denomination.
               </p>
             </div>
@@ -2115,9 +1663,7 @@ onBeforeUnmount(() => {
             <div
               class="group rounded-2xl border border-blue-500/10 bg-blue-500/[0.04] p-4 transition hover:border-blue-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -2131,15 +1677,11 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-blue-400"
-              >
+              <div class="mt-2 text-3xl font-black text-blue-400">
                 O(k log k)
               </div>
 
-              <p
-                class="mt-2 text-xs leading-5 text-slate-600"
-              >
+              <p class="mt-2 text-xs leading-5 text-slate-600">
                 Nếu cần sort denominations trước.
               </p>
             </div>
@@ -2147,9 +1689,7 @@ onBeforeUnmount(() => {
             <div
               class="group rounded-2xl border border-violet-500/10 bg-violet-500/[0.04] p-4 transition hover:border-violet-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -2163,15 +1703,9 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-violet-400"
-              >
-                O(k)
-              </div>
+              <div class="mt-2 text-3xl font-black text-violet-400">O(k)</div>
 
-              <p
-                class="mt-2 text-xs leading-5 text-slate-600"
-              >
+              <p class="mt-2 text-xs leading-5 text-slate-600">
                 Do lưu danh sách các lựa chọn.
               </p>
             </div>
@@ -2185,12 +1719,9 @@ onBeforeUnmount(() => {
                 Important
               </div>
 
-              <p
-                class="mt-2 text-xs leading-5 text-slate-500"
-              >
-                Complexity và tính tối ưu phụ thuộc vào
-                bài toán cụ thể. Greedy không tự động đảm bảo
-                optimal solution.
+              <p class="mt-2 text-xs leading-5 text-slate-500">
+                Complexity và tính tối ưu phụ thuộc vào bài toán cụ thể. Greedy
+                không tự động đảm bảo optimal solution.
               </p>
             </div>
           </div>
@@ -2201,37 +1732,26 @@ onBeforeUnmount(() => {
            PHP
       ==================================================== -->
 
-      <section id="implementation"
+      <section
+        id="implementation"
         class="overflow-hidden rounded-3xl border border-indigo-500/20 bg-slate-900 shadow-xl shadow-indigo-950/10"
       >
         <div
           class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-5"
         >
-          <div
-            class="flex items-center gap-4"
-          >
+          <div class="flex items-center gap-4">
             <div
               class="flex h-11 w-11 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-500/10"
             >
-              <span
-                class="font-mono text-sm font-black text-indigo-400"
-              >
+              <span class="font-mono text-sm font-black text-indigo-400">
                 PHP
               </span>
             </div>
 
             <div>
-              <h3
-                class="text-lg font-black text-white"
-              >
-                Cài đặt bằng PHP
-              </h3>
+              <h3 class="text-lg font-black text-white">Cài đặt bằng PHP</h3>
 
-              <p
-                class="mt-0.5 text-xs text-slate-500"
-              >
-                Greedy Coin Change
-              </p>
+              <p class="mt-0.5 text-xs text-slate-500">Greedy Coin Change</p>
             </div>
           </div>
 
@@ -2249,21 +1769,13 @@ onBeforeUnmount(() => {
             <div
               class="flex items-center gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-3"
             >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-red-400/70"
-              />
+              <span class="h-2.5 w-2.5 rounded-full bg-red-400/70" />
 
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-amber-400/70"
-              />
+              <span class="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
 
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-emerald-400/70"
-              />
+              <span class="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
 
-              <span
-                class="ml-3 font-mono text-[10px] text-slate-600"
-              >
+              <span class="ml-3 font-mono text-[10px] text-slate-600">
                 GreedyCoinChange.php
               </span>
             </div>
@@ -2309,47 +1821,31 @@ onBeforeUnmount(() => {
            EXPLANATION
       ==================================================== -->
 
-      <section id="explanation"
+      <section
+        id="explanation"
         class="rounded-3xl border border-slate-800 bg-slate-900 p-6 lg:p-8"
       >
-        <div
-          class="mb-5 flex items-center gap-3"
-        >
-          <div
-            class="h-8 w-1 rounded-full bg-cyan-400"
-          />
+        <div class="mb-5 flex items-center gap-3">
+          <div class="h-8 w-1 rounded-full bg-cyan-400" />
 
-          <h3
-            class="text-xl font-black text-white"
-          >
+          <h3 class="text-xl font-black text-white">
             Tại sao gọi là "Greedy"?
           </h3>
         </div>
 
-        <p
-          class="max-w-4xl text-sm leading-7 text-slate-400"
-        >
-          "Greedy" có nghĩa là tham lam. Thuật toán luôn muốn
-          lấy phần tốt nhất có thể ngay lập tức mà không quan
-          tâm đến việc lựa chọn đó có làm thay đổi những quyết
-          định sau này hay không.
+        <p class="max-w-4xl text-sm leading-7 text-slate-400">
+          "Greedy" có nghĩa là tham lam. Thuật toán luôn muốn lấy phần tốt nhất
+          có thể ngay lập tức mà không quan tâm đến việc lựa chọn đó có làm thay
+          đổi những quyết định sau này hay không.
         </p>
 
-        <div
-          class="mt-7 grid gap-4 md:grid-cols-3"
-        >
+        <div class="mt-7 grid gap-4 md:grid-cols-3">
           <div
             class="rounded-2xl border border-violet-500/10 bg-violet-500/[0.04] p-5"
           >
-            <div
-              class="text-sm font-black text-violet-400"
-            >
-              01 — Choose
-            </div>
+            <div class="text-sm font-black text-violet-400">01 — Choose</div>
 
-            <p
-              class="mt-2 text-xs leading-6 text-slate-500"
-            >
+            <p class="mt-2 text-xs leading-6 text-slate-500">
               Chọn phương án tốt nhất trong trạng thái hiện tại.
             </p>
           </div>
@@ -2357,15 +1853,9 @@ onBeforeUnmount(() => {
           <div
             class="rounded-2xl border border-amber-500/10 bg-amber-500/[0.04] p-5"
           >
-            <div
-              class="text-sm font-black text-amber-400"
-            >
-              02 — Commit
-            </div>
+            <div class="text-sm font-black text-amber-400">02 — Commit</div>
 
-            <p
-              class="mt-2 text-xs leading-6 text-slate-500"
-            >
+            <p class="mt-2 text-xs leading-6 text-slate-500">
               Chấp nhận lựa chọn và không quay lại thay đổi.
             </p>
           </div>
@@ -2373,15 +1863,9 @@ onBeforeUnmount(() => {
           <div
             class="rounded-2xl border border-emerald-500/10 bg-emerald-500/[0.04] p-5"
           >
-            <div
-              class="text-sm font-black text-emerald-400"
-            >
-              03 — Repeat
-            </div>
+            <div class="text-sm font-black text-emerald-400">03 — Repeat</div>
 
-            <p
-              class="mt-2 text-xs leading-6 text-slate-500"
-            >
+            <p class="mt-2 text-xs leading-6 text-slate-500">
               Tiếp tục cho đến khi đạt được lời giải.
             </p>
           </div>
@@ -2392,43 +1876,28 @@ onBeforeUnmount(() => {
         <div
           class="mt-7 rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-5"
         >
-          <div
-            class="flex items-start gap-3"
-          >
+          <div class="flex items-start gap-3">
             <div
               class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10"
             >
-              <span
-                class="font-black text-amber-400"
-              >
-                !
-              </span>
+              <span class="font-black text-amber-400"> ! </span>
             </div>
 
             <div>
-              <div
-                class="text-sm font-black text-amber-400"
-              >
+              <div class="text-sm font-black text-amber-400">
                 Greedy không phải lúc nào cũng tối ưu
               </div>
 
-              <p
-                class="mt-1 text-xs leading-6 text-slate-500"
-              >
-                Đây là điểm quan trọng nhất cần nhớ.
-                Muốn chứng minh Greedy đúng, bài toán thường
-                phải có các tính chất như
-                <span
-                  class="font-semibold text-slate-300"
-                >
+              <p class="mt-1 text-xs leading-6 text-slate-500">
+                Đây là điểm quan trọng nhất cần nhớ. Muốn chứng minh Greedy
+                đúng, bài toán thường phải có các tính chất như
+                <span class="font-semibold text-slate-300">
                   greedy-choice property
                 </span>
                 và
-                <span
-                  class="font-semibold text-slate-300"
-                >
-                  optimal substructure
-                </span>.
+                <span class="font-semibold text-slate-300">
+                  optimal substructure </span
+                >.
               </p>
             </div>
           </div>

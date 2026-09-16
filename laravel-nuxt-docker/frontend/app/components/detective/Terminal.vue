@@ -1,42 +1,34 @@
 <script setup lang="ts">
-import type {
-  TerminalLine,
-} from '~/types/games/terminal'
-import type {
-  SupportedLocale,
-} from '~/types/games/detective'
+import type { TerminalLine } from "~/types/games/terminal";
+import type { SupportedLocale } from "~/types/games/detective";
 
 const props = defineProps<{
-  lines: TerminalLine[]
+  lines: TerminalLine[];
 
-  currentDirectory: string
+  currentDirectory: string;
 
-  scenarioId: string
+  scenarioId: string;
 
-  inputValue: string
+  inputValue: string;
 
-  commands: string[]
+  commands: string[];
 
-  autocompleteEntries: string[]
+  autocompleteEntries: string[];
 
-  expanded?: boolean
+  expanded?: boolean;
 
-  lightTheme?: boolean
+  lightTheme?: boolean;
 
-  locale: SupportedLocale
-}>()
+  locale: SupportedLocale;
+}>();
 
 const emit = defineEmits<{
-  execute: [command: string]
+  execute: [command: string];
 
-  'update:inputValue': [
-    value: string,
-  ]
-}>()
+  "update:inputValue": [value: string];
+}>();
 
-const lightTheme = computed(() =>
-  props.lightTheme ?? false,
-)
+const lightTheme = computed(() => props.lightTheme ?? false);
 
 /*
  * ==================================================
@@ -44,14 +36,11 @@ const lightTheme = computed(() =>
  * ==================================================
  */
 
-const terminalRef =
-  ref<HTMLElement | null>(null)
+const terminalRef = ref<HTMLElement | null>(null);
 
-const inputRef =
-  ref<HTMLInputElement | null>(null)
+const inputRef = ref<HTMLInputElement | null>(null);
 
-const promptRef =
-  ref<HTMLElement | null>(null)
+const promptRef = ref<HTMLElement | null>(null);
 
 /*
  * ==================================================
@@ -59,11 +48,9 @@ const promptRef =
  * ==================================================
  */
 
-const localHistory =
-  ref<string[]>([])
+const localHistory = ref<string[]>([]);
 
-const historyIndex =
-  ref(-1)
+const historyIndex = ref(-1);
 
 /*
  * ==================================================
@@ -71,37 +58,30 @@ const historyIndex =
  * ==================================================
  */
 
-const autocompleteIndex =
-  ref(0)
+const autocompleteIndex = ref(0);
 
-const showAutocomplete =
-  ref(false)
+const showAutocomplete = ref(false);
 
-const autocompletePlacement =
-  ref<'top' | 'bottom'>('top')
+const autocompletePlacement = ref<"top" | "bottom">("top");
 
-const autocompleteStyle =
-  ref<Record<string, string>>({})
+const autocompleteStyle = ref<Record<string, string>>({});
 
 function updateAutocompletePosition() {
-  const prompt = promptRef.value
+  const prompt = promptRef.value;
 
   if (!prompt || !showAutocomplete.value) {
-    return
+    return;
   }
 
-  const rect = prompt.getBoundingClientRect()
+  const rect = prompt.getBoundingClientRect();
   const estimatedHeight = Math.min(
     256,
     38 + autocompleteEntries.value.length * 36,
-  )
-  const spaceBelow =
-    window.innerHeight - rect.bottom - 12
-  const openBelow =
-    spaceBelow >= estimatedHeight
+  );
+  const spaceBelow = window.innerHeight - rect.bottom - 12;
+  const openBelow = spaceBelow >= estimatedHeight;
 
-  autocompletePlacement.value =
-    openBelow ? 'bottom' : 'top'
+  autocompletePlacement.value = openBelow ? "bottom" : "top";
 
   autocompleteStyle.value = {
     left: `${rect.left}px`,
@@ -109,7 +89,7 @@ function updateAutocompletePosition() {
     ...(openBelow
       ? { top: `${rect.bottom + 8}px` }
       : { bottom: `${window.innerHeight - rect.top + 8}px` }),
-  }
+  };
 }
 
 /*
@@ -120,22 +100,17 @@ function updateAutocompletePosition() {
 
 const input = computed({
   get() {
-    return props.inputValue
+    return props.inputValue;
   },
 
   set(value: string) {
-    emit(
-      'update:inputValue',
-      value,
-    )
+    emit("update:inputValue", value);
   },
-})
+});
 
-const autocompleteEntries =
-  computed(() =>
-    props.autocompleteEntries
-      .slice(0, 10),
-  )
+const autocompleteEntries = computed(() =>
+  props.autocompleteEntries.slice(0, 10),
+);
 
 /*
  * ==================================================
@@ -158,43 +133,33 @@ const autocompleteEntries =
  * line mới được đưa vào displayedLines.
  */
 
-const displayedLines =
-  shallowRef<TerminalLine[]>([])
+const displayedLines = shallowRef<TerminalLine[]>([]);
 
-const typingLine =
-  shallowRef<TerminalLine | null>(
-    null,
-  )
+const typingLine = shallowRef<TerminalLine | null>(null);
 
-const typingText =
-  ref('')
+const typingText = ref("");
 
-const isTyping =
-  ref(false)
+const isTyping = ref(false);
 
-const TYPING_SPEED = 0
+const TYPING_SPEED = 0;
 
 /*
  * requestAnimationFrame handle
  */
 
-let typingFrame:
-  number | null = null
+let typingFrame: number | null = null;
 
-let typingGeneration = 0
+let typingGeneration = 0;
 
-let cancelTypingAnimation:
-  (() => void) | null = null
+let cancelTypingAnimation: (() => void) | null = null;
 
 /*
  * Queue output.
  */
 
-let typingQueue:
-  TerminalLine[] = []
+let typingQueue: TerminalLine[] = [];
 
-let processingQueue =
-  false
+let processingQueue = false;
 
 /*
  * ==================================================
@@ -203,15 +168,13 @@ let processingQueue =
  */
 
 function scrollToBottom() {
-  const element =
-    terminalRef.value
+  const element = terminalRef.value;
 
   if (!element) {
-    return
+    return;
   }
 
-  element.scrollTop =
-    element.scrollHeight
+  element.scrollTop = element.scrollHeight;
 }
 
 /*
@@ -221,25 +184,22 @@ function scrollToBottom() {
  */
 
 function focusInput() {
-  const element = inputRef.value
+  const element = inputRef.value;
 
   if (!element) {
-    return
+    return;
   }
 
-  element.focus()
+  element.focus();
 
-  const end = element.value.length
+  const end = element.value.length;
 
-  element.setSelectionRange(
-    end,
-    end,
-  )
+  element.setSelectionRange(end, end);
 }
 
 defineExpose({
   focusInput,
-})
+});
 
 /*
  * ==================================================
@@ -247,55 +207,53 @@ defineExpose({
  * ==================================================
  */
 
-function getTypingSpeed(
-  line: TerminalLine,
-) {
+function getTypingSpeed(line: TerminalLine) {
   switch (line.type) {
     /*
      * Command của user:
      * render ngay.
      */
 
-    case 'command':
-      return 0
+    case "command":
+      return 0;
 
     /*
      * System message:
      * chậm hơn một chút.
      */
 
-    case 'system':
-      return 5
+    case "system":
+      return 5;
 
     /*
      * Success:
      * nhanh vừa.
      */
 
-    case 'success':
-      return 25
+    case "success":
+      return 25;
 
     /*
      * Warning.
      */
 
-    case 'warning':
-      return 22
+    case "warning":
+      return 22;
 
     /*
      * Error.
      */
 
-    case 'error':
-      return 20
+    case "error":
+      return 20;
 
     /*
      * Normal output.
      */
 
-    case 'output':
+    case "output":
     default:
-      return TYPING_SPEED
+      return TYPING_SPEED;
   }
 }
 
@@ -305,15 +263,11 @@ function getTypingSpeed(
  * ==================================================
  */
 
-async function typeLine(
-  line: TerminalLine,
-) {
-  const generation = typingGeneration
-  const text =
-    line.text ?? ''
+async function typeLine(line: TerminalLine) {
+  const generation = typingGeneration;
+  const text = line.text ?? "";
 
-  const speed =
-    getTypingSpeed(line)
+  const speed = getTypingSpeed(line);
 
   /*
    * ================================================
@@ -323,20 +277,14 @@ async function typeLine(
    * Command hoặc text rỗng.
    */
 
-  if (
-    speed <= 0 ||
-    text.length === 0
-  ) {
-    displayedLines.value = [
-      ...displayedLines.value,
-      line,
-    ]
+  if (speed <= 0 || text.length === 0) {
+    displayedLines.value = [...displayedLines.value, line];
 
-    await nextTick()
+    await nextTick();
 
-    scrollToBottom()
+    scrollToBottom();
 
-    return
+    return;
   }
 
   /*
@@ -345,11 +293,11 @@ async function typeLine(
    * ================================================
    */
 
-  isTyping.value = true
+  isTyping.value = true;
 
-  typingLine.value = line
+  typingLine.value = line;
 
-  typingText.value = ''
+  typingText.value = "";
 
   /*
    * ================================================
@@ -357,96 +305,70 @@ async function typeLine(
    * ================================================
    */
 
-  await new Promise<void>(
-    resolve => {
-      let settled = false
+  await new Promise<void>((resolve) => {
+    let settled = false;
 
-      const finish = () => {
-        if (settled) {
-          return
-        }
-
-        settled = true
-        cancelTypingAnimation = null
-        resolve()
+    const finish = () => {
+      if (settled) {
+        return;
       }
 
-      cancelTypingAnimation = () => {
-        if (typingFrame !== null) {
-          cancelAnimationFrame(typingFrame)
-          typingFrame = null
-        }
+      settled = true;
+      cancelTypingAnimation = null;
+      resolve();
+    };
 
-        finish()
+    cancelTypingAnimation = () => {
+      if (typingFrame !== null) {
+        cancelAnimationFrame(typingFrame);
+        typingFrame = null;
       }
 
-      const start =
-        performance.now()
+      finish();
+    };
 
-      const animate = (
-        currentTime: number,
-      ) => {
-        const elapsed =
-          currentTime - start
+    const start = performance.now();
 
-        /*
-         * Tính số character dựa trên
-         * thời gian thực.
-         */
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - start;
 
-        const characterCount =
-          Math.min(
-            Math.floor(
-              elapsed / speed,
-            ),
-            text.length,
-          )
+      /*
+       * Tính số character dựa trên
+       * thời gian thực.
+       */
 
-        /*
-         * CHỈ thay đổi primitive string.
-         *
-         * Không mutate TerminalLine.
-         */
+      const characterCount = Math.min(Math.floor(elapsed / speed), text.length);
 
-        typingText.value =
-          text.slice(
-            0,
-            characterCount,
-          )
+      /*
+       * CHỈ thay đổi primitive string.
+       *
+       * Không mutate TerminalLine.
+       */
 
-        /*
-         * Hoàn thành.
-         */
+      typingText.value = text.slice(0, characterCount);
 
-        if (
-          characterCount >=
-          text.length
-        ) {
-          typingText.value =
-            text
+      /*
+       * Hoàn thành.
+       */
 
-          typingFrame = null
+      if (characterCount >= text.length) {
+        typingText.value = text;
 
-          finish()
+        typingFrame = null;
 
-          return
-        }
+        finish();
 
-        typingFrame =
-          requestAnimationFrame(
-            animate,
-          )
+        return;
       }
 
-      typingFrame =
-        requestAnimationFrame(
-          animate,
-        )
-    },
-  )
+      typingFrame = requestAnimationFrame(animate);
+    };
+
+    typingFrame = requestAnimationFrame(animate);
+  });
 
   if (generation !== typingGeneration) {
-    return
+    return;
   }
 
   /*
@@ -455,20 +377,17 @@ async function typeLine(
    * ================================================
    */
 
-  displayedLines.value = [
-    ...displayedLines.value,
-    line,
-  ]
+  displayedLines.value = [...displayedLines.value, line];
 
-  typingLine.value = null
+  typingLine.value = null;
 
-  typingText.value = ''
+  typingText.value = "";
 
-  isTyping.value = false
+  isTyping.value = false;
 
-  await nextTick()
+  await nextTick();
 
-  scrollToBottom()
+  scrollToBottom();
 }
 
 /*
@@ -479,28 +398,25 @@ async function typeLine(
 
 async function processTypingQueue() {
   if (processingQueue) {
-    return
+    return;
   }
 
-  processingQueue = true
+  processingQueue = true;
 
   try {
-    while (
-      typingQueue.length > 0
-    ) {
-      const line =
-        typingQueue.shift()
+    while (typingQueue.length > 0) {
+      const line = typingQueue.shift();
 
       if (!line) {
-        continue
+        continue;
       }
 
-      await typeLine(line)
+      await typeLine(line);
     }
   } finally {
-    processingQueue = false
+    processingQueue = false;
 
-    isTyping.value = false
+    isTyping.value = false;
   }
 }
 
@@ -512,28 +428,23 @@ async function processTypingQueue() {
 
 watch(
   () => props.lines,
-  newLines => {
+  (newLines) => {
     const knownLines = [
       ...displayedLines.value,
-      ...(typingLine.value
-        ? [typingLine.value]
-        : []),
+      ...(typingLine.value ? [typingLine.value] : []),
       ...typingQueue,
-    ]
+    ];
 
-    const knownPrefixChanged =
-      knownLines.some(
-        (line, index) => {
-          const incoming = newLines[index]
+    const knownPrefixChanged = knownLines.some((line, index) => {
+      const incoming = newLines[index];
 
-          return (
-            !incoming ||
-            incoming.id !== line.id ||
-            incoming.type !== line.type ||
-            incoming.text !== line.text
-          )
-        },
-      )
+      return (
+        !incoming ||
+        incoming.id !== line.id ||
+        incoming.type !== line.type ||
+        incoming.text !== line.text
+      );
+    });
 
     /*
      * ================================================
@@ -541,48 +452,42 @@ watch(
      * ================================================
      */
 
-    if (
-      newLines.length <
-        knownLines.length ||
-      knownPrefixChanged
-    ) {
-      typingGeneration += 1
+    if (newLines.length < knownLines.length || knownPrefixChanged) {
+      typingGeneration += 1;
 
       /*
        * Cancel animation.
        */
 
-      cancelTypingAnimation?.()
+      cancelTypingAnimation?.();
 
       /*
        * Clear queue.
        */
 
-      typingQueue = []
+      typingQueue = [];
 
       /*
        * Reset UI.
        */
 
-      displayedLines.value = []
+      displayedLines.value = [];
 
-      typingLine.value = null
+      typingLine.value = null;
 
-      typingText.value = ''
+      typingText.value = "";
 
-      isTyping.value = false
+      isTyping.value = false;
 
       /*
        * Add toàn bộ line mới.
        */
 
-      typingQueue.push(
-        ...newLines,
-      )
+      typingQueue.push(...newLines);
 
-      void processTypingQueue()
+      void processTypingQueue();
 
-      return
+      return;
     }
 
     /*
@@ -591,8 +496,7 @@ watch(
      * ================================================
      */
 
-    const renderedCount =
-      displayedLines.value.length
+    const renderedCount = displayedLines.value.length;
 
     /*
      * Nếu đang typing một line,
@@ -600,42 +504,29 @@ watch(
      * displayedLines.
      */
 
-    const pendingTyping =
-      typingLine.value
-        ? 1
-        : 0
+    const pendingTyping = typingLine.value ? 1 : 0;
 
-    const knownCount =
-      renderedCount +
-      pendingTyping +
-      typingQueue.length
+    const knownCount = renderedCount + pendingTyping + typingQueue.length;
 
     /*
      * Chỉ lấy line chưa được xử lý.
      */
 
-    const newLinesToQueue =
-      newLines.slice(
-        knownCount,
-      )
+    const newLinesToQueue = newLines.slice(knownCount);
 
-    if (
-      !newLinesToQueue.length
-    ) {
-      return
+    if (!newLinesToQueue.length) {
+      return;
     }
 
-    typingQueue.push(
-      ...newLinesToQueue,
-    )
+    typingQueue.push(...newLinesToQueue);
 
-    processTypingQueue()
+    processTypingQueue();
   },
   {
     immediate: true,
     deep: true,
   },
-)
+);
 
 /*
  * ==================================================
@@ -647,32 +538,23 @@ watch(
  */
 
 watch(
-  [
-    () => input.value,
-    () => props.autocompleteEntries,
-  ],
+  [() => input.value, () => props.autocompleteEntries],
   ([currentInput, entries]) => {
-    autocompleteIndex.value = 0
+    autocompleteIndex.value = 0;
 
-    showAutocomplete.value =
-      Boolean(
-        currentInput.trim() &&
-        entries.length,
-      )
+    showAutocomplete.value = Boolean(currentInput.trim() && entries.length);
 
-    if (
-      showAutocomplete.value
-    ) {
+    if (showAutocomplete.value) {
       nextTick(() => {
-        scrollToBottom()
-        updateAutocompletePosition()
-      })
+        scrollToBottom();
+        updateAutocompletePosition();
+      });
     }
   },
   {
     deep: true,
   },
-)
+);
 
 /*
  * ==================================================
@@ -682,7 +564,7 @@ watch(
 
 function finishPendingOutputImmediately() {
   if (!isTyping.value && !typingLine.value && !typingQueue.length) {
-    return
+    return;
   }
 
   /*
@@ -690,30 +572,25 @@ function finishPendingOutputImmediately() {
    * waiting before the user's command. This keeps the transcript complete
    * while allowing Enter to execute the command without waiting.
    */
-  typingGeneration += 1
-  cancelTypingAnimation?.()
+  typingGeneration += 1;
+  cancelTypingAnimation?.();
 
   const pendingLines = [
-    ...(typingLine.value
-      ? [typingLine.value]
-      : []),
+    ...(typingLine.value ? [typingLine.value] : []),
     ...typingQueue,
-  ]
+  ];
 
-  typingQueue = []
+  typingQueue = [];
 
   if (pendingLines.length) {
-    displayedLines.value = [
-      ...displayedLines.value,
-      ...pendingLines,
-    ]
+    displayedLines.value = [...displayedLines.value, ...pendingLines];
   }
 
-  typingLine.value = null
-  typingText.value = ''
-  isTyping.value = false
+  typingLine.value = null;
+  typingText.value = "";
+  isTyping.value = false;
 
-  nextTick(scrollToBottom)
+  nextTick(scrollToBottom);
 }
 
 function submit() {
@@ -721,20 +598,17 @@ function submit() {
    * Enter always submits. If output is still being animated, finish the
    * existing transcript immediately before executing the new command.
    */
-  finishPendingOutputImmediately()
+  finishPendingOutputImmediately();
 
   /*
    * input là computed lấy từ prop của component cha. Ở thời điểm
    * keydown Enter chạy, prop có thể chưa kịp nhận input event mới
    * nhất (đặc biệt khi dùng IME), trong khi DOM đã có giá trị đúng.
    */
-  const command = (
-    inputRef.value?.value ??
-    input.value
-  ).trim()
+  const command = (inputRef.value?.value ?? input.value).trim();
 
   if (!command) {
-    return
+    return;
   }
 
   /*
@@ -744,39 +618,32 @@ function submit() {
   localHistory.value = [
     command,
 
-    ...localHistory.value.filter(
-      item =>
-        item !== command,
-    ),
-  ]
+    ...localHistory.value.filter((item) => item !== command),
+  ];
 
-  historyIndex.value = -1
+  historyIndex.value = -1;
 
   /*
    * Hide autocomplete.
    */
 
-  showAutocomplete.value =
-    false
+  showAutocomplete.value = false;
 
   /*
    * Execute.
    */
 
-  emit(
-    'execute',
-    command,
-  )
+  emit("execute", command);
 
   /*
    * Clear input.
    */
 
-  input.value = ''
+  input.value = "";
 
   nextTick(() => {
-    focusInput()
-  })
+    focusInput();
+  });
 }
 
 /*
@@ -786,23 +653,15 @@ function submit() {
  */
 
 function historyUp() {
-  if (
-    !localHistory.value.length
-  ) {
-    return
+  if (!localHistory.value.length) {
+    return;
   }
 
-  if (
-    historyIndex.value <
-    localHistory.value.length - 1
-  ) {
-    historyIndex.value++
+  if (historyIndex.value < localHistory.value.length - 1) {
+    historyIndex.value++;
   }
 
-  input.value =
-    localHistory.value[
-      historyIndex.value
-    ] ?? ''
+  input.value = localHistory.value[historyIndex.value] ?? "";
 }
 
 /*
@@ -812,30 +671,23 @@ function historyUp() {
  */
 
 function historyDown() {
-  if (
-    historyIndex.value === -1
-  ) {
-    input.value = ''
+  if (historyIndex.value === -1) {
+    input.value = "";
 
-    return
+    return;
   }
 
-  if (
-    historyIndex.value > 0
-  ) {
-    historyIndex.value--
+  if (historyIndex.value > 0) {
+    historyIndex.value--;
 
-    input.value =
-      localHistory.value[
-        historyIndex.value
-      ] ?? ''
+    input.value = localHistory.value[historyIndex.value] ?? "";
 
-    return
+    return;
   }
 
-  historyIndex.value = -1
+  historyIndex.value = -1;
 
-  input.value = ''
+  input.value = "";
 }
 
 /*
@@ -845,24 +697,19 @@ function historyDown() {
  */
 
 function autocomplete() {
-  const entries =
-    autocompleteEntries.value
+  const entries = autocompleteEntries.value;
 
   if (!entries.length) {
-    return
+    return;
   }
 
-  const selected =
-    entries[
-      autocompleteIndex.value
-    ]
+  const selected = entries[autocompleteIndex.value];
 
   if (!selected) {
-    return
+    return;
   }
 
-  const current =
-    input.value
+  const current = input.value;
 
   /*
    * ================================================
@@ -875,20 +722,16 @@ function autocomplete() {
    * ================================================
    */
 
-  if (
-    !current.includes(' ')
-  ) {
-    input.value =
-      `${selected} `
+  if (!current.includes(" ")) {
+    input.value = `${selected} `;
 
-    showAutocomplete.value =
-      false
+    showAutocomplete.value = false;
 
     nextTick(() => {
-      focusInput()
-    })
+      focusInput();
+    });
 
-    return
+    return;
   }
 
   /*
@@ -902,42 +745,33 @@ function autocomplete() {
    * ================================================
    */
 
-  const match =
-    current.match(
-      /^(\S+\s+)(.*)$/,
-    )
+  const match = current.match(/^(\S+\s+)(.*)$/);
 
   if (!match) {
-    return
+    return;
   }
 
-  const prefix =
-    match[1] ?? ''
+  const prefix = match[1] ?? "";
 
   /*
    * Directory.
    */
 
-  if (
-    selected.endsWith('/')
-  ) {
-    input.value =
-      `${prefix}${selected}`
+  if (selected.endsWith("/")) {
+    input.value = `${prefix}${selected}`;
   } else {
     /*
      * File.
      */
 
-    input.value =
-      `${prefix}${selected} `
+    input.value = `${prefix}${selected} `;
   }
 
-  showAutocomplete.value =
-    false
+  showAutocomplete.value = false;
 
   nextTick(() => {
-    focusInput()
-  })
+    focusInput();
+  });
 }
 
 /*
@@ -947,14 +781,13 @@ function autocomplete() {
  */
 
 function handleTab() {
-  const entries =
-    autocompleteEntries.value
+  const entries = autocompleteEntries.value;
 
   if (!entries.length) {
-    return
+    return;
   }
 
-  autocomplete()
+  autocomplete();
 }
 
 /*
@@ -963,22 +796,15 @@ function handleTab() {
  * ==================================================
  */
 
-function handleAutocompleteArrow(
-  direction: number,
-) {
-  const length =
-    autocompleteEntries.value.length
+function handleAutocompleteArrow(direction: number) {
+  const length = autocompleteEntries.value.length;
 
   if (!length) {
-    return
+    return;
   }
 
   autocompleteIndex.value =
-    (
-      autocompleteIndex.value +
-      direction +
-      length
-    ) % length
+    (autocompleteIndex.value + direction + length) % length;
 }
 
 /*
@@ -987,46 +813,34 @@ function handleAutocompleteArrow(
  * ==================================================
  */
 
-function selectAutocomplete(
-  entry: string,
-) {
-  const current =
-    input.value
+function selectAutocomplete(entry: string) {
+  const current = input.value;
 
-  const parts =
-    current.split(/\s+/)
+  const parts = current.split(/\s+/);
 
-  if (
-    parts.length === 1
-  ) {
-    input.value =
-      `${entry} `
+  if (parts.length === 1) {
+    input.value = `${entry} `;
 
-    showAutocomplete.value =
-      false
+    showAutocomplete.value = false;
 
     nextTick(() => {
-      focusInput()
-    })
+      focusInput();
+    });
 
-    return
+    return;
   }
 
-  input.value =
-    `${parts[0]} ${entry}`
+  input.value = `${parts[0]} ${entry}`;
 
-  if (
-    !entry.endsWith('/')
-  ) {
-    input.value += ' '
+  if (!entry.endsWith("/")) {
+    input.value += " ";
   }
 
-  showAutocomplete.value =
-    false
+  showAutocomplete.value = false;
 
   nextTick(() => {
-    focusInput()
-  })
+    focusInput();
+  });
 }
 
 /*
@@ -1035,101 +849,63 @@ function selectAutocomplete(
  * ==================================================
  */
 
-function renderLineParts(
-  line: TerminalLine,
-) {
-  if (
-    !line.highlights?.length
-  ) {
+function renderLineParts(line: TerminalLine) {
+  if (!line.highlights?.length) {
     return [
       {
         text: line.text,
         highlight: false,
       },
-    ]
+    ];
   }
 
   const result: Array<{
-    text: string
-    highlight: boolean
-  }> = []
+    text: string;
+    highlight: boolean;
+  }> = [];
 
-  let cursor = 0
+  let cursor = 0;
 
-  for (
-    const highlight of
-    line.highlights
-  ) {
-    if (
-      highlight.start >
-      cursor
-    ) {
+  for (const highlight of line.highlights) {
+    if (highlight.start > cursor) {
       result.push({
-        text:
-          line.text.slice(
-            cursor,
-            highlight.start,
-          ),
+        text: line.text.slice(cursor, highlight.start),
         highlight: false,
-      })
+      });
     }
 
     result.push({
-      text:
-        line.text.slice(
-          highlight.start,
-          highlight.end,
-        ),
+      text: line.text.slice(highlight.start, highlight.end),
       highlight: true,
-    })
+    });
 
-    cursor =
-      highlight.end
+    cursor = highlight.end;
   }
 
-  if (
-    cursor <
-    line.text.length
-  ) {
+  if (cursor < line.text.length) {
     result.push({
-      text:
-        line.text.slice(
-          cursor,
-        ),
+      text: line.text.slice(cursor),
       highlight: false,
-    })
+    });
   }
 
-  return result
+  return result;
 }
 
-function getIntroFrameClass(
-  line: TerminalLine,
-  lineIndex: number,
-) {
-  if (line.variant !== 'intro') {
-    return ''
+function getIntroFrameClass(line: TerminalLine, lineIndex: number) {
+  if (line.variant !== "intro") {
+    return "";
   }
 
-  const previousLine =
-    displayedLines.value[
-      lineIndex - 1
-    ]
+  const previousLine = displayedLines.value[lineIndex - 1];
 
-  const nextLine =
-    displayedLines.value[
-      lineIndex + 1
-    ]
+  const nextLine = displayedLines.value[lineIndex + 1];
 
   return [
-    'border-x border-violet-700/60 bg-violet-950/25 px-4',
-    previousLine?.variant !== 'intro'
-      ? 'mt-1 rounded-t-md border-t pt-3'
-      : '',
-    nextLine?.variant !== 'intro'
-      ? 'mb-3 rounded-b-md border-b pb-3'
-      : '',
-  ]
+    "border-x border-violet-700/60 bg-violet-950/25 px-4",
+    previousLine?.variant !== "intro" ? "mt-1 rounded-t-md border-t pt-3" : "",
+    nextLine?.variant !== "intro" ? "mb-3 rounded-b-md border-b pb-3" : "",
+  ];
 }
 
 /*
@@ -1138,104 +914,87 @@ function getIntroFrameClass(
  * ==================================================
  */
 
-function handleKeydown(
-  event: KeyboardEvent,
-) {
+function handleKeydown(event: KeyboardEvent) {
   /*
    * ENTER
    */
 
-  if (
-    event.key === 'Enter'
-  ) {
+  if (event.key === "Enter") {
     if (event.isComposing) {
-      return
+      return;
     }
 
-    event.preventDefault()
+    event.preventDefault();
 
-    submit()
+    submit();
 
-    return
+    return;
   }
 
   /*
    * ARROW UP
    */
 
-  if (
-    event.key === 'ArrowUp'
-  ) {
-    if (
-      showAutocomplete.value
-    ) {
-      event.preventDefault()
+  if (event.key === "ArrowUp") {
+    if (showAutocomplete.value) {
+      event.preventDefault();
 
-      handleAutocompleteArrow(-1)
+      handleAutocompleteArrow(-1);
 
-      return
+      return;
     }
 
-    event.preventDefault()
+    event.preventDefault();
 
-    historyUp()
+    historyUp();
 
-    return
+    return;
   }
 
   /*
    * ARROW DOWN
    */
 
-  if (
-    event.key === 'ArrowDown'
-  ) {
-    if (
-      showAutocomplete.value
-    ) {
-      event.preventDefault()
+  if (event.key === "ArrowDown") {
+    if (showAutocomplete.value) {
+      event.preventDefault();
 
-      handleAutocompleteArrow(1)
+      handleAutocompleteArrow(1);
 
-      return
+      return;
     }
 
-    event.preventDefault()
+    event.preventDefault();
 
-    historyDown()
+    historyDown();
 
-    return
+    return;
   }
 
   /*
    * TAB
    */
 
-  if (
-    event.key === 'Tab'
-  ) {
-    event.preventDefault()
+  if (event.key === "Tab") {
+    event.preventDefault();
 
-    event.stopPropagation()
+    event.stopPropagation();
 
-    handleTab()
+    handleTab();
 
-    return
+    return;
   }
 
   /*
    * ESCAPE
    */
 
-  if (
-    event.key === 'Escape'
-  ) {
-    event.preventDefault()
+  if (event.key === "Escape") {
+    event.preventDefault();
 
-    showAutocomplete.value =
-      false
+    showAutocomplete.value = false;
 
-    return
+    return;
   }
 }
 
@@ -1246,50 +1005,39 @@ function handleKeydown(
  */
 
 onBeforeUnmount(() => {
-  typingGeneration += 1
-  cancelTypingAnimation?.()
+  typingGeneration += 1;
+  cancelTypingAnimation?.();
 
-  window.removeEventListener(
-    'resize',
-    updateAutocompletePosition,
-  )
+  window.removeEventListener("resize", updateAutocompletePosition);
 
-  window.removeEventListener(
-    'scroll',
-    updateAutocompletePosition,
-    true,
-  )
+  window.removeEventListener("scroll", updateAutocompletePosition, true);
 
   /*
    * Cancel animation frame.
    */
 
-  if (
-    typingFrame !== null
-  ) {
-    cancelAnimationFrame(
-      typingFrame,
-    )
+  if (typingFrame !== null) {
+    cancelAnimationFrame(typingFrame);
 
-    typingFrame = null
+    typingFrame = null;
   }
 
   /*
    * Clear queue.
    */
 
-  typingQueue = []
+  typingQueue = [];
 
   /*
    * Clear state.
    */
 
-  typingLine.value = null
+  typingLine.value = null;
 
-  typingText.value = ''
+  typingText.value = "";
 
-  isTyping.value = false
-})
+  isTyping.value = false;
+});
 
 /*
  * ==================================================
@@ -1298,38 +1046,20 @@ onBeforeUnmount(() => {
  */
 
 onMounted(() => {
-  window.addEventListener(
-    'resize',
-    updateAutocompletePosition,
-  )
+  window.addEventListener("resize", updateAutocompletePosition);
 
-  window.addEventListener(
-    'scroll',
-    updateAutocompletePosition,
-    true,
-  )
+  window.addEventListener("scroll", updateAutocompletePosition, true);
 
-  focusInput()
-})
+  focusInput();
+});
 </script>
 
 <template>
   <div
     ref="terminalRef"
-    class="terminal-scrollbar-hidden relative
-           overflow-y-auto
-           rounded-t-lg
-           border
-           p-5
-           pt-12
-           font-mono
-           text-sm
-           shadow-2xl
-           shadow-black/40"
+    class="terminal-scrollbar-hidden relative overflow-y-auto rounded-t-lg border p-5 pt-12 font-mono text-sm shadow-2xl shadow-black/40"
     :class="[
-      props.expanded
-        ? 'min-h-0 flex-1'
-        : 'h-[560px]',
+      props.expanded ? 'min-h-0 flex-1' : 'h-[560px]',
       props.lightTheme
         ? 'border-slate-300 bg-slate-50'
         : 'border-zinc-800 bg-black',
@@ -1341,74 +1071,50 @@ onMounted(() => {
     <!-- ========================================= -->
 
     <div
-      v-for="(
-        line,
-        lineIndex
-      ) in displayedLines"
-      :key="
-        line.id ??
-        lineIndex
-      "
-      class="min-h-[20px]
-             whitespace-pre-wrap
-             leading-5"
-      :class="[{
-        'text-green-700':
-          lightTheme && line.type === 'system',
+      v-for="(line, lineIndex) in displayedLines"
+      :key="line.id ?? lineIndex"
+      class="min-h-[20px] whitespace-pre-wrap leading-5"
+      :class="[
+        {
+          'text-green-700': lightTheme && line.type === 'system',
 
-        'text-green-500':
-          !lightTheme &&
-          line.type === 'system',
+          'text-green-500': !lightTheme && line.type === 'system',
 
-        'text-cyan-700':
-          lightTheme && line.type === 'command',
+          'text-cyan-700': lightTheme && line.type === 'command',
 
-        'text-cyan-400':
-          !lightTheme &&
-          line.type === 'command',
+          'text-cyan-400': !lightTheme && line.type === 'command',
 
-        'text-slate-800':
-          lightTheme && line.type === 'output',
+          'text-slate-800': lightTheme && line.type === 'output',
 
-        'text-zinc-300':
-          !lightTheme &&
-          line.type === 'output',
+          'text-zinc-300': !lightTheme && line.type === 'output',
 
-        'text-red-700':
-          lightTheme && line.type === 'error',
+          'text-red-700': lightTheme && line.type === 'error',
 
-        'text-red-500':
-          !lightTheme &&
-          line.type === 'error',
+          'text-red-500': !lightTheme && line.type === 'error',
 
-        'text-amber-700':
-          lightTheme && line.type === 'warning',
+          'text-amber-700': lightTheme && line.type === 'warning',
 
-        'text-yellow-400':
-          !lightTheme &&
-          line.type === 'warning',
+          'text-yellow-400': !lightTheme && line.type === 'warning',
 
-        'font-bold text-green-700':
-          lightTheme && line.type === 'success',
+          'font-bold text-green-700': lightTheme && line.type === 'success',
 
-        'font-bold text-green-400':
-          !lightTheme &&
-          line.type === 'success',
-      }, getIntroFrameClass(line, lineIndex)]"
+          'font-bold text-green-400': !lightTheme && line.type === 'success',
+        },
+        getIntroFrameClass(line, lineIndex),
+      ]"
     >
       <template
-        v-for="(
-          part,
-          partIndex
-        ) in renderLineParts(line)"
+        v-for="(part, partIndex) in renderLineParts(line)"
         :key="partIndex"
       >
         <mark
           v-if="part.highlight"
           class="rounded px-1 ring-1"
-          :class="lightTheme
-            ? 'bg-amber-200 text-amber-950 ring-amber-400'
-            : 'bg-yellow-400/25 text-yellow-300 ring-yellow-500/50'"
+          :class="
+            lightTheme
+              ? 'bg-amber-200 text-amber-950 ring-amber-400'
+              : 'bg-yellow-400/25 text-yellow-300 ring-yellow-500/50'
+          "
         >
           {{ part.text }}
         </mark>
@@ -1425,44 +1131,28 @@ onMounted(() => {
 
     <div
       v-if="typingLine"
-      class="min-h-[20px]
-             whitespace-pre-wrap
-             leading-5"
+      class="min-h-[20px] whitespace-pre-wrap leading-5"
       :class="{
-        'text-green-700':
-          lightTheme && typingLine.type === 'system',
+        'text-green-700': lightTheme && typingLine.type === 'system',
 
-        'text-green-500':
-          !lightTheme &&
-          typingLine.type === 'system',
+        'text-green-500': !lightTheme && typingLine.type === 'system',
 
-        'text-slate-800':
-          lightTheme && typingLine.type === 'output',
+        'text-slate-800': lightTheme && typingLine.type === 'output',
 
-        'text-zinc-300':
-          !lightTheme &&
-          typingLine.type === 'output',
+        'text-zinc-300': !lightTheme && typingLine.type === 'output',
 
-        'text-red-700':
-          lightTheme && typingLine.type === 'error',
+        'text-red-700': lightTheme && typingLine.type === 'error',
 
-        'text-red-500':
-          !lightTheme &&
-          typingLine.type === 'error',
+        'text-red-500': !lightTheme && typingLine.type === 'error',
 
-        'text-amber-700':
-          lightTheme && typingLine.type === 'warning',
+        'text-amber-700': lightTheme && typingLine.type === 'warning',
 
-        'text-yellow-400':
-          !lightTheme &&
-          typingLine.type === 'warning',
+        'text-yellow-400': !lightTheme && typingLine.type === 'warning',
 
-        'font-bold text-green-700':
-          lightTheme && typingLine.type === 'success',
+        'font-bold text-green-700': lightTheme && typingLine.type === 'success',
 
         'font-bold text-green-400':
-          !lightTheme &&
-          typingLine.type === 'success',
+          !lightTheme && typingLine.type === 'success',
       }"
     >
       <span>
@@ -1472,134 +1162,121 @@ onMounted(() => {
       <!-- TYPING CURSOR -->
 
       <span
-        class="ml-0.5
-               inline-block
-               h-4
-               w-2
-               animate-pulse
-               bg-green-500
-               align-middle"
+        class="ml-0.5 inline-block h-4 w-2 animate-pulse bg-green-500 align-middle"
       />
     </div>
 
     <!-- Reserve space so the sticky prompt never covers the last output or
          the line currently being typed. -->
-    <div
-      class="h-12"
-      aria-hidden="true"
-    />
+    <div class="h-12" aria-hidden="true" />
 
     <div class="sticky bottom-0 z-20">
       <!-- AUTOCOMPLETE: opens above the command prompt -->
       <Teleport to="body">
-      <div
-        v-if="showAutocomplete && autocompleteEntries.length"
-        class="fixed z-[130] max-h-64 overflow-y-auto rounded-md
-               border shadow-2xl"
-        :style="autocompleteStyle"
-        :data-placement="autocompletePlacement"
-        :class="lightTheme
-          ? 'border-slate-300 bg-white shadow-slate-400/30'
-          : 'border-zinc-700 bg-zinc-950 shadow-black/70'"
-      >
         <div
-          class="flex items-center justify-between border-b px-3 py-2
-                 text-[9px] uppercase tracking-[0.2em]"
-          :class="lightTheme
-            ? 'border-slate-200 text-slate-500'
-            : 'border-zinc-800 text-zinc-500'"
+          v-if="showAutocomplete && autocompleteEntries.length"
+          class="fixed z-[130] max-h-64 overflow-y-auto rounded-md border shadow-2xl"
+          :style="autocompleteStyle"
+          :data-placement="autocompletePlacement"
+          :class="
+            lightTheme
+              ? 'border-slate-300 bg-white shadow-slate-400/30'
+              : 'border-zinc-700 bg-zinc-950 shadow-black/70'
+          "
         >
-          <span>{{ props.locale === 'vi' ? 'Gợi ý lệnh' : 'Autocomplete' }}</span>
-          <span class="normal-case tracking-normal">
-            ↑↓ {{ props.locale === 'vi' ? 'chọn' : 'select' }} · Tab {{ props.locale === 'vi' ? 'điền' : 'apply' }}
-          </span>
-        </div>
+          <div
+            class="flex items-center justify-between border-b px-3 py-2 text-[9px] uppercase tracking-[0.2em]"
+            :class="
+              lightTheme
+                ? 'border-slate-200 text-slate-500'
+                : 'border-zinc-800 text-zinc-500'
+            "
+          >
+            <span>{{
+              props.locale === "vi" ? "Gợi ý lệnh" : "Autocomplete"
+            }}</span>
+            <span class="normal-case tracking-normal">
+              ↑↓ {{ props.locale === "vi" ? "chọn" : "select" }} · Tab
+              {{ props.locale === "vi" ? "điền" : "apply" }}
+            </span>
+          </div>
 
-        <button
-          v-for="(entry, index) in autocompleteEntries"
-          :key="entry"
-          type="button"
-          class="flex w-full items-center justify-between px-3 py-2
-                 text-left font-mono text-xs"
-          :class="index === autocompleteIndex
-            ? lightTheme
-              ? 'bg-green-100 text-green-800'
-              : 'bg-green-950/50 text-green-300'
-            : lightTheme
-              ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100'"
-          @mousedown.prevent="selectAutocomplete(entry)"
-        >
-          <span>{{ entry }}</span>
-          <span v-if="entry.endsWith('/')" class="text-[9px] opacity-60">DIR</span>
-        </button>
-      </div>
+          <button
+            v-for="(entry, index) in autocompleteEntries"
+            :key="entry"
+            type="button"
+            class="flex w-full items-center justify-between px-3 py-2 text-left font-mono text-xs"
+            :class="
+              index === autocompleteIndex
+                ? lightTheme
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-green-950/50 text-green-300'
+                : lightTheme
+                  ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100'
+            "
+            @mousedown.prevent="selectAutocomplete(entry)"
+          >
+            <span>{{ entry }}</span>
+            <span v-if="entry.endsWith('/')" class="text-[9px] opacity-60"
+              >DIR</span
+            >
+          </button>
+        </div>
       </Teleport>
 
       <!-- COMMAND PROMPT -->
       <form
         ref="promptRef"
         class="flex items-center gap-2 rounded-md border px-3 py-2 shadow-lg"
-        :class="lightTheme
-          ? 'border-slate-300 bg-slate-50/95 shadow-slate-300/30'
-          : 'border-zinc-800 bg-black/95 shadow-black/60'"
+        :class="
+          lightTheme
+            ? 'border-slate-300 bg-slate-50/95 shadow-slate-300/30'
+            : 'border-zinc-800 bg-black/95 shadow-black/60'
+        "
         @submit.prevent="submit"
       >
-      <span
-        class="shrink-0"
-        :class="lightTheme ? 'text-green-800' : 'text-green-500'"
-      >
-        detective@{{
-          props.scenarioId
-        }}:
-      </span>
+        <span
+          class="shrink-0"
+          :class="lightTheme ? 'text-green-800' : 'text-green-500'"
+        >
+          detective@{{ props.scenarioId }}:
+        </span>
 
-      <span
-        class="shrink-0"
-        :class="lightTheme ? 'text-cyan-800' : 'text-cyan-400'"
-      >
-        {{ props.currentDirectory }}
-      </span>
+        <span
+          class="shrink-0"
+          :class="lightTheme ? 'text-cyan-800' : 'text-cyan-400'"
+        >
+          {{ props.currentDirectory }}
+        </span>
 
-      <span
-        class="shrink-0"
-        :class="lightTheme ? 'text-slate-500' : 'text-zinc-500'"
-      >
-        $
-      </span>
+        <span
+          class="shrink-0"
+          :class="lightTheme ? 'text-slate-500' : 'text-zinc-500'"
+        >
+          $
+        </span>
 
-      <input
-        ref="inputRef"
-        v-model="input"
-        type="text"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-        class="min-w-0
-               flex-1
-               border-none
-               bg-transparent
-               p-0
-               font-mono
-               text-sm
-               outline-none
-               placeholder:text-zinc-800"
-        :class="lightTheme ? 'text-green-800' : 'text-green-400'"
-        placeholder="type command..."
-        @keydown="handleKeydown"
-      />
+        <input
+          ref="inputRef"
+          v-model="input"
+          type="text"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          class="min-w-0 flex-1 border-none bg-transparent p-0 font-mono text-sm outline-none placeholder:text-zinc-800"
+          :class="lightTheme ? 'text-green-800' : 'text-green-400'"
+          placeholder="type command..."
+          @keydown="handleKeydown"
+        />
 
-      <!-- INPUT CURSOR -->
+        <!-- INPUT CURSOR -->
 
-      <span
-        v-if="!input"
-        class="h-4
-               w-2
-               shrink-0
-               animate-pulse
-               bg-green-500"
-      />
+        <span
+          v-if="!input"
+          class="h-4 w-2 shrink-0 animate-pulse bg-green-500"
+        />
       </form>
     </div>
   </div>

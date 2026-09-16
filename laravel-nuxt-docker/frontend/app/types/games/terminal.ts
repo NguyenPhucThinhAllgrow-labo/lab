@@ -1,33 +1,28 @@
 export type TerminalLineType =
-  | 'system'
-  | 'command'
-  | 'output'
-  | 'error'
-  | 'warning'
-  | 'success'
+  "system" | "command" | "output" | "error" | "warning" | "success";
 
 export interface TerminalHighlight {
-  start: number
+  start: number;
 
-  end: number
+  end: number;
 }
 
 export interface TerminalLine {
-  id: number
+  id: number;
 
-  type: TerminalLineType
+  type: TerminalLineType;
 
-  text: string
+  text: string;
 
-  variant?: 'intro'
+  variant?: "intro";
 
-  highlights?: TerminalHighlight[]
+  highlights?: TerminalHighlight[];
 }
 
 export interface TerminalCommand {
-  command: string
+  command: string;
 
-  description: string
+  description: string;
 
-  requiresArgument: boolean
+  requiresArgument: boolean;
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const { theme: siteTheme } = useSiteTheme()
-import AlgorithmNavigation from '~/components/algorithm/AlgorithmNavigation.vue'
+const { theme: siteTheme } = useSiteTheme();
+import AlgorithmNavigation from "~/components/algorithm/AlgorithmNavigation.vue";
 import {
   ArrowLeft,
   ArrowUp,
@@ -11,63 +11,53 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
-} from 'lucide-vue-next'
+} from "lucide-vue-next";
 
 import type {
   Complexity,
   SimulationStatus,
   SimulationStep,
-} from '~/types/algorithm'
+} from "~/types/algorithm";
 
 useHead({
-  title: 'Selection Sort Playground',
-})
+  title: "Selection Sort Playground",
+});
 
 /* =========================================================
    DATA
 ========================================================= */
 
-const initialValues: number[] = [
-  45,
-  12,
-  87,
-  34,
-  9,
-  63,
-  21,
-]
+const initialValues: number[] = [45, 12, 87, 34, 9, 63, 21];
 
-const values = ref<number[]>([...initialValues])
+const values = ref<number[]>([...initialValues]);
 
-const steps = ref<SimulationStep[]>([])
+const steps = ref<SimulationStep[]>([]);
 
-const currentStep = ref<number>(0)
+const currentStep = ref<number>(0);
 
-const status = ref<SimulationStatus>('idle')
+const status = ref<SimulationStatus>("idle");
 
-const speed = ref<number>(700)
+const speed = ref<number>(700);
 
-let timer: ReturnType<typeof setTimeout> | null = null
+let timer: ReturnType<typeof setTimeout> | null = null;
 
 const complexity: Complexity = {
-  best: 'O(n²)',
-  average: 'O(n²)',
-  worst: 'O(n²)',
-  space: 'O(1)',
-}
+  best: "O(n²)",
+  average: "O(n²)",
+  worst: "O(n²)",
+  space: "O(1)",
+};
 
 /* =========================================================
    SIMULATION GENERATOR
 ========================================================= */
 
-function generateSelectionSortSteps(
-  input: number[],
-): SimulationStep[] {
-  const array: number[] = [...input]
+function generateSelectionSortSteps(input: number[]): SimulationStep[] {
+  const array: number[] = [...input];
 
-  const result: SimulationStep[] = []
+  const result: SimulationStep[] = [];
 
-  const sortedIndices = new Set<number>()
+  const sortedIndices = new Set<number>();
 
   const addStep = (
     description: string,
@@ -84,34 +74,28 @@ function generateSelectionSortSteps(
       description,
       currentIndex,
       minimumIndex,
-    })
-  }
+    });
+  };
 
-  const n = array.length
+  const n = array.length;
 
   /* Empty */
   if (n === 0) {
-    addStep(
-      'Mảng rỗng. Không có phần tử nào để sắp xếp.',
-    )
+    addStep("Mảng rỗng. Không có phần tử nào để sắp xếp.");
 
-    return result
+    return result;
   }
 
   /* One element */
   if (n === 1) {
-    sortedIndices.add(0)
+    sortedIndices.add(0);
 
-    addStep(
-      `${array[0]!} là phần tử duy nhất nên mảng đã được sắp xếp.`,
-    )
+    addStep(`${array[0]!} là phần tử duy nhất nên mảng đã được sắp xếp.`);
 
-    return result
+    return result;
   }
 
-  addStep(
-    `Bắt đầu Selection Sort với ${n} phần tử.`,
-  )
+  addStep(`Bắt đầu Selection Sort với ${n} phần tử.`);
 
   /*
    * Selection Sort:
@@ -120,7 +104,7 @@ function generateSelectionSortSteps(
    * minIndex = vị trí phần tử nhỏ nhất hiện tại
    */
   for (let i = 0; i < n - 1; i++) {
-    let minIndex = i
+    let minIndex = i;
 
     addStep(
       `Bắt đầu vòng ${i + 1}. Tìm phần tử nhỏ nhất trong phần chưa được sắp xếp.`,
@@ -128,7 +112,7 @@ function generateSelectionSortSteps(
       [],
       i,
       minIndex,
-    )
+    );
 
     /*
      * Highlight phần tử đầu tiên như minimum hiện tại
@@ -139,7 +123,7 @@ function generateSelectionSortSteps(
       [],
       i,
       minIndex,
-    )
+    );
 
     /*
      * Search minimum
@@ -151,10 +135,10 @@ function generateSelectionSortSteps(
         [],
         j,
         minIndex,
-      )
+      );
 
       if (array[j]! < array[minIndex]!) {
-        minIndex = j
+        minIndex = j;
 
         addStep(
           `${array[minIndex]!} nhỏ hơn → cập nhật minimum.`,
@@ -162,7 +146,7 @@ function generateSelectionSortSteps(
           [],
           j,
           minIndex,
-        )
+        );
       } else {
         addStep(
           `${array[j]!} không nhỏ hơn ${array[minIndex]!} → giữ minimum.`,
@@ -170,7 +154,7 @@ function generateSelectionSortSteps(
           [],
           j,
           minIndex,
-        )
+        );
       }
     }
 
@@ -178,8 +162,8 @@ function generateSelectionSortSteps(
      * Swap nếu minimum không nằm ở i
      */
     if (minIndex !== i) {
-      const currentValue = array[i]!
-      const minimumValue = array[minIndex]!
+      const currentValue = array[i]!;
+      const minimumValue = array[minIndex]!;
 
       addStep(
         `${minimumValue} là nhỏ nhất → chuẩn bị đưa về vị trí ${i}.`,
@@ -187,13 +171,13 @@ function generateSelectionSortSteps(
         [i, minIndex],
         i,
         minIndex,
-      )
+      );
 
       /*
        * Thực hiện swap
        */
-      array[i] = minimumValue
-      array[minIndex] = currentValue
+      array[i] = minimumValue;
+      array[minIndex] = currentValue;
 
       addStep(
         `Đã swap → ${array[i]!} được đặt vào vị trí ${i}.`,
@@ -201,7 +185,7 @@ function generateSelectionSortSteps(
         [i, minIndex],
         i,
         minIndex,
-      )
+      );
     } else {
       addStep(
         `${array[i]!} đã là phần tử nhỏ nhất → không cần swap.`,
@@ -209,40 +193,34 @@ function generateSelectionSortSteps(
         [],
         i,
         minIndex,
-      )
+      );
     }
 
     /*
      * Phần tử tại i đã cố định
      */
-    sortedIndices.add(i)
+    sortedIndices.add(i);
 
-    addStep(
-      `${array[i]!} đã được cố định ở vị trí ${i}.`,
-    )
+    addStep(`${array[i]!} đã được cố định ở vị trí ${i}.`);
   }
 
   /*
    * Phần tử cuối cùng chắc chắn đã đúng vị trí
    */
-  sortedIndices.add(n - 1)
+  sortedIndices.add(n - 1);
 
-  addStep(
-    `${array[n - 1]!} là phần tử cuối cùng và đã ở đúng vị trí.`,
-  )
+  addStep(`${array[n - 1]!} là phần tử cuối cùng và đã ở đúng vị trí.`);
 
   /*
    * Đảm bảo toàn bộ sorted
    */
   for (let i = 0; i < n; i++) {
-    sortedIndices.add(i)
+    sortedIndices.add(i);
   }
 
-  addStep(
-    'Hoàn thành Selection Sort. Tất cả phần tử đã được sắp xếp.',
-  )
+  addStep("Hoàn thành Selection Sort. Tất cả phần tử đã được sắp xếp.");
 
-  return result
+  return result;
 }
 
 /* =========================================================
@@ -251,97 +229,88 @@ function generateSelectionSortSteps(
 
 const currentSimulation = computed<SimulationStep | null>(() => {
   if (steps.value.length === 0) {
-    return null
+    return null;
   }
 
-  return steps.value[currentStep.value] ?? null
-})
+  return steps.value[currentStep.value] ?? null;
+});
 
 const currentValues = computed<number[]>(() => {
-  return currentSimulation.value?.values ?? values.value
-})
+  return currentSimulation.value?.values ?? values.value;
+});
 
 const currentComparing = computed<number[]>(() => {
-  return currentSimulation.value?.comparing ?? []
-})
+  return currentSimulation.value?.comparing ?? [];
+});
 
 const currentSwapping = computed<number[]>(() => {
-  return currentSimulation.value?.swapping ?? []
-})
+  return currentSimulation.value?.swapping ?? [];
+});
 
 const currentSorted = computed<number[]>(() => {
-  return currentSimulation.value?.sorted ?? []
-})
+  return currentSimulation.value?.sorted ?? [];
+});
 
 const currentMinimumIndex = computed<number | undefined>(() => {
-  return currentSimulation.value?.minimumIndex
-})
+  return currentSimulation.value?.minimumIndex;
+});
 
 const currentIndex = computed<number | undefined>(() => {
-  return currentSimulation.value?.currentIndex
-})
+  return currentSimulation.value?.currentIndex;
+});
 
 const currentDescription = computed<string>(() => {
   return (
-    currentSimulation.value?.description ??
-    'Nhấn Play Simulation để bắt đầu.'
-  )
-})
+    currentSimulation.value?.description ?? "Nhấn Play Simulation để bắt đầu."
+  );
+});
 
 const progress = computed<number>(() => {
   if (steps.value.length <= 1) {
-    return 0
+    return 0;
   }
 
-  return Math.round(
-    (currentStep.value /
-      (steps.value.length - 1)) *
-      100,
-  )
-})
+  return Math.round((currentStep.value / (steps.value.length - 1)) * 100);
+});
 
 const isFirstStep = computed<boolean>(() => {
-  return currentStep.value <= 0
-})
+  return currentStep.value <= 0;
+});
 
 const isLastStep = computed<boolean>(() => {
-  return (
-    steps.value.length > 0 &&
-    currentStep.value >=
-      steps.value.length - 1
-  )
-})
+  return steps.value.length > 0 && currentStep.value >= steps.value.length - 1;
+});
 
 const statusLabel = computed<string>(() => {
   switch (status.value) {
-    case 'running':
-      return 'Running'
+    case "running":
+      return "Running";
 
-    case 'paused':
-      return 'Paused'
+    case "paused":
+      return "Paused";
 
-    case 'completed':
-      return 'Completed'
+    case "completed":
+      return "Completed";
 
     default:
-      return 'Ready'
+      return "Ready";
   }
-})
+});
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
 function isComparing(index: number): boolean {
-  return currentComparing.value.includes(index)
+  return currentComparing.value.includes(index);
 }
 
 function isSwapping(index: number): boolean {
-  return currentSwapping.value.includes(index)
+  return currentSwapping.value.includes(index);
 }
 
 function isSorted(index: number): boolean {
-  return currentSorted.value.includes(index)
+  return currentSorted.value.includes(index);
 }
 
 function isMinimum(index: number): boolean {
@@ -349,26 +318,20 @@ function isMinimum(index: number): boolean {
     currentMinimumIndex.value === index &&
     !isSwapping(index) &&
     !isSorted(index)
-  )
+  );
 }
 
 function isCurrent(index: number): boolean {
-  return (
-    currentIndex.value === index &&
-    !isSorted(index)
-  )
+  return currentIndex.value === index && !isSorted(index);
 }
 
 function getBarHeight(value: number): string {
-  const maxHeight = 280
-  const maxValue = 100
+  const maxHeight = 280;
+  const maxValue = 100;
 
-  const height = Math.max(
-    (value / maxValue) * maxHeight,
-    35,
-  )
+  const height = Math.max((value / maxValue) * maxHeight, 35);
 
-  return `${height}px`
+  return `${height}px`;
 }
 
 /* =========================================================
@@ -376,149 +339,141 @@ function getBarHeight(value: number): string {
 ========================================================= */
 
 function initializeSimulation(): void {
-  stopTimer()
+  stopTimer();
 
-  steps.value = generateSelectionSortSteps(
-    values.value,
-  )
+  steps.value = generateSelectionSortSteps(values.value);
 
-  currentStep.value = 0
+  currentStep.value = 0;
 
-  status.value = 'idle'
+  status.value = "idle";
 }
 
 function reset(): void {
-  stopTimer()
+  stopTimer();
 
-  values.value = [...initialValues]
+  values.value = [...initialValues];
 
-  steps.value = generateSelectionSortSteps(
-    values.value,
-  )
+  steps.value = generateSelectionSortSteps(values.value);
 
-  currentStep.value = 0
+  currentStep.value = 0;
 
-  status.value = 'idle'
+  status.value = "idle";
 }
 
 function randomize(): void {
-  stopTimer()
+  stopTimer();
 
-  const generated: number[] = []
+  const generated: number[] = [];
 
   for (let i = 0; i < 8; i++) {
-    generated.push(
-      Math.floor(Math.random() * 90) + 10,
-    )
+    generated.push(Math.floor(Math.random() * 90) + 10);
   }
 
-  values.value = generated
+  values.value = generated;
 
-  steps.value = generateSelectionSortSteps(
-    generated,
-  )
+  steps.value = generateSelectionSortSteps(generated);
 
-  currentStep.value = 0
+  currentStep.value = 0;
 
-  status.value = 'idle'
+  status.value = "idle";
 }
 
 function goToNextStep(): void {
   if (steps.value.length === 0) {
-    return
+    return;
   }
 
   if (isLastStep.value) {
-    status.value = 'completed'
+    status.value = "completed";
 
-    stopTimer()
+    stopTimer();
 
-    return
+    return;
   }
 
-  currentStep.value += 1
+  currentStep.value += 1;
 
   if (isLastStep.value) {
-    status.value = 'completed'
+    status.value = "completed";
 
-    stopTimer()
+    stopTimer();
   }
 }
 
 function goToPreviousStep(): void {
   if (steps.value.length === 0) {
-    return
+    return;
   }
 
   if (isFirstStep.value) {
-    return
+    return;
   }
 
-  stopTimer()
+  stopTimer();
 
-  currentStep.value -= 1
+  currentStep.value -= 1;
 
-  status.value = 'paused'
+  status.value = "paused";
 }
 
 function play(): void {
   if (steps.value.length === 0) {
-    initializeSimulation()
+    initializeSimulation();
   }
 
   /*
    * Nếu đã hoàn thành → chạy lại từ đầu
    */
   if (isLastStep.value) {
-    currentStep.value = 0
+    currentStep.value = 0;
   }
 
-  status.value = 'running'
+  status.value = "running";
 
-  scheduleNextStep()
+  scheduleNextStep();
 }
 
 function pause(): void {
-  status.value = 'paused'
+  status.value = "paused";
 
-  stopTimer()
+  stopTimer();
 }
 
 function togglePlay(): void {
-  if (status.value === 'running') {
-    pause()
+  if (status.value === "running") {
+    pause();
   } else {
-    play()
+    play();
   }
 }
 
 function scheduleNextStep(): void {
-  stopTimer()
+  stopTimer();
 
-  if (status.value !== 'running') {
-    return
+  if (status.value !== "running") {
+    return;
   }
 
   if (isLastStep.value) {
-    status.value = 'completed'
+    status.value = "completed";
 
-    return
+    return;
   }
 
   timer = setTimeout(() => {
-    goToNextStep()
+    goToNextStep();
 
-    if (status.value === 'running') {
-      scheduleNextStep()
+    if (status.value === "running") {
+      scheduleNextStep();
     }
-  }, speed.value)
+  }, speed.value);
 }
 
 function stopTimer(): void {
   if (timer !== null) {
-    clearTimeout(timer)
+    clearTimeout(timer);
 
-    timer = null
+    timer = null;
   }
 }
 
@@ -527,18 +482,18 @@ function stopTimer(): void {
 ========================================================= */
 
 watch(speed, () => {
-  if (status.value === 'running') {
-    scheduleNextStep()
+  if (status.value === "running") {
+    scheduleNextStep();
   }
-})
+});
 
 onMounted(() => {
-  initializeSimulation()
-})
+  initializeSimulation();
+});
 
 onBeforeUnmount(() => {
-  stopTimer()
-})
+  stopTimer();
+});
 </script>
 
 <template>
@@ -552,14 +507,13 @@ onBeforeUnmount(() => {
 
     <AlgorithmNavigation />
 
-    <main
-      class="mx-auto max-w-7xl space-y-8 px-6 py-8 lg:py-10"
-    >
+    <main class="mx-auto max-w-7xl space-y-8 px-6 py-8 lg:py-10">
       <!-- ===================================================
            HERO
       ==================================================== -->
 
-      <section id="overview"
+      <section
+        id="overview"
         class="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-7 lg:p-10"
       >
         <div
@@ -570,20 +524,18 @@ onBeforeUnmount(() => {
           <div
             class="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-500/20 bg-purple-500/10 px-3 py-1.5 text-xs font-bold text-purple-400"
           >
-            <span
-              class="h-1.5 w-1.5 rounded-full bg-purple-400"
-            />
+            <span class="h-1.5 w-1.5 rounded-full bg-purple-400" />
 
             SORTING ALGORITHM
           </div>
 
-          <h2
-            class="text-4xl font-black tracking-tight text-white sm:text-5xl"
-          >
+          <h2 class="text-4xl font-black tracking-tight text-white sm:text-5xl">
             Selection Sort
           </h2>
           <nav class="algorithm-section-links" aria-label="Điều hướng nội dung">
-            <a href="#simulation" class="algorithm-section-links__primary">Bắt đầu mô phỏng <span aria-hidden="true">↓</span></a>
+            <a href="#simulation" class="algorithm-section-links__primary"
+              >Bắt đầu mô phỏng <span aria-hidden="true">↓</span></a
+            >
             <a href="#introduction">Tổng quan</a>
             <a href="#pseudocode">Mã giả &amp; độ phức tạp</a>
             <a href="#implementation">Mã PHP</a>
@@ -592,9 +544,8 @@ onBeforeUnmount(() => {
           <p
             class="mt-5 max-w-3xl text-base leading-8 text-slate-400 sm:text-lg"
           >
-            Thuật toán Selection Sort liên tục tìm
-            phần tử nhỏ nhất trong phần chưa được
-            sắp xếp và đưa nó về đúng vị trí.
+            Thuật toán Selection Sort liên tục tìm phần tử nhỏ nhất trong phần
+            chưa được sắp xếp và đưa nó về đúng vị trí.
           </p>
         </div>
       </section>
@@ -603,53 +554,36 @@ onBeforeUnmount(() => {
            INTRODUCTION
       ==================================================== -->
 
-      <section id="introduction"
+      <section
+        id="introduction"
         class="rounded-3xl border border-slate-800 bg-slate-900 p-6 lg:p-8"
       >
-        <div
-          class="mb-6 flex items-center gap-3"
-        >
-          <div
-            class="h-8 w-1 rounded-full bg-purple-500"
-          />
+        <div class="mb-6 flex items-center gap-3">
+          <div class="h-8 w-1 rounded-full bg-purple-500" />
 
-          <h3
-            class="text-xl font-black text-white"
-          >
-            Giới thiệu thuật toán
-          </h3>
+          <h3 class="text-xl font-black text-white">Giới thiệu thuật toán</h3>
         </div>
 
-        <div
-          class="grid gap-8 lg:grid-cols-2"
-        >
-          <div
-            class="space-y-4 text-sm leading-7 text-slate-400"
-          >
+        <div class="grid gap-8 lg:grid-cols-2">
+          <div class="space-y-4 text-sm leading-7 text-slate-400">
             <p>
-              Selection Sort chia mảng thành hai
-              phần: phần đã được sắp xếp và phần
-              chưa được sắp xếp.
+              Selection Sort chia mảng thành hai phần: phần đã được sắp xếp và
+              phần chưa được sắp xếp.
             </p>
 
             <p>
               Ở mỗi vòng lặp, thuật toán tìm phần tử
-              <strong class="text-white">
-                nhỏ nhất
-              </strong>
+              <strong class="text-white"> nhỏ nhất </strong>
               trong phần chưa được sắp xếp.
             </p>
 
             <p>
-              Sau đó phần tử nhỏ nhất được swap với
-              phần tử đầu tiên của vùng chưa được
-              sắp xếp.
+              Sau đó phần tử nhỏ nhất được swap với phần tử đầu tiên của vùng
+              chưa được sắp xếp.
             </p>
           </div>
 
-          <div
-            class="rounded-2xl border border-slate-800 bg-slate-950 p-5"
-          >
+          <div class="rounded-2xl border border-slate-800 bg-slate-950 p-5">
             <div
               class="mb-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500"
             >
@@ -673,9 +607,7 @@ onBeforeUnmount(() => {
                   {{ index + 1 }}
                 </span>
 
-                <span
-                  class="text-sm text-slate-400"
-                >
+                <span class="text-sm text-slate-400">
                   {{ text }}
                 </span>
               </div>
@@ -688,108 +620,60 @@ onBeforeUnmount(() => {
            USE CASES
       ==================================================== -->
 
-      <section id="applications"
-        class="grid gap-5 md:grid-cols-2"
-      >
+      <section id="applications" class="grid gap-5 md:grid-cols-2">
         <div
           class="rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.08] to-slate-900 p-6"
         >
-          <div
-            class="flex items-center gap-3"
-          >
+          <div class="flex items-center gap-3">
             <div
               class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10"
             >
-              <Check
-                class="h-5 w-5 text-emerald-400"
-              />
+              <Check class="h-5 w-5 text-emerald-400" />
             </div>
 
             <div>
-              <h3
-                class="font-bold text-emerald-400"
-              >
-                Khi nào nên sử dụng?
-              </h3>
+              <h3 class="font-bold text-emerald-400">Khi nào nên sử dụng?</h3>
 
-              <p
-                class="text-xs text-slate-600"
-              >
-                Good use cases
-              </p>
+              <p class="text-xs text-slate-600">Good use cases</p>
             </div>
           </div>
 
-          <ul
-            class="mt-6 space-y-3 text-sm text-slate-400"
-          >
-            <li>
-              • Học và minh họa sorting.
-            </li>
+          <ul class="mt-6 space-y-3 text-sm text-slate-400">
+            <li>• Học và minh họa sorting.</li>
 
-            <li>
-              • Dataset nhỏ.
-            </li>
+            <li>• Dataset nhỏ.</li>
 
-            <li>
-              • Muốn số lần swap thấp.
-            </li>
+            <li>• Muốn số lần swap thấp.</li>
 
-            <li>
-              • Cần implementation đơn giản.
-            </li>
+            <li>• Cần implementation đơn giản.</li>
           </ul>
         </div>
 
         <div
           class="rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.08] to-slate-900 p-6"
         >
-          <div
-            class="flex items-center gap-3"
-          >
+          <div class="flex items-center gap-3">
             <div
               class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10"
             >
-              <span
-                class="text-lg font-black text-red-400"
-              >
-                ×
-              </span>
+              <span class="text-lg font-black text-red-400"> × </span>
             </div>
 
             <div>
-              <h3
-                class="font-bold text-red-400"
-              >
-                Khi nào không nên sử dụng?
-              </h3>
+              <h3 class="font-bold text-red-400">Khi nào không nên sử dụng?</h3>
 
-              <p
-                class="text-xs text-slate-600"
-              >
-                Avoid when
-              </p>
+              <p class="text-xs text-slate-600">Avoid when</p>
             </div>
           </div>
 
-          <ul
-            class="mt-6 space-y-3 text-sm text-slate-400"
-          >
-            <li>
-              • Dataset lớn.
-            </li>
+          <ul class="mt-6 space-y-3 text-sm text-slate-400">
+            <li>• Dataset lớn.</li>
 
-            <li>
-              • Yêu cầu performance cao.
-            </li>
+            <li>• Yêu cầu performance cao.</li>
 
-            <li>
-              • Hàng triệu phần tử.
-            </li>
+            <li>• Hàng triệu phần tử.</li>
 
-            <li>
-              • Cần thuật toán O(n log n).
-            </li>
+            <li>• Cần thuật toán O(n log n).</li>
           </ul>
         </div>
       </section>
@@ -798,7 +682,8 @@ onBeforeUnmount(() => {
            Mô phỏng tương tác
       ==================================================== -->
 
-      <section id="simulation"
+      <section
+        id="simulation"
         class="relative overflow-hidden rounded-3xl border border-purple-500/20 bg-slate-900 shadow-2xl shadow-purple-950/20"
       >
         <div
@@ -814,18 +699,12 @@ onBeforeUnmount(() => {
         <div
           class="relative border-b border-slate-800 bg-slate-900/90 px-6 py-5"
         >
-          <div
-            class="flex flex-wrap items-center justify-between gap-5"
-          >
-            <div
-              class="flex items-center gap-4"
-            >
+          <div class="flex flex-wrap items-center justify-between gap-5">
+            <div class="flex items-center gap-4">
               <div
                 class="flex h-12 w-12 items-center justify-center rounded-2xl border border-purple-400/20 bg-purple-500/10"
               >
-                <span
-                  class="relative flex h-3 w-3"
-                >
+                <span class="relative flex h-3 w-3">
                   <span
                     v-if="status === 'running'"
                     class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"
@@ -834,27 +713,19 @@ onBeforeUnmount(() => {
                   <span
                     class="relative inline-flex h-3 w-3 rounded-full"
                     :class="{
-                      'bg-emerald-400':
-                        status === 'running',
+                      'bg-emerald-400': status === 'running',
 
-                      'bg-purple-400':
-                        status === 'completed',
+                      'bg-purple-400': status === 'completed',
 
-                      'bg-slate-500':
-                        status === 'idle' ||
-                        status === 'paused',
+                      'bg-slate-500': status === 'idle' || status === 'paused',
                     }"
                   />
                 </span>
               </div>
 
               <div>
-                <div
-                  class="flex flex-wrap items-center gap-3"
-                >
-                  <h3
-                    class="text-xl font-black tracking-tight text-white"
-                  >
+                <div class="flex flex-wrap items-center gap-3">
+                  <h3 class="text-xl font-black tracking-tight text-white">
                     Mô phỏng tương tác
                   </h3>
 
@@ -878,11 +749,8 @@ onBeforeUnmount(() => {
                   </span>
                 </div>
 
-                <p
-                  class="mt-1 text-sm text-slate-500"
-                >
-                  Theo dõi quá trình tìm minimum
-                  và đưa nó về đúng vị trí.
+                <p class="mt-1 text-sm text-slate-500">
+                  Theo dõi quá trình tìm minimum và đưa nó về đúng vị trí.
                 </p>
               </div>
             </div>
@@ -896,18 +764,12 @@ onBeforeUnmount(() => {
                 Current Step
               </div>
 
-              <div
-                class="mt-1 flex items-baseline gap-1"
-              >
-                <span
-                  class="text-2xl font-black text-white"
-                >
+              <div class="mt-1 flex items-baseline gap-1">
+                <span class="text-2xl font-black text-white">
                   {{ currentStep + 1 }}
                 </span>
 
-                <span
-                  class="text-sm text-slate-600"
-                >
+                <span class="text-sm text-slate-600">
                   / {{ steps.length }}
                 </span>
               </div>
@@ -917,9 +779,7 @@ onBeforeUnmount(() => {
 
         <!-- Progress -->
 
-        <div
-          class="relative h-1 bg-slate-800"
-        >
+        <div class="relative h-1 bg-slate-800">
           <div
             class="h-full bg-gradient-to-r from-purple-500 via-fuchsia-400 to-emerald-400 transition-all duration-300"
             :style="{
@@ -930,9 +790,7 @@ onBeforeUnmount(() => {
 
         <!-- Body -->
 
-        <div
-          class="relative p-6 lg:p-8"
-        >
+        <div class="relative p-6 lg:p-8">
           <!-- Current operation -->
 
           <div
@@ -951,9 +809,7 @@ onBeforeUnmount(() => {
                 Current Operation
               </div>
 
-              <p
-                class="mt-1 text-base font-medium leading-7 text-slate-200"
-              >
+              <p class="mt-1 text-base font-medium leading-7 text-slate-200">
                 {{ currentDescription }}
               </p>
             </div>
@@ -968,8 +824,15 @@ onBeforeUnmount(() => {
               class="pointer-events-none absolute inset-0 opacity-[0.035]"
               style="
                 background-image:
-                  linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px);
+                  linear-gradient(
+                    rgba(255, 255, 255, 0.5) 1px,
+                    transparent 1px
+                  ),
+                  linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.5) 1px,
+                    transparent 1px
+                  );
                 background-size: 32px 32px;
               "
             />
@@ -987,38 +850,23 @@ onBeforeUnmount(() => {
                 <div
                   class="mb-2 h-5 text-[9px] font-black uppercase tracking-wider"
                 >
-                  <span
-                    v-if="isSwapping(index)"
-                    class="text-amber-400"
-                  >
+                  <span v-if="isSwapping(index)" class="text-amber-400">
                     SWAP
                   </span>
 
-                  <span
-                    v-else-if="isMinimum(index)"
-                    class="text-fuchsia-400"
-                  >
+                  <span v-else-if="isMinimum(index)" class="text-fuchsia-400">
                     MIN
                   </span>
 
-                  <span
-                    v-else-if="isComparing(index)"
-                    class="text-blue-400"
-                  >
+                  <span v-else-if="isComparing(index)" class="text-blue-400">
                     COMPARE
                   </span>
 
-                  <span
-                    v-else-if="isSorted(index)"
-                    class="text-emerald-400"
-                  >
+                  <span v-else-if="isSorted(index)" class="text-emerald-400">
                     SORTED
                   </span>
 
-                  <span
-                    v-else-if="isCurrent(index)"
-                    class="text-purple-400"
-                  >
+                  <span v-else-if="isCurrent(index)" class="text-purple-400">
                     CURRENT
                   </span>
                 </div>
@@ -1028,17 +876,13 @@ onBeforeUnmount(() => {
                 <div
                   class="mb-2 text-sm font-black transition-all duration-300 sm:text-base"
                   :class="{
-                    'scale-125 text-amber-400':
-                      isSwapping(index),
+                    'scale-125 text-amber-400': isSwapping(index),
 
-                    'scale-125 text-fuchsia-400':
-                      isMinimum(index),
+                    'scale-125 text-fuchsia-400': isMinimum(index),
 
-                    'scale-125 text-blue-400':
-                      isComparing(index),
+                    'scale-125 text-blue-400': isComparing(index),
 
-                    'text-emerald-400':
-                      isSorted(index),
+                    'text-emerald-400': isSorted(index),
 
                     'text-purple-400':
                       isCurrent(index) &&
@@ -1089,9 +933,7 @@ onBeforeUnmount(() => {
                     height: getBarHeight(value),
                   }"
                 >
-                  <div
-                    class="absolute inset-x-0 top-0 h-px bg-white/30"
-                  />
+                  <div class="absolute inset-x-0 top-0 h-px bg-white/30" />
                 </div>
 
                 <!-- Index -->
@@ -1110,42 +952,26 @@ onBeforeUnmount(() => {
           <div
             class="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-3"
           >
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-blue-400"
-              />
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="h-2.5 w-2.5 rounded-full bg-blue-400" />
 
               Comparing
             </div>
 
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-fuchsia-400"
-              />
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="h-2.5 w-2.5 rounded-full bg-fuchsia-400" />
 
               Minimum
             </div>
 
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-amber-400"
-              />
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="h-2.5 w-2.5 rounded-full bg-amber-400" />
 
               Swapping
             </div>
 
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-emerald-400"
-              />
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="h-2.5 w-2.5 rounded-full bg-emerald-400" />
 
               Sorted
             </div>
@@ -1154,25 +980,15 @@ onBeforeUnmount(() => {
           <!-- Progress -->
 
           <div class="mt-7">
-            <div
-              class="mb-2 flex justify-between text-xs"
-            >
-              <span
-                class="font-medium text-slate-500"
-              >
+            <div class="mb-2 flex justify-between text-xs">
+              <span class="font-medium text-slate-500">
                 Simulation Progress
               </span>
 
-              <span
-                class="font-bold text-slate-300"
-              >
-                {{ progress }}%
-              </span>
+              <span class="font-bold text-slate-300"> {{ progress }}% </span>
             </div>
 
-            <div
-              class="h-1.5 overflow-hidden rounded-full bg-slate-800"
-            >
+            <div class="h-1.5 overflow-hidden rounded-full bg-slate-800">
               <div
                 class="h-full rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-400 transition-all duration-300"
                 :style="{
@@ -1187,9 +1003,7 @@ onBeforeUnmount(() => {
           <div
             class="algorithm-simulation-controls mt-8 flex flex-col gap-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-5"
           >
-            <div
-              class="flex flex-wrap items-center justify-center gap-2"
-            >
+            <div class="flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
                 :disabled="isFirstStep"
@@ -1205,33 +1019,25 @@ onBeforeUnmount(() => {
                 type="button"
                 class="group relative flex h-12 items-center gap-2 overflow-hidden rounded-2xl px-7 font-bold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 :style="{
-                    background:
+                  background:
                     'linear-gradient(100deg, #8b3df0 0%, #6366f1 45%, #45d9d2 100%)',
-                    boxShadow:
-                    '0 8px 24px rgba(99, 102, 241, 0.35)',
+                  boxShadow: '0 8px 24px rgba(99, 102, 241, 0.35)',
                 }"
                 @click="togglePlay"
-                >
+              >
                 <span
-                    class="absolute inset-0 bg-white/0 transition-all duration-200 group-hover:bg-white/10"
+                  class="absolute inset-0 bg-white/0 transition-all duration-200 group-hover:bg-white/10"
                 />
 
                 <Pause
-                    v-if="status === 'running'"
-                    class="relative z-10 h-4 w-4"
+                  v-if="status === 'running'"
+                  class="relative z-10 h-4 w-4"
                 />
 
-                <Play
-                    v-else
-                    class="relative z-10 h-4 w-4 fill-current"
-                />
+                <Play v-else class="relative z-10 h-4 w-4 fill-current" />
 
                 <span class="relative z-10">
-                    {{
-                    status === 'running'
-                        ? 'Pause'
-                        : 'Play Simulation'
-                    }}
+                  {{ status === "running" ? "Pause" : "Play Simulation" }}
                 </span>
               </button>
 
@@ -1269,12 +1075,8 @@ onBeforeUnmount(() => {
 
             <!-- Speed -->
 
-            <div
-              class="mx-auto w-full max-w-xl"
-            >
-              <div
-                class="mb-3 flex items-center justify-between"
-              >
+            <div class="mx-auto w-full max-w-xl">
+              <div class="mb-3 flex items-center justify-between">
                 <span
                   class="text-xs font-bold uppercase tracking-wider text-slate-600"
                 >
@@ -1313,9 +1115,7 @@ onBeforeUnmount(() => {
            Mã giả + Độ phức tạp
       ==================================================== -->
 
-      <section id="pseudocode"
-        class="grid gap-6 lg:grid-cols-5"
-      >
+      <section id="pseudocode" class="grid gap-6 lg:grid-cols-5">
         <!-- Pseudocode -->
 
         <div
@@ -1324,29 +1124,19 @@ onBeforeUnmount(() => {
           <div
             class="flex items-center justify-between border-b border-slate-800 px-6 py-5"
           >
-            <div
-              class="flex items-center gap-4"
-            >
+            <div class="flex items-center gap-4">
               <div
                 class="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-500/20 bg-violet-500/10"
               >
-                <span
-                  class="font-mono text-lg font-black text-violet-400"
-                >
+                <span class="font-mono text-lg font-black text-violet-400">
                   &lt;/&gt;
                 </span>
               </div>
 
               <div>
-                <h3
-                  class="text-lg font-black text-white"
-                >
-                  Mã giả
-                </h3>
+                <h3 class="text-lg font-black text-white">Mã giả</h3>
 
-                <p
-                  class="mt-0.5 text-xs text-slate-500"
-                >
+                <p class="mt-0.5 text-xs text-slate-500">
                   Logic từng bước của Selection Sort
                 </p>
               </div>
@@ -1360,21 +1150,13 @@ onBeforeUnmount(() => {
               <div
                 class="flex items-center gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-3"
               >
-                <span
-                  class="h-2.5 w-2.5 rounded-full bg-red-400/70"
-                />
+                <span class="h-2.5 w-2.5 rounded-full bg-red-400/70" />
 
-                <span
-                  class="h-2.5 w-2.5 rounded-full bg-amber-400/70"
-                />
+                <span class="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
 
-                <span
-                  class="h-2.5 w-2.5 rounded-full bg-emerald-400/70"
-                />
+                <span class="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
 
-                <span
-                  class="ml-3 font-mono text-[10px] text-slate-600"
-                >
+                <span class="ml-3 font-mono text-[10px] text-slate-600">
                   selection-sort.pseudo
                 </span>
               </div>
@@ -1407,13 +1189,9 @@ onBeforeUnmount(() => {
                 How to read this
               </div>
 
-              <p
-                class="mt-2 text-sm leading-6 text-slate-400"
-              >
-                Selection Sort không swap sau mỗi
-                lần compare. Nó chỉ ghi nhớ vị trí
-                minimum và swap một lần khi kết thúc
-                mỗi vòng.
+              <p class="mt-2 text-sm leading-6 text-slate-400">
+                Selection Sort không swap sau mỗi lần compare. Nó chỉ ghi nhớ vị
+                trí minimum và swap một lần khi kết thúc mỗi vòng.
               </p>
             </div>
           </div>
@@ -1428,49 +1206,33 @@ onBeforeUnmount(() => {
             class="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl"
           />
 
-          <div
-            class="relative border-b border-slate-800 px-6 py-5"
-          >
-            <div
-              class="flex items-center gap-4"
-            >
+          <div class="relative border-b border-slate-800 px-6 py-5">
+            <div class="flex items-center gap-4">
               <div
                 class="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10"
               >
-                <span
-                  class="font-mono text-xl font-black text-emerald-400"
-                >
+                <span class="font-mono text-xl font-black text-emerald-400">
                   O
                 </span>
               </div>
 
               <div>
-                <h3
-                  class="text-lg font-black text-white"
-                >
-                  Độ phức tạp
-                </h3>
+                <h3 class="text-lg font-black text-white">Độ phức tạp</h3>
 
-                <p
-                  class="mt-0.5 text-xs text-slate-500"
-                >
+                <p class="mt-0.5 text-xs text-slate-500">
                   Performance analysis
                 </p>
               </div>
             </div>
           </div>
 
-          <div
-            class="relative grid gap-3 p-5"
-          >
+          <div class="relative grid gap-3 p-5">
             <!-- BEST -->
 
             <div
               class="group rounded-2xl border border-red-500/10 bg-red-500/[0.04] p-4 transition hover:border-red-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -1484,25 +1246,16 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-red-400"
-              >
+              <div class="mt-2 text-3xl font-black text-red-400">
                 {{ complexity.best }}
               </div>
 
-              <div
-                class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800"
-              >
-                <div
-                  class="h-full w-full rounded-full bg-red-400"
-                />
+              <div class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800">
+                <div class="h-full w-full rounded-full bg-red-400" />
               </div>
 
-              <p
-                class="mt-3 text-xs leading-5 text-slate-600"
-              >
-                Vẫn phải tìm minimum trong toàn bộ
-                phần chưa được sắp xếp.
+              <p class="mt-3 text-xs leading-5 text-slate-600">
+                Vẫn phải tìm minimum trong toàn bộ phần chưa được sắp xếp.
               </p>
             </div>
 
@@ -1511,9 +1264,7 @@ onBeforeUnmount(() => {
             <div
               class="group rounded-2xl border border-amber-500/10 bg-amber-500/[0.04] p-4 transition hover:border-amber-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -1527,18 +1278,12 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-amber-400"
-              >
+              <div class="mt-2 text-3xl font-black text-amber-400">
                 {{ complexity.average }}
               </div>
 
-              <div
-                class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800"
-              >
-                <div
-                  class="h-full w-full rounded-full bg-amber-400"
-                />
+              <div class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800">
+                <div class="h-full w-full rounded-full bg-amber-400" />
               </div>
             </div>
 
@@ -1547,9 +1292,7 @@ onBeforeUnmount(() => {
             <div
               class="group rounded-2xl border border-red-500/10 bg-red-500/[0.04] p-4 transition hover:border-red-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -1563,18 +1306,12 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-red-400"
-              >
+              <div class="mt-2 text-3xl font-black text-red-400">
                 {{ complexity.worst }}
               </div>
 
-              <div
-                class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800"
-              >
-                <div
-                  class="h-full w-full rounded-full bg-red-400"
-                />
+              <div class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800">
+                <div class="h-full w-full rounded-full bg-red-400" />
               </div>
             </div>
 
@@ -1583,9 +1320,7 @@ onBeforeUnmount(() => {
             <div
               class="group rounded-2xl border border-blue-500/10 bg-blue-500/[0.04] p-4 transition hover:border-blue-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -1599,24 +1334,16 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-blue-400"
-              >
+              <div class="mt-2 text-3xl font-black text-blue-400">
                 {{ complexity.space }}
               </div>
 
-              <div
-                class="mt-3 flex gap-1"
-              >
+              <div class="mt-3 flex gap-1">
                 <span
                   v-for="index in 10"
                   :key="index"
                   class="h-1.5 flex-1 rounded-full"
-                  :class="
-                    index <= 2
-                      ? 'bg-blue-400'
-                      : 'bg-slate-800'
-                  "
+                  :class="index <= 2 ? 'bg-blue-400' : 'bg-slate-800'"
                 />
               </div>
             </div>
@@ -1625,28 +1352,16 @@ onBeforeUnmount(() => {
           <div
             class="relative mx-5 mb-5 rounded-2xl border border-slate-800 bg-slate-950/60 p-4"
           >
-            <div
-              class="flex items-start gap-3"
-            >
-              <div
-                class="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-400"
-              />
+            <div class="flex items-start gap-3">
+              <div class="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-400" />
 
-              <p
-                class="text-xs leading-5 text-slate-500"
-              >
+              <p class="text-xs leading-5 text-slate-500">
                 Selection Sort sử dụng
-                <span
-                  class="font-semibold text-slate-300"
-                >
+                <span class="font-semibold text-slate-300">
                   O(1) auxiliary space
                 </span>
                 vì thuật toán thực hiện sorting
-                <span
-                  class="font-semibold text-slate-300"
-                >
-                  in-place
-                </span>
+                <span class="font-semibold text-slate-300"> in-place </span>
                 và chỉ cần một biến tạm cho việc swap.
               </p>
             </div>
@@ -1658,35 +1373,26 @@ onBeforeUnmount(() => {
            PHP
       ==================================================== -->
 
-      <section id="implementation"
+      <section
+        id="implementation"
         class="overflow-hidden rounded-3xl border border-indigo-500/20 bg-slate-900 shadow-xl shadow-indigo-950/10"
       >
         <div
           class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-5"
         >
-          <div
-            class="flex items-center gap-4"
-          >
+          <div class="flex items-center gap-4">
             <div
               class="flex h-11 w-11 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-500/10"
             >
-              <span
-                class="font-mono text-sm font-black text-indigo-400"
-              >
+              <span class="font-mono text-sm font-black text-indigo-400">
                 PHP
               </span>
             </div>
 
             <div>
-              <h3
-                class="text-lg font-black text-white"
-              >
-                Cài đặt bằng PHP
-              </h3>
+              <h3 class="text-lg font-black text-white">Cài đặt bằng PHP</h3>
 
-              <p
-                class="mt-0.5 text-xs text-slate-500"
-              >
+              <p class="mt-0.5 text-xs text-slate-500">
                 Implementation tương đương trong PHP
               </p>
             </div>
@@ -1706,21 +1412,13 @@ onBeforeUnmount(() => {
             <div
               class="flex items-center gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-3"
             >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-red-400/70"
-              />
+              <span class="h-2.5 w-2.5 rounded-full bg-red-400/70" />
 
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-amber-400/70"
-              />
+              <span class="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
 
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-emerald-400/70"
-              />
+              <span class="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
 
-              <span
-                class="ml-3 font-mono text-[10px] text-slate-600"
-              >
+              <span class="ml-3 font-mono text-[10px] text-slate-600">
                 SelectionSort.php
               </span>
             </div>
@@ -1759,52 +1457,33 @@ onBeforeUnmount(() => {
            EXPLANATION
       ==================================================== -->
 
-      <section id="explanation"
+      <section
+        id="explanation"
         class="rounded-3xl border border-slate-800 bg-slate-900 p-6 lg:p-8"
       >
-        <div
-          class="mb-5 flex items-center gap-3"
-        >
-          <div
-            class="h-8 w-1 rounded-full bg-cyan-400"
-          />
+        <div class="mb-5 flex items-center gap-3">
+          <div class="h-8 w-1 rounded-full bg-cyan-400" />
 
-          <h3
-            class="text-xl font-black text-white"
-          >
+          <h3 class="text-xl font-black text-white">
             Selection Sort hoạt động như thế nào?
           </h3>
         </div>
 
-        <p
-          class="max-w-4xl text-sm leading-7 text-slate-400"
-        >
-          Mỗi vòng lặp sẽ tìm phần tử nhỏ nhất
-          trong vùng chưa được sắp xếp. Sau khi tìm
-          được minimum, thuật toán đưa nó về đầu
-          vùng chưa sort. Vị trí đó sau đó được đánh
-          dấu là
-          <strong class="text-emerald-400">
-            SORTED
-          </strong>
+        <p class="max-w-4xl text-sm leading-7 text-slate-400">
+          Mỗi vòng lặp sẽ tìm phần tử nhỏ nhất trong vùng chưa được sắp xếp. Sau
+          khi tìm được minimum, thuật toán đưa nó về đầu vùng chưa sort. Vị trí
+          đó sau đó được đánh dấu là
+          <strong class="text-emerald-400"> SORTED </strong>
           và không bị thay đổi nữa.
         </p>
 
-        <div
-          class="mt-7 grid gap-4 md:grid-cols-4"
-        >
+        <div class="mt-7 grid gap-4 md:grid-cols-4">
           <div
             class="rounded-2xl border border-purple-500/10 bg-purple-500/[0.04] p-5"
           >
-            <div
-              class="text-sm font-black text-purple-400"
-            >
-              01 — Select
-            </div>
+            <div class="text-sm font-black text-purple-400">01 — Select</div>
 
-            <p
-              class="mt-2 text-xs leading-6 text-slate-500"
-            >
+            <p class="mt-2 text-xs leading-6 text-slate-500">
               Chọn vị trí đầu vùng chưa sort.
             </p>
           </div>
@@ -1812,15 +1491,9 @@ onBeforeUnmount(() => {
           <div
             class="rounded-2xl border border-fuchsia-500/10 bg-fuchsia-500/[0.04] p-5"
           >
-            <div
-              class="text-sm font-black text-fuchsia-400"
-            >
-              02 — Find Min
-            </div>
+            <div class="text-sm font-black text-fuchsia-400">02 — Find Min</div>
 
-            <p
-              class="mt-2 text-xs leading-6 text-slate-500"
-            >
+            <p class="mt-2 text-xs leading-6 text-slate-500">
               Tìm phần tử nhỏ nhất.
             </p>
           </div>
@@ -1828,15 +1501,9 @@ onBeforeUnmount(() => {
           <div
             class="rounded-2xl border border-amber-500/10 bg-amber-500/[0.04] p-5"
           >
-            <div
-              class="text-sm font-black text-amber-400"
-            >
-              03 — Swap
-            </div>
+            <div class="text-sm font-black text-amber-400">03 — Swap</div>
 
-            <p
-              class="mt-2 text-xs leading-6 text-slate-500"
-            >
+            <p class="mt-2 text-xs leading-6 text-slate-500">
               Đưa minimum về đúng vị trí.
             </p>
           </div>
@@ -1844,15 +1511,9 @@ onBeforeUnmount(() => {
           <div
             class="rounded-2xl border border-emerald-500/10 bg-emerald-500/[0.04] p-5"
           >
-            <div
-              class="text-sm font-black text-emerald-400"
-            >
-              04 — Sorted
-            </div>
+            <div class="text-sm font-black text-emerald-400">04 — Sorted</div>
 
-            <p
-              class="mt-2 text-xs leading-6 text-slate-500"
-            >
+            <p class="mt-2 text-xs leading-6 text-slate-500">
               Cố định phần tử và chuyển sang vị trí tiếp theo.
             </p>
           </div>

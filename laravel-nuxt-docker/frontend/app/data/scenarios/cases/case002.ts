@@ -1,7 +1,7 @@
-import type { Scenario } from '~/types/games/detective'
+import type { Scenario } from "~/types/games/detective";
 
 const case002: Scenario = {
-  id: 'case002',
+  id: "case002",
 
   /*
    * --------------------------------------------------
@@ -10,19 +10,17 @@ const case002: Scenario = {
    */
 
   title: {
-    en: 'CASE 002 — THE MIDNIGHT TRANSFER',
-    vi: 'VỤ ÁN 002 — VỤ CHUYỂN GIAO LÚC NỬA ĐÊM',
+    en: "CASE 002 — THE MIDNIGHT TRANSFER",
+    vi: "VỤ ÁN 002 — VỤ CHUYỂN GIAO LÚC NỬA ĐÊM",
   },
 
   description: {
-    en:
-      'A suspicious data transfer occurred at 00:17. Investigate the workstation and determine who accessed the confidential files.',
+    en: "A suspicious data transfer occurred at 00:17. Investigate the workstation and determine who accessed the confidential files.",
 
-    vi:
-      'Một vụ chuyển dữ liệu đáng ngờ xảy ra lúc 00:17. Hãy điều tra máy trạm và xác định ai đã truy cập các tệp bảo mật.',
+    vi: "Một vụ chuyển dữ liệu đáng ngờ xảy ra lúc 00:17. Hãy điều tra máy trạm và xác định ai đã truy cập các tệp bảo mật.",
   },
 
-  initialDirectory: '/',
+  initialDirectory: "/",
 
   /*
    * --------------------------------------------------
@@ -32,110 +30,110 @@ const case002: Scenario = {
 
   intro: {
     en: [
-      '========================================',
-      '          CASE 002',
-      '      THE MIDNIGHT TRANSFER',
-      '========================================',
-      '',
-      'Incident report:',
-      'A confidential company archive was accessed',
-      'shortly after midnight.',
-      '',
-      'The workstation was left unattended.',
-      'Your task is to reconstruct what happened.',
-      '',
-      'The evidence is hidden inside the filesystem.',
-      'Use terminal commands to investigate.',
-      '',
-      'Useful commands:',
-      'ls, cd, cat, find, pwd, history, hint',
+      "========================================",
+      "          CASE 002",
+      "      THE MIDNIGHT TRANSFER",
+      "========================================",
+      "",
+      "Incident report:",
+      "A confidential company archive was accessed",
+      "shortly after midnight.",
+      "",
+      "The workstation was left unattended.",
+      "Your task is to reconstruct what happened.",
+      "",
+      "The evidence is hidden inside the filesystem.",
+      "Use terminal commands to investigate.",
+      "",
+      "Useful commands:",
+      "ls, cd, cat, find, pwd, history, hint",
     ],
 
     vi: [
-      '========================================',
-      '          VỤ ÁN 002',
-      '      VỤ CHUYỂN GIAO LÚC NỬA ĐÊM',
-      '========================================',
-      '',
-      'Báo cáo sự việc:',
-      'Một kho lưu trữ bảo mật của công ty đã được truy cập',
-      'ngay sau nửa đêm.',
-      '',
-      'Máy trạm bị bỏ lại không có người giám sát.',
-      'Nhiệm vụ của bạn là tái dựng lại những gì đã xảy ra.',
-      '',
-      'Các bằng chứng được ẩn bên trong hệ thống tệp.',
-      'Sử dụng các lệnh terminal để điều tra.',
-      '',
-      'Các lệnh hữu ích:',
-      'ls, cd, cat, find, pwd, history, hint',
+      "========================================",
+      "          VỤ ÁN 002",
+      "      VỤ CHUYỂN GIAO LÚC NỬA ĐÊM",
+      "========================================",
+      "",
+      "Báo cáo sự việc:",
+      "Một kho lưu trữ bảo mật của công ty đã được truy cập",
+      "ngay sau nửa đêm.",
+      "",
+      "Máy trạm bị bỏ lại không có người giám sát.",
+      "Nhiệm vụ của bạn là tái dựng lại những gì đã xảy ra.",
+      "",
+      "Các bằng chứng được ẩn bên trong hệ thống tệp.",
+      "Sử dụng các lệnh terminal để điều tra.",
+      "",
+      "Các lệnh hữu ích:",
+      "ls, cd, cat, find, pwd, history, hint",
     ],
   },
 
   people: [
     {
-      id: 'alice-morgan',
-      name: 'Alice Morgan',
-      role: { en: 'Workstation owner', vi: 'Chủ máy trạm' },
+      id: "alice-morgan",
+      name: "Alice Morgan",
+      role: { en: "Workstation owner", vi: "Chủ máy trạm" },
       summary: {
-        en: 'Finance employee whose unattended workstation was used during the transfer.',
-        vi: 'Nhân viên tài chính có máy trạm bị sử dụng trong lúc không có người trông coi.',
+        en: "Finance employee whose unattended workstation was used during the transfer.",
+        vi: "Nhân viên tài chính có máy trạm bị sử dụng trong lúc không có người trông coi.",
       },
       details: [
         {
-          label: { en: 'Account activity', vi: 'Hoạt động tài khoản' },
+          label: { en: "Account activity", vi: "Hoạt động tài khoản" },
           value: {
-            en: 'The transfer occurred during Alice’s logged-in session, which does not by itself identify the operator.',
-            vi: 'Vụ chuyển dữ liệu xảy ra trong phiên đăng nhập của Alice, nhưng riêng điều đó chưa xác định được người thao tác.',
+            en: "The transfer occurred during Alice’s logged-in session, which does not by itself identify the operator.",
+            vi: "Vụ chuyển dữ liệu xảy ra trong phiên đăng nhập của Alice, nhưng riêng điều đó chưa xác định được người thao tác.",
           },
-          requiresEvidence: ['evidence-002-01'],
+          requiresEvidence: ["evidence-002-01"],
         },
         {
-          label: { en: 'Statement', vi: 'Lời khai' },
+          label: { en: "Statement", vi: "Lời khai" },
           value: {
-            en: 'Alice denied authorizing the confidential transfer.',
-            vi: 'Alice phủ nhận việc cho phép chuyển dữ liệu mật.',
+            en: "Alice denied authorizing the confidential transfer.",
+            vi: "Alice phủ nhận việc cho phép chuyển dữ liệu mật.",
           },
-          requiresEvidence: ['evidence-002-05'],
+          requiresEvidence: ["evidence-002-05"],
         },
       ],
     },
     {
-      id: 'bob-carter',
-      name: 'Bob Carter',
-      role: { en: 'IT employee', vi: 'Nhân viên CNTT' },
+      id: "bob-carter",
+      name: "Bob Carter",
+      role: { en: "IT employee", vi: "Nhân viên CNTT" },
       summary: {
-        en: 'An IT employee listed in the company directory.',
-        vi: 'Nhân viên CNTT có tên trong danh bạ công ty.',
+        en: "An IT employee listed in the company directory.",
+        vi: "Nhân viên CNTT có tên trong danh bạ công ty.",
       },
-      requiresEvidence: ['evidence-002-02'],
+      requiresEvidence: ["evidence-002-02"],
       details: [],
     },
     {
-      id: 'daniel-reed',
-      name: 'Daniel Reed',
-      role: { en: 'Security employee', vi: 'Nhân viên an ninh' },
+      id: "daniel-reed",
+      name: "Daniel Reed",
+      role: { en: "Security employee", vi: "Nhân viên an ninh" },
       summary: {
-        en: 'A security employee authorized for Project Orion who requested emergency access to Alice’s workstation.',
-        vi: 'Nhân viên an ninh có quyền với dự án Orion và từng yêu cầu sử dụng máy trạm của Alice.',
+        en: "A security employee authorized for Project Orion who requested emergency access to Alice’s workstation.",
+        vi: "Nhân viên an ninh có quyền với dự án Orion và từng yêu cầu sử dụng máy trạm của Alice.",
       },
-      requiresEvidence: ['evidence-002-02'],
+      requiresEvidence: ["evidence-002-02"],
       details: [
         {
-          label: { en: 'Security exception', vi: 'Ngoại lệ bảo mật' },
+          label: { en: "Security exception", vi: "Ngoại lệ bảo mật" },
           value: {
-            en: 'A temporary security exception created just before the USB connection belonged to Daniel Reed.',
-            vi: 'Ngoại lệ bảo mật tạm thời được tạo ngay trước khi USB kết nối thuộc về Daniel Reed.',
+            en: "A temporary security exception created just before the USB connection belonged to Daniel Reed.",
+            vi: "Ngoại lệ bảo mật tạm thời được tạo ngay trước khi USB kết nối thuộc về Daniel Reed.",
           },
-          requiresEvidence: ['evidence-002-03'],
+          requiresEvidence: ["evidence-002-03"],
         },
         {
-          label: { en: 'Maintenance request', vi: 'Yêu cầu bảo trì' },
+          label: { en: "Maintenance request", vi: "Yêu cầu bảo trì" },
           value: {
-            en: 'Daniel asked Alice to leave the workstation unlocked for emergency maintenance.',
-            vi: 'Daniel yêu cầu Alice để máy trạm mở khóa cho công việc bảo trì khẩn cấp.',
+            en: "Daniel asked Alice to leave the workstation unlocked for emergency maintenance.",
+            vi: "Daniel yêu cầu Alice để máy trạm mở khóa cho công việc bảo trì khẩn cấp.",
           },
-          requiresEvidence: ['evidence-002-04'],
+          requiresEvidence: ["evidence-002-04"],
         },
       ],
     },
@@ -149,13 +147,13 @@ const case002: Scenario = {
 
   filesystem: [
     {
-      type: 'directory',
-      name: 'logs',
+      type: "directory",
+      name: "logs",
 
       children: [
         {
-          type: 'file',
-          name: 'access.log',
+          type: "file",
+          name: "access.log",
 
           content: {
             en: `[00:03:12] user=alice login successful
@@ -175,8 +173,8 @@ const case002: Scenario = {
         },
 
         {
-          type: 'file',
-          name: 'system.log',
+          type: "file",
+          name: "system.log",
 
           content: {
             en: `[00:15:02] system status: normal
@@ -196,13 +194,13 @@ const case002: Scenario = {
         },
 
         {
-          type: 'directory',
-          name: 'archive',
+          type: "directory",
+          name: "archive",
 
           children: [
             {
-              type: 'file',
-              name: 'old.log',
+              type: "file",
+              name: "old.log",
 
               content: {
                 en: `[23:41:02] backup completed
@@ -218,13 +216,13 @@ const case002: Scenario = {
     },
 
     {
-      type: 'directory',
-      name: 'documents',
+      type: "directory",
+      name: "documents",
 
       children: [
         {
-          type: 'file',
-          name: 'employee-list.txt',
+          type: "file",
+          name: "employee-list.txt",
 
           content: {
             en: `Employee Directory
@@ -258,8 +256,8 @@ Mã nhân viên: EMP-1098`,
         },
 
         {
-          type: 'file',
-          name: 'confidential.txt',
+          type: "file",
+          name: "confidential.txt",
 
           content: {
             en: `CONFIDENTIAL
@@ -295,13 +293,13 @@ THIẾT BỊ USB BÊN NGOÀI`,
         },
 
         {
-          type: 'directory',
-          name: 'reports',
+          type: "directory",
+          name: "reports",
 
           children: [
             {
-              type: 'file',
-              name: 'security-report.txt',
+              type: "file",
+              name: "security-report.txt",
 
               content: {
                 en: `SECURITY REPORT
@@ -337,13 +335,13 @@ Bảo trì khẩn cấp.`,
     },
 
     {
-      type: 'directory',
-      name: 'usb',
+      type: "directory",
+      name: "usb",
 
       children: [
         {
-          type: 'file',
-          name: 'device-info.txt',
+          type: "file",
+          name: "device-info.txt",
 
           content: {
             en: `USB DEVICE INFORMATION
@@ -373,8 +371,8 @@ Ngắt kết nối:
         },
 
         {
-          type: 'file',
-          name: 'transfer.log',
+          type: "file",
+          name: "transfer.log",
 
           content: {
             en: `TRANSFER LOG
@@ -402,13 +400,13 @@ USB-7782`,
     },
 
     {
-      type: 'directory',
-      name: 'email',
+      type: "directory",
+      name: "email",
 
       children: [
         {
-          type: 'file',
-          name: 'inbox.txt',
+          type: "file",
+          name: "inbox.txt",
 
           content: {
             en: `EMAIL INBOX
@@ -440,8 +438,8 @@ Tôi cần thực hiện kiểm tra bảo trì.
         },
 
         {
-          type: 'file',
-          name: 'sent.txt',
+          type: "file",
+          name: "sent.txt",
 
           content: {
             en: `SENT EMAIL
@@ -470,13 +468,13 @@ của Dự án Orion.`,
     },
 
     {
-      type: 'directory',
-      name: 'notes',
+      type: "directory",
+      name: "notes",
 
       children: [
         {
-          type: 'file',
-          name: 'investigation.txt',
+          type: "file",
+          name: "investigation.txt",
 
           content: {
             en: `PRIVATE INVESTIGATION NOTES
@@ -512,47 +510,121 @@ với thời điểm truy cập kho lưu trữ bảo mật.`,
 
   evidence: [
     {
-      id: 'evidence-002-01',
+      id: "evidence-002-01",
 
       title: {
-        en: 'Unauthorized USB Device',
-        vi: 'Thiết bị USB không được phép',
+        en: "Unauthorized USB Device",
+        vi: "Thiết bị USB không được phép",
       },
 
       description: {
-        en:
-          'A USB device was connected to the workstation at 00:17:42.',
+        en: "A USB device was connected to the workstation at 00:17:42.",
 
-        vi:
-          'Một thiết bị USB đã được kết nối với máy trạm lúc 00:17:42.',
+        vi: "Một thiết bị USB đã được kết nối với máy trạm lúc 00:17:42.",
       },
 
-      type: 'digital',
+      type: "digital",
 
       hint: {
-        en:
-          'Check the system logs. Look for unusual hardware connections.',
+        en: "Check the system logs. Look for unusual hardware connections.",
 
-        vi:
-          'Hãy kiểm tra nhật ký hệ thống. Tìm các kết nối phần cứng bất thường.',
+        vi: "Hãy kiểm tra nhật ký hệ thống. Tìm các kết nối phần cứng bất thường.",
       },
 
       discover: {
-        type: 'cat',
-        path: '/logs/system.log',
+        type: "cat",
+        path: "/logs/system.log",
+      },
+
+      highlight: {
+        en: ["USB DEVICE CONNECTED", "00:17:42", "/dev/usb0"],
+
+        vi: ["THIẾT BỊ USB ĐƯỢC KẾT NỐI", "00:17:42", "/dev/usb0"],
+      },
+
+      requiresEvidence: [],
+
+      discovered: false,
+    },
+
+    {
+      id: "evidence-002-02",
+
+      title: {
+        en: "Confidential Archive Transfer",
+        vi: "Chuyển kho lưu trữ bảo mật",
+      },
+
+      description: {
+        en: "The confidential archive was copied to the connected USB device.",
+
+        vi: "Kho lưu trữ bảo mật đã được sao chép vào thiết bị USB được kết nối.",
+      },
+
+      type: "digital",
+
+      hint: {
+        en: "Investigate the USB directory and look for a transfer log.",
+
+        vi: "Hãy điều tra thư mục USB và tìm nhật ký chuyển dữ liệu.",
+      },
+
+      discover: {
+        type: "cat",
+        path: "/usb/transfer.log",
+      },
+
+      highlight: {
+        en: ["archive.zip", "148 MB", "transfer completed", "USB-7782"],
+
+        vi: ["archive.zip", "148 MB", "chuyển dữ liệu hoàn tất", "USB-7782"],
+      },
+
+      requiresEvidence: ["evidence-002-01"],
+
+      discovered: false,
+    },
+
+    {
+      id: "evidence-002-03",
+
+      title: {
+        en: "Security Exception Created",
+        vi: "Ngoại lệ bảo mật được tạo",
+      },
+
+      description: {
+        en: "A temporary security exception was created shortly before the USB device was connected. The exception was owned by Daniel Reed.",
+
+        vi: "Một ngoại lệ bảo mật tạm thời được tạo ngay trước khi thiết bị USB được kết nối. Ngoại lệ này thuộc về Daniel Reed.",
+      },
+
+      type: "document",
+
+      hint: {
+        en: "Search the reports directory for security-related information.",
+
+        vi: "Hãy tìm kiếm thông tin liên quan đến an ninh trong thư mục báo cáo.",
+      },
+
+      discover: {
+        type: "cat",
+        path: "/documents/reports/security-report.txt",
       },
 
       highlight: {
         en: [
-          'USB DEVICE CONNECTED',
-          '00:17:42',
-          '/dev/usb0',
+          "00:16:51",
+          "Exception owner:",
+          "Daniel Reed",
+          "Emergency maintenance",
         ],
 
         vi: [
-          'THIẾT BỊ USB ĐƯỢC KẾT NỐI',
-          '00:17:42',
-          '/dev/usb0',
+          "00:16:51",
+          "Người tạo ngoại lệ:",
+          "Daniel Reed",
+          "Bảo trì khẩn cấp",
         ],
       },
 
@@ -562,103 +634,45 @@ với thời điểm truy cập kho lưu trữ bảo mật.`,
     },
 
     {
-      id: 'evidence-002-02',
+      id: "evidence-002-04",
 
       title: {
-        en: 'Confidential Archive Transfer',
-        vi: 'Chuyển kho lưu trữ bảo mật',
+        en: "Maintenance Request",
+        vi: "Yêu cầu bảo trì",
       },
 
       description: {
-        en:
-          'The confidential archive was copied to the connected USB device.',
+        en: "Daniel Reed asked Alice to leave the workstation unlocked for emergency maintenance.",
 
-        vi:
-          'Kho lưu trữ bảo mật đã được sao chép vào thiết bị USB được kết nối.',
+        vi: "Daniel Reed yêu cầu Alice để máy trạm mở khóa để thực hiện bảo trì khẩn cấp.",
       },
 
-      type: 'digital',
+      type: "document",
 
       hint: {
-        en:
-          'Investigate the USB directory and look for a transfer log.',
+        en: "Check the email inbox for messages sent shortly before the incident.",
 
-        vi:
-          'Hãy điều tra thư mục USB và tìm nhật ký chuyển dữ liệu.',
+        vi: "Hãy kiểm tra hộp thư đến để tìm các tin nhắn được gửi ngay trước sự việc.",
       },
 
       discover: {
-        type: 'cat',
-        path: '/usb/transfer.log',
+        type: "cat",
+        path: "/email/inbox.txt",
       },
 
       highlight: {
         en: [
-          'archive.zip',
-          '148 MB',
-          'transfer completed',
-          'USB-7782',
+          "daniel.reed@company.local",
+          "23:58",
+          "leave the workstation unlocked",
+          "maintenance",
         ],
 
         vi: [
-          'archive.zip',
-          '148 MB',
-          'chuyển dữ liệu hoàn tất',
-          'USB-7782',
-        ],
-      },
-
-      requiresEvidence: [
-        'evidence-002-01',
-      ],
-
-      discovered: false,
-    },
-
-    {
-      id: 'evidence-002-03',
-
-      title: {
-        en: 'Security Exception Created',
-        vi: 'Ngoại lệ bảo mật được tạo',
-      },
-
-      description: {
-        en:
-          'A temporary security exception was created shortly before the USB device was connected. The exception was owned by Daniel Reed.',
-
-        vi:
-          'Một ngoại lệ bảo mật tạm thời được tạo ngay trước khi thiết bị USB được kết nối. Ngoại lệ này thuộc về Daniel Reed.',
-      },
-
-      type: 'document',
-
-      hint: {
-        en:
-          'Search the reports directory for security-related information.',
-
-        vi:
-          'Hãy tìm kiếm thông tin liên quan đến an ninh trong thư mục báo cáo.',
-      },
-
-      discover: {
-        type: 'cat',
-        path: '/documents/reports/security-report.txt',
-      },
-
-      highlight: {
-        en: [
-          '00:16:51',
-          'Exception owner:',
-          'Daniel Reed',
-          'Emergency maintenance',
-        ],
-
-        vi: [
-          '00:16:51',
-          'Người tạo ngoại lệ:',
-          'Daniel Reed',
-          'Bảo trì khẩn cấp',
+          "daniel.reed@company.local",
+          "23:58",
+          "để máy trạm mở khóa",
+          "bảo trì",
         ],
       },
 
@@ -668,105 +682,43 @@ với thời điểm truy cập kho lưu trữ bảo mật.`,
     },
 
     {
-      id: 'evidence-002-04',
+      id: "evidence-002-05",
 
       title: {
-        en: 'Maintenance Request',
-        vi: 'Yêu cầu bảo trì',
+        en: "Unauthorized Transfer",
+        vi: "Chuyển dữ liệu trái phép",
       },
 
       description: {
-        en:
-          'Daniel Reed asked Alice to leave the workstation unlocked for emergency maintenance.',
+        en: "Alice explicitly denied authorizing the transfer after the incident.",
 
-        vi:
-          'Daniel Reed yêu cầu Alice để máy trạm mở khóa để thực hiện bảo trì khẩn cấp.',
+        vi: "Alice đã khẳng định rằng cô không cho phép việc chuyển dữ liệu sau sự việc.",
       },
 
-      type: 'document',
+      type: "document",
 
       hint: {
-        en:
-          'Check the email inbox for messages sent shortly before the incident.',
+        en: "Look at the sent email after the incident.",
 
-        vi:
-          'Hãy kiểm tra hộp thư đến để tìm các tin nhắn được gửi ngay trước sự việc.',
+        vi: "Hãy kiểm tra email đã gửi sau khi sự việc xảy ra.",
       },
 
       discover: {
-        type: 'cat',
-        path: '/email/inbox.txt',
+        type: "cat",
+        path: "/email/sent.txt",
       },
 
       highlight: {
-        en: [
-          'daniel.reed@company.local',
-          '23:58',
-          'leave the workstation unlocked',
-          'maintenance',
-        ],
+        en: ["00:21", "I did not authorize any transfer", "Project Orion"],
 
         vi: [
-          'daniel.reed@company.local',
-          '23:58',
-          'để máy trạm mở khóa',
-          'bảo trì',
+          "00:21",
+          "Tôi không cho phép bất kỳ việc chuyển giao nào",
+          "Dự án Orion",
         ],
       },
 
-      requiresEvidence: [],
-
-      discovered: false,
-    },
-
-    {
-      id: 'evidence-002-05',
-
-      title: {
-        en: 'Unauthorized Transfer',
-        vi: 'Chuyển dữ liệu trái phép',
-      },
-
-      description: {
-        en:
-          'Alice explicitly denied authorizing the transfer after the incident.',
-
-        vi:
-          'Alice đã khẳng định rằng cô không cho phép việc chuyển dữ liệu sau sự việc.',
-      },
-
-      type: 'document',
-
-      hint: {
-        en:
-          'Look at the sent email after the incident.',
-
-        vi:
-          'Hãy kiểm tra email đã gửi sau khi sự việc xảy ra.',
-      },
-
-      discover: {
-        type: 'cat',
-        path: '/email/sent.txt',
-      },
-
-      highlight: {
-        en: [
-          '00:21',
-          'I did not authorize any transfer',
-          'Project Orion',
-        ],
-
-        vi: [
-          '00:21',
-          'Tôi không cho phép bất kỳ việc chuyển giao nào',
-          'Dự án Orion',
-        ],
-      },
-
-      requiresEvidence: [
-        'evidence-002-02',
-      ],
+      requiresEvidence: ["evidence-002-02"],
 
       discovered: false,
     },
@@ -780,101 +732,86 @@ với thời điểm truy cập kho lưu trữ bảo mật.`,
 
   tasks: [
     {
-      id: 'task-002-01',
+      id: "task-002-01",
 
       title: {
-        en: 'Identify the USB connection',
-        vi: 'Xác định kết nối USB',
+        en: "Identify the USB connection",
+        vi: "Xác định kết nối USB",
       },
 
       description: {
-        en:
-          'Determine when the suspicious USB device was connected.',
+        en: "Determine when the suspicious USB device was connected.",
 
-        vi:
-          'Xác định thời điểm thiết bị USB đáng ngờ được kết nối.',
+        vi: "Xác định thời điểm thiết bị USB đáng ngờ được kết nối.",
       },
 
-      requiresEvidence: [
-        'evidence-002-01',
-      ],
+      requiresEvidence: ["evidence-002-01"],
 
       completed: false,
     },
 
     {
-      id: 'task-002-02',
+      id: "task-002-02",
 
       title: {
-        en: 'Confirm the data transfer',
-        vi: 'Xác nhận việc chuyển dữ liệu',
+        en: "Confirm the data transfer",
+        vi: "Xác nhận việc chuyển dữ liệu",
       },
 
       description: {
-        en:
-          'Establish that the confidential archive was copied to the USB device.',
+        en: "Establish that the confidential archive was copied to the USB device.",
 
-        vi:
-          'Xác nhận rằng kho lưu trữ bảo mật đã được sao chép vào thiết bị USB.',
+        vi: "Xác nhận rằng kho lưu trữ bảo mật đã được sao chép vào thiết bị USB.",
       },
 
-      requiresEvidence: [
-        'evidence-002-01',
-        'evidence-002-02',
-      ],
+      requiresEvidence: ["evidence-002-01", "evidence-002-02"],
 
       completed: false,
     },
 
     {
-      id: 'task-002-03',
+      id: "task-002-03",
 
       title: {
-        en: 'Identify the suspicious authorization',
-        vi: 'Xác định quyền cấp phép đáng ngờ',
+        en: "Identify the suspicious authorization",
+        vi: "Xác định quyền cấp phép đáng ngờ",
       },
 
       description: {
-        en:
-          'Determine who created the security exception before the incident.',
+        en: "Determine who created the security exception before the incident.",
 
-        vi:
-          'Xác định ai đã tạo ngoại lệ bảo mật trước khi sự việc xảy ra.',
+        vi: "Xác định ai đã tạo ngoại lệ bảo mật trước khi sự việc xảy ra.",
       },
 
-      requiresEvidence: [
-        'evidence-002-03',
-      ],
+      requiresEvidence: ["evidence-002-03"],
 
       completed: false,
     },
 
     {
-      id: 'task-002-04',
+      id: "task-002-04",
 
       title: {
-        en: 'Connect the evidence',
-        vi: 'Liên kết các bằng chứng',
+        en: "Connect the evidence",
+        vi: "Liên kết các bằng chứng",
       },
 
       description: {
-        en:
-          'Establish the connection between the USB transfer and Daniel Reed.',
+        en: "Establish the connection between the USB transfer and Daniel Reed.",
 
-        vi:
-          'Xác lập mối liên hệ giữa vụ chuyển dữ liệu qua USB và Daniel Reed.',
+        vi: "Xác lập mối liên hệ giữa vụ chuyển dữ liệu qua USB và Daniel Reed.",
       },
 
       requiresEvidence: [
-        'evidence-002-02',
-        'evidence-002-03',
-        'evidence-002-04',
-        'evidence-002-05',
+        "evidence-002-02",
+        "evidence-002-03",
+        "evidence-002-04",
+        "evidence-002-05",
       ],
 
       completed: false,
     },
   ],
-}
+};
 
-export default case002
+export default case002;

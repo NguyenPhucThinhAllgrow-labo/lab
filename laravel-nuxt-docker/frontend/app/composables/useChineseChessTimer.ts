@@ -1,50 +1,35 @@
-import {
-  computed,
-  onUnmounted,
-  ref,
-} from 'vue'
+import { computed, onUnmounted, ref } from "vue";
 
-export type ChineseChessTurn =
-  | 'red'
-  | 'black'
+export type ChineseChessTurn = "red" | "black";
 
-export function useChineseChessTimer(
-  initialSeconds = 10 * 60,
-) {
-  const redTime = ref(
-    initialSeconds,
-  )
+export function useChineseChessTimer(initialSeconds = 10 * 60) {
+  const redTime = ref(initialSeconds);
 
-  const blackTime = ref(
-    initialSeconds,
-  )
+  const blackTime = ref(initialSeconds);
 
   /**
    * Lượt hiện tại.
    *
    * Game luôn bắt đầu bằng Đỏ.
    */
-  const currentTurn =
-    ref<ChineseChessTurn>('red')
+  const currentTurn = ref<ChineseChessTurn>("red");
 
   /**
    * Game đã bắt đầu chưa.
    */
-  const hasStarted = ref(false)
+  const hasStarted = ref(false);
 
   /**
    * Timer đang chạy.
    */
-  const isRunning = ref(false)
+  const isRunning = ref(false);
 
   /**
    * Game đã kết thúc chưa.
    */
-  const isGameOver = ref(false)
+  const isGameOver = ref(false);
 
-  let interval:
-    ReturnType<typeof setInterval> | null =
-    null
+  let interval: ReturnType<typeof setInterval> | null = null;
 
   /**
    * ================================
@@ -52,47 +37,28 @@ export function useChineseChessTimer(
    * ================================
    */
 
-  function formatTime(
-    seconds: number,
-  ): string {
-    const minutes =
-      Math.floor(seconds / 60)
+  function formatTime(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
 
-    const secs =
-      seconds % 60
+    const secs = seconds % 60;
 
-    return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+    return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   }
 
-  const redTimeText = computed(
-    () =>
-      formatTime(
-        redTime.value,
-      ),
-  )
+  const redTimeText = computed(() => formatTime(redTime.value));
 
-  const blackTimeText = computed(
-    () =>
-      formatTime(
-        blackTime.value,
-      ),
-  )
+  const blackTimeText = computed(() => formatTime(blackTime.value));
 
   /**
    * Thời gian của bên đang chơi.
    */
-  const currentTime = computed(
-    () => {
-      if (
-        currentTurn.value ===
-        'red'
-      ) {
-        return redTime.value
-      }
+  const currentTime = computed(() => {
+    if (currentTurn.value === "red") {
+      return redTime.value;
+    }
 
-      return blackTime.value
-    },
-  )
+    return blackTime.value;
+  });
 
   /**
    * ================================
@@ -109,68 +75,55 @@ export function useChineseChessTimer(
    */
 
   function start() {
-    if (
-      isRunning.value ||
-      isGameOver.value
-    ) {
-      return
+    if (isRunning.value || isGameOver.value) {
+      return;
     }
 
-    if (
-      currentTime.value <= 0
-    ) {
-      isGameOver.value = true
-      return
+    if (currentTime.value <= 0) {
+      isGameOver.value = true;
+      return;
     }
 
-    hasStarted.value = true
-    isRunning.value = true
+    hasStarted.value = true;
+    isRunning.value = true;
 
-    interval =
-      setInterval(() => {
-        /**
-         * ============================
-         * ĐỎ
-         * ============================
-         */
+    interval = setInterval(() => {
+      /**
+       * ============================
+       * ĐỎ
+       * ============================
+       */
 
-        if (
-          currentTurn.value ===
-          'red'
-        ) {
-          redTime.value--
+      if (currentTurn.value === "red") {
+        redTime.value--;
 
-          if (
-            redTime.value <= 0
-          ) {
-            redTime.value = 0
+        if (redTime.value <= 0) {
+          redTime.value = 0;
 
-            stop()
+          stop();
 
-            isGameOver.value = true
-          }
-
-          return
+          isGameOver.value = true;
         }
 
-        /**
-         * ============================
-         * ĐEN
-         * ============================
-         */
+        return;
+      }
 
-        blackTime.value--
+      /**
+       * ============================
+       * ĐEN
+       * ============================
+       */
 
-        if (
-          blackTime.value <= 0
-        ) {
-          blackTime.value = 0
+      blackTime.value--;
 
-          stop()
+      if (blackTime.value <= 0) {
+        blackTime.value = 0;
 
-          isGameOver.value = true
-        }
-      }, 1000)
+        stop();
+
+        isGameOver.value = true;
+      }
+    }, 1000);
   }
 
   /**
@@ -180,12 +133,12 @@ export function useChineseChessTimer(
    */
 
   function stop() {
-    isRunning.value = false
+    isRunning.value = false;
 
     if (interval !== null) {
-      clearInterval(interval)
+      clearInterval(interval);
 
-      interval = null
+      interval = null;
     }
   }
 
@@ -205,30 +158,24 @@ export function useChineseChessTimer(
    */
 
   function switchTurn() {
-    if (
-      isGameOver.value ||
-      !hasStarted.value
-    ) {
-      return
+    if (isGameOver.value || !hasStarted.value) {
+      return;
     }
 
     /**
      * Dừng timer bên hiện tại.
      */
-    stop()
+    stop();
 
     /**
      * Đổi lượt.
      */
-    currentTurn.value =
-      currentTurn.value === 'red'
-        ? 'black'
-        : 'red'
+    currentTurn.value = currentTurn.value === "red" ? "black" : "red";
 
     /**
      * Bắt đầu timer bên mới.
      */
-    start()
+    start();
   }
 
   /**
@@ -247,19 +194,17 @@ export function useChineseChessTimer(
    */
 
   function reset() {
-    stop()
+    stop();
 
-    redTime.value =
-      initialSeconds
+    redTime.value = initialSeconds;
 
-    blackTime.value =
-      initialSeconds
+    blackTime.value = initialSeconds;
 
-    currentTurn.value = 'red'
+    currentTurn.value = "red";
 
-    hasStarted.value = false
+    hasStarted.value = false;
 
-    isGameOver.value = false
+    isGameOver.value = false;
   }
 
   /**
@@ -269,9 +214,9 @@ export function useChineseChessTimer(
    */
 
   function resign() {
-    stop()
+    stop();
 
-    isGameOver.value = true
+    isGameOver.value = true;
   }
 
   /**
@@ -281,8 +226,8 @@ export function useChineseChessTimer(
    */
 
   onUnmounted(() => {
-    stop()
-  })
+    stop();
+  });
 
   return {
     redTime,
@@ -302,5 +247,5 @@ export function useChineseChessTimer(
     switchTurn,
     reset,
     resign,
-  }
+  };
 }

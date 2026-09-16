@@ -4,70 +4,60 @@ import type {
   Scenario,
   SupportedLocale,
   Task,
-} from '~/types/games/detective'
+} from "~/types/games/detective";
 
-import type {
-  TerminalLine,
-} from '~/types/games/terminal'
+import type { TerminalLine } from "~/types/games/terminal";
 
-import {
-  terminalCommands,
-} from '~/data/scenarios/terminal/commands'
+import { terminalCommands } from "~/data/scenarios/terminal/commands";
 
 interface DetectiveGameState {
-  terminal: TerminalLine[]
+  terminal: TerminalLine[];
 
-  currentDirectory: string
+  currentDirectory: string;
 
-  evidence: Evidence[]
+  evidence: Evidence[];
 
-  tasks: Task[]
+  tasks: Task[];
 
-  linkedEvidence: Record<string, string[]>
+  linkedEvidence: Record<string, string[]>;
 
-  unlockedPaths: string[]
+  unlockedPaths: string[];
 
   passwordPrompt: {
-    path: string
-    prompt: string
-    privileged: boolean
-    incorrect: boolean
-  } | null
+    path: string;
+    prompt: string;
+    privileged: boolean;
+    incorrect: boolean;
+  } | null;
 
-  commandHistory: string[]
+  commandHistory: string[];
 
-  hintCount: number
+  hintCount: number;
 
-  hintPenalty: number
+  hintPenalty: number;
 
   hintHistory: Array<{
-    task_id: string | null
-    evidence_id: string
-    level: number
-    penalty: number
-    elapsed_seconds: number
-    recorded_at: string
-  }>
+    task_id: string | null;
+    evidence_id: string;
+    level: number;
+    penalty: number;
+    elapsed_seconds: number;
+    recorded_at: string;
+  }>;
 
-  gameCompleted: boolean
+  gameCompleted: boolean;
 
-  locale: SupportedLocale
+  locale: SupportedLocale;
 }
 
-export function useDetectiveGame(
-  scenario: Scenario,
-) {
+export function useDetectiveGame(scenario: Scenario) {
   /*
    * --------------------------------------------------
    * LOCALE
    * --------------------------------------------------
    */
 
-  const supportedLocales:
-    SupportedLocale[] = [
-      'en',
-      'vi',
-    ]
+  const supportedLocales: SupportedLocale[] = ["en", "vi"];
 
   /*
    * --------------------------------------------------
@@ -75,83 +65,61 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  const state =
-    reactive<DetectiveGameState>({
-      terminal: [],
+  const state = reactive<DetectiveGameState>({
+    terminal: [],
 
-      currentDirectory:
-        normalizePath(
-          scenario.initialDirectory ||
-            '/',
-        ),
+    currentDirectory: normalizePath(scenario.initialDirectory || "/"),
 
-      evidence:
-        scenario.evidence.map(
-          evidence => ({
-            ...evidence,
+    evidence: scenario.evidence.map((evidence) => ({
+      ...evidence,
 
-            discovered:
-              evidence.discovered ??
-              false,
-          }),
-        ),
+      discovered: evidence.discovered ?? false,
+    })),
 
-      tasks:
-        scenario.tasks.map(
-          task => ({
-            ...task,
+    tasks: scenario.tasks.map((task) => ({
+      ...task,
 
-            completed:
-              task.completed ??
-              false,
-          }),
-        ),
+      completed: task.completed ?? false,
+    })),
 
-      linkedEvidence: {},
+    linkedEvidence: {},
 
-      unlockedPaths: [],
+    unlockedPaths: [],
 
-      passwordPrompt: null,
+    passwordPrompt: null,
 
-      commandHistory: [],
+    commandHistory: [],
 
-      hintCount: 0,
+    hintCount: 0,
 
-      hintPenalty: 0,
+    hintPenalty: 0,
 
-      hintHistory: [],
+    hintHistory: [],
 
-      gameCompleted: false,
+    gameCompleted: false,
 
-      locale: 'en',
-    })
+    locale: "en",
+  });
 
-  let lineId = 0
+  let lineId = 0;
 
-  const hintProgress = new Map<
-    string,
-    { evidenceId: string; level: number }
-  >()
+  const hintProgress = new Map<string, { evidenceId: string; level: number }>();
 
   let pendingHintConfirmation: {
-    evidenceId: string
-    level: number
-    taskId: string | null
-    progressKey: string
-  } | null = null
+    evidenceId: string;
+    level: number;
+    taskId: string | null;
+    progressKey: string;
+  } | null = null;
 
-  function normalizeRestoredTerminalLine(
-    line: TerminalLine,
-  ): TerminalLine {
+  function normalizeRestoredTerminalLine(line: TerminalLine): TerminalLine {
     const restored = {
       ...line,
-      highlights: line.highlights?.map(
-        highlight => ({ ...highlight }),
-      ),
-    }
+      highlights: line.highlights?.map((highlight) => ({ ...highlight })),
+    };
 
     if (!restored.highlights?.length) {
-      return restored
+      return restored;
     }
 
     /*
@@ -159,139 +127,114 @@ export function useDetectiveGame(
      * offsets kept the original indentation. Rebuild the filename range from
      * the tree line itself so existing progress repairs automatically on F5.
      */
-    const guideMatch = restored.text.match(
-      /^(\s*[├└]── )(.+?)( — )/u,
-    )
+    const guideMatch = restored.text.match(/^(\s*[├└]── )(.+?)( — )/u);
 
     if (guideMatch) {
-      const prefix = guideMatch[1] ?? ''
-      const name = guideMatch[2] ?? ''
+      const prefix = guideMatch[1] ?? "";
+      const name = guideMatch[2] ?? "";
 
-      restored.highlights = [{
-        start: prefix.length,
-        end: prefix.length + name.length,
-      }]
+      restored.highlights = [
+        {
+          start: prefix.length,
+          end: prefix.length + name.length,
+        },
+      ];
 
-      return restored
+      return restored;
     }
 
     restored.highlights = restored.highlights
       .filter(
-        highlight =>
+        (highlight) =>
           Number.isInteger(highlight.start) &&
           Number.isInteger(highlight.end) &&
           highlight.start >= 0 &&
           highlight.end > highlight.start &&
           highlight.end <= restored.text.length,
       )
-      .sort((a, b) => a.start - b.start)
+      .sort((a, b) => a.start - b.start);
 
-    return restored
+    return restored;
   }
 
-  function restoreProgress(
-    progress: {
-      locale: SupportedLocale
-      current_directory: string
-      discovered_evidence: string[] | null
-      completed_tasks: string[] | null
-      linked_evidence?: Record<string, string[]> | null
-      unlocked_paths?: string[] | null
-      command_history: string[] | null
-      hint_count?: number | null
-      hint_penalty?: number | null
-      hint_history?: DetectiveGameState['hintHistory'] | null
-      terminal_lines: TerminalLine[] | null
-      game_completed: boolean
-    },
-  ) {
-    const discoveredIds =
-      new Set(
-        progress.discovered_evidence ?? [],
-      )
+  function restoreProgress(progress: {
+    locale: SupportedLocale;
+    current_directory: string;
+    discovered_evidence: string[] | null;
+    completed_tasks: string[] | null;
+    linked_evidence?: Record<string, string[]> | null;
+    unlocked_paths?: string[] | null;
+    command_history: string[] | null;
+    hint_count?: number | null;
+    hint_penalty?: number | null;
+    hint_history?: DetectiveGameState["hintHistory"] | null;
+    terminal_lines: TerminalLine[] | null;
+    game_completed: boolean;
+  }) {
+    const discoveredIds = new Set(progress.discovered_evidence ?? []);
 
-    const completedIds =
-      new Set(
-        progress.completed_tasks ?? [],
-      )
+    const completedIds = new Set(progress.completed_tasks ?? []);
 
-    state.locale = progress.locale
-    state.currentDirectory =
-      normalizePath(
-        progress.current_directory ||
-          scenario.initialDirectory ||
-          '/',
-      )
+    state.locale = progress.locale;
+    state.currentDirectory = normalizePath(
+      progress.current_directory || scenario.initialDirectory || "/",
+    );
 
-    state.evidence.forEach(
-      evidence => {
-        evidence.discovered =
-          discoveredIds.has(
-            evidence.id,
-          )
-      },
-    )
+    state.evidence.forEach((evidence) => {
+      evidence.discovered = discoveredIds.has(evidence.id);
+    });
 
-    state.tasks.forEach(task => {
-      task.completed =
-        completedIds.has(task.id)
-    })
+    state.tasks.forEach((task) => {
+      task.completed = completedIds.has(task.id);
+    });
 
-    state.linkedEvidence = {}
+    state.linkedEvidence = {};
 
     for (const task of state.tasks) {
-      const savedIds = progress.linked_evidence?.[task.id] ?? []
-      state.linkedEvidence[task.id] = savedIds.filter(id =>
-        task.requiresEvidence.includes(id) && discoveredIds.has(id),
-      )
+      const savedIds = progress.linked_evidence?.[task.id] ?? [];
+      state.linkedEvidence[task.id] = savedIds.filter(
+        (id) => task.requiresEvidence.includes(id) && discoveredIds.has(id),
+      );
 
       // Preserve completed tasks created before manual evidence linking.
       if (task.completed && !state.linkedEvidence[task.id]?.length) {
-        state.linkedEvidence[task.id] = task.requiresEvidence.filter(id =>
+        state.linkedEvidence[task.id] = task.requiresEvidence.filter((id) =>
           discoveredIds.has(id),
-        )
+        );
       }
     }
 
-    state.unlockedPaths = (
-      progress.unlocked_paths ?? []
-    ).map(path => normalizePath(path))
-    state.passwordPrompt = null
+    state.unlockedPaths = (progress.unlocked_paths ?? []).map((path) =>
+      normalizePath(path),
+    );
+    state.passwordPrompt = null;
 
-    state.commandHistory = [
-      ...(progress.command_history ?? []),
-    ]
-    const uniqueHintHistory = [
-      ...(progress.hint_history ?? []),
-    ].filter((usage, index, history) =>
-      history.findIndex(item =>
-        item.task_id === usage.task_id &&
-        item.evidence_id === usage.evidence_id &&
-        item.level === usage.level,
-      ) === index,
-    )
+    state.commandHistory = [...(progress.command_history ?? [])];
+    const uniqueHintHistory = [...(progress.hint_history ?? [])].filter(
+      (usage, index, history) =>
+        history.findIndex(
+          (item) =>
+            item.task_id === usage.task_id &&
+            item.evidence_id === usage.evidence_id &&
+            item.level === usage.level,
+        ) === index,
+    );
 
-    state.hintHistory = uniqueHintHistory
+    state.hintHistory = uniqueHintHistory;
     state.hintCount = uniqueHintHistory.length
       ? uniqueHintHistory.length
-      : Math.max(0, progress.hint_count ?? 0)
+      : Math.max(0, progress.hint_count ?? 0);
     state.hintPenalty = uniqueHintHistory.length
       ? uniqueHintHistory.reduce((total, usage) => total + usage.penalty, 0)
-      : Math.max(0, progress.hint_penalty ?? 0)
+      : Math.max(0, progress.hint_penalty ?? 0);
 
-    state.terminal =
-      (progress.terminal_lines ?? []).map(
-        line => normalizeRestoredTerminalLine(line),
-      )
+    state.terminal = (progress.terminal_lines ?? []).map((line) =>
+      normalizeRestoredTerminalLine(line),
+    );
 
-    const containsRemovedCompletedTask = [
-      ...completedIds,
-    ].some(
-      completedId =>
-        !state.tasks.some(
-          task => task.id === completedId,
-        ),
-    )
+    const containsRemovedCompletedTask = [...completedIds].some(
+      (completedId) => !state.tasks.some((task) => task.id === completedId),
+    );
 
     /*
      * A case may replace an old automatic final task with an operational
@@ -301,63 +244,44 @@ export function useDetectiveGame(
      */
     state.gameCompleted =
       progress.game_completed &&
-      !(
-        scenario.operationalReport &&
-        containsRemovedCompletedTask
-      )
+      !(scenario.operationalReport && containsRemovedCompletedTask);
 
-    lineId = Math.max(
-      0,
-      ...state.terminal.map(
-        line => line.id,
-      ),
-    )
+    lineId = Math.max(0, ...state.terminal.map((line) => line.id));
   }
 
   function resetGame() {
-    const currentLocale = state.locale
+    const currentLocale = state.locale;
 
-    state.currentDirectory =
-      normalizePath(
-        scenario.initialDirectory ||
-          '/',
-      )
+    state.currentDirectory = normalizePath(scenario.initialDirectory || "/");
 
-    state.evidence =
-      scenario.evidence.map(
-        evidence => ({
-          ...evidence,
-          discovered:
-            evidence.discovered ??
-            false,
-        }),
-      )
+    state.evidence = scenario.evidence.map((evidence) => ({
+      ...evidence,
+      discovered: evidence.discovered ?? false,
+    }));
 
-    state.tasks =
-      scenario.tasks.map(task => ({
-        ...task,
-        completed:
-          task.completed ?? false,
-      }))
+    state.tasks = scenario.tasks.map((task) => ({
+      ...task,
+      completed: task.completed ?? false,
+    }));
 
-    state.linkedEvidence = {}
+    state.linkedEvidence = {};
 
-    state.commandHistory = []
-    state.hintCount = 0
-    state.hintPenalty = 0
-    state.hintHistory = []
-    state.unlockedPaths = []
-    state.passwordPrompt = null
-    state.gameCompleted = false
+    state.commandHistory = [];
+    state.hintCount = 0;
+    state.hintPenalty = 0;
+    state.hintHistory = [];
+    state.unlockedPaths = [];
+    state.passwordPrompt = null;
+    state.gameCompleted = false;
     // Reset investigation progress without discarding the language
     // explicitly selected by the player.
-    state.locale = currentLocale
-    state.terminal = []
-    lineId = 0
-    hintProgress.clear()
-    pendingHintConfirmation = null
+    state.locale = currentLocale;
+    state.terminal = [];
+    lineId = 0;
+    hintProgress.clear();
+    pendingHintConfirmation = null;
 
-    showIntro()
+    showIntro();
   }
 
   /*
@@ -366,30 +290,12 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function text(
-    value: {
-      en: string
-      vi: string
-    },
-  ): string {
-    return (
-      value[
-        state.locale
-      ] ?? value.en
-    )
+  function text(value: { en: string; vi: string }): string {
+    return value[state.locale] ?? value.en;
   }
 
-  function texts(
-    value: {
-      en: string[]
-      vi: string[]
-    },
-  ): string[] {
-    return (
-      value[
-        state.locale
-      ] ?? value.en
-    )
+  function texts(value: { en: string[]; vi: string[] }): string[] {
+    return value[state.locale] ?? value.en;
   }
 
   /*
@@ -398,69 +304,48 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function normalizePath(
-    path: string,
-  ): string {
+  function normalizePath(path: string): string {
     if (!path) {
-      return '/'
+      return "/";
     }
 
-    const parts =
-      path.split('/')
+    const parts = path.split("/");
 
-    const result: string[] = []
+    const result: string[] = [];
 
     for (const part of parts) {
-      if (
-        !part ||
-        part === '.'
-      ) {
-        continue
+      if (!part || part === ".") {
+        continue;
       }
 
-      if (
-        part === '..'
-      ) {
-        if (
-          result.length > 0
-        ) {
-          result.pop()
+      if (part === "..") {
+        if (result.length > 0) {
+          result.pop();
         }
 
-        continue
+        continue;
       }
 
-      result.push(part)
+      result.push(part);
     }
 
     if (!result.length) {
-      return '/'
+      return "/";
     }
 
-    return `/${result.join('/')}`
+    return `/${result.join("/")}`;
   }
 
-  function resolvePath(
-    currentPath: string,
-    targetPath: string,
-  ): string {
+  function resolvePath(currentPath: string, targetPath: string): string {
     if (!targetPath) {
-      return normalizePath(
-        currentPath,
-      )
+      return normalizePath(currentPath);
     }
 
-    if (
-      targetPath.startsWith('/')
-    ) {
-      return normalizePath(
-        targetPath,
-      )
+    if (targetPath.startsWith("/")) {
+      return normalizePath(targetPath);
     }
 
-    return normalizePath(
-      `${currentPath}/${targetPath}`,
-    )
+    return normalizePath(`${currentPath}/${targetPath}`);
   }
 
   /*
@@ -471,183 +356,123 @@ export function useDetectiveGame(
 
   function getRootNode(): FileNode {
     return {
-      type: 'directory',
+      type: "directory",
 
-      name: '/',
+      name: "/",
 
-      children:
-        scenario.filesystem,
-    }
+      children: scenario.filesystem,
+    };
   }
 
-  function getNode(
-    path: string,
-  ): FileNode | null {
-    const normalizedPath =
-      normalizePath(path)
+  function getNode(path: string): FileNode | null {
+    const normalizedPath = normalizePath(path);
 
-    if (
-      normalizedPath === '/'
-    ) {
-      return getRootNode()
+    if (normalizedPath === "/") {
+      return getRootNode();
     }
 
-    const parts =
-      normalizedPath
-        .split('/')
-        .filter(Boolean)
+    const parts = normalizedPath.split("/").filter(Boolean);
 
-    let children =
-      scenario.filesystem
+    let children = scenario.filesystem;
 
-    let current:
-      | FileNode
-      | null = null
+    let current: FileNode | null = null;
 
-    for (
-      let index = 0;
-      index < parts.length;
-      index++
-    ) {
-      const part =
-        parts[index]
+    for (let index = 0; index < parts.length; index++) {
+      const part = parts[index];
 
-      const found =
-        children.find(
-          node =>
-            node.name === part,
-        )
+      const found = children.find((node) => node.name === part);
 
       if (!found) {
-        return null
+        return null;
       }
 
-      current = found
+      current = found;
 
-      if (
-        index <
-        parts.length - 1
-      ) {
-        if (
-          found.type !==
-          'directory'
-        ) {
-          return null
+      if (index < parts.length - 1) {
+        if (found.type !== "directory") {
+          return null;
         }
 
-        children =
-          found.children ?? []
+        children = found.children ?? [];
       }
     }
 
-    return current
+    return current;
   }
 
-  function getDirectory(
-    path: string,
-  ): FileNode | null {
-    const node =
-      getNode(path)
+  function getDirectory(path: string): FileNode | null {
+    const node = getNode(path);
 
-    if (
-      !node ||
-      node.type !==
-        'directory'
-    ) {
-      return null
+    if (!node || node.type !== "directory") {
+      return null;
     }
 
-    return node
+    return node;
   }
 
-  function getPathNodes(
-    path: string,
-  ): Array<{
-    node: FileNode
-    path: string
+  function getPathNodes(path: string): Array<{
+    node: FileNode;
+    path: string;
   }> {
-    const parts = normalizePath(path)
-      .split('/')
-      .filter(Boolean)
+    const parts = normalizePath(path).split("/").filter(Boolean);
     const result: Array<{
-      node: FileNode
-      path: string
-    }> = []
-    let children = scenario.filesystem
-    let currentPath = ''
+      node: FileNode;
+      path: string;
+    }> = [];
+    let children = scenario.filesystem;
+    let currentPath = "";
 
     for (const part of parts) {
-      const node = children.find(
-        item => item.name === part,
-      )
+      const node = children.find((item) => item.name === part);
 
       if (!node) {
-        return []
+        return [];
       }
 
-      currentPath += `/${part}`
+      currentPath += `/${part}`;
       result.push({
         node,
         path: currentPath,
-      })
-      children =
-        node.type === 'directory'
-          ? node.children ?? []
-          : []
+      });
+      children = node.type === "directory" ? (node.children ?? []) : [];
     }
 
-    return result
+    return result;
   }
 
-  function isPasswordPathUnlocked(
-    protectedPath: string,
-  ): boolean {
+  function isPasswordPathUnlocked(protectedPath: string): boolean {
     return state.unlockedPaths.some(
-      path =>
-        normalizePath(path) ===
-        normalizePath(protectedPath),
-    )
+      (path) => normalizePath(path) === normalizePath(protectedPath),
+    );
   }
 
-  function getDeniedAccess(
-    path: string,
-    privileged = false,
-  ) {
+  function getDeniedAccess(path: string, privileged = false) {
     for (const item of getPathNodes(path)) {
-      if (
-        item.node.access?.type === 'sudo' &&
-        !privileged
-      ) {
+      if (item.node.access?.type === "sudo" && !privileged) {
         return {
-          type: 'sudo' as const,
+          type: "sudo" as const,
           path: item.path,
           node: item.node,
-        }
+        };
       }
 
       if (
-        item.node.access?.type === 'password' &&
+        item.node.access?.type === "password" &&
         !isPasswordPathUnlocked(item.path)
       ) {
         return {
-          type: 'password' as const,
+          type: "password" as const,
           path: item.path,
           node: item.node,
-        }
+        };
       }
     }
 
-    return null
+    return null;
   }
 
-  function canAccessPath(
-    path: string,
-    privileged = false,
-  ): boolean {
-    return !getDeniedAccess(
-      path,
-      privileged,
-    )
+  function canAccessPath(path: string, privileged = false): boolean {
+    return !getDeniedAccess(path, privileged);
   }
 
   /*
@@ -655,25 +480,20 @@ export function useDetectiveGame(
    * to open them. Sudo-protected paths remain hidden until a privileged
    * listing is requested. Visibility never grants permission to read.
    */
-  function canRevealPath(
-    path: string,
-    privileged = false,
-  ): boolean {
-    if (normalizePath(path) === '/') {
-      return true
+  function canRevealPath(path: string, privileged = false): boolean {
+    if (normalizePath(path) === "/") {
+      return true;
     }
 
-    const pathNodes = getPathNodes(path)
+    const pathNodes = getPathNodes(path);
 
     if (!pathNodes.length) {
-      return false
+      return false;
     }
 
     return pathNodes.every(
-      item =>
-        item.node.access?.type !== 'sudo' ||
-        privileged,
-    )
+      (item) => item.node.access?.type !== "sudo" || privileged,
+    );
   }
 
   function ensurePathAccess(
@@ -681,55 +501,38 @@ export function useDetectiveGame(
     privileged = false,
     openPasswordPrompt = false,
   ): boolean {
-    const denied = getDeniedAccess(
-      path,
-      privileged,
-    )
+    const denied = getDeniedAccess(path, privileged);
 
     if (!denied) {
-      return true
+      return true;
     }
 
-    addLine(
-      'error',
-      `${getTranslation('accessDenied')}: ${path}`,
-    )
+    addLine("error", `${getTranslation("accessDenied")}: ${path}`);
 
-    if (denied.type === 'sudo') {
-      addLine(
-        'system',
-        getTranslation('sudoRequired'),
-      )
+    if (denied.type === "sudo") {
+      addLine("system", getTranslation("sudoRequired"));
     } else {
-      const prompt = denied.node.access
-        ?.type === 'password'
-        ? denied.node.access.prompt
-        : undefined
+      const prompt =
+        denied.node.access?.type === "password"
+          ? denied.node.access.prompt
+          : undefined;
 
       if (openPasswordPrompt) {
         state.passwordPrompt = {
           path: denied.path,
-          prompt: prompt
-            ? text(prompt)
-            : getTranslation(
-                'passwordRequired',
-              ),
+          prompt: prompt ? text(prompt) : getTranslation("passwordRequired"),
           privileged,
           incorrect: false,
-        }
+        };
       } else {
         addLine(
-          'system',
-          prompt
-            ? text(prompt)
-            : getTranslation(
-                'passwordRequired',
-              ),
-        )
+          "system",
+          prompt ? text(prompt) : getTranslation("passwordRequired"),
+        );
       }
     }
 
-    return false
+    return false;
   }
 
   /*
@@ -739,10 +542,10 @@ export function useDetectiveGame(
    */
 
   function addLine(
-    type: TerminalLine['type'],
+    type: TerminalLine["type"],
     lineText: string,
-    highlights?: TerminalLine['highlights'],
-    variant?: TerminalLine['variant'],
+    highlights?: TerminalLine["highlights"],
+    variant?: TerminalLine["variant"],
   ) {
     state.terminal.push({
       id: ++lineId,
@@ -754,7 +557,7 @@ export function useDetectiveGame(
       highlights,
 
       variant,
-    })
+    });
   }
 
   /*
@@ -767,96 +570,70 @@ export function useDetectiveGame(
     lineText: string,
     terms: string[],
   ): Array<{
-    start: number
-    end: number
+    start: number;
+    end: number;
   }> {
     const highlights: Array<{
-      start: number
-      end: number
-    }> = []
+      start: number;
+      end: number;
+    }> = [];
 
-    const normalizedText =
-      lineText.toLowerCase()
+    const normalizedText = lineText.toLowerCase();
 
     for (const term of terms) {
       if (!term) {
-        continue
+        continue;
       }
 
-      const normalizedTerm =
-        term.toLowerCase()
+      const normalizedTerm = term.toLowerCase();
 
-      let searchStart = 0
+      let searchStart = 0;
 
       while (true) {
-        const index =
-          normalizedText.indexOf(
-            normalizedTerm,
-            searchStart,
-          )
+        const index = normalizedText.indexOf(normalizedTerm, searchStart);
 
         if (index === -1) {
-          break
+          break;
         }
 
         highlights.push({
           start: index,
 
-          end:
-            index +
-            term.length,
-        })
+          end: index + term.length,
+        });
 
-        searchStart =
-          index +
-          term.length
+        searchStart = index + term.length;
       }
     }
 
-    highlights.sort(
-      (a, b) =>
-        a.start -
-        b.start,
-    )
+    highlights.sort((a, b) => a.start - b.start);
 
     const merged: Array<{
-      start: number
-      end: number
-    }> = []
+      start: number;
+      end: number;
+    }> = [];
 
-    for (
-      const item of highlights
-    ) {
-      const last =
-        merged[
-          merged.length - 1
-        ]
+    for (const item of highlights) {
+      const last = merged[merged.length - 1];
 
       if (!last) {
         merged.push({
           ...item,
-        })
+        });
 
-        continue
+        continue;
       }
 
-      if (
-        item.start <=
-        last.end
-      ) {
-        last.end =
-          Math.max(
-            last.end,
-            item.end,
-          )
+      if (item.start <= last.end) {
+        last.end = Math.max(last.end, item.end);
       } else {
         merged.push({
           ...item,
-        })
+        });
       }
     }
 
-    return merged
+    return merged;
   }
 
   /*
@@ -865,123 +642,74 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function canDiscoverEvidence(
-    evidence: Evidence,
-  ): boolean {
-    if (
-      !evidence.requiresEvidence
-        ?.length
-    ) {
-      return true
+  function canDiscoverEvidence(evidence: Evidence): boolean {
+    if (!evidence.requiresEvidence?.length) {
+      return true;
     }
 
-    return evidence.requiresEvidence.every(
-      requiredId =>
-        state.evidence.some(
-          item =>
-            item.id ===
-              requiredId &&
-            item.discovered,
-        ),
-    )
+    return evidence.requiresEvidence.every((requiredId) =>
+      state.evidence.some((item) => item.id === requiredId && item.discovered),
+    );
   }
 
-  function discoverEvidence(
-    evidence: Evidence,
-  ) {
-    if (
-      evidence.discovered
-    ) {
-      return
+  function discoverEvidence(evidence: Evidence) {
+    if (evidence.discovered) {
+      return;
     }
 
-    if (
-      !canDiscoverEvidence(
-        evidence,
-      )
-    ) {
+    if (!canDiscoverEvidence(evidence)) {
       addLine(
-        'warning',
-        `${getTranslation('accessDenied')}: ${text(
-          evidence.title,
-        )}`,
-      )
+        "warning",
+        `${getTranslation("accessDenied")}: ${text(evidence.title)}`,
+      );
 
-      addLine(
-        'warning',
-        getTranslation(
-          'additionalEvidenceRequired',
-        ),
-      )
+      addLine("warning", getTranslation("additionalEvidenceRequired"));
 
-      return
+      return;
     }
 
-    evidence.discovered =
-      true
+    evidence.discovered = true;
 
     const evidenceNumber = String(
-      state.evidence.findIndex(item => item.id === evidence.id) + 1,
-    ).padStart(2, '0')
+      state.evidence.findIndex((item) => item.id === evidence.id) + 1,
+    ).padStart(2, "0");
 
     addLine(
-      'success',
-      `${getTranslation(
-        'evidenceDiscovered',
-      )}: Evidence ${evidenceNumber}`,
-    )
+      "success",
+      `${getTranslation("evidenceDiscovered")}: Evidence ${evidenceNumber}`,
+    );
 
     addLine(
-      'system',
-      state.locale === 'vi'
-        ? '→ Chưa phân loại. Hãy đối chiếu evidence này với nhiệm vụ hiện tại trong panel [E] và [Q].'
-        : '→ Unclassified. Compare this evidence with the current assignment in panels [E] and [Q].',
-    )
-
+      "system",
+      state.locale === "vi"
+        ? "→ Chưa phân loại. Hãy đối chiếu evidence này với nhiệm vụ hiện tại trong panel [E] và [Q]."
+        : "→ Unclassified. Compare this evidence with the current assignment in panels [E] and [Q].",
+    );
   }
 
-  function checkEvidenceFromCat(
-    path: string,
-  ) {
-    const matchingEvidence =
-      state.evidence.filter(
-        evidence =>
-          normalizePath(
-            evidence.discover.path,
-          ) ===
-          normalizePath(path),
-      )
+  function checkEvidenceFromCat(path: string) {
+    const matchingEvidence = state.evidence.filter(
+      (evidence) =>
+        normalizePath(evidence.discover.path) === normalizePath(path),
+    );
 
-    for (
-      const evidence of
-        matchingEvidence
-    ) {
-      if (
-        evidence.discovered
-      ) {
-        continue
+    for (const evidence of matchingEvidence) {
+      if (evidence.discovered) {
+        continue;
       }
 
-      if (
-        !canDiscoverEvidence(
-          evidence,
-        )
-      ) {
+      if (!canDiscoverEvidence(evidence)) {
         addLine(
-          'warning',
-          `${getTranslation(
-            'fileContainsSuspiciousInformation',
-          )} "${text(
+          "warning",
+          `${getTranslation("fileContainsSuspiciousInformation")} "${text(
             evidence.title,
           )}".`,
-        )
+        );
 
-        continue
+        continue;
       }
 
-      discoverEvidence(
-        evidence,
-      )
+      discoverEvidence(evidence);
     }
   }
 
@@ -991,177 +719,136 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function linkEvidenceToTask(
-    taskId: string,
-    evidenceId: string,
-  ): boolean {
-    const task = state.tasks.find(item => item.id === taskId)
-    const activeTask = state.tasks.find(item => !item.completed)
-    const evidence = state.evidence.find(item => item.id === evidenceId)
+  function linkEvidenceToTask(taskId: string, evidenceId: string): boolean {
+    const task = state.tasks.find((item) => item.id === taskId);
+    const activeTask = state.tasks.find((item) => !item.completed);
+    const evidence = state.evidence.find((item) => item.id === evidenceId);
 
     if (!task || !evidence?.discovered || activeTask?.id !== task.id) {
-      return false
+      return false;
     }
 
     if (!task.requiresEvidence.includes(evidenceId)) {
-      return false
+      return false;
     }
 
-    const linked = state.linkedEvidence[task.id] ?? []
+    const linked = state.linkedEvidence[task.id] ?? [];
 
     if (!linked.includes(evidenceId)) {
-      state.linkedEvidence[task.id] = [...linked, evidenceId]
+      state.linkedEvidence[task.id] = [...linked, evidenceId];
 
       addLine(
-        'success',
-        `${state.locale === 'vi' ? 'EVIDENCE ĐÃ XÁC NHẬN' : 'EVIDENCE VERIFIED'}: ${text(evidence.title)}`,
-      )
+        "success",
+        `${state.locale === "vi" ? "EVIDENCE ĐÃ XÁC NHẬN" : "EVIDENCE VERIFIED"}: ${text(evidence.title)}`,
+      );
 
-      addLine('success', `→ ${text(evidence.description)}`)
+      addLine("success", `→ ${text(evidence.description)}`);
     }
 
-    const completed = task.requiresEvidence.every(id =>
+    const completed = task.requiresEvidence.every((id) =>
       state.linkedEvidence[task.id]?.includes(id),
-    )
+    );
 
     if (!completed || task.completed) {
-      return true
+      return true;
     }
 
-    task.completed = true
+    task.completed = true;
 
     addLine(
-      'success',
-      `${getTranslation(
-        'taskCompleted',
-      )}: ${text(
-        task.title,
-      )}`,
-    )
+      "success",
+      `${getTranslation("taskCompleted")}: ${text(task.title)}`,
+    );
 
-    addLine(
-      'success',
-      `→ ${text(
-        task.description,
-      )}`,
-    )
+    addLine("success", `→ ${text(task.description)}`);
 
-    checkGameCompletion()
+    checkGameCompletion();
 
-    return true
+    return true;
   }
 
   function finalizeGameCompletion() {
     if (state.gameCompleted) {
-      return
+      return;
     }
 
-    state.gameCompleted = true
+    state.gameCompleted = true;
 
-    addLine(
-      'success',
-      '========================================',
-    )
+    addLine("success", "========================================");
 
-    addLine(
-      'success',
-      getTranslation(
-        'caseSolved',
-      ),
-    )
+    addLine("success", getTranslation("caseSolved"));
 
-    addLine(
-      'success',
-      getTranslation(
-        'allTasksCompleted',
-      ),
-    )
+    addLine("success", getTranslation("allTasksCompleted"));
 
-    addLine(
-      'success',
-      '========================================',
-    )
+    addLine("success", "========================================");
   }
 
   function checkGameCompletion() {
     const allTasksCompleted =
-      state.tasks.length > 0 &&
-      state.tasks.every(
-        task =>
-          task.completed,
-      )
+      state.tasks.length > 0 && state.tasks.every((task) => task.completed);
 
-    if (
-      !allTasksCompleted
-    ) {
-      return
+    if (!allTasksCompleted) {
+      return;
     }
 
     if (scenario.operationalReport) {
-      return
+      return;
     }
 
-    finalizeGameCompletion()
+    finalizeGameCompletion();
   }
 
   function completeOperationalReport(): boolean {
     if (!scenario.operationalReport) {
-      return false
+      return false;
     }
 
     const allTasksCompleted =
-      state.tasks.length > 0 &&
-      state.tasks.every(
-        task => task.completed,
-      )
+      state.tasks.length > 0 && state.tasks.every((task) => task.completed);
 
     if (!allTasksCompleted) {
-      return false
+      return false;
     }
 
-    finalizeGameCompletion()
+    finalizeGameCompletion();
 
-    return true
+    return true;
   }
 
   function isOperationalReportAvailable(): boolean {
     return Boolean(
       scenario.operationalReport &&
       state.tasks.length > 0 &&
-      state.tasks.every(
-        task => task.completed,
-      ),
-    )
+      state.tasks.every((task) => task.completed),
+    );
   }
 
   function autoCompleteInvestigation() {
     if (state.gameCompleted) {
-      return
+      return;
     }
 
-    state.commandHistory.push('excute')
+    state.commandHistory.push("excute");
 
-    state.evidence.forEach(evidence => {
-      evidence.discovered = true
-    })
+    state.evidence.forEach((evidence) => {
+      evidence.discovered = true;
+    });
 
-    state.tasks.forEach(task => {
-      state.linkedEvidence[task.id] = [
-        ...new Set(task.requiresEvidence),
-      ]
-      task.completed = true
-    })
+    state.tasks.forEach((task) => {
+      state.linkedEvidence[task.id] = [...new Set(task.requiresEvidence)];
+      task.completed = true;
+    });
 
-    state.passwordPrompt = null
+    state.passwordPrompt = null;
 
     addLine(
-      'success',
-      state.locale === 'vi'
-        ? 'MÃ ĐIỀU KHIỂN HỢP LỆ — ĐÃ TỰ ĐỘNG HOÀN TẤT ĐIỀU TRA.'
-        : 'OVERRIDE CODE ACCEPTED — INVESTIGATION AUTOMATION COMPLETE.',
-    )
+      "success",
+      state.locale === "vi"
+        ? "MÃ ĐIỀU KHIỂN HỢP LỆ — ĐÃ TỰ ĐỘNG HOÀN TẤT ĐIỀU TRA."
+        : "OVERRIDE CODE ACCEPTED — INVESTIGATION AUTOMATION COMPLETE.",
+    );
 
-    finalizeGameCompletion()
+    finalizeGameCompletion();
   }
 
   /*
@@ -1171,10 +858,7 @@ export function useDetectiveGame(
    */
 
   function commandPwd() {
-    addLine(
-      'output',
-      state.currentDirectory,
-    )
+    addLine("output", state.currentDirectory);
   }
 
   /*
@@ -1183,248 +867,197 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function commandLs(
-    args: string[],
-    privileged = false,
-  ) {
-    const longFormat =
-      args[0] === '-l'
+  function commandLs(args: string[], privileged = false) {
+    const longFormat = args[0] === "-l";
 
-    if (
-      args.length >
-        (longFormat ? 2 : 1)
-    ) {
-      addLine(
-        'error',
-        getTranslation(
-          'lsTooManyArguments',
-        ),
-      )
+    if (args.length > (longFormat ? 2 : 1)) {
+      addLine("error", getTranslation("lsTooManyArguments"));
 
-      return
+      return;
     }
 
-    const target =
-      (
-        longFormat
-          ? args[1]
-          : args[0]
-      ) || '.'
+    const target = (longFormat ? args[1] : args[0]) || ".";
 
-    const path =
-      resolvePath(
-        state.currentDirectory,
-        target,
-      )
+    const path = resolvePath(state.currentDirectory, target);
 
-    const directory =
-      getDirectory(path)
+    const directory = getDirectory(path);
 
     if (!directory) {
       addLine(
-        'error',
-        `ls: ${target}: ${getTranslation(
-          'noSuchFileOrDirectory',
-        )}`,
-      )
+        "error",
+        `ls: ${target}: ${getTranslation("noSuchFileOrDirectory")}`,
+      );
 
-      return
+      return;
     }
 
     if (!ensurePathAccess(path, privileged)) {
-      return
+      return;
     }
 
-    const children =
-      (directory.children ?? []).filter(
-        child =>
-          canRevealPath(
-            path === '/'
-              ? `/${child.name}`
-              : `${path}/${child.name}`,
-            privileged,
-          ),
-      )
+    const children = (directory.children ?? []).filter((child) =>
+      canRevealPath(
+        path === "/" ? `/${child.name}` : `${path}/${child.name}`,
+        privileged,
+      ),
+    );
 
     if (!children.length) {
-      return
+      return;
     }
 
     if (longFormat) {
-      const descriptions: Record<
-        SupportedLocale,
-        Record<string, string>
-      > = {
+      const descriptions: Record<SupportedLocale, Record<string, string>> = {
         en: {
-          directory: 'Directory containing related investigation files.',
-          authentication: 'Authentication and login event records.',
-          network: 'Network connection and traffic telemetry.',
-          physicalAccess: 'Physical access, badge or entry records.',
-          surveillance: 'Surveillance camera data or visual records.',
-          device: 'Device, USB or removable-media information.',
-          communication: 'Email or communication records.',
-          identity: 'User, employee or identity profile data.',
-          forensic: 'Forensic artifact or analysis result.',
-          timeline: 'Chronological event or activity timeline.',
-          script: 'Executable or automation script; inspect carefully.',
-          key: 'Cryptographic key or certificate material.',
-          log: 'System or application event log.',
-          data: 'Structured case or research data.',
-          text: 'Plain-text document or investigator note.',
-          image: 'Image or photographic evidence.',
-          archive: 'Archive containing one or more files.',
-          generic: 'Case-related file requiring inspection.',
+          directory: "Directory containing related investigation files.",
+          authentication: "Authentication and login event records.",
+          network: "Network connection and traffic telemetry.",
+          physicalAccess: "Physical access, badge or entry records.",
+          surveillance: "Surveillance camera data or visual records.",
+          device: "Device, USB or removable-media information.",
+          communication: "Email or communication records.",
+          identity: "User, employee or identity profile data.",
+          forensic: "Forensic artifact or analysis result.",
+          timeline: "Chronological event or activity timeline.",
+          script: "Executable or automation script; inspect carefully.",
+          key: "Cryptographic key or certificate material.",
+          log: "System or application event log.",
+          data: "Structured case or research data.",
+          text: "Plain-text document or investigator note.",
+          image: "Image or photographic evidence.",
+          archive: "Archive containing one or more files.",
+          generic: "Case-related file requiring inspection.",
         },
 
         vi: {
-          directory: 'Thư mục chứa các tệp điều tra liên quan.',
-          authentication: 'Bản ghi sự kiện xác thực và đăng nhập.',
-          network: 'Dữ liệu kết nối và lưu lượng mạng.',
-          physicalAccess: 'Bản ghi ra vào, thẻ hoặc truy cập vật lý.',
-          surveillance: 'Dữ liệu camera giám sát hoặc hình ảnh.',
-          device: 'Thông tin thiết bị, USB hoặc bộ nhớ ngoài.',
-          communication: 'Email hoặc bản ghi liên lạc.',
-          identity: 'Dữ liệu hồ sơ người dùng hoặc nhân viên.',
-          forensic: 'Dấu vết hoặc kết quả phân tích pháp chứng.',
-          timeline: 'Dòng thời gian sự kiện hoặc hoạt động.',
-          script: 'Script thực thi hoặc tự động hóa; cần kiểm tra kỹ.',
-          key: 'Khóa mã hóa hoặc dữ liệu chứng chỉ.',
-          log: 'Nhật ký sự kiện hệ thống hoặc ứng dụng.',
-          data: 'Dữ liệu vụ án hoặc nghiên cứu có cấu trúc.',
-          text: 'Tài liệu văn bản hoặc ghi chú điều tra.',
-          image: 'Hình ảnh hoặc bằng chứng dạng ảnh.',
-          archive: 'Tệp nén chứa một hoặc nhiều tệp.',
-          generic: 'Tệp liên quan vụ án cần được kiểm tra.',
+          directory: "Thư mục chứa các tệp điều tra liên quan.",
+          authentication: "Bản ghi sự kiện xác thực và đăng nhập.",
+          network: "Dữ liệu kết nối và lưu lượng mạng.",
+          physicalAccess: "Bản ghi ra vào, thẻ hoặc truy cập vật lý.",
+          surveillance: "Dữ liệu camera giám sát hoặc hình ảnh.",
+          device: "Thông tin thiết bị, USB hoặc bộ nhớ ngoài.",
+          communication: "Email hoặc bản ghi liên lạc.",
+          identity: "Dữ liệu hồ sơ người dùng hoặc nhân viên.",
+          forensic: "Dấu vết hoặc kết quả phân tích pháp chứng.",
+          timeline: "Dòng thời gian sự kiện hoặc hoạt động.",
+          script: "Script thực thi hoặc tự động hóa; cần kiểm tra kỹ.",
+          key: "Khóa mã hóa hoặc dữ liệu chứng chỉ.",
+          log: "Nhật ký sự kiện hệ thống hoặc ứng dụng.",
+          data: "Dữ liệu vụ án hoặc nghiên cứu có cấu trúc.",
+          text: "Tài liệu văn bản hoặc ghi chú điều tra.",
+          image: "Hình ảnh hoặc bằng chứng dạng ảnh.",
+          archive: "Tệp nén chứa một hoặc nhiều tệp.",
+          generic: "Tệp liên quan vụ án cần được kiểm tra.",
         },
-      }
+      };
 
-      const localeDescriptions =
-        descriptions[state.locale]
+      const localeDescriptions = descriptions[state.locale];
 
-      function describeNode(
-        node: FileNode,
-      ) {
-        if (node.type === 'directory') {
-          return localeDescriptions.directory
+      function describeNode(node: FileNode) {
+        if (node.type === "directory") {
+          return localeDescriptions.directory;
         }
 
-        const name =
-          node.name.toLowerCase()
+        const name = node.name.toLowerCase();
 
         if (/auth|login|credential|mfa/.test(name)) {
-          return localeDescriptions.authentication
+          return localeDescriptions.authentication;
         }
 
         if (/network|dns|dhcp|firewall|traffic|pcap/.test(name)) {
-          return localeDescriptions.network
+          return localeDescriptions.network;
         }
 
         if (/access|badge|door|parking/.test(name)) {
-          return localeDescriptions.physicalAccess
+          return localeDescriptions.physicalAccess;
         }
 
         if (/camera|photo|image|snapshot|video/.test(name)) {
-          return localeDescriptions.surveillance
+          return localeDescriptions.surveillance;
         }
 
         if (/usb|device|mount|hardware/.test(name)) {
-          return localeDescriptions.device
+          return localeDescriptions.device;
         }
 
         if (/mail|message|inbox/.test(name)) {
-          return localeDescriptions.communication
+          return localeDescriptions.communication;
         }
 
         if (/user|profile|employee|account/.test(name)) {
-          return localeDescriptions.identity
+          return localeDescriptions.identity;
         }
 
         if (/forensic|memory|process|artifact/.test(name)) {
-          return localeDescriptions.forensic
+          return localeDescriptions.forensic;
         }
 
         if (/timeline|history|activity/.test(name)) {
-          return localeDescriptions.timeline
+          return localeDescriptions.timeline;
         }
 
         if (/script|\.sh$|\.ps1$|\.py$/.test(name)) {
-          return localeDescriptions.script
+          return localeDescriptions.script;
         }
 
         if (/certificate|\.key$|\.pem$|\.crt$/.test(name)) {
-          return localeDescriptions.key
+          return localeDescriptions.key;
         }
 
         if (/\.log$/.test(name)) {
-          return localeDescriptions.log
+          return localeDescriptions.log;
         }
 
         if (/\.(json|csv|dat|db)$/.test(name)) {
-          return localeDescriptions.data
+          return localeDescriptions.data;
         }
 
         if (/\.(txt|md)$/.test(name)) {
-          return localeDescriptions.text
+          return localeDescriptions.text;
         }
 
         if (/\.(png|jpg|jpeg|gif)$/.test(name)) {
-          return localeDescriptions.image
+          return localeDescriptions.image;
         }
 
         if (/\.(zip|tar|gz)$/.test(name)) {
-          return localeDescriptions.archive
+          return localeDescriptions.archive;
         }
 
-        return localeDescriptions.generic
+        return localeDescriptions.generic;
       }
 
       for (const child of children) {
         const displayName =
-          child.type === 'directory'
-            ? `${child.name}/`
-            : child.name
+          child.type === "directory" ? `${child.name}/` : child.name;
 
         const line = `${
-          child.type === 'directory'
-            ? 'd'
-            : '-'
-        }  ${displayName.padEnd(24)} ${describeNode(child)}`
+          child.type === "directory" ? "d" : "-"
+        }  ${displayName.padEnd(24)} ${describeNode(child)}`;
 
         addLine(
-          'output',
+          "output",
           line,
-          createHighlights(
-            line,
-            [
-              state.locale === 'vi'
-                ? 'cần kiểm tra kỹ'
-                : 'inspect carefully',
-            ],
-          ),
-        )
+          createHighlights(line, [
+            state.locale === "vi" ? "cần kiểm tra kỹ" : "inspect carefully",
+          ]),
+        );
       }
 
-      return
+      return;
     }
 
-    const output =
-      children
-        .map(child => {
-          if (
-            child.type ===
-            'directory'
-          ) {
-            return `${child.name}/`
-          }
+    const output = children
+      .map((child) => {
+        if (child.type === "directory") {
+          return `${child.name}/`;
+        }
 
-          return child.name
-        })
-        .join('    ')
+        return child.name;
+      })
+      .join("    ");
 
-    addLine(
-      'output',
-      output,
-    )
+    addLine("output", output);
   }
 
   /*
@@ -1433,75 +1066,49 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function commandCd(
-    args: string[],
-    privileged = false,
-  ) {
+  function commandCd(args: string[], privileged = false) {
     if (!args.length) {
-      state.currentDirectory =
-        '/'
+      state.currentDirectory = "/";
 
-      return
+      return;
     }
 
     if (args.length > 1) {
-      addLine(
-        'error',
-        getTranslation(
-          'cdTooManyArguments',
-        ),
-      )
+      addLine("error", getTranslation("cdTooManyArguments"));
 
-      return
+      return;
     }
 
-    const target =
-      args[0]
+    const target = args[0];
 
     if (!target) {
-      return
+      return;
     }
 
-    const path =
-      resolvePath(
-        state.currentDirectory,
-        target,
-      )
+    const path = resolvePath(state.currentDirectory, target);
 
-    const node =
-      getNode(path)
+    const node = getNode(path);
 
     if (!node) {
       addLine(
-        'error',
-        `cd: ${target}: ${getTranslation(
-          'noSuchFileOrDirectory',
-        )}`,
-      )
+        "error",
+        `cd: ${target}: ${getTranslation("noSuchFileOrDirectory")}`,
+      );
 
-      return
+      return;
     }
 
-    if (
-      node.type !==
-      'directory'
-    ) {
-      addLine(
-        'error',
-        `cd: ${target}: ${getTranslation(
-          'notDirectory',
-        )}`,
-      )
+    if (node.type !== "directory") {
+      addLine("error", `cd: ${target}: ${getTranslation("notDirectory")}`);
 
-      return
+      return;
     }
 
     if (!ensurePathAccess(path, privileged)) {
-      return
+      return;
     }
 
-    state.currentDirectory =
-      path
+    state.currentDirectory = path;
   }
 
   /*
@@ -1510,118 +1117,63 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function commandCat(
-    args: string[],
-    privileged = false,
-  ) {
+  function commandCat(args: string[], privileged = false) {
     if (!args.length) {
-      addLine(
-        'error',
-        getTranslation(
-          'catMissingOperand',
-        ),
-      )
+      addLine("error", getTranslation("catMissingOperand"));
 
-      return
+      return;
     }
 
     if (args.length > 1) {
-      addLine(
-        'warning',
-        getTranslation(
-          'catOneFile',
-        ),
-      )
+      addLine("warning", getTranslation("catOneFile"));
 
-      return
+      return;
     }
 
-    const inputPath =
-      args[0]
+    const inputPath = args[0];
 
     if (!inputPath) {
-      return
+      return;
     }
 
-    const path =
-      resolvePath(
-        state.currentDirectory,
-        inputPath,
-      )
+    const path = resolvePath(state.currentDirectory, inputPath);
 
-    const node =
-      getNode(path)
+    const node = getNode(path);
 
     if (!node) {
       addLine(
-        'error',
-        `cat: ${inputPath}: ${getTranslation(
-          'noSuchFileOrDirectory',
-        )}`,
-      )
+        "error",
+        `cat: ${inputPath}: ${getTranslation("noSuchFileOrDirectory")}`,
+      );
 
-      return
+      return;
     }
 
-    if (
-      node.type ===
-      'directory'
-    ) {
-      addLine(
-        'error',
-        `cat: ${inputPath}: ${getTranslation(
-          'isDirectory',
-        )}`,
-      )
+    if (node.type === "directory") {
+      addLine("error", `cat: ${inputPath}: ${getTranslation("isDirectory")}`);
 
-      return
+      return;
     }
 
     if (!ensurePathAccess(path, privileged, true)) {
-      return
+      return;
     }
 
-    const content =
-      node.content
-        ? text(
-            node.content,
-          )
-        : ''
+    const content = node.content ? text(node.content) : "";
 
-    const matchingEvidence =
-      state.evidence.filter(
-        evidence =>
-          normalizePath(
-            evidence.discover.path,
-          ) === path,
-      )
+    const matchingEvidence = state.evidence.filter(
+      (evidence) => normalizePath(evidence.discover.path) === path,
+    );
 
-    const highlightTerms =
-      matchingEvidence.flatMap(
-        evidence =>
-          evidence.highlight
-            ? evidence
-                .highlight[
-                state.locale
-              ]
-            : [],
-      )
+    const highlightTerms = matchingEvidence.flatMap((evidence) =>
+      evidence.highlight ? evidence.highlight[state.locale] : [],
+    );
 
-    const highlights =
-      createHighlights(
-        content,
-        highlightTerms,
-      )
+    const highlights = createHighlights(content, highlightTerms);
 
-    addLine(
-      'output',
-      content,
-      highlights,
-    )
+    addLine("output", content, highlights);
 
-    checkEvidenceFromCat(
-      path,
-    )
+    checkEvidenceFromCat(path);
   }
 
   function readableFile(
@@ -1629,84 +1181,103 @@ export function useDetectiveGame(
     inputPath: string,
     privileged = false,
   ): { path: string; content: string } | null {
-    const path = resolvePath(state.currentDirectory, inputPath)
-    const node = getNode(path)
+    const path = resolvePath(state.currentDirectory, inputPath);
+    const node = getNode(path);
 
     if (!node) {
-      addLine('error', `${command}: ${inputPath}: ${getTranslation('noSuchFileOrDirectory')}`)
-      return null
+      addLine(
+        "error",
+        `${command}: ${inputPath}: ${getTranslation("noSuchFileOrDirectory")}`,
+      );
+      return null;
     }
 
-    if (node.type === 'directory') {
-      addLine('error', `${command}: ${inputPath}: ${getTranslation('isDirectory')}`)
-      return null
+    if (node.type === "directory") {
+      addLine(
+        "error",
+        `${command}: ${inputPath}: ${getTranslation("isDirectory")}`,
+      );
+      return null;
     }
 
     if (!ensurePathAccess(path, privileged, true)) {
-      return null
+      return null;
     }
 
     return {
       path,
-      content: node.content ? text(node.content) : '',
-    }
+      content: node.content ? text(node.content) : "",
+    };
   }
 
   function commandGrep(args: string[], privileged = false) {
     if (args.length !== 2) {
-      addLine('error', state.locale === 'vi'
-        ? 'Cách dùng: grep <mẫu> <tệp>'
-        : 'Usage: grep <pattern> <file>')
-      return
+      addLine(
+        "error",
+        state.locale === "vi"
+          ? "Cách dùng: grep <mẫu> <tệp>"
+          : "Usage: grep <pattern> <file>",
+      );
+      return;
     }
 
-    const [pattern, inputPath] = args
-    if (!pattern || !inputPath) return
+    const [pattern, inputPath] = args;
+    if (!pattern || !inputPath) return;
 
-    const file = readableFile('grep', inputPath, privileged)
-    if (!file) return
+    const file = readableFile("grep", inputPath, privileged);
+    if (!file) return;
 
-    let matcher: RegExp
+    let matcher: RegExp;
     try {
-      matcher = new RegExp(pattern, 'gi')
+      matcher = new RegExp(pattern, "gi");
     } catch {
-      addLine('error', state.locale === 'vi' ? 'grep: mẫu tìm kiếm không hợp lệ' : 'grep: invalid search pattern')
-      return
+      addLine(
+        "error",
+        state.locale === "vi"
+          ? "grep: mẫu tìm kiếm không hợp lệ"
+          : "grep: invalid search pattern",
+      );
+      return;
     }
 
     const matches = file.content
-      .split('\n')
+      .split("\n")
       .map((line, index) => ({ line, number: index + 1 }))
-      .filter(item => {
-        matcher.lastIndex = 0
-        return matcher.test(item.line)
-      })
+      .filter((item) => {
+        matcher.lastIndex = 0;
+        return matcher.test(item.line);
+      });
 
     if (!matches.length) {
-      addLine('output', state.locale === 'vi' ? 'grep: không tìm thấy dòng phù hợp' : 'grep: no matching lines')
-      return
+      addLine(
+        "output",
+        state.locale === "vi"
+          ? "grep: không tìm thấy dòng phù hợp"
+          : "grep: no matching lines",
+      );
+      return;
     }
 
     for (const match of matches) {
-      const output = `${String(match.number).padStart(4)}: ${match.line}`
-      addLine('output', output, createHighlights(output, [pattern]))
+      const output = `${String(match.number).padStart(4)}: ${match.line}`;
+      addLine("output", output, createHighlights(output, [pattern]));
     }
   }
 
   function commandHeadOrTail(
-    command: 'head' | 'tail',
+    command: "head" | "tail",
     args: string[],
     privileged = false,
   ) {
-    let count = 10
-    let inputPath = args[0]
+    let count = 10;
+    let inputPath = args[0];
 
-    if (args[0] === '-n') {
-      count = Number(args[1])
-      inputPath = args[2]
+    if (args[0] === "-n") {
+      count = Number(args[1]);
+      inputPath = args[2];
     }
 
-    const expectedArguments = args[0] === '-n' ? 3 : 1
+    const expectedArguments = args[0] === "-n" ? 3 : 1;
 
     if (
       args.length !== expectedArguments ||
@@ -1715,100 +1286,142 @@ export function useDetectiveGame(
       count < 1 ||
       count > 100
     ) {
-      addLine('error', state.locale === 'vi'
-        ? `Cách dùng: ${command} [-n 1..100] <tệp>`
-        : `Usage: ${command} [-n 1..100] <file>`)
-      return
+      addLine(
+        "error",
+        state.locale === "vi"
+          ? `Cách dùng: ${command} [-n 1..100] <tệp>`
+          : `Usage: ${command} [-n 1..100] <file>`,
+      );
+      return;
     }
 
-    const file = readableFile(command, inputPath, privileged)
-    if (!file) return
+    const file = readableFile(command, inputPath, privileged);
+    if (!file) return;
 
-    const lines = file.content.split('\n')
-    const selected = command === 'head' ? lines.slice(0, count) : lines.slice(-count)
-    addLine('output', selected.join('\n'))
+    const lines = file.content.split("\n");
+    const selected =
+      command === "head" ? lines.slice(0, count) : lines.slice(-count);
+    addLine("output", selected.join("\n"));
   }
 
   function commandStat(args: string[], privileged = false) {
     if (args.length !== 1 || !args[0]) {
-      addLine('error', state.locale === 'vi' ? 'Cách dùng: stat <tệp>' : 'Usage: stat <file>')
-      return
+      addLine(
+        "error",
+        state.locale === "vi" ? "Cách dùng: stat <tệp>" : "Usage: stat <file>",
+      );
+      return;
     }
 
-    const file = readableFile('stat', args[0], privileged)
-    if (!file) return
+    const file = readableFile("stat", args[0], privileged);
+    if (!file) return;
 
-    const bytes = new TextEncoder().encode(file.content).length
-    const lines = file.content ? file.content.split('\n').length : 0
-    addLine('output', [
-      `File: ${file.path}`,
-      `Type: regular forensic file`,
-      `Size: ${bytes} bytes`,
-      `Lines: ${lines}`,
-      `Access: read-only`,
-    ].join('\n'))
+    const bytes = new TextEncoder().encode(file.content).length;
+    const lines = file.content ? file.content.split("\n").length : 0;
+    addLine(
+      "output",
+      [
+        `File: ${file.path}`,
+        `Type: regular forensic file`,
+        `Size: ${bytes} bytes`,
+        `Lines: ${lines}`,
+        `Access: read-only`,
+      ].join("\n"),
+    );
   }
 
   function commandDiff(args: string[], privileged = false) {
     if (args.length !== 2 || !args[0] || !args[1]) {
-      addLine('error', state.locale === 'vi' ? 'Cách dùng: diff <tệp-1> <tệp-2>' : 'Usage: diff <file-1> <file-2>')
-      return
+      addLine(
+        "error",
+        state.locale === "vi"
+          ? "Cách dùng: diff <tệp-1> <tệp-2>"
+          : "Usage: diff <file-1> <file-2>",
+      );
+      return;
     }
 
-    const left = readableFile('diff', args[0], privileged)
-    const right = readableFile('diff', args[1], privileged)
-    if (!left || !right) return
+    const left = readableFile("diff", args[0], privileged);
+    const right = readableFile("diff", args[1], privileged);
+    if (!left || !right) return;
 
-    const leftLines = left.content.split('\n')
-    const rightLines = right.content.split('\n')
-    const total = Math.max(leftLines.length, rightLines.length)
-    const output: string[] = [`--- ${left.path}`, `+++ ${right.path}`]
+    const leftLines = left.content.split("\n");
+    const rightLines = right.content.split("\n");
+    const total = Math.max(leftLines.length, rightLines.length);
+    const output: string[] = [`--- ${left.path}`, `+++ ${right.path}`];
 
     for (let index = 0; index < total; index += 1) {
-      const before = leftLines[index]
-      const after = rightLines[index]
-      if (before === after) continue
-      if (before !== undefined) output.push(`- ${String(index + 1).padStart(4)} ${before}`)
-      if (after !== undefined) output.push(`+ ${String(index + 1).padStart(4)} ${after}`)
+      const before = leftLines[index];
+      const after = rightLines[index];
+      if (before === after) continue;
+      if (before !== undefined)
+        output.push(`- ${String(index + 1).padStart(4)} ${before}`);
+      if (after !== undefined)
+        output.push(`+ ${String(index + 1).padStart(4)} ${after}`);
     }
 
-    addLine('output', output.length === 2
-      ? `${left.path} ${state.locale === 'vi' ? 'và' : 'and'} ${right.path}: ${state.locale === 'vi' ? 'không có khác biệt' : 'no differences'}`
-      : output.join('\n'))
+    addLine(
+      "output",
+      output.length === 2
+        ? `${left.path} ${state.locale === "vi" ? "và" : "and"} ${right.path}: ${state.locale === "vi" ? "không có khác biệt" : "no differences"}`
+        : output.join("\n"),
+    );
   }
 
   function commandStrings(args: string[], privileged = false) {
     if (args.length !== 1 || !args[0]) {
-      addLine('error', state.locale === 'vi' ? 'Cách dùng: strings <tệp>' : 'Usage: strings <file>')
-      return
+      addLine(
+        "error",
+        state.locale === "vi"
+          ? "Cách dùng: strings <tệp>"
+          : "Usage: strings <file>",
+      );
+      return;
     }
 
-    const file = readableFile('strings', args[0], privileged)
-    if (!file) return
+    const file = readableFile("strings", args[0], privileged);
+    if (!file) return;
 
-    const strings = file.content.match(/[\p{L}\p{N}][\p{L}\p{N}\p{P}\p{Zs}]{3,}/gu) ?? []
-    addLine('output', strings.length
-      ? strings.map(value => value.trim()).filter(Boolean).join('\n')
-      : state.locale === 'vi' ? 'strings: không tìm thấy chuỗi có thể đọc' : 'strings: no readable strings found')
+    const strings =
+      file.content.match(/[\p{L}\p{N}][\p{L}\p{N}\p{P}\p{Zs}]{3,}/gu) ?? [];
+    addLine(
+      "output",
+      strings.length
+        ? strings
+            .map((value) => value.trim())
+            .filter(Boolean)
+            .join("\n")
+        : state.locale === "vi"
+          ? "strings: không tìm thấy chuỗi có thể đọc"
+          : "strings: no readable strings found",
+    );
   }
 
   function commandChecksum(args: string[], privileged = false) {
     if (args.length !== 1 || !args[0]) {
-      addLine('error', state.locale === 'vi' ? 'Cách dùng: checksum <tệp>' : 'Usage: checksum <file>')
-      return
+      addLine(
+        "error",
+        state.locale === "vi"
+          ? "Cách dùng: checksum <tệp>"
+          : "Usage: checksum <file>",
+      );
+      return;
     }
 
-    const file = readableFile('checksum', args[0], privileged)
-    if (!file) return
+    const file = readableFile("checksum", args[0], privileged);
+    if (!file) return;
 
     // Stable FNV-1a fingerprint for the simulated forensic filesystem.
-    let hash = 0x811c9dc5
+    let hash = 0x811c9dc5;
     for (const byte of new TextEncoder().encode(file.content)) {
-      hash ^= byte
-      hash = Math.imul(hash, 0x01000193) >>> 0
+      hash ^= byte;
+      hash = Math.imul(hash, 0x01000193) >>> 0;
     }
 
-    addLine('output', `FNV1A32 ${hash.toString(16).padStart(8, '0')}  ${file.path}`)
+    addLine(
+      "output",
+      `FNV1A32 ${hash.toString(16).padStart(8, "0")}  ${file.path}`,
+    );
   }
 
   /*
@@ -1817,96 +1430,46 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function commandFind(
-    args: string[],
-    privileged = false,
-  ) {
-    const query =
-      args.join(' ').trim()
+  function commandFind(args: string[], privileged = false) {
+    const query = args.join(" ").trim();
 
     if (!query) {
-      addLine(
-        'error',
-        getTranslation(
-          'findMissingPattern',
-        ),
-      )
+      addLine("error", getTranslation("findMissingPattern"));
 
-      return
+      return;
     }
 
-    const results: string[] = []
+    const results: string[] = [];
 
-    function walk(
-      nodes: FileNode[],
-      basePath: string,
-    ) {
-      for (
-        const node of nodes
-      ) {
+    function walk(nodes: FileNode[], basePath: string) {
+      for (const node of nodes) {
         const nodePath =
-          basePath === '/'
-            ? `/${node.name}`
-            : `${basePath}/${node.name}`
+          basePath === "/" ? `/${node.name}` : `${basePath}/${node.name}`;
 
         if (!canRevealPath(nodePath, privileged)) {
-          continue
+          continue;
         }
 
-        if (
-          node.name
-            .toLowerCase()
-            .includes(
-              query.toLowerCase(),
-            )
-        ) {
-          results.push(
-            nodePath +
-              (
-                node.type ===
-                'directory'
-                  ? '/'
-                  : ''
-              ),
-          )
+        if (node.name.toLowerCase().includes(query.toLowerCase())) {
+          results.push(nodePath + (node.type === "directory" ? "/" : ""));
         }
 
-        if (
-          node.type ===
-            'directory' &&
-          node.children
-        ) {
-          walk(
-            node.children,
-            nodePath,
-          )
+        if (node.type === "directory" && node.children) {
+          walk(node.children, nodePath);
         }
       }
     }
 
-    walk(
-      scenario.filesystem,
-      '/',
-    )
+    walk(scenario.filesystem, "/");
 
     if (!results.length) {
-      addLine(
-        'output',
-        `${getTranslation(
-          'findNoResults',
-        )} "${query}"`,
-      )
+      addLine("output", `${getTranslation("findNoResults")} "${query}"`);
 
-      return
+      return;
     }
 
-    for (
-      const result of results
-    ) {
-      addLine(
-        'output',
-        result,
-      )
+    for (const result of results) {
+      addLine("output", result);
     }
   }
 
@@ -1916,104 +1479,93 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function commandSudo(
-    args: string[],
-  ) {
-    const nestedCommand =
-      args[0]?.toLowerCase()
-    const nestedArgs = args.slice(1)
+  function commandSudo(args: string[]) {
+    const nestedCommand = args[0]?.toLowerCase();
+    const nestedArgs = args.slice(1);
 
     if (!nestedCommand) {
-      addLine(
-        'error',
-        getTranslation('sudoMissingCommand'),
-      )
-      return
+      addLine("error", getTranslation("sudoMissingCommand"));
+      return;
     }
 
     switch (nestedCommand) {
-      case 'ls':
-        commandLs(nestedArgs, true)
-        break
-      case 'cd':
-        commandCd(nestedArgs, true)
-        break
-      case 'cat':
-        commandCat(nestedArgs, true)
-        break
-      case 'grep':
-        commandGrep(nestedArgs, true)
-        break
-      case 'head':
-        commandHeadOrTail('head', nestedArgs, true)
-        break
-      case 'tail':
-        commandHeadOrTail('tail', nestedArgs, true)
-        break
-      case 'stat':
-        commandStat(nestedArgs, true)
-        break
-      case 'diff':
-        commandDiff(nestedArgs, true)
-        break
-      case 'strings':
-        commandStrings(nestedArgs, true)
-        break
-      case 'checksum':
-        commandChecksum(nestedArgs, true)
-        break
-      case 'find':
-        commandFind(nestedArgs, true)
-        break
-      case 'guide':
-        commandGuide(nestedArgs, true)
-        break
+      case "ls":
+        commandLs(nestedArgs, true);
+        break;
+      case "cd":
+        commandCd(nestedArgs, true);
+        break;
+      case "cat":
+        commandCat(nestedArgs, true);
+        break;
+      case "grep":
+        commandGrep(nestedArgs, true);
+        break;
+      case "head":
+        commandHeadOrTail("head", nestedArgs, true);
+        break;
+      case "tail":
+        commandHeadOrTail("tail", nestedArgs, true);
+        break;
+      case "stat":
+        commandStat(nestedArgs, true);
+        break;
+      case "diff":
+        commandDiff(nestedArgs, true);
+        break;
+      case "strings":
+        commandStrings(nestedArgs, true);
+        break;
+      case "checksum":
+        commandChecksum(nestedArgs, true);
+        break;
+      case "find":
+        commandFind(nestedArgs, true);
+        break;
+      case "guide":
+        commandGuide(nestedArgs, true);
+        break;
       default:
         addLine(
-          'error',
-          `${getTranslation('sudoUnsupportedCommand')}: ${nestedCommand}`,
-        )
+          "error",
+          `${getTranslation("sudoUnsupportedCommand")}: ${nestedCommand}`,
+        );
     }
   }
 
-  function submitPassword(
-    password: string,
-  ): boolean {
-    const request = state.passwordPrompt
+  function submitPassword(password: string): boolean {
+    const request = state.passwordPrompt;
 
     if (!request) {
-      return false
+      return false;
     }
 
-    const node = getNode(request.path)
+    const node = getNode(request.path);
 
     if (
-      node?.access?.type !== 'password' ||
+      node?.access?.type !== "password" ||
       password !== node.access.password
     ) {
-      request.incorrect = true
-      return false
+      request.incorrect = true;
+      return false;
     }
 
     if (!isPasswordPathUnlocked(request.path)) {
-      state.unlockedPaths.push(request.path)
+      state.unlockedPaths.push(request.path);
     }
 
-    const path = request.path
-    const privileged = request.privileged
-    state.passwordPrompt = null
+    const path = request.path;
+    const privileged = request.privileged;
+    state.passwordPrompt = null;
 
-    addLine(
-      'success',
-      `${getTranslation('pathUnlocked')}: ${path}`,
-    )
-    commandCat([path], privileged)
+    addLine("success", `${getTranslation("pathUnlocked")}: ${path}`);
+    commandCat([path], privileged);
 
-    return true
+    return true;
   }
 
   function cancelPasswordPrompt() {
-    state.passwordPrompt = null
+    state.passwordPrompt = null;
   }
 
   /*
@@ -2023,24 +1575,13 @@ export function useDetectiveGame(
    */
 
   function commandHistory() {
-    if (
-      !state.commandHistory
-        .length
-    ) {
-      return
+    if (!state.commandHistory.length) {
+      return;
     }
 
-    state.commandHistory.forEach(
-      (
-        command,
-        index,
-      ) => {
-        addLine(
-          'output',
-          `${index + 1}  ${command}`,
-        )
-      },
-    )
+    state.commandHistory.forEach((command, index) => {
+      addLine("output", `${index + 1}  ${command}`);
+    });
   }
 
   /*
@@ -2050,10 +1591,7 @@ export function useDetectiveGame(
    */
 
   function commandWhoami() {
-    addLine(
-      'output',
-      'detective',
-    )
+    addLine("output", "detective");
   }
 
   /*
@@ -2063,12 +1601,13 @@ export function useDetectiveGame(
    */
 
   function hintPenaltyFor(level: number): number {
-    const normalizedLevel = Math.min(3, Math.max(1, level)) as 1 | 2 | 3
-    const penalties = scenario.id === 'case003'
-      ? ({ 1: 0, 2: 2, 3: 5 } as const)
-      : ({ 1: 2, 2: 5, 3: 10 } as const)
+    const normalizedLevel = Math.min(3, Math.max(1, level)) as 1 | 2 | 3;
+    const penalties =
+      scenario.id === "case003"
+        ? ({ 1: 0, 2: 2, 3: 5 } as const)
+        : ({ 1: 2, 2: 5, 3: 10 } as const);
 
-    return penalties[normalizedLevel]
+    return penalties[normalizedLevel];
   }
 
   function showEvidenceHint(
@@ -2076,282 +1615,104 @@ export function useDetectiveGame(
     level = 1,
     taskId: string | null = null,
   ) {
-    const folder = evidence.discover.path
-      .split('/')
-      .filter(Boolean)[0] ?? ''
+    const folder = evidence.discover.path.split("/").filter(Boolean)[0] ?? "";
 
-    const termsByFolder: Record<
-      SupportedLocale,
-      Record<string, string[]>
-    > = {
+    const termsByFolder: Record<SupportedLocale, Record<string, string[]>> = {
       en: {
         logs: [
-          'timeline',
-          'workstation',
-          'account name',
-          'authentication',
-          'login',
-          'session',
-          'activity',
+          "timeline",
+          "workstation",
+          "account name",
+          "authentication",
+          "login",
+          "session",
+          "activity",
         ],
         network: [
-          'connection',
-          'endpoint',
-          'IP',
-          'traffic',
-          'remote access',
-          'device',
+          "connection",
+          "endpoint",
+          "IP",
+          "traffic",
+          "remote access",
+          "device",
         ],
-        devices: [
-          'device',
-          'USB',
-          'workstation',
-          'owner',
-          'history',
-        ],
-        laptop: [
-          'laptop',
-          'victim device',
-          'artifact',
-          'timeline',
-          'message',
-        ],
-        usb: [
-          'USB',
-          'device',
-          'owner',
-          'contents',
-          'history',
-        ],
-        access: [
-          'badge',
-          'physical access',
-          'entry',
-          'identity',
-        ],
-        camera: [
-          'camera',
-          'footage',
-          'timeline',
-          'person',
-        ],
-        emails: [
-          'email',
-          'message',
-          'communication',
-          'sender',
-        ],
-        email: [
-          'email',
-          'message',
-          'communication',
-          'sender',
-        ],
-        users: [
-          'profile',
-          'account',
-          'identity',
-          'user',
-        ],
-        scripts: [
-          'script',
-          'command',
-          'automation',
-          'cleanup',
-        ],
-        forensics: [
-          'forensic',
-          'memory',
-          'process',
-          'artifact',
-        ],
-        incident: [
-          'contradiction',
-          'timeline',
-          'evidence',
-        ],
-        external: [
-          'external',
-          'certificate',
-          'destination',
-          'infrastructure',
-        ],
-        research: [
-          'research',
-          'archive',
-          'classified',
-          'project',
-        ],
-        server: [
-          'server',
-          'service',
-          'worker',
-          'job',
-        ],
-        documents: [
-          'document',
-          'report',
-          'record',
-          'file',
-        ],
-        notes: [
-          'note',
-          'context',
-          'personal',
-        ],
-        parking: [
-          'vehicle',
-          'parking',
-          'entry',
-        ],
-        system: [
-          'system',
-          'configuration',
-          'service',
-          'status',
-        ],
+        devices: ["device", "USB", "workstation", "owner", "history"],
+        laptop: ["laptop", "victim device", "artifact", "timeline", "message"],
+        usb: ["USB", "device", "owner", "contents", "history"],
+        access: ["badge", "physical access", "entry", "identity"],
+        camera: ["camera", "footage", "timeline", "person"],
+        emails: ["email", "message", "communication", "sender"],
+        email: ["email", "message", "communication", "sender"],
+        users: ["profile", "account", "identity", "user"],
+        scripts: ["script", "command", "automation", "cleanup"],
+        forensics: ["forensic", "memory", "process", "artifact"],
+        incident: ["contradiction", "timeline", "evidence"],
+        external: ["external", "certificate", "destination", "infrastructure"],
+        research: ["research", "archive", "classified", "project"],
+        server: ["server", "service", "worker", "job"],
+        documents: ["document", "report", "record", "file"],
+        notes: ["note", "context", "personal"],
+        parking: ["vehicle", "parking", "entry"],
+        system: ["system", "configuration", "service", "status"],
       },
 
       vi: {
         logs: [
-          'dòng thời gian',
-          'máy trạm',
-          'tên tài khoản',
-          'xác thực',
-          'đăng nhập',
-          'phiên',
-          'hoạt động',
+          "dòng thời gian",
+          "máy trạm",
+          "tên tài khoản",
+          "xác thực",
+          "đăng nhập",
+          "phiên",
+          "hoạt động",
         ],
         network: [
-          'kết nối',
-          'endpoint',
-          'IP',
-          'lưu lượng',
-          'truy cập từ xa',
-          'thiết bị',
+          "kết nối",
+          "endpoint",
+          "IP",
+          "lưu lượng",
+          "truy cập từ xa",
+          "thiết bị",
         ],
-        devices: [
-          'thiết bị',
-          'USB',
-          'máy trạm',
-          'chủ sở hữu',
-          'lịch sử',
-        ],
+        devices: ["thiết bị", "USB", "máy trạm", "chủ sở hữu", "lịch sử"],
         laptop: [
-          'laptop',
-          'máy nạn nhân',
-          'dấu vết',
-          'dòng thời gian',
-          'tin nhắn',
+          "laptop",
+          "máy nạn nhân",
+          "dấu vết",
+          "dòng thời gian",
+          "tin nhắn",
         ],
-        usb: [
-          'USB',
-          'thiết bị',
-          'chủ sở hữu',
-          'nội dung',
-          'lịch sử',
-        ],
-        access: [
-          'thẻ',
-          'truy cập vật lý',
-          'ra vào',
-          'danh tính',
-        ],
-        camera: [
-          'camera',
-          'hình ảnh',
-          'dòng thời gian',
-          'người',
-        ],
-        emails: [
-          'email',
-          'thư',
-          'liên lạc',
-          'người gửi',
-        ],
-        email: [
-          'email',
-          'thư',
-          'liên lạc',
-          'người gửi',
-        ],
-        users: [
-          'hồ sơ',
-          'tài khoản',
-          'danh tính',
-          'người dùng',
-        ],
-        scripts: [
-          'script',
-          'lệnh',
-          'tự động hóa',
-          'xóa dấu vết',
-        ],
-        forensics: [
-          'pháp chứng',
-          'bộ nhớ',
-          'tiến trình',
-          'dấu vết',
-        ],
-        incident: [
-          'mâu thuẫn',
-          'dòng thời gian',
-          'bằng chứng',
-        ],
-        external: [
-          'bên ngoài',
-          'chứng chỉ',
-          'đích đến',
-          'hạ tầng',
-        ],
-        research: [
-          'nghiên cứu',
-          'archive',
-          'dữ liệu mật',
-          'dự án',
-        ],
-        server: [
-          'máy chủ',
-          'dịch vụ',
-          'worker',
-          'tác vụ',
-        ],
-        documents: [
-          'tài liệu',
-          'báo cáo',
-          'hồ sơ',
-          'tệp',
-        ],
-        notes: [
-          'ghi chú',
-          'bối cảnh',
-          'cá nhân',
-        ],
-        parking: [
-          'phương tiện',
-          'bãi đỗ xe',
-          'ra vào',
-        ],
-        system: [
-          'hệ thống',
-          'cấu hình',
-          'dịch vụ',
-          'trạng thái',
-        ],
+        usb: ["USB", "thiết bị", "chủ sở hữu", "nội dung", "lịch sử"],
+        access: ["thẻ", "truy cập vật lý", "ra vào", "danh tính"],
+        camera: ["camera", "hình ảnh", "dòng thời gian", "người"],
+        emails: ["email", "thư", "liên lạc", "người gửi"],
+        email: ["email", "thư", "liên lạc", "người gửi"],
+        users: ["hồ sơ", "tài khoản", "danh tính", "người dùng"],
+        scripts: ["script", "lệnh", "tự động hóa", "xóa dấu vết"],
+        forensics: ["pháp chứng", "bộ nhớ", "tiến trình", "dấu vết"],
+        incident: ["mâu thuẫn", "dòng thời gian", "bằng chứng"],
+        external: ["bên ngoài", "chứng chỉ", "đích đến", "hạ tầng"],
+        research: ["nghiên cứu", "archive", "dữ liệu mật", "dự án"],
+        server: ["máy chủ", "dịch vụ", "worker", "tác vụ"],
+        documents: ["tài liệu", "báo cáo", "hồ sơ", "tệp"],
+        notes: ["ghi chú", "bối cảnh", "cá nhân"],
+        parking: ["phương tiện", "bãi đỗ xe", "ra vào"],
+        system: ["hệ thống", "cấu hình", "dịch vụ", "trạng thái"],
       },
-    }
+    };
 
-    const normalizedLevel = Math.min(3, Math.max(1, level))
-    const penalty = hintPenaltyFor(normalizedLevel)
-    const alreadyCharged = state.hintHistory.some(usage =>
-      usage.task_id === taskId &&
-      usage.evidence_id === evidence.id &&
-      usage.level === normalizedLevel,
-    )
+    const normalizedLevel = Math.min(3, Math.max(1, level));
+    const penalty = hintPenaltyFor(normalizedLevel);
+    const alreadyCharged = state.hintHistory.some(
+      (usage) =>
+        usage.task_id === taskId &&
+        usage.evidence_id === evidence.id &&
+        usage.level === normalizedLevel,
+    );
 
     if (!alreadyCharged) {
-      state.hintCount += 1
-      state.hintPenalty += penalty
+      state.hintCount += 1;
+      state.hintPenalty += penalty;
       state.hintHistory.push({
         task_id: taskId,
         evidence_id: evidence.id,
@@ -2359,175 +1720,144 @@ export function useDetectiveGame(
         penalty,
         elapsed_seconds: 0,
         recorded_at: new Date().toISOString(),
-      })
+      });
     }
 
-    const hintLabel = state.locale === 'vi'
-      ? `GỢI Ý CẤP ${normalizedLevel}/3`
-      : `HINT LEVEL ${normalizedLevel}/3`
+    const hintLabel =
+      state.locale === "vi"
+        ? `GỢI Ý CẤP ${normalizedLevel}/3`
+        : `HINT LEVEL ${normalizedLevel}/3`;
 
-    const lines = [`${hintLabel}: ${text(evidence.hint)}`]
+    const lines = [`${hintLabel}: ${text(evidence.hint)}`];
 
-    lines.push(state.locale === 'vi'
-      ? alreadyCharged
-        ? `→ Gợi ý đã mở khóa · Không trừ thêm điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
-        : penalty === 0
-          ? `→ Gợi ý cấp 1 miễn phí · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
-          : `→ Chi phí: -${penalty} điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
-      : alreadyCharged
-        ? `→ Hint already unlocked · No additional cost · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`
-        : penalty === 0
-          ? `→ Free level-one hint · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`
-          : `→ Cost: -${penalty} points · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`)
+    lines.push(
+      state.locale === "vi"
+        ? alreadyCharged
+          ? `→ Gợi ý đã mở khóa · Không trừ thêm điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
+          : penalty === 0
+            ? `→ Gợi ý cấp 1 miễn phí · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
+            : `→ Chi phí: -${penalty} điểm · Điểm hiện tại: ${Math.max(0, 100 - state.hintPenalty)}/100`
+        : alreadyCharged
+          ? `→ Hint already unlocked · No additional cost · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`
+          : penalty === 0
+            ? `→ Free level-one hint · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`
+            : `→ Cost: -${penalty} points · Current score: ${Math.max(0, 100 - state.hintPenalty)}/100`,
+    );
 
     if (normalizedLevel >= 2) {
       lines.push(
-        state.locale === 'vi'
+        state.locale === "vi"
           ? `→ Nhóm dữ liệu liên quan: /${folder}`
           : `→ Relevant data group: /${folder}`,
-      )
+      );
     }
 
     if (normalizedLevel >= 3) {
       lines.push(
-        state.locale === 'vi'
+        state.locale === "vi"
           ? `→ Tệp nên kiểm tra: ${evidence.discover.path}`
           : `→ File to inspect: ${evidence.discover.path}`,
-      )
+      );
     } else {
       lines.push(
-        state.locale === 'vi'
+        state.locale === "vi"
           ? `→ Gõ "hint ${normalizedLevel + 1}" nếu cần gợi ý cụ thể hơn.`
           : `→ Type "hint ${normalizedLevel + 1}" for a more specific clue.`,
-      )
+      );
     }
 
-    const hintLine = lines.join('\n')
+    const hintLine = lines.join("\n");
 
     addLine(
-      'warning',
+      "warning",
       hintLine,
-      createHighlights(
-        hintLine,
-        [
-          ...(termsByFolder[state.locale][folder] ?? []),
-          folder,
-          evidence.discover.path,
-        ],
-      ),
-    )
+      createHighlights(hintLine, [
+        ...(termsByFolder[state.locale][folder] ?? []),
+        folder,
+        evidence.discover.path,
+      ]),
+    );
   }
 
-  function commandHint(
-    args: string[],
-  ) {
-    const requestedLevel = args[0] && /^[1-3]$/.test(args[0])
-      ? Number(args[0])
-      : null
-    const evidenceQueryArgs = requestedLevel ? args.slice(1) : args
+  function commandHint(args: string[]) {
+    const requestedLevel =
+      args[0] && /^[1-3]$/.test(args[0]) ? Number(args[0]) : null;
+    const evidenceQueryArgs = requestedLevel ? args.slice(1) : args;
 
     if (args[0] && /^\d+$/.test(args[0]) && !requestedLevel) {
       addLine(
-        'error',
-        state.locale === 'vi'
-          ? 'hint: cấp độ phải từ 1 đến 3'
-          : 'hint: level must be between 1 and 3',
-      )
-      return
+        "error",
+        state.locale === "vi"
+          ? "hint: cấp độ phải từ 1 đến 3"
+          : "hint: level must be between 1 and 3",
+      );
+      return;
     }
 
     if (!evidenceQueryArgs.length) {
-      const activeTask = state.tasks.find(
-        task => !task.completed,
-      )
+      const activeTask = state.tasks.find((task) => !task.completed);
 
       /*
        * Build the complete dependency branch for the active task. A task may
        * require evidence that is still locked behind several other pieces of
        * evidence, so looking only at task.requiresEvidence is not enough.
        */
-      const taskEvidenceIds = new Set<string>()
-      const directTaskEvidenceIds = new Set(
-        activeTask?.requiresEvidence ?? [],
-      )
+      const taskEvidenceIds = new Set<string>();
+      const directTaskEvidenceIds = new Set(activeTask?.requiresEvidence ?? []);
 
-      function collectEvidenceDependencies(
-        evidenceId: string,
-      ) {
+      function collectEvidenceDependencies(evidenceId: string) {
         if (taskEvidenceIds.has(evidenceId)) {
-          return
+          return;
         }
 
-        taskEvidenceIds.add(evidenceId)
+        taskEvidenceIds.add(evidenceId);
 
-        const evidence = state.evidence.find(
-          item => item.id === evidenceId,
-        )
+        const evidence = state.evidence.find((item) => item.id === evidenceId);
 
-        for (
-          const requiredId of
-            evidence?.requiresEvidence ?? []
-        ) {
-          collectEvidenceDependencies(requiredId)
+        for (const requiredId of evidence?.requiresEvidence ?? []) {
+          collectEvidenceDependencies(requiredId);
         }
       }
 
-      for (
-        const evidenceId of
-          activeTask?.requiresEvidence ?? []
-      ) {
-        collectEvidenceDependencies(evidenceId)
+      for (const evidenceId of activeTask?.requiresEvidence ?? []) {
+        collectEvidenceDependencies(evidenceId);
       }
 
-      const availableEvidence =
-        state.evidence.filter(
-          evidence =>
-            !evidence.discovered &&
-            canDiscoverEvidence(
-              evidence,
-            ),
-        )
+      const availableEvidence = state.evidence.filter(
+        (evidence) => !evidence.discovered && canDiscoverEvidence(evidence),
+      );
 
-      if (
-        !availableEvidence.length
-      ) {
-        addLine(
-          'success',
-          getTranslation(
-            'noEvidenceHints',
-          ),
-        )
+      if (!availableEvidence.length) {
+        addLine("success", getTranslation("noEvidenceHints"));
 
-        return
+        return;
       }
 
       const evidence =
-        availableEvidence.find(item =>
-          directTaskEvidenceIds.has(item.id),
-        ) ?? availableEvidence.find(item =>
-          taskEvidenceIds.has(item.id),
-        ) ?? availableEvidence[0]
+        availableEvidence.find((item) => directTaskEvidenceIds.has(item.id)) ??
+        availableEvidence.find((item) => taskEvidenceIds.has(item.id)) ??
+        availableEvidence[0];
 
       if (!evidence) {
-        return
+        return;
       }
 
       if (activeTask) {
         addLine(
-          'system',
-          state.locale === 'vi'
+          "system",
+          state.locale === "vi"
             ? `Mục tiêu hiện tại: ${text(activeTask.title)}`
             : `Current objective: ${text(activeTask.title)}`,
-        )
+        );
       }
 
-      const progressKey = activeTask?.id ?? 'general'
-      const previous = hintProgress.get(progressKey)
-      const level = requestedLevel ?? (
-        previous?.evidenceId === evidence.id
+      const progressKey = activeTask?.id ?? "general";
+      const previous = hintProgress.get(progressKey);
+      const level =
+        requestedLevel ??
+        (previous?.evidenceId === evidence.id
           ? Math.min(3, previous.level + 1)
-          : 1
-      )
+          : 1);
 
       if (level >= 2) {
         pendingHintConfirmation = {
@@ -2535,113 +1865,97 @@ export function useDetectiveGame(
           level,
           taskId: activeTask?.id ?? null,
           progressKey,
-        }
+        };
         addLine(
-          'warning',
-          state.locale === 'vi'
+          "warning",
+          state.locale === "vi"
             ? `Gợi ý cấp ${level} sẽ trừ ${hintPenaltyFor(level)} điểm. Gõ "confirm hint ${level}" để xác nhận.`
             : `Level ${level} costs ${hintPenaltyFor(level)} points. Type "confirm hint ${level}" to continue.`,
-        )
-        return
+        );
+        return;
       }
 
-      hintProgress.set(progressKey, { evidenceId: evidence.id, level })
-      showEvidenceHint(evidence, level, activeTask?.id ?? null)
+      hintProgress.set(progressKey, { evidenceId: evidence.id, level });
+      showEvidenceHint(evidence, level, activeTask?.id ?? null);
 
-      return
+      return;
     }
 
-    const query =
-      evidenceQueryArgs
-        .join(' ')
-        .toLowerCase()
+    const query = evidenceQueryArgs.join(" ").toLowerCase();
 
-    const evidence =
-      state.evidence.find(
-        item =>
-          item.id
-            .toLowerCase() ===
-            query ||
-          text(
-            item.title,
-          )
-            .toLowerCase()
-            .includes(query),
-      )
+    const evidence = state.evidence.find(
+      (item) =>
+        item.id.toLowerCase() === query ||
+        text(item.title).toLowerCase().includes(query),
+    );
 
     if (!evidence) {
-      addLine(
-        'error',
-        `${getTranslation(
-          'evidenceNotFound',
-        )}: "${query}"`,
-      )
+      addLine("error", `${getTranslation("evidenceNotFound")}: "${query}"`);
 
-      return
+      return;
     }
 
-    if (
-      evidence.discovered
-    ) {
+    if (evidence.discovered) {
       addLine(
-        'success',
-        `${getTranslation(
-          'evidenceAlreadyDiscovered',
-        )}: ${text(
+        "success",
+        `${getTranslation("evidenceAlreadyDiscovered")}: ${text(
           evidence.title,
         )}`,
-      )
+      );
 
-      return
+      return;
     }
 
-    const level = requestedLevel ?? 1
+    const level = requestedLevel ?? 1;
     if (level >= 2) {
       pendingHintConfirmation = {
         evidenceId: evidence.id,
         level,
         taskId: null,
-        progressKey: 'general',
-      }
+        progressKey: "general",
+      };
       addLine(
-        'warning',
-        state.locale === 'vi'
+        "warning",
+        state.locale === "vi"
           ? `Gợi ý cấp ${level} sẽ trừ ${hintPenaltyFor(level)} điểm. Gõ "confirm hint ${level}" để xác nhận.`
           : `Level ${level} costs ${hintPenaltyFor(level)} points. Type "confirm hint ${level}" to continue.`,
-      )
-      return
+      );
+      return;
     }
-    showEvidenceHint(evidence, level)
+    showEvidenceHint(evidence, level);
   }
 
   function commandConfirm(args: string[]) {
-    const level = Number(args[1])
+    const level = Number(args[1]);
     if (
-      args[0]?.toLowerCase() !== 'hint' ||
+      args[0]?.toLowerCase() !== "hint" ||
       !pendingHintConfirmation ||
       level !== pendingHintConfirmation.level
     ) {
-      addLine('error', state.locale === 'vi'
-        ? 'Không có gợi ý tương ứng đang chờ xác nhận.'
-        : 'No matching hint is awaiting confirmation.')
-      return
+      addLine(
+        "error",
+        state.locale === "vi"
+          ? "Không có gợi ý tương ứng đang chờ xác nhận."
+          : "No matching hint is awaiting confirmation.",
+      );
+      return;
     }
 
-    const evidence = state.evidence.find(item =>
-      item.id === pendingHintConfirmation?.evidenceId,
-    )
+    const evidence = state.evidence.find(
+      (item) => item.id === pendingHintConfirmation?.evidenceId,
+    );
     if (!evidence || evidence.discovered) {
-      pendingHintConfirmation = null
-      return
+      pendingHintConfirmation = null;
+      return;
     }
 
-    const confirmation = pendingHintConfirmation
-    pendingHintConfirmation = null
+    const confirmation = pendingHintConfirmation;
+    pendingHintConfirmation = null;
     hintProgress.set(confirmation.progressKey, {
       evidenceId: evidence.id,
       level: confirmation.level,
-    })
-    showEvidenceHint(evidence, confirmation.level, confirmation.taskId)
+    });
+    showEvidenceHint(evidence, confirmation.level, confirmation.taskId);
   }
 
   /*
@@ -2650,398 +1964,328 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function commandGuide(
-    args: string[],
-    privileged = false,
-  ) {
+  function commandGuide(args: string[], privileged = false) {
     if (args.length > 1) {
-      addLine(
-        'error',
-        getTranslation(
-          'guideTooManyArguments',
-        ),
-      )
+      addLine("error", getTranslation("guideTooManyArguments"));
 
-      return
+      return;
     }
 
-    const requestedFolder =
-      args[0]
-        ?.replace(/^\/+|\/+$/g, '')
-        .toLowerCase()
+    const requestedFolder = args[0]?.replace(/^\/+|\/+$/g, "").toLowerCase();
 
-    const selectedFolder =
-      requestedFolder
-        ? scenario.filesystem.find(
-            node =>
-              node.type ===
-                'directory' &&
-              canAccessPath(`/${node.name}`, privileged) &&
-              node.name.toLowerCase() ===
-                requestedFolder,
-          )
-        : undefined
+    const selectedFolder = requestedFolder
+      ? scenario.filesystem.find(
+          (node) =>
+            node.type === "directory" &&
+            canAccessPath(`/${node.name}`, privileged) &&
+            node.name.toLowerCase() === requestedFolder,
+        )
+      : undefined;
 
-    if (
-      requestedFolder &&
-      !selectedFolder
-    ) {
+    if (requestedFolder && !selectedFolder) {
       addLine(
-        'error',
-        `${getTranslation(
-          'guideFolderNotFound',
-        )}: ${requestedFolder}`,
-      )
+        "error",
+        `${getTranslation("guideFolderNotFound")}: ${requestedFolder}`,
+      );
 
-      return
+      return;
     }
 
     const guideNodes = selectedFolder
       ? [selectedFolder]
-      : scenario.filesystem.filter(
-          node =>
-            canRevealPath(`/${node.name}`, privileged),
-        )
-    const descriptions: Record<
-      SupportedLocale,
-      Record<string, string>
-    > = {
+      : scenario.filesystem.filter((node) =>
+          canRevealPath(`/${node.name}`, privileged),
+        );
+    const descriptions: Record<SupportedLocale, Record<string, string>> = {
       en: {
-        logs: 'System, authentication and activity timelines.',
+        logs: "System, authentication and activity timelines.",
         laptop: "Read-only artifacts from Ethan Ward's laptop.",
-        documents: 'Work documents, reports and personnel records.',
-        research: 'Protected research files and project data.',
-        network: 'Connections, traffic, DNS and remote access traces.',
-        devices: 'Workstations, removable media and device history.',
-        usb: 'USB contents, metadata and connection history.',
-        access: 'Badge records and physical access events.',
-        camera: 'Surveillance footage, snapshots and camera status.',
-        parking: 'Vehicle and parking access records.',
-        emails: 'Messages and communication trails.',
-        email: 'Messages and communication trails.',
-        users: 'User profiles, accounts and identity information.',
-        notes: 'Personal notes and relevant investigation context.',
-        scripts: 'Automation, maintenance and suspicious scripts.',
-        server: 'Server services, jobs and operational records.',
-        system: 'System configuration and operating records.',
-        forensics: 'Recovered artifacts and forensic analysis.',
-        incident: 'Incident summaries, timelines and contradictions.',
-        external: 'Outside infrastructure and third-party connections.',
+        documents: "Work documents, reports and personnel records.",
+        research: "Protected research files and project data.",
+        network: "Connections, traffic, DNS and remote access traces.",
+        devices: "Workstations, removable media and device history.",
+        usb: "USB contents, metadata and connection history.",
+        access: "Badge records and physical access events.",
+        camera: "Surveillance footage, snapshots and camera status.",
+        parking: "Vehicle and parking access records.",
+        emails: "Messages and communication trails.",
+        email: "Messages and communication trails.",
+        users: "User profiles, accounts and identity information.",
+        notes: "Personal notes and relevant investigation context.",
+        scripts: "Automation, maintenance and suspicious scripts.",
+        server: "Server services, jobs and operational records.",
+        system: "System configuration and operating records.",
+        forensics: "Recovered artifacts and forensic analysis.",
+        incident: "Incident summaries, timelines and contradictions.",
+        external: "Outside infrastructure and third-party connections.",
       },
 
       vi: {
-        logs: 'Dòng thời gian hệ thống, xác thực và hoạt động.',
-        laptop: 'Dấu vết chỉ đọc từ laptop của Ethan Ward.',
-        documents: 'Tài liệu công việc, báo cáo và hồ sơ nhân sự.',
-        research: 'Tệp nghiên cứu được bảo vệ và dữ liệu dự án.',
-        network: 'Kết nối, lưu lượng, DNS và dấu vết truy cập từ xa.',
-        devices: 'Máy trạm, thiết bị lưu trữ và lịch sử thiết bị.',
-        usb: 'Nội dung, metadata và lịch sử kết nối USB.',
-        access: 'Dữ liệu thẻ ra vào và sự kiện truy cập vật lý.',
-        camera: 'Camera giám sát, ảnh chụp và trạng thái camera.',
-        parking: 'Hồ sơ phương tiện và truy cập bãi đỗ xe.',
-        emails: 'Email và dấu vết liên lạc.',
-        email: 'Email và dấu vết liên lạc.',
-        users: 'Hồ sơ người dùng, tài khoản và thông tin danh tính.',
-        notes: 'Ghi chú cá nhân và bối cảnh liên quan điều tra.',
-        scripts: 'Script tự động hóa, bảo trì và script đáng ngờ.',
-        server: 'Dịch vụ, tác vụ và hồ sơ vận hành máy chủ.',
-        system: 'Cấu hình và hồ sơ hoạt động của hệ thống.',
-        forensics: 'Dấu vết khôi phục và phân tích pháp chứng.',
-        incident: 'Tóm tắt, dòng thời gian và mâu thuẫn sự cố.',
-        external: 'Hạ tầng bên ngoài và kết nối bên thứ ba.',
+        logs: "Dòng thời gian hệ thống, xác thực và hoạt động.",
+        laptop: "Dấu vết chỉ đọc từ laptop của Ethan Ward.",
+        documents: "Tài liệu công việc, báo cáo và hồ sơ nhân sự.",
+        research: "Tệp nghiên cứu được bảo vệ và dữ liệu dự án.",
+        network: "Kết nối, lưu lượng, DNS và dấu vết truy cập từ xa.",
+        devices: "Máy trạm, thiết bị lưu trữ và lịch sử thiết bị.",
+        usb: "Nội dung, metadata và lịch sử kết nối USB.",
+        access: "Dữ liệu thẻ ra vào và sự kiện truy cập vật lý.",
+        camera: "Camera giám sát, ảnh chụp và trạng thái camera.",
+        parking: "Hồ sơ phương tiện và truy cập bãi đỗ xe.",
+        emails: "Email và dấu vết liên lạc.",
+        email: "Email và dấu vết liên lạc.",
+        users: "Hồ sơ người dùng, tài khoản và thông tin danh tính.",
+        notes: "Ghi chú cá nhân và bối cảnh liên quan điều tra.",
+        scripts: "Script tự động hóa, bảo trì và script đáng ngờ.",
+        server: "Dịch vụ, tác vụ và hồ sơ vận hành máy chủ.",
+        system: "Cấu hình và hồ sơ hoạt động của hệ thống.",
+        forensics: "Dấu vết khôi phục và phân tích pháp chứng.",
+        incident: "Tóm tắt, dòng thời gian và mâu thuẫn sự cố.",
+        external: "Hạ tầng bên ngoài và kết nối bên thứ ba.",
       },
-    }
+    };
 
-    const itemDescriptions: Record<
-      SupportedLocale,
-      Record<string, string>
-    > = {
+    const itemDescriptions: Record<SupportedLocale, Record<string, string>> = {
       en: {
-        directory: 'Subdirectory',
-        log: 'Event log',
-        text: 'Text document',
-        data: 'Structured data',
-        script: 'Executable script',
-        image: 'Visual evidence',
-        archive: 'Archived data',
-        authentication: 'Records logins, sessions, credentials and MFA events.',
-        systemActivity: 'Tracks system activity, services and workstation events over time.',
-        network: 'Records connections, addresses, ports and network traffic.',
-        dhcp: 'Maps network addresses to the devices that used them.',
-        physicalAccess: 'Records badge usage, doors and physical entry events.',
-        surveillance: 'Provides camera status, footage or visual timeline information.',
-        device: 'Describes USB or hardware identity, connection and usage history.',
-        communication: 'Contains messages used to trace communication and instructions.',
-        identity: 'Contains user, employee or account identity information.',
-        process: 'Shows process execution, memory activity or forensic artifacts.',
-        automation: 'Defines automated commands, maintenance actions or cleanup behavior.',
-        crypto: 'Contains key, certificate or trust identity information.',
-        incident: 'Combines incident events, timelines or conflicting observations.',
-        research: 'Contains protected project, archive or research-related data.',
-        generic: 'Investigation file',
+        directory: "Subdirectory",
+        log: "Event log",
+        text: "Text document",
+        data: "Structured data",
+        script: "Executable script",
+        image: "Visual evidence",
+        archive: "Archived data",
+        authentication: "Records logins, sessions, credentials and MFA events.",
+        systemActivity:
+          "Tracks system activity, services and workstation events over time.",
+        network: "Records connections, addresses, ports and network traffic.",
+        dhcp: "Maps network addresses to the devices that used them.",
+        physicalAccess: "Records badge usage, doors and physical entry events.",
+        surveillance:
+          "Provides camera status, footage or visual timeline information.",
+        device:
+          "Describes USB or hardware identity, connection and usage history.",
+        communication:
+          "Contains messages used to trace communication and instructions.",
+        identity: "Contains user, employee or account identity information.",
+        process:
+          "Shows process execution, memory activity or forensic artifacts.",
+        automation:
+          "Defines automated commands, maintenance actions or cleanup behavior.",
+        crypto: "Contains key, certificate or trust identity information.",
+        incident:
+          "Combines incident events, timelines or conflicting observations.",
+        research:
+          "Contains protected project, archive or research-related data.",
+        generic: "Investigation file",
       },
       vi: {
-        directory: 'Thư mục con',
-        log: 'Nhật ký sự kiện',
-        text: 'Tài liệu văn bản',
-        data: 'Dữ liệu có cấu trúc',
-        script: 'Script thực thi',
-        image: 'Bằng chứng hình ảnh',
-        archive: 'Dữ liệu lưu trữ',
-        authentication: 'Ghi lại đăng nhập, phiên, thông tin xác thực và sự kiện MFA.',
-        systemActivity: 'Theo dõi hoạt động hệ thống, dịch vụ và sự kiện máy trạm theo thời gian.',
-        network: 'Ghi lại kết nối, địa chỉ, cổng và lưu lượng mạng.',
-        dhcp: 'Ánh xạ địa chỉ mạng với thiết bị đã sử dụng địa chỉ đó.',
-        physicalAccess: 'Ghi lại việc dùng thẻ, cửa và các sự kiện ra vào vật lý.',
-        surveillance: 'Cung cấp trạng thái camera, hình ảnh hoặc dòng thời gian giám sát.',
-        device: 'Mô tả danh tính, kết nối và lịch sử sử dụng USB hoặc phần cứng.',
-        communication: 'Chứa thông điệp dùng để truy dấu liên lạc và chỉ đạo.',
-        identity: 'Chứa thông tin danh tính người dùng, nhân viên hoặc tài khoản.',
-        process: 'Cho biết tiến trình thực thi, hoạt động bộ nhớ hoặc dấu vết pháp chứng.',
-        automation: 'Định nghĩa lệnh tự động, thao tác bảo trì hoặc hành vi xóa dấu vết.',
-        crypto: 'Chứa khóa, chứng chỉ hoặc thông tin định danh tin cậy.',
-        incident: 'Kết hợp sự kiện, dòng thời gian hoặc các quan sát mâu thuẫn.',
-        research: 'Chứa dữ liệu dự án, kho lưu trữ hoặc nghiên cứu được bảo vệ.',
-        generic: 'Tệp điều tra',
+        directory: "Thư mục con",
+        log: "Nhật ký sự kiện",
+        text: "Tài liệu văn bản",
+        data: "Dữ liệu có cấu trúc",
+        script: "Script thực thi",
+        image: "Bằng chứng hình ảnh",
+        archive: "Dữ liệu lưu trữ",
+        authentication:
+          "Ghi lại đăng nhập, phiên, thông tin xác thực và sự kiện MFA.",
+        systemActivity:
+          "Theo dõi hoạt động hệ thống, dịch vụ và sự kiện máy trạm theo thời gian.",
+        network: "Ghi lại kết nối, địa chỉ, cổng và lưu lượng mạng.",
+        dhcp: "Ánh xạ địa chỉ mạng với thiết bị đã sử dụng địa chỉ đó.",
+        physicalAccess:
+          "Ghi lại việc dùng thẻ, cửa và các sự kiện ra vào vật lý.",
+        surveillance:
+          "Cung cấp trạng thái camera, hình ảnh hoặc dòng thời gian giám sát.",
+        device:
+          "Mô tả danh tính, kết nối và lịch sử sử dụng USB hoặc phần cứng.",
+        communication: "Chứa thông điệp dùng để truy dấu liên lạc và chỉ đạo.",
+        identity:
+          "Chứa thông tin danh tính người dùng, nhân viên hoặc tài khoản.",
+        process:
+          "Cho biết tiến trình thực thi, hoạt động bộ nhớ hoặc dấu vết pháp chứng.",
+        automation:
+          "Định nghĩa lệnh tự động, thao tác bảo trì hoặc hành vi xóa dấu vết.",
+        crypto: "Chứa khóa, chứng chỉ hoặc thông tin định danh tin cậy.",
+        incident:
+          "Kết hợp sự kiện, dòng thời gian hoặc các quan sát mâu thuẫn.",
+        research:
+          "Chứa dữ liệu dự án, kho lưu trữ hoặc nghiên cứu được bảo vệ.",
+        generic: "Tệp điều tra",
       },
-    }
+    };
 
-    function describeGuideItem(
-      node: FileNode,
-      path: string,
-    ) {
-      const labels =
-        itemDescriptions[state.locale]
+    function describeGuideItem(node: FileNode, path: string) {
+      const labels = itemDescriptions[state.locale];
 
-      if (node.type === 'directory') {
-        return labels.directory
+      if (node.type === "directory") {
+        return labels.directory;
       }
 
-      const name = node.name.toLowerCase()
-      const normalizedPath = path.toLowerCase()
+      const name = node.name.toLowerCase();
+      const normalizedPath = path.toLowerCase();
 
       if (/auth|login|credential|mfa/.test(name)) {
-        return labels.authentication
+        return labels.authentication;
       }
 
       if (/dhcp/.test(name)) {
-        return labels.dhcp
+        return labels.dhcp;
       }
 
       if (/network|dns|firewall|traffic|connection|pcap/.test(name)) {
-        return labels.network
+        return labels.network;
       }
 
       if (/badge|door|access|parking/.test(name)) {
-        return labels.physicalAccess
+        return labels.physicalAccess;
       }
 
       if (/camera|photo|image|snapshot|footage|video/.test(name)) {
-        return labels.surveillance
+        return labels.surveillance;
       }
 
       if (/usb|device|mount|hardware/.test(name)) {
-        return labels.device
+        return labels.device;
       }
 
       if (/mail|message|inbox/.test(name)) {
-        return labels.communication
+        return labels.communication;
       }
 
       if (/user|profile|employee|account/.test(name)) {
-        return labels.identity
+        return labels.identity;
       }
 
       if (/process|memory|forensic|artifact/.test(name)) {
-        return labels.process
+        return labels.process;
       }
 
       if (/script|cleanup|maintenance|\.sh$|\.py$|\.ps1$/.test(name)) {
-        return labels.automation
+        return labels.automation;
       }
 
       if (/certificate|\.key$|\.pem$|\.crt$/.test(name)) {
-        return labels.crypto
+        return labels.crypto;
       }
 
       if (/incident|contradiction|timeline/.test(name)) {
-        return labels.incident
+        return labels.incident;
       }
 
       if (
-        normalizedPath.includes('/research/') ||
+        normalizedPath.includes("/research/") ||
         /phoenix|research|archive/.test(name)
       ) {
-        return labels.research
+        return labels.research;
       }
 
       if (/system|service|activity/.test(name)) {
-        return labels.systemActivity
+        return labels.systemActivity;
       }
 
-      if (name.endsWith('.log')) {
-        return labels.log
+      if (name.endsWith(".log")) {
+        return labels.log;
       }
 
       if (/\.(txt|md|eml)$/.test(name)) {
-        return labels.text
+        return labels.text;
       }
 
       if (/\.(json|csv|dat|db|pcap)$/.test(name)) {
-        return labels.data
+        return labels.data;
       }
 
       if (/\.(sh|py|ps1|js)$/.test(name)) {
-        return labels.script
+        return labels.script;
       }
 
       if (/\.(png|jpg|jpeg|gif|mp4)$/.test(name)) {
-        return labels.image
+        return labels.image;
       }
 
       if (/\.(zip|tar|gz)$/.test(name)) {
-        return labels.archive
+        return labels.archive;
       }
 
-      return labels.generic
+      return labels.generic;
     }
 
     function showGuideChildren(
       nodes: FileNode[],
-      prefix = '     ',
-      basePath = '',
+      prefix = "     ",
+      basePath = "",
     ) {
-      const visibleNodes = nodes.filter(
-        node =>
-          canRevealPath(
-            `${basePath}/${node.name}`,
-            privileged,
-          ),
-      )
+      const visibleNodes = nodes.filter((node) =>
+        canRevealPath(`${basePath}/${node.name}`, privileged),
+      );
 
       visibleNodes.forEach((node, index) => {
-        const last =
-          index === visibleNodes.length - 1
+        const last = index === visibleNodes.length - 1;
 
-        const branch =
-          last ? '└──' : '├──'
+        const branch = last ? "└──" : "├──";
 
-        const name =
-          node.type === 'directory'
-            ? `${node.name}/`
-            : node.name
+        const name = node.type === "directory" ? `${node.name}/` : node.name;
 
-        const nodePath =
-          `${basePath}/${node.name}`
+        const nodePath = `${basePath}/${node.name}`;
 
         addLine(
-          'output',
+          "output",
           `${prefix}${branch} ${name} — ${describeGuideItem(node, nodePath)}`,
           createHighlights(
             `${prefix}${branch} ${name} — ${describeGuideItem(node, nodePath)}`,
             [name],
           ),
-        )
+        );
 
-        if (
-          node.type === 'directory' &&
-          node.children?.length
-        ) {
+        if (node.type === "directory" && node.children?.length) {
           showGuideChildren(
             node.children,
-            `${prefix}${last ? '    ' : '│   '}`,
+            `${prefix}${last ? "    " : "│   "}`,
             nodePath,
-          )
+          );
         }
-      })
+      });
     }
 
-    addLine(
-      'system',
-      getTranslation(
-        'folderGuideTitle',
-      ),
-    )
+    addLine("system", getTranslation("folderGuideTitle"));
 
-    addLine(
-      'output',
-      '',
-    )
+    addLine("output", "");
 
-    const guideDirectories =
-      guideNodes.filter(
-        node =>
-          node.type ===
-            'directory',
-      )
+    const guideDirectories = guideNodes.filter(
+      (node) => node.type === "directory",
+    );
 
-    for (
-      const [
-        directoryIndex,
-        node,
-      ] of guideDirectories.entries()
-    ) {
+    for (const [directoryIndex, node] of guideDirectories.entries()) {
       if (directoryIndex > 0) {
-        addLine(
-          'output',
-          '',
-        )
+        addLine("output", "");
       }
 
       const description =
-        descriptions[state.locale][
-          node.name
-        ] ??
-        getTranslation(
-          'genericFolderDescription',
-        )
+        descriptions[state.locale][node.name] ??
+        getTranslation("genericFolderDescription");
 
-      const line =
-        `  /${node.name.padEnd(12)} ${description}`
+      const line = `  /${node.name.padEnd(12)} ${description}`;
 
-      addLine(
-        'output',
-        line,
-        createHighlights(
-          line,
-          [
-            `/${node.name}`,
-          ],
-        ),
-      )
+      addLine("output", line, createHighlights(line, [`/${node.name}`]));
 
       if (node.children?.length) {
-        showGuideChildren(
-          node.children,
-          '     ',
-          `/${node.name}`,
-        )
+        showGuideChildren(node.children, "     ", `/${node.name}`);
       }
     }
 
-    addLine(
-      'output',
-      '',
-    )
+    addLine("output", "");
 
-    const tip = getTranslation(
-      'folderGuideTip',
-    )
+    const tip = getTranslation("folderGuideTip");
 
     addLine(
-      'system',
+      "system",
       tip,
-      createHighlights(
-        tip,
-        [
-          'ls /folder',
-          'cat /folder/file',
-          'ls /thư-mục',
-          'cat /thư-mục/tệp',
-        ],
-      ),
-    )
+      createHighlights(tip, [
+        "ls /folder",
+        "cat /folder/file",
+        "ls /thư-mục",
+        "cat /thư-mục/tệp",
+      ]),
+    );
   }
 
   /*
@@ -3051,28 +2295,17 @@ export function useDetectiveGame(
    */
 
   function commandHelp() {
-    addLine(
-      'system',
-      getTranslation(
-        'availableCommands',
-      ),
-    )
+    addLine("system", getTranslation("availableCommands"));
 
-    for (
-      const command of
-        terminalCommands
-    ) {
-      const suffix =
-        command.requiresArgument
-          ? ' <argument>'
-          : ''
+    for (const command of terminalCommands) {
+      const suffix = command.requiresArgument ? " <argument>" : "";
 
       addLine(
-        'output',
+        "output",
         `  ${command.command}${suffix}    ${getCommandDescription(
           command.command,
         )}`,
-      )
+      );
     }
   }
 
@@ -3082,31 +2315,25 @@ export function useDetectiveGame(
    * --------------------------------------------------
    */
 
-  function commandLang(
-    args: string[],
-  ) {
+  function commandLang(args: string[]) {
     /*
      * lang
      */
 
     if (!args.length) {
       addLine(
-        'system',
-        `${getTranslation(
-          'currentLanguage',
-        )}: ${state.locale}`,
-      )
+        "system",
+        `${getTranslation("currentLanguage")}: ${state.locale}`,
+      );
 
       addLine(
-        'output',
-        `${getTranslation(
-          'availableLanguages',
-        )}: ${supportedLocales.join(
-          ', ',
+        "output",
+        `${getTranslation("availableLanguages")}: ${supportedLocales.join(
+          ", ",
         )}`,
-      )
+      );
 
-      return
+      return;
     }
 
     /*
@@ -3114,76 +2341,42 @@ export function useDetectiveGame(
      */
 
     if (args.length > 1) {
-      addLine(
-        'error',
-        getTranslation(
-          'langTooManyArguments',
-        ),
-      )
+      addLine("error", getTranslation("langTooManyArguments"));
 
-      return
+      return;
     }
 
-    const requestedLocale =
-      args[0]?.toLowerCase()
+    const requestedLocale = args[0]?.toLowerCase();
 
-    if (
-      requestedLocale !==
-        'en' &&
-      requestedLocale !==
-        'vi'
-    ) {
+    if (requestedLocale !== "en" && requestedLocale !== "vi") {
       addLine(
-        'error',
-        `${getTranslation(
-          'unsupportedLanguage',
-        )}: ${requestedLocale}`,
-      )
+        "error",
+        `${getTranslation("unsupportedLanguage")}: ${requestedLocale}`,
+      );
 
       addLine(
-        'system',
-        `${getTranslation(
-          'availableLanguages',
-        )}: ${supportedLocales.join(
-          ', ',
+        "system",
+        `${getTranslation("availableLanguages")}: ${supportedLocales.join(
+          ", ",
         )}`,
-      )
+      );
 
-      return
+      return;
     }
 
-    if (
-      state.locale ===
-requestedLocale
-    ) {
-      addLine(
-        'warning',
-        getTranslation(
-          'languageAlreadyActive',
-        ),
-      )
+    if (state.locale === requestedLocale) {
+      addLine("warning", getTranslation("languageAlreadyActive"));
 
-      return
+      return;
     }
 
-    state.locale =
-requestedLocale
+    state.locale = requestedLocale;
 
-    addLine(
-      'success',
-      getTranslation(
-        'languageChanged',
-      ),
-    )
+    addLine("success", getTranslation("languageChanged"));
 
-    addLine(
-      'system',
-      `${getTranslation(
-        'currentLanguage',
-      )}: ${state.locale}`,
-    )
+    addLine("system", `${getTranslation("currentLanguage")}: ${state.locale}`);
 
-    showIntro()
+    showIntro();
   }
 
   /*
@@ -3193,7 +2386,7 @@ requestedLocale
    */
 
   function clearTerminal() {
-    state.terminal = []
+    state.terminal = [];
   }
 
   /*
@@ -3204,253 +2397,181 @@ requestedLocale
 
   const terminalTranslations = {
     en: {
-      commandNotFound:
-        'command not found',
+      commandNotFound: "command not found",
 
-      helpInstruction:
-        'Type "help" to see available commands.',
+      helpInstruction: 'Type "help" to see available commands.',
 
-      availableCommands:
-        'Available commands:',
+      availableCommands: "Available commands:",
 
-      noSuchFileOrDirectory:
-        'No such file or directory',
+      noSuchFileOrDirectory: "No such file or directory",
 
-      notDirectory:
-        'Not a directory',
+      notDirectory: "Not a directory",
 
-      isDirectory:
-        'Is a directory',
+      isDirectory: "Is a directory",
 
-      cdTooManyArguments:
-        'cd: too many arguments',
+      cdTooManyArguments: "cd: too many arguments",
 
-      lsTooManyArguments:
-        'ls: too many arguments',
+      lsTooManyArguments: "ls: too many arguments",
 
-      catMissingOperand:
-        'cat: missing file operand',
+      catMissingOperand: "cat: missing file operand",
 
-      catOneFile:
-        'cat: this terminal supports one file at a time',
+      catOneFile: "cat: this terminal supports one file at a time",
 
-      findMissingPattern:
-        'find: missing search pattern',
+      findMissingPattern: "find: missing search pattern",
 
-      findNoResults:
-        'find: no results for',
+      findNoResults: "find: no results for",
 
       noEvidenceHints:
-        'No immediate evidence hints available. Review the evidence already collected.',
+        "No immediate evidence hints available. Review the evidence already collected.",
 
-      hint:
-        'HINT',
+      hint: "HINT",
 
-      folderGuideTitle:
-        'INVESTIGATION FOLDER GUIDE',
+      folderGuideTitle: "INVESTIGATION FOLDER GUIDE",
 
-      guideTooManyArguments:
-        'guide: too many arguments',
+      guideTooManyArguments: "guide: too many arguments",
 
-      guideFolderNotFound:
-        'guide: folder not found',
+      guideFolderNotFound: "guide: folder not found",
 
-      genericFolderDescription:
-        'Case-related files for further investigation.',
+      genericFolderDescription: "Case-related files for further investigation.",
 
       folderGuideTip:
         'Use "ls /folder" to inspect a folder, then "cat /folder/file" to read a file.',
 
-      evidenceNotFound:
-        'hint: evidence not found',
+      evidenceNotFound: "hint: evidence not found",
 
-      evidenceAlreadyDiscovered:
-        'Evidence already discovered',
+      evidenceAlreadyDiscovered: "Evidence already discovered",
 
-      evidenceDiscovered:
-        'EVIDENCE DISCOVERED',
+      evidenceDiscovered: "EVIDENCE DISCOVERED",
 
-      taskCompleted:
-        'TASK COMPLETED',
+      taskCompleted: "TASK COMPLETED",
 
-      caseSolved:
-        'CASE SOLVED',
+      caseSolved: "CASE SOLVED",
 
-      allTasksCompleted:
-        'All investigation tasks have been completed.',
+      allTasksCompleted: "All investigation tasks have been completed.",
 
-      accessDenied:
-        'ACCESS DENIED',
+      accessDenied: "ACCESS DENIED",
 
       additionalEvidenceRequired:
-        'Additional evidence is required before this information can be established.',
+        "Additional evidence is required before this information can be established.",
 
       fileContainsSuspiciousInformation:
-        'The file contains suspicious information, but you need more evidence before establishing',
+        "The file contains suspicious information, but you need more evidence before establishing",
 
       sudoRequired:
-        'Elevated access required. Retry with: sudo <command> <path>',
+        "Elevated access required. Retry with: sudo <command> <path>",
 
-      passwordRequired:
-        'This path is password protected.',
+      passwordRequired: "This path is password protected.",
 
-      sudoMissingCommand:
-        'sudo: missing command',
+      sudoMissingCommand: "sudo: missing command",
 
-      sudoUnsupportedCommand:
-        'sudo: unsupported command',
+      sudoUnsupportedCommand: "sudo: unsupported command",
 
-      pathUnlocked:
-        'PATH UNLOCKED',
+      pathUnlocked: "PATH UNLOCKED",
 
-      currentLanguage:
-        'Current language',
+      currentLanguage: "Current language",
 
-      availableLanguages:
-        'Available languages',
+      availableLanguages: "Available languages",
 
-      langTooManyArguments:
-        'lang: too many arguments',
+      langTooManyArguments: "lang: too many arguments",
 
-      unsupportedLanguage:
-        'Unsupported language',
+      unsupportedLanguage: "Unsupported language",
 
-      languageAlreadyActive:
-        'This language is already active.',
+      languageAlreadyActive: "This language is already active.",
 
-      languageChanged:
-        'Language changed successfully.',
+      languageChanged: "Language changed successfully.",
     },
 
     vi: {
-      commandNotFound:
-        'không tìm thấy lệnh',
+      commandNotFound: "không tìm thấy lệnh",
 
-      helpInstruction:
-        'Gõ "help" để xem các lệnh khả dụng.',
+      helpInstruction: 'Gõ "help" để xem các lệnh khả dụng.',
 
-      availableCommands:
-        'Các lệnh khả dụng:',
+      availableCommands: "Các lệnh khả dụng:",
 
-      noSuchFileOrDirectory:
-        'Không có tệp hoặc thư mục như vậy',
+      noSuchFileOrDirectory: "Không có tệp hoặc thư mục như vậy",
 
-      notDirectory:
-        'Không phải là thư mục',
+      notDirectory: "Không phải là thư mục",
 
-      isDirectory:
-        'Là một thư mục',
+      isDirectory: "Là một thư mục",
 
-      cdTooManyArguments:
-        'cd: quá nhiều đối số',
+      cdTooManyArguments: "cd: quá nhiều đối số",
 
-      lsTooManyArguments:
-        'ls: quá nhiều đối số',
+      lsTooManyArguments: "ls: quá nhiều đối số",
 
-      catMissingOperand:
-        'cat: thiếu tệp cần đọc',
+      catMissingOperand: "cat: thiếu tệp cần đọc",
 
-      catOneFile:
-        'cat: terminal này chỉ hỗ trợ một tệp mỗi lần',
+      catOneFile: "cat: terminal này chỉ hỗ trợ một tệp mỗi lần",
 
-      findMissingPattern:
-        'find: thiếu mẫu tìm kiếm',
+      findMissingPattern: "find: thiếu mẫu tìm kiếm",
 
-      findNoResults:
-        'find: không tìm thấy kết quả cho',
+      findNoResults: "find: không tìm thấy kết quả cho",
 
       noEvidenceHints:
-        'Không có gợi ý bằng chứng mới. Hãy xem lại các bằng chứng đã thu thập.',
+        "Không có gợi ý bằng chứng mới. Hãy xem lại các bằng chứng đã thu thập.",
 
-      hint:
-        'GỢI Ý',
+      hint: "GỢI Ý",
 
-      folderGuideTitle:
-        'HƯỚNG DẪN THƯ MỤC ĐIỀU TRA',
+      folderGuideTitle: "HƯỚNG DẪN THƯ MỤC ĐIỀU TRA",
 
-      guideTooManyArguments:
-        'guide: quá nhiều đối số',
+      guideTooManyArguments: "guide: quá nhiều đối số",
 
-      guideFolderNotFound:
-        'guide: không tìm thấy thư mục',
+      guideFolderNotFound: "guide: không tìm thấy thư mục",
 
       genericFolderDescription:
-        'Các tệp liên quan vụ án cần được điều tra thêm.',
+        "Các tệp liên quan vụ án cần được điều tra thêm.",
 
       folderGuideTip:
         'Dùng "ls /thư-mục" để xem nội dung, sau đó dùng "cat /thư-mục/tệp" để đọc tệp.',
 
-      evidenceNotFound:
-        'hint: không tìm thấy bằng chứng',
+      evidenceNotFound: "hint: không tìm thấy bằng chứng",
 
-      evidenceAlreadyDiscovered:
-        'Bằng chứng đã được phát hiện',
+      evidenceAlreadyDiscovered: "Bằng chứng đã được phát hiện",
 
-      evidenceDiscovered:
-        'ĐÃ PHÁT HIỆN BẰNG CHỨNG',
+      evidenceDiscovered: "ĐÃ PHÁT HIỆN BẰNG CHỨNG",
 
-      taskCompleted:
-        'ĐÃ HOÀN THÀNH NHIỆM VỤ',
+      taskCompleted: "ĐÃ HOÀN THÀNH NHIỆM VỤ",
 
-      caseSolved:
-        'ĐÃ GIẢI QUYẾT VỤ ÁN',
+      caseSolved: "ĐÃ GIẢI QUYẾT VỤ ÁN",
 
-      allTasksCompleted:
-        'Tất cả nhiệm vụ điều tra đã được hoàn thành.',
+      allTasksCompleted: "Tất cả nhiệm vụ điều tra đã được hoàn thành.",
 
-      accessDenied:
-        'TRUY CẬP BỊ TỪ CHỐI',
+      accessDenied: "TRUY CẬP BỊ TỪ CHỐI",
 
       additionalEvidenceRequired:
-        'Cần thêm bằng chứng trước khi có thể xác lập thông tin này.',
+        "Cần thêm bằng chứng trước khi có thể xác lập thông tin này.",
 
       fileContainsSuspiciousInformation:
-        'Tệp chứa thông tin đáng ngờ, nhưng bạn cần thêm bằng chứng trước khi xác lập',
+        "Tệp chứa thông tin đáng ngờ, nhưng bạn cần thêm bằng chứng trước khi xác lập",
 
       sudoRequired:
-        'Cần quyền nâng cao. Hãy thử lại với: sudo <lệnh> <đường-dẫn>',
+        "Cần quyền nâng cao. Hãy thử lại với: sudo <lệnh> <đường-dẫn>",
 
-      passwordRequired:
-        'Đường dẫn này được bảo vệ bằng mật mã.',
+      passwordRequired: "Đường dẫn này được bảo vệ bằng mật mã.",
 
-      sudoMissingCommand:
-        'sudo: thiếu lệnh cần chạy',
+      sudoMissingCommand: "sudo: thiếu lệnh cần chạy",
 
-      sudoUnsupportedCommand:
-        'sudo: lệnh không được hỗ trợ',
+      sudoUnsupportedCommand: "sudo: lệnh không được hỗ trợ",
 
-      pathUnlocked:
-        'ĐÃ MỞ KHÓA ĐƯỜNG DẪN',
+      pathUnlocked: "ĐÃ MỞ KHÓA ĐƯỜNG DẪN",
 
-      currentLanguage:
-        'Ngôn ngữ hiện tại',
+      currentLanguage: "Ngôn ngữ hiện tại",
 
-      availableLanguages:
-        'Ngôn ngữ khả dụng',
+      availableLanguages: "Ngôn ngữ khả dụng",
 
-      langTooManyArguments:
-        'lang: quá nhiều đối số',
+      langTooManyArguments: "lang: quá nhiều đối số",
 
-      unsupportedLanguage:
-        'Ngôn ngữ không được hỗ trợ',
+      unsupportedLanguage: "Ngôn ngữ không được hỗ trợ",
 
-      languageAlreadyActive:
-        'Ngôn ngữ này đang được sử dụng.',
+      languageAlreadyActive: "Ngôn ngữ này đang được sử dụng.",
 
-      languageChanged:
-        'Đã chuyển ngôn ngữ thành công.',
+      languageChanged: "Đã chuyển ngôn ngữ thành công.",
     },
-  }
+  };
 
-  function getTranslation(
-    key: keyof typeof terminalTranslations.en,
-  ): string {
+  function getTranslation(key: keyof typeof terminalTranslations.en): string {
     return (
-      terminalTranslations[
-        state.locale
-      ][key] ??
-      terminalTranslations.en[key]
-    )
+      terminalTranslations[state.locale][key] ?? terminalTranslations.en[key]
+    );
   }
 
   /*
@@ -3459,73 +2580,62 @@ requestedLocale
    * --------------------------------------------------
    */
 
-  function getCommandDescription(
-    command: string,
-  ): string {
-    const descriptions: Record<
-      SupportedLocale,
-      Record<string, string>
-    > = {
+  function getCommandDescription(command: string): string {
+    const descriptions: Record<SupportedLocale, Record<string, string>> = {
       en: {
-        pwd: 'Print current directory',
-        intro: 'Print current intro',
-        ls: 'List directory contents',
-        cd: 'Change directory',
-        cat: 'Read file',
-        find: 'Find files',
-        grep: 'Search matching lines inside a file',
-        head: 'Read the first lines of a file',
-        tail: 'Read the last lines of a file',
-        stat: 'Inspect forensic file metadata',
-        diff: 'Compare two files line by line',
-        strings: 'Extract readable strings from a file',
-        checksum: 'Calculate a stable forensic fingerprint',
-        sudo: 'Run filesystem investigation commands with elevated access',
-        history: 'Show command history',
-        whoami: 'Show current user',
-        hint: 'Get a progressive hint (levels 1–3)',
-        confirm: 'Confirm a point-costing action',
-        guide: 'Explain investigation folders',
-        help: 'Show available commands',
-        lang: 'Change terminal language',
-        clear: 'Clear terminal',
+        pwd: "Print current directory",
+        intro: "Print current intro",
+        ls: "List directory contents",
+        cd: "Change directory",
+        cat: "Read file",
+        find: "Find files",
+        grep: "Search matching lines inside a file",
+        head: "Read the first lines of a file",
+        tail: "Read the last lines of a file",
+        stat: "Inspect forensic file metadata",
+        diff: "Compare two files line by line",
+        strings: "Extract readable strings from a file",
+        checksum: "Calculate a stable forensic fingerprint",
+        sudo: "Run filesystem investigation commands with elevated access",
+        history: "Show command history",
+        whoami: "Show current user",
+        hint: "Get a progressive hint (levels 1–3)",
+        confirm: "Confirm a point-costing action",
+        guide: "Explain investigation folders",
+        help: "Show available commands",
+        lang: "Change terminal language",
+        clear: "Clear terminal",
       },
 
       vi: {
-        pwd: 'Hiển thị thư mục hiện tại',
-        intro: 'Hiển thị intro hiện tại',
-        ls: 'Liệt kê nội dung thư mục',
-        cd: 'Chuyển thư mục',
-        cat: 'Đọc nội dung tệp',
-        find: 'Tìm tệp',
-        grep: 'Tìm các dòng phù hợp trong tệp',
-        head: 'Đọc các dòng đầu của tệp',
-        tail: 'Đọc các dòng cuối của tệp',
-        stat: 'Xem metadata pháp chứng của tệp',
-        diff: 'So sánh hai tệp theo từng dòng',
-        strings: 'Trích xuất chuỗi có thể đọc từ tệp',
-        checksum: 'Tính dấu vân tay ổn định của tệp',
-        sudo: 'Chạy các lệnh điều tra filesystem với quyền nâng cao',
-        history: 'Hiển thị lịch sử lệnh',
-        whoami: 'Hiển thị người dùng hiện tại',
-        hint: 'Nhận gợi ý điều tra theo cấp 1–3',
-        confirm: 'Xác nhận thao tác bị trừ điểm',
-        guide: 'Giải thích chức năng các thư mục điều tra',
-        help: 'Hiển thị các lệnh khả dụng',
-        lang: 'Thay đổi ngôn ngữ terminal',
-        clear: 'Xóa terminal',
+        pwd: "Hiển thị thư mục hiện tại",
+        intro: "Hiển thị intro hiện tại",
+        ls: "Liệt kê nội dung thư mục",
+        cd: "Chuyển thư mục",
+        cat: "Đọc nội dung tệp",
+        find: "Tìm tệp",
+        grep: "Tìm các dòng phù hợp trong tệp",
+        head: "Đọc các dòng đầu của tệp",
+        tail: "Đọc các dòng cuối của tệp",
+        stat: "Xem metadata pháp chứng của tệp",
+        diff: "So sánh hai tệp theo từng dòng",
+        strings: "Trích xuất chuỗi có thể đọc từ tệp",
+        checksum: "Tính dấu vân tay ổn định của tệp",
+        sudo: "Chạy các lệnh điều tra filesystem với quyền nâng cao",
+        history: "Hiển thị lịch sử lệnh",
+        whoami: "Hiển thị người dùng hiện tại",
+        hint: "Nhận gợi ý điều tra theo cấp 1–3",
+        confirm: "Xác nhận thao tác bị trừ điểm",
+        guide: "Giải thích chức năng các thư mục điều tra",
+        help: "Hiển thị các lệnh khả dụng",
+        lang: "Thay đổi ngôn ngữ terminal",
+        clear: "Xóa terminal",
       },
-    }
+    };
 
     return (
-      descriptions[
-        state.locale
-      ][command] ??
-      descriptions.en[
-        command
-      ] ??
-      ''
-    )
+      descriptions[state.locale][command] ?? descriptions.en[command] ?? ""
+    );
   }
 
   /*
@@ -3535,7 +2645,7 @@ requestedLocale
    */
 
   function getPrompt(): string {
-    return `detective@${scenario.id}:${state.currentDirectory}$`
+    return `detective@${scenario.id}:${state.currentDirectory}$`;
   }
 
   /*
@@ -3544,48 +2654,27 @@ requestedLocale
    * --------------------------------------------------
    */
 
-  function getAutocompleteEntries(
-    input: string,
-  ): string[] {
-    const value = input
+  function getAutocompleteEntries(input: string): string[] {
+    const value = input;
 
-    if (
-      !value.includes(' ') &&
-      !value.includes('\t')
-    ) {
+    if (!value.includes(" ") && !value.includes("\t")) {
       return terminalCommands
-        .map(
-          item =>
-            item.command,
-        )
-        .filter(
-          command =>
-            command.startsWith(
-              value.toLowerCase(),
-            ),
-        )
+        .map((item) => item.command)
+        .filter((command) => command.startsWith(value.toLowerCase()));
     }
 
-    const match =
-      value.match(
-        /^(\S+)\s+(.*)$/,
-      )
+    const match = value.match(/^(\S+)\s+(.*)$/);
 
     if (!match) {
-      return []
+      return [];
     }
 
-    const command =
-      match[1]?.toLowerCase()
+    const command = match[1]?.toLowerCase();
 
-    const argument =
-      match[2]
+    const argument = match[2];
 
-    if (
-      !command ||
-      argument === undefined
-    ) {
-      return []
+    if (!command || argument === undefined) {
+      return [];
     }
 
     /*
@@ -3595,226 +2684,178 @@ requestedLocale
      * replace everything after "sudo" in one operation.
      */
 
-    if (command === 'sudo') {
+    if (command === "sudo") {
       const sudoCommands = [
-        'ls',
-        'cd',
-        'cat',
-        'grep',
-        'head',
-        'tail',
-        'stat',
-        'diff',
-        'strings',
-        'checksum',
-        'find',
-        'guide',
-      ]
+        "ls",
+        "cd",
+        "cat",
+        "grep",
+        "head",
+        "tail",
+        "stat",
+        "diff",
+        "strings",
+        "checksum",
+        "find",
+        "guide",
+      ];
 
-      if (!argument.includes(' ')) {
-        return sudoCommands.filter(item =>
-          item.startsWith(
-            argument.toLowerCase(),
-          ),
-        )
+      if (!argument.includes(" ")) {
+        return sudoCommands.filter((item) =>
+          item.startsWith(argument.toLowerCase()),
+        );
       }
 
       const sudoMatch = argument.match(
         /^(ls|cd|cat|grep|head|tail|stat|diff|strings|checksum|find|guide)\s+(.*)$/i,
-      )
+      );
 
       if (!sudoMatch) {
-        return []
+        return [];
       }
 
-      const nestedCommand =
-        sudoMatch[1]?.toLowerCase()
-      const nestedArgument =
-        sudoMatch[2] ?? ''
+      const nestedCommand = sudoMatch[1]?.toLowerCase();
+      const nestedArgument = sudoMatch[2] ?? "";
 
       if (!nestedCommand) {
-        return []
+        return [];
       }
 
-      if (nestedCommand === 'guide') {
-        if (nestedArgument.includes(' ')) {
-          return []
+      if (nestedCommand === "guide") {
+        if (nestedArgument.includes(" ")) {
+          return [];
         }
 
-        const hasLeadingSlash =
-          nestedArgument.startsWith('/')
-        const query = nestedArgument
-          .replace(/^\/+/, '')
-          .toLowerCase()
+        const hasLeadingSlash = nestedArgument.startsWith("/");
+        const query = nestedArgument.replace(/^\/+/, "").toLowerCase();
 
         return scenario.filesystem
-          .filter(node =>
-            node.type === 'directory' &&
-            node.name.toLowerCase()
-              .startsWith(query),
+          .filter(
+            (node) =>
+              node.type === "directory" &&
+              node.name.toLowerCase().startsWith(query),
           )
-          .map(node =>
-            `${nestedCommand} ${hasLeadingSlash ? '/' : ''}${node.name}`,
-          )
+          .map(
+            (node) =>
+              `${nestedCommand} ${hasLeadingSlash ? "/" : ""}${node.name}`,
+          );
       }
 
-      if (
-        nestedCommand === 'ls' &&
-        nestedArgument.startsWith('-')
-      ) {
-        if (!nestedArgument.includes(' ')) {
-          return '-l'.startsWith(nestedArgument)
-            ? ['ls -l']
-            : []
+      if (nestedCommand === "ls" && nestedArgument.startsWith("-")) {
+        if (!nestedArgument.includes(" ")) {
+          return "-l".startsWith(nestedArgument) ? ["ls -l"] : [];
         }
 
-        const longMatch = nestedArgument.match(
-          /^-l\s+(\S*)$/,
-        )
+        const longMatch = nestedArgument.match(/^-l\s+(\S*)$/);
 
         if (!longMatch) {
-          return []
+          return [];
         }
 
-        return getPathSuggestions(
-          longMatch[1] ?? '',
-          true,
-        ).map(entry => `ls -l ${entry}`)
+        return getPathSuggestions(longMatch[1] ?? "", true).map(
+          (entry) => `ls -l ${entry}`,
+        );
       }
 
-      if (nestedArgument.includes(' ')) {
-        return []
+      if (nestedArgument.includes(" ")) {
+        return [];
       }
 
-      return getPathSuggestions(
-        nestedArgument,
-        true,
-      ).map(entry =>
-        `${nestedCommand} ${entry}`,
-      )
+      return getPathSuggestions(nestedArgument, true).map(
+        (entry) => `${nestedCommand} ${entry}`,
+      );
     }
 
     /*
      * LANG AUTOCOMPLETE
      */
 
-    if (command === 'confirm') {
-      if (!pendingHintConfirmation) return []
-      const confirmation = `hint ${pendingHintConfirmation.level}`
+    if (command === "confirm") {
+      if (!pendingHintConfirmation) return [];
+      const confirmation = `hint ${pendingHintConfirmation.level}`;
       return confirmation.startsWith(argument.toLowerCase())
         ? [confirmation]
-        : []
+        : [];
     }
 
-    if (
-      command === 'lang'
-    ) {
-      if (
-        argument.includes(' ')
-      ) {
-        return []
+    if (command === "lang") {
+      if (argument.includes(" ")) {
+        return [];
       }
 
-      return supportedLocales.filter(
-        locale =>
-          locale.startsWith(
-            argument.toLowerCase(),
-          ),
-      )
+      return supportedLocales.filter((locale) =>
+        locale.startsWith(argument.toLowerCase()),
+      );
     }
 
     /*
      * GUIDE AUTOCOMPLETE
      */
 
-    if (command === 'hint') {
-      if (argument.includes(' ')) {
-        return []
+    if (command === "hint") {
+      if (argument.includes(" ")) {
+        return [];
       }
 
-      return ['1', '2', '3'].filter(level =>
-        level.startsWith(argument),
-      )
+      return ["1", "2", "3"].filter((level) => level.startsWith(argument));
     }
 
-    if (command === 'guide') {
-      if (argument.includes(' ')) {
-        return []
+    if (command === "guide") {
+      if (argument.includes(" ")) {
+        return [];
       }
 
-      const hasLeadingSlash =
-        argument.startsWith('/')
+      const hasLeadingSlash = argument.startsWith("/");
 
-      const query = argument
-        .replace(/^\/+/, '')
-        .toLowerCase()
+      const query = argument.replace(/^\/+/, "").toLowerCase();
 
       return scenario.filesystem
         .filter(
-          node =>
-            node.type ===
-              'directory' &&
-            node.name
-              .toLowerCase()
-              .startsWith(query),
+          (node) =>
+            node.type === "directory" &&
+            node.name.toLowerCase().startsWith(query),
         )
-        .map(node =>
-          `${hasLeadingSlash ? '/' : ''}${node.name}`,
-        )
+        .map((node) => `${hasLeadingSlash ? "/" : ""}${node.name}`);
     }
 
     /*
      * PATH AUTOCOMPLETE
      */
 
-    if (
-      command === 'ls' &&
-      argument.startsWith('-')
-    ) {
-      if (!argument.includes(' ')) {
-        return '-l'.startsWith(argument)
-          ? ['-l']
-          : []
+    if (command === "ls" && argument.startsWith("-")) {
+      if (!argument.includes(" ")) {
+        return "-l".startsWith(argument) ? ["-l"] : [];
       }
 
-      const longMatch =
-        argument.match(
-          /^-l\s+(\S*)$/,
-        )
+      const longMatch = argument.match(/^-l\s+(\S*)$/);
 
       if (!longMatch) {
-        return []
+        return [];
       }
 
-      return getPathSuggestions(
-        longMatch[1] ?? '',
-      ).map(entry =>
-        `-l ${entry}`,
-      )
+      return getPathSuggestions(longMatch[1] ?? "").map(
+        (entry) => `-l ${entry}`,
+      );
     }
 
     if (
-      command !== 'cd' &&
-      command !== 'cat' &&
-      command !== 'ls' &&
-      command !== 'head' &&
-      command !== 'tail' &&
-      command !== 'stat' &&
-      command !== 'strings' &&
-      command !== 'checksum'
+      command !== "cd" &&
+      command !== "cat" &&
+      command !== "ls" &&
+      command !== "head" &&
+      command !== "tail" &&
+      command !== "stat" &&
+      command !== "strings" &&
+      command !== "checksum"
     ) {
-      return []
+      return [];
     }
 
-    if (
-      argument.includes(' ')
-    ) {
-      return []
+    if (argument.includes(" ")) {
+      return [];
     }
 
-    return getPathSuggestions(
-      argument,
-    )
+    return getPathSuggestions(argument);
   }
 
   /*
@@ -3823,140 +2864,84 @@ requestedLocale
    * --------------------------------------------------
    */
 
-  function getPathSuggestions(
-    inputPath: string,
-    privileged = false,
-  ): string[] {
-    const value =
-      inputPath
+  function getPathSuggestions(inputPath: string, privileged = false): string[] {
+    const value = inputPath;
 
-    if (
-      !value.includes('/')
-    ) {
-      const directory =
-        getDirectory(
-          state.currentDirectory,
-        )
+    if (!value.includes("/")) {
+      const directory = getDirectory(state.currentDirectory);
 
       if (!directory) {
-        return []
+        return [];
       }
 
       if (!canAccessPath(state.currentDirectory, privileged)) {
-        return []
+        return [];
       }
 
-      const searchName =
-        value.toLowerCase()
+      const searchName = value.toLowerCase();
 
-      return (
-        directory.children ?? []
-      )
-        .filter(child =>
-          canRevealPath(
-            state.currentDirectory === '/'
-              ? `/${child.name}`
-              : `${state.currentDirectory}/${child.name}`,
-            privileged,
-          ) &&
-          child.name
-              .toLowerCase()
-              .startsWith(
-                searchName,
-              ),
+      return (directory.children ?? [])
+        .filter(
+          (child) =>
+            canRevealPath(
+              state.currentDirectory === "/"
+                ? `/${child.name}`
+                : `${state.currentDirectory}/${child.name}`,
+              privileged,
+            ) && child.name.toLowerCase().startsWith(searchName),
         )
-        .map(child => {
-          if (
-            child.type ===
-            'directory'
-          ) {
-            return `${child.name}/`
+        .map((child) => {
+          if (child.type === "directory") {
+            return `${child.name}/`;
           }
 
-          return child.name
-        })
+          return child.name;
+        });
     }
 
-    const lastSlash =
-      value.lastIndexOf('/')
+    const lastSlash = value.lastIndexOf("/");
 
-    const directoryPart =
-      value.slice(
-        0,
-        lastSlash,
-      )
+    const directoryPart = value.slice(0, lastSlash);
 
-    const searchName =
-      value.slice(
-        lastSlash + 1,
-      )
+    const searchName = value.slice(lastSlash + 1);
 
-    let directoryPath: string
+    let directoryPath: string;
 
-    if (
-      value.startsWith('/')
-    ) {
-      directoryPath =
-        normalizePath(
-          directoryPart ||
-            '/',
-        )
+    if (value.startsWith("/")) {
+      directoryPath = normalizePath(directoryPart || "/");
     } else {
-      directoryPath =
-        resolvePath(
-          state.currentDirectory,
-          directoryPart ||
-            '.',
-        )
+      directoryPath = resolvePath(state.currentDirectory, directoryPart || ".");
     }
 
-    const directory =
-      getDirectory(
-        directoryPath,
-      )
+    const directory = getDirectory(directoryPath);
 
     if (!directory) {
-      return []
+      return [];
     }
 
     if (!canAccessPath(directoryPath, privileged)) {
-      return []
+      return [];
     }
 
-    const normalizedSearch =
-      searchName.toLowerCase()
+    const normalizedSearch = searchName.toLowerCase();
 
-    return (
-      directory.children ?? []
-    )
-      .filter(child =>
-        canRevealPath(
-          directoryPath === '/'
-            ? `/${child.name}`
-            : `${directoryPath}/${child.name}`,
-          privileged,
-        ) &&
-        child.name
-            .toLowerCase()
-            .startsWith(
-              normalizedSearch,
-            ),
+    return (directory.children ?? [])
+      .filter(
+        (child) =>
+          canRevealPath(
+            directoryPath === "/"
+              ? `/${child.name}`
+              : `${directoryPath}/${child.name}`,
+            privileged,
+          ) && child.name.toLowerCase().startsWith(normalizedSearch),
       )
-      .map(child => {
-        const suffix =
-          child.type ===
-          'directory'
-            ? '/'
-            : ''
+      .map((child) => {
+        const suffix = child.type === "directory" ? "/" : "";
 
-        const prefix =
-          value.slice(
-            0,
-            lastSlash + 1,
-          )
+        const prefix = value.slice(0, lastSlash + 1);
 
-        return `${prefix}${child.name}${suffix}`
-      })
+        return `${prefix}${child.name}${suffix}`;
+      });
   }
 
   /*
@@ -3965,169 +2950,135 @@ requestedLocale
    * --------------------------------------------------
    */
 
-  function execute(
-    rawCommand: string,
-  ) {
+  function execute(rawCommand: string) {
     const commandLine = rawCommand
-      .replace(
-        /(?:&#x20;|&#32;|&nbsp;)/gi,
-        ' ',
-      )
-      .replace(/[\u00a0\u200b]/g, ' ')
-      .trim()
+      .replace(/(?:&#x20;|&#32;|&nbsp;)/gi, " ")
+      .replace(/[\u00a0\u200b]/g, " ")
+      .trim();
 
     if (!commandLine) {
-      return
+      return;
     }
 
-    state.commandHistory.push(
-      commandLine,
-    )
+    state.commandHistory.push(commandLine);
 
-    addLine(
-      'command',
-      `${getPrompt()} ${commandLine}`,
-    )
+    addLine("command", `${getPrompt()} ${commandLine}`);
 
-    const parts =
-      commandLine.match(
-        /(?:[^\s"]+|"[^"]*")+/g,
-      ) ?? []
+    const parts = commandLine.match(/(?:[^\s"]+|"[^"]*")+/g) ?? [];
 
-    const rawCommandName =
-      parts[0]
+    const rawCommandName = parts[0];
 
     if (!rawCommandName) {
-      return
+      return;
     }
 
-    const command =
-      rawCommandName.toLowerCase()
+    const command = rawCommandName.toLowerCase();
 
-    const args =
-      parts
-        .slice(1)
-        .map(arg => {
-          if (
-            arg.startsWith('"') &&
-            arg.endsWith('"')
-          ) {
-            return arg.slice(
-              1,
-              -1,
-            )
-          }
+    const args = parts.slice(1).map((arg) => {
+      if (arg.startsWith('"') && arg.endsWith('"')) {
+        return arg.slice(1, -1);
+      }
 
-          return arg
-        })
+      return arg;
+    });
 
     switch (command) {
-      case 'pwd':
-        commandPwd()
-        break
-    case 'intro':
-        showIntro()
-        break
+      case "pwd":
+        commandPwd();
+        break;
+      case "intro":
+        showIntro();
+        break;
 
-      case 'ls':
-        commandLs(args)
-        break
+      case "ls":
+        commandLs(args);
+        break;
 
-      case 'cd':
-        commandCd(args)
-        break
+      case "cd":
+        commandCd(args);
+        break;
 
-      case 'cat':
-        commandCat(args)
-        break
+      case "cat":
+        commandCat(args);
+        break;
 
-      case 'grep':
-        commandGrep(args)
-        break
+      case "grep":
+        commandGrep(args);
+        break;
 
-      case 'head':
-        commandHeadOrTail('head', args)
-        break
+      case "head":
+        commandHeadOrTail("head", args);
+        break;
 
-      case 'tail':
-        commandHeadOrTail('tail', args)
-        break
+      case "tail":
+        commandHeadOrTail("tail", args);
+        break;
 
-      case 'stat':
-        commandStat(args)
-        break
+      case "stat":
+        commandStat(args);
+        break;
 
-      case 'diff':
-        commandDiff(args)
-        break
+      case "diff":
+        commandDiff(args);
+        break;
 
-      case 'strings':
-        commandStrings(args)
-        break
+      case "strings":
+        commandStrings(args);
+        break;
 
-      case 'checksum':
-        commandChecksum(args)
-        break
+      case "checksum":
+        commandChecksum(args);
+        break;
 
-      case 'find':
-        commandFind(args)
-        break
+      case "find":
+        commandFind(args);
+        break;
 
-      case 'sudo':
-        commandSudo(args)
-        break
+      case "sudo":
+        commandSudo(args);
+        break;
 
-      case 'history':
-        commandHistory()
-        break
+      case "history":
+        commandHistory();
+        break;
 
-      case 'whoami':
-        commandWhoami()
-        break
+      case "whoami":
+        commandWhoami();
+        break;
 
-      case 'hint':
-        commandHint(args)
-        break
+      case "hint":
+        commandHint(args);
+        break;
 
-      case 'confirm':
-        commandConfirm(args)
-        break
+      case "confirm":
+        commandConfirm(args);
+        break;
 
-      case 'guide':
-        commandGuide(args)
-        break
+      case "guide":
+        commandGuide(args);
+        break;
 
-      case 'help':
-        commandHelp()
-        break
+      case "help":
+        commandHelp();
+        break;
 
-      case 'lang':
-        commandLang(args)
-        break
+      case "lang":
+        commandLang(args);
+        break;
 
-      case 'clear':
-        clearTerminal()
-        break
+      case "clear":
+        clearTerminal();
+        break;
 
       default:
-        addLine(
-          'error',
-          `${command}: ${getTranslation(
-            'commandNotFound',
-          )}`,
-        )
+        addLine("error", `${command}: ${getTranslation("commandNotFound")}`);
 
-        addLine(
-          'system',
-          getTranslation(
-            'helpInstruction',
-          ),
-        )
+        addLine("system", getTranslation("helpInstruction"));
 
-        break
+        break;
     }
 
-    checkGameCompletion()
+    checkGameCompletion();
   }
 
   /*
@@ -4136,64 +3087,34 @@ requestedLocale
    * --------------------------------------------------
    */
 
-function showIntro() {
-  for (
-    const line of texts(
-      scenario.intro,
-    )
-  ) {
+  function showIntro() {
+    for (const line of texts(scenario.intro)) {
+      addLine("system", line, undefined, "intro");
+    }
+
+    addLine("system", "", undefined, "intro");
+
     addLine(
-      'system',
-      line,
+      "system",
+      `${getTranslation("currentLanguage")}: ${state.locale}`,
       undefined,
-      'intro',
-    )
+      "intro",
+    );
+
+    addLine("system", getTranslation("helpInstruction"), undefined, "intro");
+
+    addLine("system", "", undefined, "intro");
   }
 
-  addLine(
-    'system',
-    '',
-    undefined,
-    'intro',
-  )
+  function initialize() {
+    if (state.terminal.length > 0) {
+      return;
+    }
 
-  addLine(
-    'system',
-    `${getTranslation(
-      'currentLanguage',
-    )}: ${state.locale}`,
-    undefined,
-    'intro',
-  )
-
-  addLine(
-    'system',
-    getTranslation(
-      'helpInstruction',
-    ),
-    undefined,
-    'intro',
-  )
-
-  addLine(
-    'system',
-    '',
-    undefined,
-    'intro',
-  )
-}
-
-function initialize() {
-  if (
-    state.terminal.length > 0
-  ) {
-    return
+    showIntro();
   }
 
-  showIntro()
-}
-
-  initialize()
+  initialize();
 
   /*
    * --------------------------------------------------
@@ -4243,5 +3164,5 @@ function initialize() {
     cancelPasswordPrompt,
 
     text,
-  }
+  };
 }

@@ -1,143 +1,133 @@
 <script setup lang="ts">
 type Circle = {
-  x: number
-  y: number
-  size: number
-}
+  x: number;
+  y: number;
+  size: number;
+};
 
-const playing = ref(false)
-const score = ref(0)
-const hits = ref(0)
-const misses = ref(0)
-const reaction = ref(0)
-const bestReaction = ref<number | null>(null)
-const circle = ref<Circle | null>(null)
+const playing = ref(false);
+const score = ref(0);
+const hits = ref(0);
+const misses = ref(0);
+const reaction = ref(0);
+const bestReaction = ref<number | null>(null);
+const circle = ref<Circle | null>(null);
 
-let spawnedAt = 0
-let gameTimer: ReturnType<typeof setTimeout> | null = null
+let spawnedAt = 0;
+let gameTimer: ReturnType<typeof setTimeout> | null = null;
 
-const GAME_TIME = 30
-const CIRCLE_SIZE = 55
+const GAME_TIME = 30;
+const CIRCLE_SIZE = 55;
 
-const timeLeft = ref(GAME_TIME)
+const timeLeft = ref(GAME_TIME);
 
 const accuracy = computed(() => {
-  const total = hits.value + misses.value
+  const total = hits.value + misses.value;
 
-  if (!total) return 100
+  if (!total) return 100;
 
-  return Math.round((hits.value / total) * 100)
-})
+  return Math.round((hits.value / total) * 100);
+});
 
 function spawnCircle() {
-  const padding = CIRCLE_SIZE / 2 + 20
+  const padding = CIRCLE_SIZE / 2 + 20;
 
   circle.value = {
-    x: Math.random() * (100 - (padding / window.innerWidth) * 200)
-      + (padding / window.innerWidth) * 100,
+    x:
+      Math.random() * (100 - (padding / window.innerWidth) * 200) +
+      (padding / window.innerWidth) * 100,
 
-    y: Math.random() * (100 - (padding / window.innerHeight) * 200)
-      + (padding / window.innerHeight) * 100,
+    y:
+      Math.random() * (100 - (padding / window.innerHeight) * 200) +
+      (padding / window.innerHeight) * 100,
 
-    size: CIRCLE_SIZE
-  }
+    size: CIRCLE_SIZE,
+  };
 
-  spawnedAt = performance.now()
+  spawnedAt = performance.now();
 }
 
 function startGame() {
-  score.value = 0
-  hits.value = 0
-  misses.value = 0
-  reaction.value = 0
-  timeLeft.value = GAME_TIME
-  playing.value = true
+  score.value = 0;
+  hits.value = 0;
+  misses.value = 0;
+  reaction.value = 0;
+  timeLeft.value = GAME_TIME;
+  playing.value = true;
 
-  spawnCircle()
+  spawnCircle();
 
   gameTimer = setInterval(() => {
-    timeLeft.value--
+    timeLeft.value--;
 
     if (timeLeft.value <= 0) {
-      endGame()
+      endGame();
     }
-  }, 1000)
+  }, 1000);
 }
 
 function hitCircle(event: MouseEvent) {
-  event.stopPropagation()
+  event.stopPropagation();
 
-  if (!playing.value || !circle.value) return
+  if (!playing.value || !circle.value) return;
 
-  const currentReaction = Math.round(
-    performance.now() - spawnedAt
-  )
+  const currentReaction = Math.round(performance.now() - spawnedAt);
 
-  reaction.value = currentReaction
+  reaction.value = currentReaction;
 
-  if (
-    bestReaction.value === null ||
-    currentReaction < bestReaction.value
-  ) {
-    bestReaction.value = currentReaction
-    localStorage.setItem(
-      'aim-best-reaction',
-      String(currentReaction)
-    )
+  if (bestReaction.value === null || currentReaction < bestReaction.value) {
+    bestReaction.value = currentReaction;
+    localStorage.setItem("aim-best-reaction", String(currentReaction));
   }
 
-  hits.value++
+  hits.value++;
 
   // Điểm càng cao nếu click càng nhanh
-  const points = Math.max(
-    10,
-    Math.round(1000 / currentReaction * 100)
-  )
+  const points = Math.max(10, Math.round((1000 / currentReaction) * 100));
 
-  score.value += points
+  score.value += points;
 
-  spawnCircle()
+  spawnCircle();
 }
 
 function miss() {
-  if (!playing.value) return
+  if (!playing.value) return;
 
-  misses.value++
+  misses.value++;
 }
 
 function endGame() {
-  playing.value = false
-  circle.value = null
+  playing.value = false;
+  circle.value = null;
 
   if (gameTimer) {
-    clearInterval(gameTimer)
-    gameTimer = null
+    clearInterval(gameTimer);
+    gameTimer = null;
   }
 }
 
 function resetBest() {
-  bestReaction.value = null
-  localStorage.removeItem('aim-best-reaction')
+  bestReaction.value = null;
+  localStorage.removeItem("aim-best-reaction");
 }
 
 onMounted(() => {
-  const saved = localStorage.getItem('aim-best-reaction')
+  const saved = localStorage.getItem("aim-best-reaction");
 
   if (saved) {
-    bestReaction.value = Number(saved)
+    bestReaction.value = Number(saved);
   }
-})
+});
 
 onUnmounted(() => {
   if (gameTimer) {
-    clearInterval(gameTimer)
+    clearInterval(gameTimer);
   }
-})
+});
 </script>
 
 <template>
   <main class="aim-page">
-
     <!-- HEADER -->
     <header class="header">
       <div>
@@ -164,38 +154,26 @@ onUnmounted(() => {
     </header>
 
     <!-- START SCREEN -->
-    <section
-      v-if="!playing && hits === 0"
-      class="start-screen"
-    >
+    <section v-if="!playing && hits === 0" class="start-screen">
       <div class="crosshair">⌖</div>
 
       <h2>Test your aim</h2>
 
       <p>
-        Click vào các hình tròn xuất hiện trên màn hình
-        nhanh và chính xác nhất có thể.
+        Click vào các hình tròn xuất hiện trên màn hình nhanh và chính xác nhất
+        có thể.
       </p>
 
-      <button @click="startGame">
-        START AIM TEST
-      </button>
+      <button @click="startGame">START AIM TEST</button>
 
-      <div
-        v-if="bestReaction"
-        class="best"
-      >
+      <div v-if="bestReaction" class="best">
         ⚡ Best reaction:
         <strong>{{ bestReaction }} ms</strong>
       </div>
     </section>
 
     <!-- GAME -->
-    <section
-      v-else-if="playing"
-      class="arena"
-      @click="miss"
-    >
+    <section v-else-if="playing" class="arena" @click="miss">
       <div
         v-if="circle"
         class="target"
@@ -203,26 +181,19 @@ onUnmounted(() => {
           left: `${circle.x}%`,
           top: `${circle.y}%`,
           width: `${circle.size}px`,
-          height: `${circle.size}px`
+          height: `${circle.size}px`,
         }"
         @click="hitCircle"
       >
         <span></span>
       </div>
 
-      <div class="hint">
-        CLICK THE CIRCLE
-      </div>
+      <div class="hint">CLICK THE CIRCLE</div>
     </section>
 
     <!-- RESULT -->
-    <section
-      v-else
-      class="result-screen"
-    >
-      <div class="result-icon">
-        🎯
-      </div>
+    <section v-else class="result-screen">
+      <div class="result-icon">🎯</div>
 
       <h2>Game Over</h2>
 
@@ -250,23 +221,15 @@ onUnmounted(() => {
         <div>
           <span>BEST REACTION</span>
           <strong>
-            {{ bestReaction ? `${bestReaction} ms` : '-' }}
+            {{ bestReaction ? `${bestReaction} ms` : "-" }}
           </strong>
         </div>
       </div>
 
-      <button @click="startGame">
-        PLAY AGAIN
-      </button>
+      <button @click="startGame">PLAY AGAIN</button>
 
-      <button
-        class="reset"
-        @click="resetBest"
-      >
-        Reset best
-      </button>
+      <button class="reset" @click="resetBest">Reset best</button>
     </section>
-
   </main>
 </template>
 

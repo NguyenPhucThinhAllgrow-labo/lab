@@ -2,38 +2,32 @@ import type {
   ChineseChessPiece,
   PieceColor,
   Position,
-} from '~/types/games/chinese-chess'
+} from "~/types/games/chinese-chess";
 
-import {
-  getLegalMoves,
-  isInCheck,
-} from '~/utils/chinese-chess/check'
+import { getLegalMoves, isInCheck } from "~/utils/chinese-chess/check";
 
-import {
-  getPieceAt,
-  movePiece,
-} from '~/utils/chinese-chess/game'
+import { getPieceAt, movePiece } from "~/utils/chinese-chess/game";
 
 export interface ChineseChessSuggestedMove {
-  pieceId: string
-  from: Position
-  to: Position
-  score: number
+  pieceId: string;
+  from: Position;
+  to: Position;
+  score: number;
 }
 
 export interface ChineseChessMlCandidate extends ChineseChessSuggestedMove {
-  id: string
-  features: Record<string, number>
+  id: string;
+  features: Record<string, number>;
 }
 
 interface CandidateMove extends ChineseChessSuggestedMove {
-  piece: ChineseChessPiece
-  captured: ChineseChessPiece | null
+  piece: ChineseChessPiece;
+  captured: ChineseChessPiece | null;
 }
 
-const MATE_SCORE = 1_000_000
+const MATE_SCORE = 1_000_000;
 
-const PIECE_VALUES: Record<ChineseChessPiece['type'], number> = {
+const PIECE_VALUES: Record<ChineseChessPiece["type"], number> = {
   general: 100_000,
   chariot: 900,
   cannon: 450,
@@ -41,52 +35,59 @@ const PIECE_VALUES: Record<ChineseChessPiece['type'], number> = {
   elephant: 210,
   advisor: 210,
   soldier: 100,
-}
+};
 
 function opponentOf(color: PieceColor): PieceColor {
-  return color === 'red' ? 'black' : 'red'
+  return color === "red" ? "black" : "red";
 }
 
-function candidates(board: ChineseChessPiece[], color: PieceColor): CandidateMove[] {
+function candidates(
+  board: ChineseChessPiece[],
+  color: PieceColor,
+): CandidateMove[] {
   return getLegalMoves(board, color)
-    .flatMap(({ piece, moves }) => moves.map(to => ({
-      piece,
-      pieceId: piece.id,
-      from: { row: piece.row, col: piece.col },
-      to,
-      captured: getPieceAt(board, to) ?? null,
-      score: 0,
-    })))
+    .flatMap(({ piece, moves }) =>
+      moves.map((to) => ({
+        piece,
+        pieceId: piece.id,
+        from: { row: piece.row, col: piece.col },
+        to,
+        captured: getPieceAt(board, to) ?? null,
+        score: 0,
+      })),
+    )
     .sort((left, right) => {
-      const leftCapture = left.captured ? PIECE_VALUES[left.captured.type] : 0
-      const rightCapture = right.captured ? PIECE_VALUES[right.captured.type] : 0
-      return rightCapture - leftCapture
-    })
+      const leftCapture = left.captured ? PIECE_VALUES[left.captured.type] : 0;
+      const rightCapture = right.captured
+        ? PIECE_VALUES[right.captured.type]
+        : 0;
+      return rightCapture - leftCapture;
+    });
 }
 
 function positionalScore(piece: ChineseChessPiece): number {
-  const centerBonus = (4 - Math.abs(4 - piece.col)) * 3
+  const centerBonus = (4 - Math.abs(4 - piece.col)) * 3;
 
-  if (piece.type !== 'soldier') return centerBonus
+  if (piece.type !== "soldier") return centerBonus;
 
-  const advancement = piece.color === 'red' ? 9 - piece.row : piece.row
-  const crossedRiver = piece.color === 'red' ? piece.row <= 4 : piece.row >= 5
+  const advancement = piece.color === "red" ? 9 - piece.row : piece.row;
+  const crossedRiver = piece.color === "red" ? piece.row <= 4 : piece.row >= 5;
 
-  return advancement * 7 + (crossedRiver ? 45 : 0) + centerBonus
+  return advancement * 7 + (crossedRiver ? 45 : 0) + centerBonus;
 }
 
 function evaluate(board: ChineseChessPiece[], perspective: PieceColor): number {
-  let score = 0
+  let score = 0;
 
   for (const piece of board) {
-    const value = PIECE_VALUES[piece.type] + positionalScore(piece)
-    score += piece.color === perspective ? value : -value
+    const value = PIECE_VALUES[piece.type] + positionalScore(piece);
+    score += piece.color === perspective ? value : -value;
   }
 
-  if (isInCheck(board, opponentOf(perspective))) score += 70
-  if (isInCheck(board, perspective)) score -= 90
+  if (isInCheck(board, opponentOf(perspective))) score += 70;
+  if (isInCheck(board, perspective)) score -= 90;
 
-  return score
+  return score;
 }
 
 function tacticalScore(
@@ -95,41 +96,46 @@ function tacticalScore(
   candidate: CandidateMove,
   cutoff = Number.NEGATIVE_INFINITY,
 ): number {
-  const opponent = opponentOf(color)
-  const nextBoard = movePiece(board, candidate.pieceId, candidate.to)
-  const replies = candidates(nextBoard, opponent)
+  const opponent = opponentOf(color);
+  const nextBoard = movePiece(board, candidate.pieceId, candidate.to);
+  const replies = candidates(nextBoard, opponent);
 
-  if (replies.length === 0) return MATE_SCORE
+  if (replies.length === 0) return MATE_SCORE;
 
-  let score = Number.POSITIVE_INFINITY
+  let score = Number.POSITIVE_INFINITY;
   for (const reply of replies) {
-    const replyBoard = movePiece(nextBoard, reply.pieceId, reply.to)
-    let replyScore = evaluate(replyBoard, color)
+    const replyBoard = movePiece(nextBoard, reply.pieceId, reply.to);
+    let replyScore = evaluate(replyBoard, color);
 
-    if (isInCheck(replyBoard, color) && candidates(replyBoard, color).length === 0) {
-      replyScore = -MATE_SCORE
+    if (
+      isInCheck(replyBoard, color) &&
+      candidates(replyBoard, color).length === 0
+    ) {
+      replyScore = -MATE_SCORE;
     }
 
-    score = Math.min(score, replyScore)
-    if (score <= cutoff) break
+    score = Math.min(score, replyScore);
+    if (score <= cutoff) break;
   }
 
-  if (isInCheck(nextBoard, opponent)) score += 18
-  if (candidate.captured) score += PIECE_VALUES[candidate.captured.type] / 100
-  return score
+  if (isInCheck(nextBoard, opponent)) score += 18;
+  if (candidate.captured) score += PIECE_VALUES[candidate.captured.type] / 100;
+  return score;
 }
 
 export function evaluateChineseChessMove(
   board: ChineseChessPiece[],
   color: PieceColor,
-  move: Pick<ChineseChessSuggestedMove, 'pieceId' | 'to'>,
+  move: Pick<ChineseChessSuggestedMove, "pieceId" | "to">,
 ): number | null {
-  const candidate = candidates(board, color).find(item =>
-    item.pieceId === move.pieceId
-    && item.to.row === move.to.row
-    && item.to.col === move.to.col)
+  const candidate = candidates(board, color).find(
+    (item) =>
+      item.pieceId === move.pieceId &&
+      item.to.row === move.to.row &&
+      item.to.col === move.to.col,
+  );
 
-  return candidate ? tacticalScore(board, color, candidate) : null
+  return candidate ? tacticalScore(board, color, candidate) : null;
 }
 
 /**
@@ -140,14 +146,14 @@ export function buildChineseChessMlCandidates(
   board: ChineseChessPiece[],
   color: PieceColor,
 ): ChineseChessMlCandidate[] {
-  const opponent = opponentOf(color)
-  const legalCandidates = candidates(board, color)
-  const ownMobility = legalCandidates.length
+  const opponent = opponentOf(color);
+  const legalCandidates = candidates(board, color);
+  const ownMobility = legalCandidates.length;
 
   return legalCandidates.map((candidate) => {
-    const nextBoard = movePiece(board, candidate.pieceId, candidate.to)
-    const opponentReplies = candidates(nextBoard, opponent)
-    const givesCheck = isInCheck(nextBoard, opponent)
+    const nextBoard = movePiece(board, candidate.pieceId, candidate.to);
+    const opponentReplies = candidates(nextBoard, opponent);
+    const givesCheck = isInCheck(nextBoard, opponent);
 
     return {
       id: `${candidate.pieceId}:${candidate.to.row}:${candidate.to.col}`,
@@ -156,16 +162,19 @@ export function buildChineseChessMlCandidates(
       to: candidate.to,
       score: 0,
       features: {
-        capture_value: (candidate.captured ? PIECE_VALUES[candidate.captured.type] : 0) / 900,
+        capture_value:
+          (candidate.captured ? PIECE_VALUES[candidate.captured.type] : 0) /
+          900,
         gives_check: givesCheck ? 1 : 0,
         gives_checkmate: givesCheck && opponentReplies.length === 0 ? 1 : 0,
         material_balance: evaluate(nextBoard, color) / 2_000,
         own_mobility: ownMobility / 100,
         opponent_mobility: opponentReplies.length / 100,
-        piece_position: positionalScore({ ...candidate.piece, ...candidate.to }) / 100,
+        piece_position:
+          positionalScore({ ...candidate.piece, ...candidate.to }) / 100,
       },
-    }
-  })
+    };
+  });
 }
 
 /**
@@ -178,26 +187,30 @@ export function findBestChineseChessMove(
   color: PieceColor,
   excludedMoves: ReadonlySet<string> = new Set(),
 ): ChineseChessSuggestedMove | null {
-  const ownCandidates = candidates(board, color).filter(candidate =>
-    !excludedMoves.has(`${candidate.pieceId}:${candidate.to.row}:${candidate.to.col}`))
-  let bestMove: CandidateMove | null = null
-  let bestScore = Number.NEGATIVE_INFINITY
+  const ownCandidates = candidates(board, color).filter(
+    (candidate) =>
+      !excludedMoves.has(
+        `${candidate.pieceId}:${candidate.to.row}:${candidate.to.col}`,
+      ),
+  );
+  let bestMove: CandidateMove | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
 
   for (const candidate of ownCandidates) {
-    const score = tacticalScore(board, color, candidate, bestScore)
+    const score = tacticalScore(board, color, candidate, bestScore);
 
     if (score > bestScore) {
-      bestScore = score
-      bestMove = candidate
+      bestScore = score;
+      bestMove = candidate;
     }
   }
 
-  if (!bestMove) return null
+  if (!bestMove) return null;
 
   return {
     pieceId: bestMove.pieceId,
     from: bestMove.from,
     to: bestMove.to,
     score: bestScore,
-  }
+  };
 }

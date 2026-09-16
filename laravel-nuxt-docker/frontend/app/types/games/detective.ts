@@ -1,15 +1,13 @@
-export type SupportedLocale =
-  | 'en'
-  | 'vi'
+export type SupportedLocale = "en" | "vi";
 
 export interface LocalizedText {
-  en: string
-  vi: string
+  en: string;
+  vi: string;
 }
 
 export interface LocalizedTextArray {
-  en: string[]
-  vi: string[]
+  en: string[];
+  vi: string[];
 }
 
 /*
@@ -19,20 +17,18 @@ export interface LocalizedTextArray {
  */
 
 export interface FileNode {
-  type:
-    | 'file'
-    | 'directory'
+  type: "file" | "directory";
 
-  name: string
+  name: string;
 
   /*
    * File content được dịch theo locale.
    *
    * Directory không cần content.
    */
-  content?: LocalizedText
+  content?: LocalizedText;
 
-  children?: FileNode[]
+  children?: FileNode[];
 
   /*
    * Optional access control inherited by descendants.
@@ -41,13 +37,13 @@ export interface FileNode {
    */
   access?:
     | {
-        type: 'sudo'
+        type: "sudo";
       }
     | {
-        type: 'password'
-        password: string
-        prompt?: LocalizedText
-      }
+        type: "password";
+        password: string;
+        prompt?: LocalizedText;
+      };
 }
 
 /*
@@ -57,41 +53,37 @@ export interface FileNode {
  */
 
 export interface Evidence {
-  id: string
+  id: string;
 
-  title: LocalizedText
+  title: LocalizedText;
 
-  description: LocalizedText
+  description: LocalizedText;
 
-  type:
-    | 'digital'
-    | 'document'
-    | 'photo'
-    | 'object'
+  type: "digital" | "document" | "photo" | "object";
 
-  hint: LocalizedText
+  hint: LocalizedText;
 
   discover: {
-    type: 'cat'
+    type: "cat";
 
     /*
      * Path KHÔNG dịch.
      */
-    path: string
-  }
+    path: string;
+  };
 
   /*
    * Highlight cũng theo locale
    * vì text trong file được dịch.
    */
   highlight?: {
-    en: string[]
-    vi: string[]
-  }
+    en: string[];
+    vi: string[];
+  };
 
-  requiresEvidence?: string[]
+  requiresEvidence?: string[];
 
-  discovered?: boolean
+  discovered?: boolean;
 }
 
 /*
@@ -101,72 +93,68 @@ export interface Evidence {
  */
 
 export interface Task {
-  id: string
+  id: string;
 
-  title: LocalizedText
+  title: LocalizedText;
 
-  description: LocalizedText
+  description: LocalizedText;
 
-  reason?: LocalizedText
+  reason?: LocalizedText;
 
   /* Shown once when the task is completed. */
-  completionSummary?: LocalizedText
+  completionSummary?: LocalizedText;
 
   /* A direction for the next investigation step without revealing a command. */
-  nextLead?: LocalizedText
+  nextLead?: LocalizedText;
 
-  requiresEvidence: string[]
+  requiresEvidence: string[];
 
-  completed?: boolean
+  completed?: boolean;
 }
 
 export interface PersonProfileDetail {
-  label: LocalizedText
+  label: LocalizedText;
 
-  value: LocalizedText
+  value: LocalizedText;
 
-  requiresEvidence?: string[]
+  requiresEvidence?: string[];
 }
 
 export interface PersonProfile {
-  id: string
+  id: string;
 
-  name: string
+  name: string;
 
-  role: LocalizedText
+  role: LocalizedText;
 
-  summary: LocalizedText
+  summary: LocalizedText;
 
-  requiresEvidence?: string[]
+  requiresEvidence?: string[];
 
-  details: PersonProfileDetail[]
+  details: PersonProfileDetail[];
 }
 
 export interface ScenarioTimelineEvent {
-  time: string
+  time: string;
 
-  title: LocalizedText
+  title: LocalizedText;
 
-  description: LocalizedText
+  description: LocalizedText;
 
-  category?:
-    | 'before'
-    | 'incident'
-    | 'trace'
-    | 'response'
+  category?: "before" | "incident" | "trace" | "response";
 
-  requiresEvidence?: string[]
+  requiresEvidence?: string[];
 
-  requiresGameCompletion?: boolean
+  requiresGameCompletion?: boolean;
 }
 
 export interface ScenarioOperationalReport {
   answers: {
-    suspect: string[]
-    vehicle: string[]
-    target: string[]
-    victim: string[]
-  }
+    suspect: string[];
+    vehicle: string[];
+    target: string[];
+    victim: string[];
+  };
 }
 
 /*
@@ -176,31 +164,31 @@ export interface ScenarioOperationalReport {
  */
 
 export interface Scenario {
-  id: string
+  id: string;
 
-  title: LocalizedText
+  title: LocalizedText;
 
-  description: LocalizedText
+  description: LocalizedText;
 
-  initialDirectory: string
+  initialDirectory: string;
 
-  intro: LocalizedTextArray
+  intro: LocalizedTextArray;
 
-  timeline?: ScenarioTimelineEvent[]
+  timeline?: ScenarioTimelineEvent[];
 
   /* Character dossiers can reveal people and facts progressively. */
-  people?: PersonProfile[]
+  people?: PersonProfile[];
 
   /*
    * When present, completing every investigation task unlocks a final
    * player-authored operational report. The case is solved only after the
    * report is validated.
    */
-  operationalReport?: ScenarioOperationalReport
+  operationalReport?: ScenarioOperationalReport;
 
-  filesystem: FileNode[]
+  filesystem: FileNode[];
 
-  evidence: Evidence[]
+  evidence: Evidence[];
 
-  tasks: Task[]
+  tasks: Task[];
 }

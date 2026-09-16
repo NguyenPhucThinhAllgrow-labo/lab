@@ -1,49 +1,45 @@
-export type SimulationStatus =
-  | 'idle'
-  | 'running'
-  | 'paused'
-  | 'completed'
+export type SimulationStatus = "idle" | "running" | "paused" | "completed";
 
 export interface GreedySimulationStep {
   /**
    * Trạng thái hiện tại của dữ liệu.
    */
-  values: number[]
+  values: number[];
 
   /**
    * ID cố định của từng phần tử.
    */
-  ids: number[]
+  ids: number[];
 
   /**
    * Các index đang được xét.
    */
-  comparing: number[]
+  comparing: number[];
 
   /**
    * Các index được chọn bởi Greedy.
    */
-  selected: number[]
+  selected: number[];
 
   /**
    * Các index đã được xử lý/chốt.
    */
-  processed: number[]
+  processed: number[];
 
   /**
    * Index hiện tại.
    */
-  currentIndex?: number
+  currentIndex?: number;
 
   /**
    * Mô tả thao tác.
    */
-  description: string
+  description: string;
 }
 
 export interface Complexity {
-  best: string
-  average: string
-  worst: string
-  space: string
+  best: string;
+  average: string;
+  worst: string;
+  space: string;
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const { theme: siteTheme } = useSiteTheme()
-import AlgorithmNavigation from '~/components/algorithm/AlgorithmNavigation.vue'
+const { theme: siteTheme } = useSiteTheme();
+import AlgorithmNavigation from "~/components/algorithm/AlgorithmNavigation.vue";
 import {
   ArrowLeft,
   ArrowUp,
@@ -11,52 +11,44 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
-} from 'lucide-vue-next'
+} from "lucide-vue-next";
 
-import { generateBubbleSortSteps } from '~/utils/algorithms/sorting/bubbleSort'
+import { generateBubbleSortSteps } from "~/utils/algorithms/sorting/bubbleSort";
 
 import type {
   Complexity,
   SimulationStatus,
   SimulationStep,
-} from '~/types/algorithm/sort/common'
+} from "~/types/algorithm/sort/common";
 
 useHead({
-  title: 'Bubble Sort Playground',
-})
+  title: "Bubble Sort Playground",
+});
 
 /* =========================================================
    DATA
 ========================================================= */
 
-const initialValues: number[] = [
-  45,
-  12,
-  87,
-  34,
-  9,
-  63,
-  21,
-]
+const initialValues: number[] = [45, 12, 87, 34, 9, 63, 21];
 
-const values = ref<number[]>([...initialValues])
+const values = ref<number[]>([...initialValues]);
 
-const steps = ref<SimulationStep[]>([])
+const steps = ref<SimulationStep[]>([]);
 
-const currentStep = ref<number>(0)
+const currentStep = ref<number>(0);
 
-const status = ref<SimulationStatus>('idle')
+const status = ref<SimulationStatus>("idle");
 
-const speed = ref<number>(700)
+const speed = ref<number>(700);
 
-let timer: ReturnType<typeof setTimeout> | null = null
+let timer: ReturnType<typeof setTimeout> | null = null;
 
 const complexity: Complexity = {
-  best: 'O(n)',
-  average: 'O(n²)',
-  worst: 'O(n²)',
-  space: 'O(1)',
-}
+  best: "O(n)",
+  average: "O(n²)",
+  worst: "O(n²)",
+  space: "O(1)",
+};
 
 /* =========================================================
    COMPUTED
@@ -64,92 +56,86 @@ const complexity: Complexity = {
 
 const currentSimulation = computed<SimulationStep | null>(() => {
   if (steps.value.length === 0) {
-    return null
+    return null;
   }
 
-  return steps.value[currentStep.value] ?? null
-})
+  return steps.value[currentStep.value] ?? null;
+});
 
 const currentValues = computed<number[]>(() => {
-  return currentSimulation.value?.values ?? values.value
-})
+  return currentSimulation.value?.values ?? values.value;
+});
 
 const currentComparing = computed<number[]>(() => {
-  return currentSimulation.value?.comparing ?? []
-})
+  return currentSimulation.value?.comparing ?? [];
+});
 
 const currentSwapping = computed<number[]>(() => {
-  return currentSimulation.value?.swapping ?? []
-})
+  return currentSimulation.value?.swapping ?? [];
+});
 
 const currentSorted = computed<number[]>(() => {
-  return currentSimulation.value?.sorted ?? []
-})
+  return currentSimulation.value?.sorted ?? [];
+});
 
 const currentDescription = computed<string>(() => {
   return (
-    currentSimulation.value?.description ??
-    'Nhấn Play Simulation để bắt đầu.'
-  )
-})
+    currentSimulation.value?.description ?? "Nhấn Play Simulation để bắt đầu."
+  );
+});
 
 const progress = computed<number>(() => {
   if (steps.value.length <= 1) {
-    return 0
+    return 0;
   }
 
-  return Math.round(
-    (currentStep.value / (steps.value.length - 1)) * 100,
-  )
-})
+  return Math.round((currentStep.value / (steps.value.length - 1)) * 100);
+});
 
 const isFirstStep = computed<boolean>(() => {
-  return currentStep.value <= 0
-})
+  return currentStep.value <= 0;
+});
 
 const isLastStep = computed<boolean>(() => {
-  return (
-    steps.value.length > 0 &&
-    currentStep.value >= steps.value.length - 1
-  )
-})
+  return steps.value.length > 0 && currentStep.value >= steps.value.length - 1;
+});
 
 const statusLabel = computed<string>(() => {
   switch (status.value) {
-    case 'running':
-      return 'Running'
+    case "running":
+      return "Running";
 
-    case 'paused':
-      return 'Paused'
+    case "paused":
+      return "Paused";
 
-    case 'completed':
-      return 'Completed'
+    case "completed":
+      return "Completed";
 
     default:
-      return 'Ready'
+      return "Ready";
   }
-})
+});
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
 function isComparing(index: number): boolean {
-  return currentComparing.value.includes(index)
+  return currentComparing.value.includes(index);
 }
 
 function isSwapping(index: number): boolean {
-  return currentSwapping.value.includes(index)
+  return currentSwapping.value.includes(index);
 }
 
 function isSorted(index: number): boolean {
-  return currentSorted.value.includes(index)
+  return currentSorted.value.includes(index);
 }
 
 function getBarHeight(value: number): string {
-  const height = Math.max(value * 3, 35)
+  const height = Math.max(value * 3, 35);
 
-  return `${height}px`
+  return `${height}px`;
 }
 
 /* =========================================================
@@ -157,138 +143,134 @@ function getBarHeight(value: number): string {
 ========================================================= */
 
 function initializeSimulation(): void {
-  stopTimer()
+  stopTimer();
 
-  steps.value = generateBubbleSortSteps(values.value)
+  steps.value = generateBubbleSortSteps(values.value);
 
-  currentStep.value = 0
+  currentStep.value = 0;
 
-  status.value = 'idle'
+  status.value = "idle";
 }
 
 function reset(): void {
-  values.value = [...initialValues]
+  values.value = [...initialValues];
 
-  initializeSimulation()
+  initializeSimulation();
 }
 
 function randomize(): void {
-  stopTimer()
+  stopTimer();
 
-  const generated: number[] = []
+  const generated: number[] = [];
 
   for (let index = 0; index < 8; index++) {
-    generated.push(
-      Math.floor(Math.random() * 90) + 10,
-    )
+    generated.push(Math.floor(Math.random() * 90) + 10);
   }
 
-  values.value = generated
+  values.value = generated;
 
-  steps.value = generateBubbleSortSteps(
-    generated,
-  )
+  steps.value = generateBubbleSortSteps(generated);
 
-  currentStep.value = 0
+  currentStep.value = 0;
 
-  status.value = 'idle'
+  status.value = "idle";
 }
 
 function goToNextStep(): void {
   if (steps.value.length === 0) {
-    return
+    return;
   }
 
   if (isLastStep.value) {
-    status.value = 'completed'
+    status.value = "completed";
 
-    stopTimer()
+    stopTimer();
 
-    return
+    return;
   }
 
-  currentStep.value += 1
+  currentStep.value += 1;
 
   if (isLastStep.value) {
-    status.value = 'completed'
+    status.value = "completed";
 
-    stopTimer()
+    stopTimer();
   }
 }
 
 function goToPreviousStep(): void {
   if (steps.value.length === 0) {
-    return
+    return;
   }
 
   if (isFirstStep.value) {
-    return
+    return;
   }
 
-  currentStep.value -= 1
+  currentStep.value -= 1;
 
-  status.value = 'paused'
+  status.value = "paused";
 
-  stopTimer()
+  stopTimer();
 }
 
 function play(): void {
   if (steps.value.length === 0) {
-    initializeSimulation()
+    initializeSimulation();
   }
 
   if (isLastStep.value) {
-    currentStep.value = 0
+    currentStep.value = 0;
   }
 
-  status.value = 'running'
+  status.value = "running";
 
-  scheduleNextStep()
+  scheduleNextStep();
 }
 
 function pause(): void {
-  status.value = 'paused'
+  status.value = "paused";
 
-  stopTimer()
+  stopTimer();
 }
 
 function togglePlay(): void {
-  if (status.value === 'running') {
-    pause()
+  if (status.value === "running") {
+    pause();
 
-    return
+    return;
   }
 
-  play()
+  play();
 }
 
 function scheduleNextStep(): void {
-  stopTimer()
+  stopTimer();
 
-  if (status.value !== 'running') {
-    return
+  if (status.value !== "running") {
+    return;
   }
 
   if (isLastStep.value) {
-    status.value = 'completed'
+    status.value = "completed";
 
-    return
+    return;
   }
 
   timer = setTimeout(() => {
-    goToNextStep()
+    goToNextStep();
 
-    if (status.value === 'running') {
-      scheduleNextStep()
+    if (status.value === "running") {
+      scheduleNextStep();
     }
-  }, speed.value)
+  }, speed.value);
 }
 
 function stopTimer(): void {
   if (timer !== null) {
-    clearTimeout(timer)
+    clearTimeout(timer);
 
-    timer = null
+    timer = null;
   }
 }
 
@@ -297,18 +279,18 @@ function stopTimer(): void {
 ========================================================= */
 
 watch(speed, () => {
-  if (status.value === 'running') {
-    scheduleNextStep()
+  if (status.value === "running") {
+    scheduleNextStep();
   }
-})
+});
 
 onMounted(() => {
-  initializeSimulation()
-})
+  initializeSimulation();
+});
 
 onBeforeUnmount(() => {
-  stopTimer()
-})
+  stopTimer();
+});
 </script>
 
 <template>
@@ -322,40 +304,35 @@ onBeforeUnmount(() => {
 
     <AlgorithmNavigation />
 
-    <main
-      class="mx-auto max-w-7xl space-y-8 px-6 py-8 lg:py-10"
-    >
+    <main class="mx-auto max-w-7xl space-y-8 px-6 py-8 lg:py-10">
       <!-- ===================================================
            HERO
       ==================================================== -->
 
-      <section id="overview"
+      <section
+        id="overview"
         class="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-7 lg:p-10"
       >
         <div
           class="pointer-events-none absolute -right-40 -top-40 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl"
         />
 
-        <div
-          class="relative max-w-4xl"
-        >
+        <div class="relative max-w-4xl">
           <div
             class="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-bold text-blue-400"
           >
-            <span
-              class="h-1.5 w-1.5 rounded-full bg-blue-400"
-            />
+            <span class="h-1.5 w-1.5 rounded-full bg-blue-400" />
 
             SORTING ALGORITHM
           </div>
 
-          <h2
-            class="text-4xl font-black tracking-tight text-white sm:text-5xl"
-          >
+          <h2 class="text-4xl font-black tracking-tight text-white sm:text-5xl">
             Bubble Sort
           </h2>
           <nav class="algorithm-section-links" aria-label="Điều hướng nội dung">
-            <a href="#simulation" class="algorithm-section-links__primary">Bắt đầu mô phỏng <span aria-hidden="true">↓</span></a>
+            <a href="#simulation" class="algorithm-section-links__primary"
+              >Bắt đầu mô phỏng <span aria-hidden="true">↓</span></a
+            >
             <a href="#introduction">Tổng quan</a>
             <a href="#pseudocode">Mã giả &amp; độ phức tạp</a>
             <a href="#implementation">Mã PHP</a>
@@ -364,9 +341,8 @@ onBeforeUnmount(() => {
           <p
             class="mt-5 max-w-3xl text-base leading-8 text-slate-400 sm:text-lg"
           >
-            Thuật toán sắp xếp đơn giản bằng cách liên tục
-            so sánh các phần tử liền kề và hoán đổi chúng
-            nếu chúng nằm sai thứ tự.
+            Thuật toán sắp xếp đơn giản bằng cách liên tục so sánh các phần tử
+            liền kề và hoán đổi chúng nếu chúng nằm sai thứ tự.
           </p>
         </div>
       </section>
@@ -375,64 +351,43 @@ onBeforeUnmount(() => {
            INTRODUCTION
       ==================================================== -->
 
-      <section id="introduction"
+      <section
+        id="introduction"
         class="rounded-3xl border border-slate-800 bg-slate-900 p-6 lg:p-8"
       >
-        <div
-          class="mb-6 flex items-center gap-3"
-        >
-          <div
-            class="h-8 w-1 rounded-full bg-blue-500"
-          />
+        <div class="mb-6 flex items-center gap-3">
+          <div class="h-8 w-1 rounded-full bg-blue-500" />
 
-          <h3
-            class="text-xl font-black text-white"
-          >
-            Giới thiệu thuật toán
-          </h3>
+          <h3 class="text-xl font-black text-white">Giới thiệu thuật toán</h3>
         </div>
 
-        <div
-          class="grid gap-8 lg:grid-cols-2"
-        >
-          <div
-            class="space-y-4 text-sm leading-7 text-slate-400"
-          >
+        <div class="grid gap-8 lg:grid-cols-2">
+          <div class="space-y-4 text-sm leading-7 text-slate-400">
             <p>
-              Bubble Sort duyệt qua mảng nhiều lần.
-              Trong mỗi lần duyệt, thuật toán so sánh
-              từng cặp phần tử đứng cạnh nhau.
+              Bubble Sort duyệt qua mảng nhiều lần. Trong mỗi lần duyệt, thuật
+              toán so sánh từng cặp phần tử đứng cạnh nhau.
             </p>
 
             <p>
-              Nếu phần tử bên trái lớn hơn phần tử bên phải,
-              hai phần tử sẽ được
-              <strong class="text-white">
-                swap
-              </strong>.
+              Nếu phần tử bên trái lớn hơn phần tử bên phải, hai phần tử sẽ được
+              <strong class="text-white"> swap </strong>.
             </p>
 
             <p>
-              Sau mỗi vòng lặp, phần tử lớn nhất chưa được
-              sắp xếp sẽ dần di chuyển về cuối mảng.
+              Sau mỗi vòng lặp, phần tử lớn nhất chưa được sắp xếp sẽ dần di
+              chuyển về cuối mảng.
             </p>
           </div>
 
-          <div
-            class="rounded-2xl border border-slate-800 bg-slate-950 p-5"
-          >
+          <div class="rounded-2xl border border-slate-800 bg-slate-950 p-5">
             <div
               class="mb-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500"
             >
               Core Idea
             </div>
 
-            <div
-              class="space-y-3"
-            >
-              <div
-                class="flex items-center gap-3"
-              >
+            <div class="space-y-3">
+              <div class="flex items-center gap-3">
                 <span
                   class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-xs font-bold text-blue-400"
                 >
@@ -444,9 +399,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="flex items-center gap-3"
-              >
+              <div class="flex items-center gap-3">
                 <span
                   class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-xs font-bold text-blue-400"
                 >
@@ -458,9 +411,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="flex items-center gap-3"
-              >
+              <div class="flex items-center gap-3">
                 <span
                   class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-bold text-amber-400"
                 >
@@ -472,9 +423,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="flex items-center gap-3"
-              >
+              <div class="flex items-center gap-3">
                 <span
                   class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-400"
                 >
@@ -494,57 +443,33 @@ onBeforeUnmount(() => {
            USE CASES
       ==================================================== -->
 
-      <section id="applications"
-        class="grid gap-5 md:grid-cols-2"
-      >
+      <section id="applications" class="grid gap-5 md:grid-cols-2">
         <!-- Use -->
         <div
           class="rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.08] to-slate-900 p-6"
         >
-          <div
-            class="flex items-center gap-3"
-          >
+          <div class="flex items-center gap-3">
             <div
               class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10"
             >
-              <Check
-                class="h-5 w-5 text-emerald-400"
-              />
+              <Check class="h-5 w-5 text-emerald-400" />
             </div>
 
             <div>
-              <h3
-                class="font-bold text-emerald-400"
-              >
-                Khi nào nên sử dụng?
-              </h3>
+              <h3 class="font-bold text-emerald-400">Khi nào nên sử dụng?</h3>
 
-              <p
-                class="text-xs text-slate-600"
-              >
-                Good use cases
-              </p>
+              <p class="text-xs text-slate-600">Good use cases</p>
             </div>
           </div>
 
-          <ul
-            class="mt-6 space-y-3 text-sm text-slate-400"
-          >
-            <li>
-              • Học và minh họa sorting algorithm.
-            </li>
+          <ul class="mt-6 space-y-3 text-sm text-slate-400">
+            <li>• Học và minh họa sorting algorithm.</li>
 
-            <li>
-              • Dataset rất nhỏ.
-            </li>
+            <li>• Dataset rất nhỏ.</li>
 
-            <li>
-              • Implementation đơn giản.
-            </li>
+            <li>• Implementation đơn giản.</li>
 
-            <li>
-              • Ưu tiên tính dễ hiểu hơn performance.
-            </li>
+            <li>• Ưu tiên tính dễ hiểu hơn performance.</li>
           </ul>
         </div>
 
@@ -552,52 +477,28 @@ onBeforeUnmount(() => {
         <div
           class="rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.08] to-slate-900 p-6"
         >
-          <div
-            class="flex items-center gap-3"
-          >
+          <div class="flex items-center gap-3">
             <div
               class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10"
             >
-              <span
-                class="text-lg font-black text-red-400"
-              >
-                ×
-              </span>
+              <span class="text-lg font-black text-red-400"> × </span>
             </div>
 
             <div>
-              <h3
-                class="font-bold text-red-400"
-              >
-                Khi nào không nên sử dụng?
-              </h3>
+              <h3 class="font-bold text-red-400">Khi nào không nên sử dụng?</h3>
 
-              <p
-                class="text-xs text-slate-600"
-              >
-                Avoid when
-              </p>
+              <p class="text-xs text-slate-600">Avoid when</p>
             </div>
           </div>
 
-          <ul
-            class="mt-6 space-y-3 text-sm text-slate-400"
-          >
-            <li>
-              • Dataset lớn.
-            </li>
+          <ul class="mt-6 space-y-3 text-sm text-slate-400">
+            <li>• Dataset lớn.</li>
 
-            <li>
-              • Hệ thống yêu cầu performance cao.
-            </li>
+            <li>• Hệ thống yêu cầu performance cao.</li>
 
-            <li>
-              • Sorting hàng triệu phần tử.
-            </li>
+            <li>• Sorting hàng triệu phần tử.</li>
 
-            <li>
-              • Khi Quick Sort hoặc Merge Sort phù hợp hơn.
-            </li>
+            <li>• Khi Quick Sort hoặc Merge Sort phù hợp hơn.</li>
           </ul>
         </div>
       </section>
@@ -606,7 +507,8 @@ onBeforeUnmount(() => {
            Mô phỏng tương tác
       ==================================================== -->
 
-      <section id="simulation"
+      <section
+        id="simulation"
         class="relative overflow-hidden rounded-3xl border border-blue-500/20 bg-slate-900 shadow-2xl shadow-blue-950/20"
       >
         <!-- Background glow -->
@@ -622,12 +524,8 @@ onBeforeUnmount(() => {
         <div
           class="relative border-b border-slate-800 bg-slate-900/90 px-6 py-5"
         >
-          <div
-            class="flex flex-wrap items-center justify-between gap-5"
-          >
-            <div
-              class="flex items-center gap-4"
-            >
+          <div class="flex flex-wrap items-center justify-between gap-5">
+            <div class="flex items-center gap-4">
               <div
                 class="flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-500/10"
               >
@@ -640,27 +538,19 @@ onBeforeUnmount(() => {
                   <span
                     class="relative inline-flex h-3 w-3 rounded-full"
                     :class="{
-                      'bg-emerald-400':
-                        status === 'running',
+                      'bg-emerald-400': status === 'running',
 
-                      'bg-blue-400':
-                        status === 'completed',
+                      'bg-blue-400': status === 'completed',
 
-                      'bg-slate-500':
-                        status === 'idle' ||
-                        status === 'paused',
+                      'bg-slate-500': status === 'idle' || status === 'paused',
                     }"
                   />
                 </span>
               </div>
 
               <div>
-                <div
-                  class="flex flex-wrap items-center gap-3"
-                >
-                  <h3
-                    class="text-xl font-black tracking-tight text-white"
-                  >
+                <div class="flex flex-wrap items-center gap-3">
+                  <h3 class="text-xl font-black tracking-tight text-white">
                     Mô phỏng tương tác
                   </h3>
 
@@ -684,11 +574,8 @@ onBeforeUnmount(() => {
                   </span>
                 </div>
 
-                <p
-                  class="mt-1 text-sm text-slate-500"
-                >
-                  Theo dõi từng thao tác của Bubble Sort
-                  theo thời gian thực.
+                <p class="mt-1 text-sm text-slate-500">
+                  Theo dõi từng thao tác của Bubble Sort theo thời gian thực.
                 </p>
               </div>
             </div>
@@ -703,18 +590,12 @@ onBeforeUnmount(() => {
                 Current Step
               </div>
 
-              <div
-                class="mt-1 flex items-baseline gap-1"
-              >
-                <span
-                  class="text-2xl font-black text-white"
-                >
+              <div class="mt-1 flex items-baseline gap-1">
+                <span class="text-2xl font-black text-white">
                   {{ currentStep + 1 }}
                 </span>
 
-                <span
-                  class="text-sm text-slate-600"
-                >
+                <span class="text-sm text-slate-600">
                   / {{ steps.length }}
                 </span>
               </div>
@@ -723,9 +604,7 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- Progress -->
-        <div
-          class="relative h-1 bg-slate-800"
-        >
+        <div class="relative h-1 bg-slate-800">
           <div
             class="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 transition-all duration-300"
             :style="{ width: `${progress}%` }"
@@ -733,9 +612,7 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- Simulation body -->
-        <div
-          class="relative p-6 lg:p-8"
-        >
+        <div class="relative p-6 lg:p-8">
           <!-- Current operation -->
           <div
             class="mb-7 flex items-start gap-4 rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] p-5"
@@ -743,23 +620,17 @@ onBeforeUnmount(() => {
             <div
               class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400"
             >
-              <ArrowUp
-                class="h-5 w-5"
-              />
+              <ArrowUp class="h-5 w-5" />
             </div>
 
-            <div
-              class="min-w-0"
-            >
+            <div class="min-w-0">
               <div
                 class="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-400"
               >
                 Current Operation
               </div>
 
-              <p
-                class="mt-1 text-base font-medium leading-7 text-slate-200"
-              >
+              <p class="mt-1 text-base font-medium leading-7 text-slate-200">
                 {{ currentDescription }}
               </p>
             </div>
@@ -774,8 +645,15 @@ onBeforeUnmount(() => {
               class="pointer-events-none absolute inset-0 opacity-[0.035]"
               style="
                 background-image:
-                  linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px);
+                  linear-gradient(
+                    rgba(255, 255, 255, 0.5) 1px,
+                    transparent 1px
+                  ),
+                  linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.5) 1px,
+                    transparent 1px
+                  );
                 background-size: 32px 32px;
               "
             />
@@ -792,24 +670,15 @@ onBeforeUnmount(() => {
                 <div
                   class="mb-2 h-5 text-[9px] font-black uppercase tracking-wider"
                 >
-                  <span
-                    v-if="isSwapping(index)"
-                    class="text-amber-400"
-                  >
+                  <span v-if="isSwapping(index)" class="text-amber-400">
                     SWAP
                   </span>
 
-                  <span
-                    v-else-if="isComparing(index)"
-                    class="text-blue-400"
-                  >
+                  <span v-else-if="isComparing(index)" class="text-blue-400">
                     COMPARE
                   </span>
 
-                  <span
-                    v-else-if="isSorted(index)"
-                    class="text-emerald-400"
-                  >
+                  <span v-else-if="isSorted(index)" class="text-emerald-400">
                     SORTED
                   </span>
                 </div>
@@ -818,14 +687,11 @@ onBeforeUnmount(() => {
                 <div
                   class="mb-2 text-sm font-black transition-all duration-300 sm:text-base"
                   :class="{
-                    'scale-125 text-blue-400':
-                      isComparing(index),
+                    'scale-125 text-blue-400': isComparing(index),
 
-                    'scale-125 text-amber-400':
-                      isSwapping(index),
+                    'scale-125 text-amber-400': isSwapping(index),
 
-                    'text-emerald-400':
-                      isSorted(index),
+                    'text-emerald-400': isSorted(index),
 
                     'text-slate-300':
                       !isComparing(index) &&
@@ -858,9 +724,7 @@ onBeforeUnmount(() => {
                     height: getBarHeight(value),
                   }"
                 >
-                  <div
-                    class="absolute inset-x-0 top-0 h-px bg-white/30"
-                  />
+                  <div class="absolute inset-x-0 top-0 h-px bg-white/30" />
                 </div>
 
                 <!-- Index -->
@@ -877,60 +741,36 @@ onBeforeUnmount(() => {
           <div
             class="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-3"
           >
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-blue-400"
-              />
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="h-2.5 w-2.5 rounded-full bg-blue-400" />
 
               Comparing
             </div>
 
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-amber-400"
-              />
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="h-2.5 w-2.5 rounded-full bg-amber-400" />
 
               Swapping
             </div>
 
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-            >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-emerald-400"
-              />
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="h-2.5 w-2.5 rounded-full bg-emerald-400" />
 
               Sorted
             </div>
           </div>
 
           <!-- Progress information -->
-          <div
-            class="mt-7"
-          >
-            <div
-              class="mb-2 flex justify-between text-xs"
-            >
-              <span
-                class="font-medium text-slate-500"
-              >
+          <div class="mt-7">
+            <div class="mb-2 flex justify-between text-xs">
+              <span class="font-medium text-slate-500">
                 Simulation Progress
               </span>
 
-              <span
-                class="font-bold text-slate-300"
-              >
-                {{ progress }}%
-              </span>
+              <span class="font-bold text-slate-300"> {{ progress }}% </span>
             </div>
 
-            <div
-              class="h-1.5 overflow-hidden rounded-full bg-slate-800"
-            >
+            <div class="h-1.5 overflow-hidden rounded-full bg-slate-800">
               <div
                 class="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-300"
                 :style="{ width: `${progress}%` }"
@@ -942,9 +782,7 @@ onBeforeUnmount(() => {
           <div
             class="algorithm-simulation-controls mt-8 flex flex-col gap-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-5"
           >
-            <div
-              class="flex flex-wrap items-center justify-center gap-2"
-            >
+            <div class="flex flex-wrap items-center justify-center gap-2">
               <!-- Previous -->
               <button
                 type="button"
@@ -963,21 +801,11 @@ onBeforeUnmount(() => {
                 class="flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-7 font-bold text-white shadow-lg shadow-blue-500/20 transition hover:from-blue-500 hover:to-blue-400 hover:shadow-blue-500/30 active:scale-[0.98]"
                 @click="togglePlay"
               >
-                <Pause
-                  v-if="status === 'running'"
-                  class="h-4 w-4"
-                />
+                <Pause v-if="status === 'running'" class="h-4 w-4" />
 
-                <Play
-                  v-else
-                  class="h-4 w-4 fill-current"
-                />
+                <Play v-else class="h-4 w-4 fill-current" />
 
-                {{
-                  status === 'running'
-                    ? 'Pause'
-                    : 'Play Simulation'
-                }}
+                {{ status === "running" ? "Pause" : "Play Simulation" }}
               </button>
 
               <!-- Next -->
@@ -998,9 +826,7 @@ onBeforeUnmount(() => {
                 class="ml-2 flex h-11 items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 text-sm font-medium text-slate-400 transition hover:border-slate-700 hover:bg-slate-800 hover:text-white"
                 @click="reset"
               >
-                <RotateCcw
-                  class="h-4 w-4"
-                />
+                <RotateCcw class="h-4 w-4" />
 
                 Reset
               </button>
@@ -1011,21 +837,15 @@ onBeforeUnmount(() => {
                 class="flex h-11 items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 text-sm font-medium text-slate-400 transition hover:border-slate-700 hover:bg-slate-800 hover:text-white"
                 @click="randomize"
               >
-                <Shuffle
-                  class="h-4 w-4"
-                />
+                <Shuffle class="h-4 w-4" />
 
                 Randomize
               </button>
             </div>
 
             <!-- Speed -->
-            <div
-              class="mx-auto w-full max-w-xl"
-            >
-              <div
-                class="mb-3 flex items-center justify-between"
-              >
+            <div class="mx-auto w-full max-w-xl">
+              <div class="mb-3 flex items-center justify-between">
                 <span
                   class="text-xs font-bold uppercase tracking-wider text-slate-600"
                 >
@@ -1064,9 +884,7 @@ onBeforeUnmount(() => {
            Mã giả + Độ phức tạp
       ==================================================== -->
 
-      <section id="pseudocode"
-        class="grid gap-6 lg:grid-cols-5"
-      >
+      <section id="pseudocode" class="grid gap-6 lg:grid-cols-5">
         <!-- =================================================
              Mã giả
         ================================================== -->
@@ -1082,29 +900,19 @@ onBeforeUnmount(() => {
           <div
             class="relative flex items-center justify-between border-b border-slate-800 px-6 py-5"
           >
-            <div
-              class="flex items-center gap-4"
-            >
+            <div class="flex items-center gap-4">
               <div
                 class="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-500/20 bg-violet-500/10"
               >
-                <span
-                  class="font-mono text-lg font-black text-violet-400"
-                >
+                <span class="font-mono text-lg font-black text-violet-400">
                   &lt;/&gt;
                 </span>
               </div>
 
               <div>
-                <h3
-                  class="text-lg font-black text-white"
-                >
-                  Mã giả
-                </h3>
+                <h3 class="text-lg font-black text-white">Mã giả</h3>
 
-                <p
-                  class="mt-0.5 text-xs text-slate-500"
-                >
+                <p class="mt-0.5 text-xs text-slate-500">
                   Logic từng bước của thuật toán
                 </p>
               </div>
@@ -1118,9 +926,7 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Code -->
-          <div
-            class="relative p-5 sm:p-6"
-          >
+          <div class="relative p-5 sm:p-6">
             <div
               class="overflow-hidden rounded-2xl border border-slate-800 bg-[#070b13]"
             >
@@ -1128,229 +934,133 @@ onBeforeUnmount(() => {
               <div
                 class="flex items-center gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-3"
               >
-                <span
-                  class="h-2.5 w-2.5 rounded-full bg-red-400/70"
-                />
+                <span class="h-2.5 w-2.5 rounded-full bg-red-400/70" />
 
-                <span
-                  class="h-2.5 w-2.5 rounded-full bg-amber-400/70"
-                />
+                <span class="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
 
-                <span
-                  class="h-2.5 w-2.5 rounded-full bg-emerald-400/70"
-                />
+                <span class="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
 
-                <span
-                  class="ml-3 font-mono text-[10px] text-slate-600"
-                >
+                <span class="ml-3 font-mono text-[10px] text-slate-600">
                   bubble-sort.pseudo
                 </span>
               </div>
 
               <!-- Code body -->
-              <div
-                class="overflow-x-auto p-5"
-              >
-                <div
-                  class="min-w-[520px] font-mono text-[13px] leading-8"
-                >
-                  <div
-                    class="flex"
-                  >
+              <div class="overflow-x-auto p-5">
+                <div class="min-w-[520px] font-mono text-[13px] leading-8">
+                  <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
                     >
                       01
                     </span>
 
-                    <span
-                      class="ml-5 text-slate-500"
-                    >
+                    <span class="ml-5 text-slate-500">
                       // Start Bubble Sort
                     </span>
                   </div>
 
-                  <div
-                    class="flex"
-                  >
+                  <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
                     >
                       02
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
-                        for
-                      </span>
+                    <span class="ml-5">
+                      <span class="text-violet-400"> for </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
-                        i = 0 → n - 1
-                      </span>
+                      <span class="text-slate-300"> i = 0 → n - 1 </span>
                     </span>
                   </div>
 
-                  <div
-                    class="flex"
-                  >
+                  <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
                     >
                       03
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
-                        for
-                      </span>
+                    <span class="ml-5">
+                      <span class="text-violet-400"> for </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
-                        j = 0 → n - i - 1
-                      </span>
+                      <span class="text-slate-300"> j = 0 → n - i - 1 </span>
                     </span>
                   </div>
 
-                  <div
-                    class="flex rounded-lg bg-blue-500/10"
-                  >
+                  <div class="flex rounded-lg bg-blue-500/10">
                     <span
                       class="w-10 shrink-0 select-none text-right text-blue-500/50"
                     >
                       04
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
-                        compare
-                      </span>
+                    <span class="ml-5">
+                      <span class="text-violet-400"> compare </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
-                        array[j]
-                      </span>
+                      <span class="text-slate-300"> array[j] </span>
 
-                      <span
-                        class="text-slate-600"
-                      >
-                        and
-                      </span>
+                      <span class="text-slate-600"> and </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
-                        array[j + 1]
-                      </span>
+                      <span class="text-slate-300"> array[j + 1] </span>
                     </span>
                   </div>
 
-                  <div
-                    class="flex"
-                  >
+                  <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
                     >
                       05
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
-                        if
-                      </span>
+                    <span class="ml-5">
+                      <span class="text-violet-400"> if </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
+                      <span class="text-slate-300">
                         array[j] &gt; array[j + 1]
                       </span>
                     </span>
                   </div>
 
-                  <div
-                    class="flex rounded-lg bg-amber-500/10"
-                  >
+                  <div class="flex rounded-lg bg-amber-500/10">
                     <span
                       class="w-10 shrink-0 select-none text-right text-amber-500/50"
                     >
                       06
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
-                        swap
-                      </span>
+                    <span class="ml-5">
+                      <span class="text-violet-400"> swap </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
+                      <span class="text-slate-300">
                         array[j], array[j + 1]
                       </span>
                     </span>
                   </div>
 
-                  <div
-                    class="flex"
-                  >
+                  <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
                     >
                       07
                     </span>
 
-                    <span
-                      class="ml-5 text-slate-500"
-                    >
+                    <span class="ml-5 text-slate-500">
                       // largest element moves to the end
                     </span>
                   </div>
 
-                  <div
-                    class="flex"
-                  >
+                  <div class="flex">
                     <span
                       class="w-10 shrink-0 select-none text-right text-slate-700"
                     >
                       08
                     </span>
 
-                    <span
-                      class="ml-5"
-                    >
-                      <span
-                        class="text-violet-400"
-                      >
-                        return
-                      </span>
+                    <span class="ml-5">
+                      <span class="text-violet-400"> return </span>
 
-                      <span
-                        class="text-slate-300"
-                      >
-                        sorted array
-                      </span>
+                      <span class="text-slate-300"> sorted array </span>
                     </span>
                   </div>
                 </div>
@@ -1367,12 +1077,9 @@ onBeforeUnmount(() => {
                 How to read this
               </div>
 
-              <p
-                class="mt-2 text-sm leading-6 text-slate-400"
-              >
-                Thuật toán kiểm tra từng cặp phần tử
-                liền kề. Nếu phần tử bên trái lớn hơn
-                phần tử bên phải, chúng sẽ được hoán đổi.
+              <p class="mt-2 text-sm leading-6 text-slate-400">
+                Thuật toán kiểm tra từng cặp phần tử liền kề. Nếu phần tử bên
+                trái lớn hơn phần tử bên phải, chúng sẽ được hoán đổi.
               </p>
             </div>
           </div>
@@ -1390,32 +1097,20 @@ onBeforeUnmount(() => {
           />
 
           <!-- Header -->
-          <div
-            class="relative border-b border-slate-800 px-6 py-5"
-          >
-            <div
-              class="flex items-center gap-4"
-            >
+          <div class="relative border-b border-slate-800 px-6 py-5">
+            <div class="flex items-center gap-4">
               <div
                 class="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10"
               >
-                <span
-                  class="font-mono text-xl font-black text-emerald-400"
-                >
+                <span class="font-mono text-xl font-black text-emerald-400">
                   O
                 </span>
               </div>
 
               <div>
-                <h3
-                  class="text-lg font-black text-white"
-                >
-                  Độ phức tạp
-                </h3>
+                <h3 class="text-lg font-black text-white">Độ phức tạp</h3>
 
-                <p
-                  class="mt-0.5 text-xs text-slate-500"
-                >
+                <p class="mt-0.5 text-xs text-slate-500">
                   Performance analysis
                 </p>
               </div>
@@ -1423,16 +1118,12 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Cards -->
-          <div
-            class="relative grid gap-3 p-5"
-          >
+          <div class="relative grid gap-3 p-5">
             <!-- Best -->
             <div
               class="group rounded-2xl border border-emerald-500/10 bg-emerald-500/[0.04] p-4 transition hover:border-emerald-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -1446,18 +1137,12 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-emerald-400"
-              >
+              <div class="mt-2 text-3xl font-black text-emerald-400">
                 {{ complexity.best }}
               </div>
 
-              <div
-                class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800"
-              >
-                <div
-                  class="h-full w-[20%] rounded-full bg-emerald-400"
-                />
+              <div class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800">
+                <div class="h-full w-[20%] rounded-full bg-emerald-400" />
               </div>
             </div>
 
@@ -1465,9 +1150,7 @@ onBeforeUnmount(() => {
             <div
               class="group rounded-2xl border border-amber-500/10 bg-amber-500/[0.04] p-4 transition hover:border-amber-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -1481,18 +1164,12 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-amber-400"
-              >
+              <div class="mt-2 text-3xl font-black text-amber-400">
                 {{ complexity.average }}
               </div>
 
-              <div
-                class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800"
-              >
-                <div
-                  class="h-full w-[65%] rounded-full bg-amber-400"
-                />
+              <div class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800">
+                <div class="h-full w-[65%] rounded-full bg-amber-400" />
               </div>
             </div>
 
@@ -1500,9 +1177,7 @@ onBeforeUnmount(() => {
             <div
               class="group rounded-2xl border border-red-500/10 bg-red-500/[0.04] p-4 transition hover:border-red-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -1516,18 +1191,12 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-red-400"
-              >
+              <div class="mt-2 text-3xl font-black text-red-400">
                 {{ complexity.worst }}
               </div>
 
-              <div
-                class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800"
-              >
-                <div
-                  class="h-full w-full rounded-full bg-red-400"
-                />
+              <div class="mt-3 h-1 overflow-hidden rounded-full bg-slate-800">
+                <div class="h-full w-full rounded-full bg-red-400" />
               </div>
             </div>
 
@@ -1535,9 +1204,7 @@ onBeforeUnmount(() => {
             <div
               class="group rounded-2xl border border-blue-500/10 bg-blue-500/[0.04] p-4 transition hover:border-blue-500/30"
             >
-              <div
-                class="flex items-center justify-between"
-              >
+              <div class="flex items-center justify-between">
                 <span
                   class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
                 >
@@ -1551,24 +1218,16 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="mt-2 text-3xl font-black text-blue-400"
-              >
+              <div class="mt-2 text-3xl font-black text-blue-400">
                 {{ complexity.space }}
               </div>
 
-              <div
-                class="mt-3 flex gap-1"
-              >
+              <div class="mt-3 flex gap-1">
                 <span
                   v-for="index in 10"
                   :key="index"
                   class="h-1.5 flex-1 rounded-full"
-                  :class="
-                    index <= 2
-                      ? 'bg-blue-400'
-                      : 'bg-slate-800'
-                  "
+                  :class="index <= 2 ? 'bg-blue-400' : 'bg-slate-800'"
                 />
               </div>
             </div>
@@ -1578,28 +1237,16 @@ onBeforeUnmount(() => {
           <div
             class="relative mx-5 mb-5 rounded-2xl border border-slate-800 bg-slate-950/60 p-4"
           >
-            <div
-              class="flex items-start gap-3"
-            >
-              <div
-                class="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400"
-              />
+            <div class="flex items-start gap-3">
+              <div class="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
 
-              <p
-                class="text-xs leading-5 text-slate-500"
-              >
+              <p class="text-xs leading-5 text-slate-500">
                 Bubble Sort sử dụng
-                <span
-                  class="font-semibold text-slate-300"
-                >
+                <span class="font-semibold text-slate-300">
                   O(1) auxiliary space
                 </span>
                 vì việc sắp xếp được thực hiện
-                <span
-                  class="font-semibold text-slate-300"
-                >
-                  in-place
-                </span>.
+                <span class="font-semibold text-slate-300"> in-place </span>.
               </p>
             </div>
           </div>
@@ -1610,36 +1257,27 @@ onBeforeUnmount(() => {
            PHP
       ==================================================== -->
 
-      <section id="implementation"
+      <section
+        id="implementation"
         class="overflow-hidden rounded-3xl border border-indigo-500/20 bg-slate-900 shadow-xl shadow-indigo-950/10"
       >
         <!-- Header -->
         <div
           class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-5"
         >
-          <div
-            class="flex items-center gap-4"
-          >
+          <div class="flex items-center gap-4">
             <div
               class="flex h-11 w-11 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-500/10"
             >
-              <span
-                class="font-mono text-sm font-black text-indigo-400"
-              >
+              <span class="font-mono text-sm font-black text-indigo-400">
                 PHP
               </span>
             </div>
 
             <div>
-              <h3
-                class="text-lg font-black text-white"
-              >
-                Cài đặt bằng PHP
-              </h3>
+              <h3 class="text-lg font-black text-white">Cài đặt bằng PHP</h3>
 
-              <p
-                class="mt-0.5 text-xs text-slate-500"
-              >
+              <p class="mt-0.5 text-xs text-slate-500">
                 Implementation tương đương trong PHP
               </p>
             </div>
@@ -1653,30 +1291,20 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- PHP code -->
-        <div
-          class="p-5 sm:p-6"
-        >
+        <div class="p-5 sm:p-6">
           <div
             class="overflow-hidden rounded-2xl border border-slate-800 bg-[#070b13]"
           >
             <div
               class="flex items-center gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-3"
             >
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-red-400/70"
-              />
+              <span class="h-2.5 w-2.5 rounded-full bg-red-400/70" />
 
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-amber-400/70"
-              />
+              <span class="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
 
-              <span
-                class="h-2.5 w-2.5 rounded-full bg-emerald-400/70"
-              />
+              <span class="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
 
-              <span
-                class="ml-3 font-mono text-[10px] text-slate-600"
-              >
+              <span class="ml-3 font-mono text-[10px] text-slate-600">
                 BubbleSort.php
               </span>
             </div>
@@ -1717,48 +1345,32 @@ onBeforeUnmount(() => {
            EXPLANATION
       ==================================================== -->
 
-      <section id="explanation"
+      <section
+        id="explanation"
         class="rounded-3xl border border-slate-800 bg-slate-900 p-6 lg:p-8"
       >
-        <div
-          class="mb-5 flex items-center gap-3"
-        >
-          <div
-            class="h-8 w-1 rounded-full bg-cyan-400"
-          />
+        <div class="mb-5 flex items-center gap-3">
+          <div class="h-8 w-1 rounded-full bg-cyan-400" />
 
-          <h3
-            class="text-xl font-black text-white"
-          >
+          <h3 class="text-xl font-black text-white">
             Tại sao gọi là "Bubble Sort"?
           </h3>
         </div>
 
-        <p
-          class="max-w-4xl text-sm leading-7 text-slate-400"
-        >
-          Hãy tưởng tượng mỗi giá trị lớn là một bong bóng.
-          Khi thuật toán liên tục so sánh các phần tử liền kề,
-          giá trị lớn dần được đẩy về phía cuối mảng.
-          Sau mỗi vòng lặp, một phần tử lớn nhất chưa được
-          xử lý sẽ "nổi" lên vị trí cuối cùng.
+        <p class="max-w-4xl text-sm leading-7 text-slate-400">
+          Hãy tưởng tượng mỗi giá trị lớn là một bong bóng. Khi thuật toán liên
+          tục so sánh các phần tử liền kề, giá trị lớn dần được đẩy về phía cuối
+          mảng. Sau mỗi vòng lặp, một phần tử lớn nhất chưa được xử lý sẽ "nổi"
+          lên vị trí cuối cùng.
         </p>
 
-        <div
-          class="mt-7 grid gap-4 md:grid-cols-3"
-        >
+        <div class="mt-7 grid gap-4 md:grid-cols-3">
           <div
             class="rounded-2xl border border-blue-500/10 bg-blue-500/[0.04] p-5"
           >
-            <div
-              class="text-sm font-black text-blue-400"
-            >
-              01 — Compare
-            </div>
+            <div class="text-sm font-black text-blue-400">01 — Compare</div>
 
-            <p
-              class="mt-2 text-xs leading-6 text-slate-500"
-            >
+            <p class="mt-2 text-xs leading-6 text-slate-500">
               So sánh hai phần tử liền kề.
             </p>
           </div>
@@ -1766,15 +1378,9 @@ onBeforeUnmount(() => {
           <div
             class="rounded-2xl border border-amber-500/10 bg-amber-500/[0.04] p-5"
           >
-            <div
-              class="text-sm font-black text-amber-400"
-            >
-              02 — Swap
-            </div>
+            <div class="text-sm font-black text-amber-400">02 — Swap</div>
 
-            <p
-              class="mt-2 text-xs leading-6 text-slate-500"
-            >
+            <p class="mt-2 text-xs leading-6 text-slate-500">
               Đổi vị trí nếu chúng sai thứ tự.
             </p>
           </div>
@@ -1782,15 +1388,9 @@ onBeforeUnmount(() => {
           <div
             class="rounded-2xl border border-emerald-500/10 bg-emerald-500/[0.04] p-5"
           >
-            <div
-              class="text-sm font-black text-emerald-400"
-            >
-              03 — Sorted
-            </div>
+            <div class="text-sm font-black text-emerald-400">03 — Sorted</div>
 
-            <p
-              class="mt-2 text-xs leading-6 text-slate-500"
-            >
+            <p class="mt-2 text-xs leading-6 text-slate-500">
               Phần tử lớn nhất được cố định ở cuối.
             </p>
           </div>

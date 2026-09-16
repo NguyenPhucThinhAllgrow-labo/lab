@@ -1,17 +1,17 @@
 <script setup lang="ts">
-const sidebarOpen = ref(true)
+const sidebarOpen = ref(true);
 
 const openSidebar = () => {
-  sidebarOpen.value = true
-}
+  sidebarOpen.value = true;
+};
 
 const closeSidebar = () => {
-  sidebarOpen.value = false
-}
+  sidebarOpen.value = false;
+};
 
 const toggleSidebar = () => {
-  sidebarOpen.value = !sidebarOpen.value
-}
+  sidebarOpen.value = !sidebarOpen.value;
+};
 </script>
 
 <template>
@@ -26,10 +26,7 @@ const toggleSidebar = () => {
     </Transition>
 
     <!-- Sidebar -->
-    <AdminSidebar
-      :open="sidebarOpen"
-      @close="closeSidebar"
-    />
+    <AdminSidebar :open="sidebarOpen" @close="closeSidebar" />
 
     <!-- Main -->
     <div

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { ChineseChessPiece } from '~/types/games/chinese-chess'
+import type { ChineseChessPiece } from "~/types/games/chinese-chess";
 
 defineProps<{
-  piece: ChineseChessPiece
-  selected?: boolean
-}>()
+  piece: ChineseChessPiece;
+  selected?: boolean;
+}>();
 </script>
 
 <template>
@@ -16,53 +16,32 @@ defineProps<{
       'is-selected': selected,
     }"
   >
-    <span
-      v-if="piece.type === 'general'"
-      class="chess-piece__symbol"
-    >
-      {{ piece.color === 'red' ? '帥' : '將' }}
+    <span v-if="piece.type === 'general'" class="chess-piece__symbol">
+      {{ piece.color === "red" ? "帥" : "將" }}
     </span>
 
-    <span
-      v-else-if="piece.type === 'advisor'"
-      class="chess-piece__symbol"
-    >
-      {{ piece.color === 'red' ? '仕' : '士' }}
+    <span v-else-if="piece.type === 'advisor'" class="chess-piece__symbol">
+      {{ piece.color === "red" ? "仕" : "士" }}
     </span>
 
-    <span
-      v-else-if="piece.type === 'elephant'"
-      class="chess-piece__symbol"
-    >
-      {{ piece.color === 'red' ? '相' : '象' }}
+    <span v-else-if="piece.type === 'elephant'" class="chess-piece__symbol">
+      {{ piece.color === "red" ? "相" : "象" }}
     </span>
 
-    <span
-      v-else-if="piece.type === 'horse'"
-      class="chess-piece__symbol"
-    >
+    <span v-else-if="piece.type === 'horse'" class="chess-piece__symbol">
       馬
     </span>
 
-    <span
-      v-else-if="piece.type === 'chariot'"
-      class="chess-piece__symbol"
-    >
+    <span v-else-if="piece.type === 'chariot'" class="chess-piece__symbol">
       車
     </span>
 
-    <span
-      v-else-if="piece.type === 'cannon'"
-      class="chess-piece__symbol"
-    >
+    <span v-else-if="piece.type === 'cannon'" class="chess-piece__symbol">
       炮
     </span>
 
-    <span
-      v-else-if="piece.type === 'soldier'"
-      class="chess-piece__symbol"
-    >
-      {{ piece.color === 'red' ? '兵' : '卒' }}
+    <span v-else-if="piece.type === 'soldier'" class="chess-piece__symbol">
+      {{ piece.color === "red" ? "兵" : "卒" }}
     </span>
   </div>
 </template>
@@ -79,18 +58,27 @@ defineProps<{
   border: clamp(1px, 0.32vw, 3px) solid #85562d;
   border-radius: 9999px;
   background:
-    radial-gradient(circle at 35% 24%, rgb(255 253 232 / 58%) 0 7%, transparent 21%),
+    radial-gradient(
+      circle at 35% 24%,
+      rgb(255 253 232 / 58%) 0 7%,
+      transparent 21%
+    ),
     radial-gradient(circle at 50% 43%, #f8e8b9 0 58%, #dfbd7a 80%, #b77b3f 100%);
   box-shadow:
     0 clamp(2px, 0.42vw, 4px) 0 #75451f,
     0 clamp(3px, 0.65vw, 7px) clamp(4px, 0.8vw, 8px) rgb(48 25 8 / 27%),
-    inset 0 clamp(1px, 0.3vw, 3px) clamp(2px, 0.45vw, 4px) rgb(255 252 224 / 68%),
+    inset 0 clamp(1px, 0.3vw, 3px) clamp(2px, 0.45vw, 4px)
+      rgb(255 252 224 / 68%),
     inset 0 -3px 5px rgb(112 62 22 / 24%);
-  font-family: "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "KaiTi", "Microsoft YaHei", serif;
+  font-family:
+    "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "KaiTi",
+    "Microsoft YaHei", serif;
   font-size: clamp(1.04rem, 4.55vw, 2rem);
   font-weight: 900;
   line-height: 1;
-  transition: transform 150ms ease, filter 150ms ease;
+  transition:
+    transform 150ms ease,
+    filter 150ms ease;
   user-select: none;
   isolation: isolate;
 }

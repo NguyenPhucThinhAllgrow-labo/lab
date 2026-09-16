@@ -1,7 +1,7 @@
-import type { Scenario } from '~/types/games/detective'
+import type { Scenario } from "~/types/games/detective";
 
 export const case003: Scenario = {
-  id: 'case003',
+  id: "case003",
 
   /*
    * --------------------------------------------------
@@ -10,19 +10,17 @@ export const case003: Scenario = {
    */
 
   title: {
-    en: 'THE GHOST PROTOCOL',
-    vi: 'GIAO THỨC BÓNG MA',
+    en: "THE GHOST PROTOCOL",
+    vi: "GIAO THỨC BÓNG MA",
   },
 
   description: {
-    en:
-      'At 02:17, the company security system detected an unauthorized transfer of a classified research archive. At 02:19, the lead researcher Daniel Cross was found unconscious inside a locked server room. The access logs identify Daniel as the last person to enter. However, network records suggest that someone else was operating his account.',
+    en: "At 02:17, the company security system detected an unauthorized transfer of a classified research archive. At 02:19, the lead researcher Daniel Cross was found unconscious inside a locked server room. The access logs identify Daniel as the last person to enter. However, network records suggest that someone else was operating his account.",
 
-    vi:
-      'Lúc 02:17, hệ thống an ninh của công ty phát hiện một vụ chuyển giao trái phép kho nghiên cứu mật. Lúc 02:19, trưởng nhóm nghiên cứu Daniel Cross được phát hiện bất tỉnh bên trong một phòng máy chủ bị khóa. Nhật ký ra vào xác định Daniel là người cuối cùng bước vào. Tuy nhiên, các bản ghi mạng cho thấy có người khác đang sử dụng tài khoản của anh ấy.',
+    vi: "Lúc 02:17, hệ thống an ninh của công ty phát hiện một vụ chuyển giao trái phép kho nghiên cứu mật. Lúc 02:19, trưởng nhóm nghiên cứu Daniel Cross được phát hiện bất tỉnh bên trong một phòng máy chủ bị khóa. Nhật ký ra vào xác định Daniel là người cuối cùng bước vào. Tuy nhiên, các bản ghi mạng cho thấy có người khác đang sử dụng tài khoản của anh ấy.",
   },
 
-  initialDirectory: '/',
+  initialDirectory: "/",
 
   /*
    * --------------------------------------------------
@@ -32,157 +30,160 @@ export const case003: Scenario = {
 
   intro: {
     en: [
-      'DETECTIVE TERMINAL v1.0',
-      '----------------------------------------',
-      'CASE: THE GHOST PROTOCOL',
-      '',
-      '02:17:42',
-      'CLASSIFIED DATA TRANSFER DETECTED.',
-      '',
-      '02:19:08',
-      'RESEARCHER DANIEL CROSS',
-      'FOUND UNCONSCIOUS INSIDE SERVER ROOM 4.',
-      '',
-      'The server room was locked from the inside.',
-      '',
-      'No obvious signs of forced entry were found.',
-      '',
-      'Initial access records identify',
-      'Daniel Cross as the last authorized user.',
-      '',
-      'But network telemetry tells a different story.',
-      '',
-      'Your objective:',
-      'Reconstruct the timeline.',
-      'Determine how the breach occurred.',
-      'Identify who controlled Daniel\'s account.',
-      'Separate the real evidence from fabricated evidence.',
-      'Identify the person responsible.',
-      '',
-      'WARNING:',
-      'Some logs may have been modified.',
-      '',
-      'Investigation controls:',
+      "DETECTIVE TERMINAL v1.0",
+      "----------------------------------------",
+      "CASE: THE GHOST PROTOCOL",
+      "",
+      "02:17:42",
+      "CLASSIFIED DATA TRANSFER DETECTED.",
+      "",
+      "02:19:08",
+      "RESEARCHER DANIEL CROSS",
+      "FOUND UNCONSCIOUS INSIDE SERVER ROOM 4.",
+      "",
+      "The server room was locked from the inside.",
+      "",
+      "No obvious signs of forced entry were found.",
+      "",
+      "Initial access records identify",
+      "Daniel Cross as the last authorized user.",
+      "",
+      "But network telemetry tells a different story.",
+      "",
+      "Your objective:",
+      "Reconstruct the timeline.",
+      "Determine how the breach occurred.",
+      "Identify who controlled Daniel's account.",
+      "Separate the real evidence from fabricated evidence.",
+      "Identify the person responsible.",
+      "",
+      "WARNING:",
+      "Some logs may have been modified.",
+      "",
+      "Investigation controls:",
       '- Type "guide" to see the folder map.',
       '- Type "hint" for a free first-level next lead.',
-      '- Open Q and E together to link evidence to the current task.',
-      '',
+      "- Open Q and E together to link evidence to the current task.",
+      "",
       'Type "help" to see available commands.',
     ],
 
     vi: [
-      'DETECTIVE TERMINAL v1.0',
-      '----------------------------------------',
-      'VỤ ÁN: GIAO THỨC BÓNG MA',
-      '',
-      '02:17:42',
-      'PHÁT HIỆN CHUYỂN DỮ LIỆU MẬT TRÁI PHÉP.',
-      '',
-      '02:19:08',
-      'NHÀ NGHIÊN CỨU DANIEL CROSS',
-      'ĐƯỢC PHÁT HIỆN BẤT TỈNH TRONG PHÒNG MÁY CHỦ 4.',
-      '',
-      'Phòng máy chủ đã bị khóa từ bên trong.',
-      '',
-      'Không tìm thấy dấu hiệu đột nhập bằng vũ lực rõ ràng.',
-      '',
-      'Nhật ký truy cập ban đầu xác định',
-      'Daniel Cross là người dùng được cấp quyền cuối cùng.',
-      '',
-      'Nhưng dữ liệu mạng lại cho thấy một câu chuyện khác.',
-      '',
-      'Mục tiêu của bạn:',
-      'Tái dựng dòng thời gian.',
-      'Xác định cách thức vụ xâm nhập xảy ra.',
-      'Xác định ai đã kiểm soát tài khoản của Daniel.',
-      'Phân biệt bằng chứng thật với bằng chứng bị ngụy tạo.',
-      'Xác định người chịu trách nhiệm.',
-      '',
-      'CẢNH BÁO:',
-      'Một số nhật ký có thể đã bị chỉnh sửa.',
-      '',
-      'Cách điều tra:',
+      "DETECTIVE TERMINAL v1.0",
+      "----------------------------------------",
+      "VỤ ÁN: GIAO THỨC BÓNG MA",
+      "",
+      "02:17:42",
+      "PHÁT HIỆN CHUYỂN DỮ LIỆU MẬT TRÁI PHÉP.",
+      "",
+      "02:19:08",
+      "NHÀ NGHIÊN CỨU DANIEL CROSS",
+      "ĐƯỢC PHÁT HIỆN BẤT TỈNH TRONG PHÒNG MÁY CHỦ 4.",
+      "",
+      "Phòng máy chủ đã bị khóa từ bên trong.",
+      "",
+      "Không tìm thấy dấu hiệu đột nhập bằng vũ lực rõ ràng.",
+      "",
+      "Nhật ký truy cập ban đầu xác định",
+      "Daniel Cross là người dùng được cấp quyền cuối cùng.",
+      "",
+      "Nhưng dữ liệu mạng lại cho thấy một câu chuyện khác.",
+      "",
+      "Mục tiêu của bạn:",
+      "Tái dựng dòng thời gian.",
+      "Xác định cách thức vụ xâm nhập xảy ra.",
+      "Xác định ai đã kiểm soát tài khoản của Daniel.",
+      "Phân biệt bằng chứng thật với bằng chứng bị ngụy tạo.",
+      "Xác định người chịu trách nhiệm.",
+      "",
+      "CẢNH BÁO:",
+      "Một số nhật ký có thể đã bị chỉnh sửa.",
+      "",
+      "Cách điều tra:",
       '- Gõ "guide" để xem sơ đồ các thư mục.',
       '- Gõ "hint" để nhận đầu mối cấp 1 miễn phí.',
-      '- Mở đồng thời Q và E để đối chiếu evidence với nhiệm vụ hiện tại.',
-      '',
+      "- Mở đồng thời Q và E để đối chiếu evidence với nhiệm vụ hiện tại.",
+      "",
       'Gõ "help" để xem các lệnh khả dụng.',
     ],
   },
 
   people: [
     {
-      id: 'daniel-cross',
-      name: 'Daniel Cross',
-      role: { en: 'Lead researcher and victim', vi: 'Trưởng nhóm nghiên cứu, nạn nhân' },
+      id: "daniel-cross",
+      name: "Daniel Cross",
+      role: {
+        en: "Lead researcher and victim",
+        vi: "Trưởng nhóm nghiên cứu, nạn nhân",
+      },
       summary: {
-        en: 'Found unconscious in Server Room 4; his account and badge appear throughout the incident records.',
-        vi: 'Được phát hiện bất tỉnh trong Phòng máy chủ 4; tài khoản và thẻ của anh xuất hiện trong nhiều bản ghi sự cố.',
+        en: "Found unconscious in Server Room 4; his account and badge appear throughout the incident records.",
+        vi: "Được phát hiện bất tỉnh trong Phòng máy chủ 4; tài khoản và thẻ của anh xuất hiện trong nhiều bản ghi sự cố.",
       },
       details: [
         {
-          label: { en: 'Account compromise', vi: 'Tài khoản bị xâm nhập' },
+          label: { en: "Account compromise", vi: "Tài khoản bị xâm nhập" },
           value: {
-            en: 'Authentication evidence indicates that Daniel’s identity was used from another endpoint.',
-            vi: 'Bằng chứng xác thực cho thấy danh tính Daniel đã bị sử dụng từ một thiết bị đầu cuối khác.',
+            en: "Authentication evidence indicates that Daniel’s identity was used from another endpoint.",
+            vi: "Bằng chứng xác thực cho thấy danh tính Daniel đã bị sử dụng từ một thiết bị đầu cuối khác.",
           },
-          requiresEvidence: ['authentication-anomaly'],
+          requiresEvidence: ["authentication-anomaly"],
         },
         {
-          label: { en: 'Physical contradiction', vi: 'Mâu thuẫn vật lý' },
+          label: { en: "Physical contradiction", vi: "Mâu thuẫn vật lý" },
           value: {
-            en: 'Independent badge and camera evidence shows that the person moving through the facility was not Daniel.',
-            vi: 'Dữ liệu thẻ và camera độc lập cho thấy người di chuyển trong cơ sở không phải Daniel.',
+            en: "Independent badge and camera evidence shows that the person moving through the facility was not Daniel.",
+            vi: "Dữ liệu thẻ và camera độc lập cho thấy người di chuyển trong cơ sở không phải Daniel.",
           },
-          requiresEvidence: ['camera-timeline'],
+          requiresEvidence: ["camera-timeline"],
         },
       ],
     },
     {
-      id: 'victor-hale',
-      name: 'Victor Hale',
-      role: { en: 'Security administrator', vi: 'Quản trị viên an ninh' },
+      id: "victor-hale",
+      name: "Victor Hale",
+      role: { en: "Security administrator", vi: "Quản trị viên an ninh" },
       summary: {
-        en: 'A privileged employee whose access and equipment become relevant as the physical evidence develops.',
-        vi: 'Nhân viên có đặc quyền, với quyền truy cập và thiết bị trở nên đáng chú ý khi chuỗi chứng cứ vật lý được làm rõ.',
+        en: "A privileged employee whose access and equipment become relevant as the physical evidence develops.",
+        vi: "Nhân viên có đặc quyền, với quyền truy cập và thiết bị trở nên đáng chú ý khi chuỗi chứng cứ vật lý được làm rõ.",
       },
-      requiresEvidence: ['victor-profile'],
+      requiresEvidence: ["victor-profile"],
       details: [
         {
-          label: { en: 'Physical operation', vi: 'Hoạt động tại hiện trường' },
+          label: { en: "Physical operation", vi: "Hoạt động tại hiện trường" },
           value: {
-            en: 'Profile, camera and endpoint records connect Victor to the cloned badge, USB device and maintenance endpoint.',
-            vi: 'Hồ sơ, camera và bản ghi thiết bị nối Victor với thẻ sao chép, USB và endpoint bảo trì.',
+            en: "Profile, camera and endpoint records connect Victor to the cloned badge, USB device and maintenance endpoint.",
+            vi: "Hồ sơ, camera và bản ghi thiết bị nối Victor với thẻ sao chép, USB và endpoint bảo trì.",
           },
-          requiresEvidence: ['incident-contradictions'],
+          requiresEvidence: ["incident-contradictions"],
         },
         {
-          label: { en: 'Recovered message', vi: 'Tin nhắn được khôi phục' },
+          label: { en: "Recovered message", vi: "Tin nhắn được khôi phục" },
           value: {
-            en: 'A deleted message instructed Victor to use an old credential and keep Daniel uninvolved.',
-            vi: 'Một tin nhắn đã xóa yêu cầu Victor dùng thông tin xác thực cũ và không để Daniel liên quan.',
+            en: "A deleted message instructed Victor to use an old credential and keep Daniel uninvolved.",
+            vi: "Một tin nhắn đã xóa yêu cầu Victor dùng thông tin xác thực cũ và không để Daniel liên quan.",
           },
-          requiresEvidence: ['deleted-email'],
+          requiresEvidence: ["deleted-email"],
         },
       ],
     },
     {
-      id: 'external-operator',
-      name: 'Unknown operator',
-      role: { en: 'External controller', vi: 'Người điều khiển bên ngoài' },
+      id: "external-operator",
+      name: "Unknown operator",
+      role: { en: "External controller", vi: "Người điều khiển bên ngoài" },
       summary: {
-        en: 'An unidentified party associated with the external transfer destination.',
-        vi: 'Một bên chưa xác định có liên hệ với đích chuyển dữ liệu bên ngoài.',
+        en: "An unidentified party associated with the external transfer destination.",
+        vi: "Một bên chưa xác định có liên hệ với đích chuyển dữ liệu bên ngoài.",
       },
-      requiresEvidence: ['external-node'],
+      requiresEvidence: ["external-node"],
       details: [
         {
-          label: { en: 'Control infrastructure', vi: 'Hạ tầng điều khiển' },
+          label: { en: "Control infrastructure", vi: "Hạ tầng điều khiển" },
           value: {
-            en: 'Certificate and command history tie NODE-OMEGA to the external phase of the operation.',
-            vi: 'Chứng thư và lịch sử lệnh nối NODE-OMEGA với giai đoạn bên ngoài của chiến dịch.',
+            en: "Certificate and command history tie NODE-OMEGA to the external phase of the operation.",
+            vi: "Chứng thư và lịch sử lệnh nối NODE-OMEGA với giai đoạn bên ngoài của chiến dịch.",
           },
-          requiresEvidence: ['external-history'],
+          requiresEvidence: ["external-history"],
         },
       ],
     },
@@ -196,13 +197,13 @@ export const case003: Scenario = {
 
   filesystem: [
     {
-      type: 'directory',
-      name: 'logs',
+      type: "directory",
+      name: "logs",
 
       children: [
         {
-          type: 'file',
-          name: 'system.log',
+          type: "file",
+          name: "system.log",
 
           content: {
             en: `[01:42:11] USER LOGIN: daniel
@@ -240,8 +241,8 @@ export const case003: Scenario = {
         },
 
         {
-          type: 'file',
-          name: 'auth.log',
+          type: "file",
+          name: "auth.log",
 
           content: {
             en: `[01:42:08] AUTH REQUEST: daniel
@@ -285,8 +286,8 @@ export const case003: Scenario = {
         },
 
         {
-          type: 'file',
-          name: 'kernel.log',
+          type: "file",
+          name: "kernel.log",
 
           content: {
             en: `[01:41:59] SYSTEM BOOT
@@ -318,8 +319,8 @@ export const case003: Scenario = {
         },
 
         {
-          type: 'file',
-          name: 'audit.log',
+          type: "file",
+          name: "audit.log",
 
           content: {
             en: `[01:48:22] DANIEL READ /research/phoenix.dat
@@ -353,8 +354,8 @@ export const case003: Scenario = {
         },
 
         {
-          type: 'file',
-          name: 'integrity.log',
+          type: "file",
+          name: "integrity.log",
 
           content: {
             en: `[02:20:03] LOG INTEGRITY CHECK STARTED
@@ -416,13 +417,13 @@ TRẠNG THÁI: HỢP LỆ`,
     },
 
     {
-      type: 'directory',
-      name: 'research',
+      type: "directory",
+      name: "research",
 
       children: [
         {
-          type: 'file',
-          name: 'phoenix.dat',
+          type: "file",
+          name: "phoenix.dat",
 
           content: {
             en: `PROJECT PHOENIX
@@ -478,8 +479,8 @@ Ethan Cole`,
         },
 
         {
-          type: 'file',
-          name: 'phoenix.key',
+          type: "file",
+          name: "phoenix.key",
 
           content: {
             en: `PHOENIX ENCRYPTION KEY
@@ -525,8 +526,8 @@ thuộc Mạng Nghiên cứu được phê duyệt.`,
         },
 
         {
-          type: 'file',
-          name: 'researchers.txt',
+          type: "file",
+          name: "researchers.txt",
 
           content: {
             en: `PHOENIX RESEARCH TEAM
@@ -566,8 +567,8 @@ Trợ lý nghiên cứu`,
         },
 
         {
-          type: 'file',
-          name: 'incident-notes.txt',
+          type: "file",
+          name: "incident-notes.txt",
 
           content: {
             en: `INTERNAL INCIDENT NOTES
@@ -613,8 +614,8 @@ Không có sự cố nào được chính thức mở.`,
         },
 
         {
-          type: 'file',
-          name: 'deleted-index.txt',
+          type: "file",
+          name: "deleted-index.txt",
 
           content: {
             en: `RECOVERED DELETED INDEX
@@ -656,13 +657,13 @@ VỊ TRÍ BAN ĐẦU:
     },
 
     {
-      type: 'directory',
-      name: 'network',
+      type: "directory",
+      name: "network",
 
       children: [
         {
-          type: 'file',
-          name: 'network.log',
+          type: "file",
+          name: "network.log",
 
           content: {
             en: `[01:57:02] DNS QUERY
@@ -722,8 +723,8 @@ CỔNG: 443
         },
 
         {
-          type: 'file',
-          name: 'dns.log',
+          type: "file",
+          name: "dns.log",
 
           content: {
             en: `[01:56:51] QUERY:
@@ -765,8 +766,8 @@ secure-transfer.local`,
         },
 
         {
-          type: 'file',
-          name: 'firewall.log',
+          type: "file",
+          name: "firewall.log",
 
           content: {
             en: `[01:59:22] ALLOW
@@ -812,8 +813,8 @@ CỔNG: 443`,
         },
 
         {
-          type: 'file',
-          name: 'dhcp.log',
+          type: "file",
+          name: "dhcp.log",
 
           content: {
             en: `[01:58:59]
@@ -847,8 +848,8 @@ IP ĐƯỢC GIẢI PHÓNG:
         },
 
         {
-          type: 'file',
-          name: 'proxy.log',
+          type: "file",
+          name: "proxy.log",
 
           content: {
             en: `[01:59:40]
@@ -906,13 +907,13 @@ YÊU CẦU: /transfer/start`,
     },
 
     {
-      type: 'directory',
-      name: 'devices',
+      type: "directory",
+      name: "devices",
 
       children: [
         {
-          type: 'file',
-          name: 'usb.log',
+          type: "file",
+          name: "usb.log",
 
           content: {
             en: `[02:14:02] USB CONNECTED
@@ -960,8 +961,8 @@ USB ĐƯỢC THÁO RA`,
         },
 
         {
-          type: 'file',
-          name: 'usb-content.txt',
+          type: "file",
+          name: "usb-content.txt",
 
           content: {
             en: `USB ARCHIVE CONTENT
@@ -991,8 +992,8 @@ DC-WORKSTATION-07`,
         },
 
         {
-          type: 'file',
-          name: 'device-registry.txt',
+          type: "file",
+          name: "device-registry.txt",
 
           content: {
             en: `REGISTERED DEVICES
@@ -1044,13 +1045,13 @@ TRẠNG THÁI ĐĂNG KÝ:
     },
 
     {
-      type: 'directory',
-      name: 'access',
+      type: "directory",
+      name: "access",
 
       children: [
         {
-          type: 'file',
-          name: 'badge.log',
+          type: "file",
+          name: "badge.log",
 
           content: {
             en: `[01:31:04]
@@ -1160,8 +1161,8 @@ BÁO ĐỘNG`,
         },
 
         {
-          type: 'file',
-          name: 'door-controller.log',
+          type: "file",
+          name: "door-controller.log",
 
           content: {
             en: `[02:10:59]
@@ -1213,8 +1214,8 @@ KHÓA KHẨN CẤP`,
         },
 
         {
-          type: 'file',
-          name: 'badge-analysis.txt',
+          type: "file",
+          name: "badge-analysis.txt",
 
           content: {
             en: `BADGE FORENSIC ANALYSIS
@@ -1274,13 +1275,13 @@ CÓ THỂ`,
     },
 
     {
-      type: 'directory',
-      name: 'camera',
+      type: "directory",
+      name: "camera",
 
       children: [
         {
-          type: 'file',
-          name: 'camera.log',
+          type: "file",
+          name: "camera.log",
 
           content: {
             en: `[01:48:00]
@@ -1362,8 +1363,8 @@ Phát hiện Daniel Cross bên trong.`,
         },
 
         {
-          type: 'file',
-          name: 'hallway.log',
+          type: "file",
+          name: "hallway.log",
 
           content: {
             en: `[01:57:51]
@@ -1435,8 +1436,8 @@ HÀNH LANG MÁY CHỦ -> LỐI RA`,
         },
 
         {
-          type: 'file',
-          name: 'camera-analysis.txt',
+          type: "file",
+          name: "camera-analysis.txt",
 
           content: {
             en: `VIDEO ANALYSIS
@@ -1494,13 +1495,13 @@ CHIỀU CAO 166 CM`,
     },
 
     {
-      type: 'directory',
-      name: 'emails',
+      type: "directory",
+      name: "emails",
 
       children: [
         {
-          type: 'file',
-          name: 'inbox.txt',
+          type: "file",
+          name: "inbox.txt",
 
           content: {
             en: `INBOX
@@ -1648,8 +1649,8 @@ Tôi sẽ điều tra vào buổi sáng.`,
         },
 
         {
-          type: 'file',
-          name: 'sent.txt',
+          type: "file",
+          name: "sent.txt",
 
           content: {
             en: `SENT
@@ -1755,8 +1756,8 @@ Máy trạm của bạn sẽ an toàn.`,
         },
 
         {
-          type: 'file',
-          name: 'deleted-mail.txt',
+          type: "file",
+          name: "deleted-mail.txt",
 
           content: {
             en: `RECOVERED DELETED MESSAGE
@@ -1812,13 +1813,13 @@ XÓA SAU KHI ĐỌC.`,
     },
 
     {
-      type: 'directory',
-      name: 'users',
+      type: "directory",
+      name: "users",
 
       children: [
         {
-          type: 'file',
-          name: 'daniel.txt',
+          type: "file",
+          name: "daniel.txt",
 
           content: {
             en: `USER PROFILE
@@ -1866,8 +1867,8 @@ GHI CHÚ AN NINH:
         },
 
         {
-          type: 'file',
-          name: 'victor.txt',
+          type: "file",
+          name: "victor.txt",
 
           content: {
             en: `USER PROFILE
@@ -1927,8 +1928,8 @@ khẩn cấp lúc 00:12.`,
         },
 
         {
-          type: 'file',
-          name: 'ethan.txt',
+          type: "file",
+          name: "ethan.txt",
 
           content: {
             en: `USER PROFILE
@@ -1980,8 +1981,8 @@ Phụ trách hệ thống sao lưu.`,
         },
 
         {
-          type: 'file',
-          name: 'maya.txt',
+          type: "file",
+          name: "maya.txt",
 
           content: {
             en: `USER PROFILE
@@ -2027,8 +2028,8 @@ Phụ trách quy trình xoay khóa Phoenix.`,
         },
 
         {
-          type: 'file',
-          name: 'service-accounts.txt',
+          type: "file",
+          name: "service-accounts.txt",
 
           content: {
             en: `SERVICE ACCOUNTS
@@ -2092,13 +2093,13 @@ Thông tin xác thực của svc-archive
     },
 
     {
-      type: 'directory',
-      name: 'scripts',
+      type: "directory",
+      name: "scripts",
 
       children: [
         {
-          type: 'file',
-          name: 'access-script.bin',
+          type: "file",
+          name: "access-script.bin",
 
           content: {
             en: `BINARY FILE ANALYSIS
@@ -2164,8 +2165,8 @@ MAINT-7`,
         },
 
         {
-          type: 'file',
-          name: 'cleanup.sh',
+          type: "file",
+          name: "cleanup.sh",
 
           content: {
             en: `#!/bin/sh
@@ -2193,8 +2194,8 @@ unknown`,
         },
 
         {
-          type: 'file',
-          name: 'maintenance.txt',
+          type: "file",
+          name: "maintenance.txt",
 
           content: {
             en: `MAINTENANCE ENDPOINT
@@ -2248,13 +2249,13 @@ việc ghi nhật ký xác thực tiêu chuẩn.`,
     },
 
     {
-      type: 'directory',
-      name: 'server',
+      type: "directory",
+      name: "server",
 
       children: [
         {
-          type: 'file',
-          name: 'remote-session.log',
+          type: "file",
+          name: "remote-session.log",
 
           content: {
             en: `[01:58:57]
@@ -2322,8 +2323,8 @@ PHIÊN ĐÃ KẾT THÚC`,
         },
 
         {
-          type: 'file',
-          name: 'process.log',
+          type: "file",
+          name: "process.log",
 
           content: {
             en: `[01:59:12]
@@ -2375,8 +2376,8 @@ archive-worker ĐÃ KẾT THÚC`,
         },
 
         {
-          type: 'file',
-          name: 'server-room.txt',
+          type: "file",
+          name: "server-room.txt",
 
           content: {
             en: `SERVER ROOM 4
@@ -2434,13 +2435,13 @@ KHÔNG PHÁT HIỆN ĐỘT NHẬP BẰNG VŨ LỰC`,
     },
 
     {
-      type: 'directory',
-      name: 'forensics',
+      type: "directory",
+      name: "forensics",
 
       children: [
         {
-          type: 'file',
-          name: 'memory.txt',
+          type: "file",
+          name: "memory.txt",
 
           content: {
             en: `MEMORY FORENSICS
@@ -2520,8 +2521,8 @@ svc-archive`,
         },
 
         {
-          type: 'file',
-          name: 'usb-forensics.txt',
+          type: "file",
+          name: "usb-forensics.txt",
 
           content: {
             en: `USB FORENSICS
@@ -2581,8 +2582,8 @@ CẢNH BÁO:
         },
 
         {
-          type: 'file',
-          name: 'badge-forensics.txt',
+          type: "file",
+          name: "badge-forensics.txt",
 
           content: {
             en: `BADGE FORENSICS
@@ -2640,8 +2641,8 @@ THẺ BỊ SAO CHÉP`,
         },
 
         {
-          type: 'file',
-          name: 'transfer.txt',
+          type: "file",
+          name: "transfer.txt",
 
           content: {
             en: `TRANSFER FORENSICS
@@ -2719,13 +2720,13 @@ nhưng ngay lập tức
     },
 
     {
-      type: 'directory',
-      name: 'incident',
+      type: "directory",
+      name: "incident",
 
       children: [
         {
-          type: 'file',
-          name: 'timeline.txt',
+          type: "file",
+          name: "timeline.txt",
 
           content: {
             en: `PRELIMINARY TIMELINE
@@ -2837,8 +2838,8 @@ Daniel được phát hiện bất tỉnh.`,
         },
 
         {
-          type: 'file',
-          name: 'contradictions.txt',
+          type: "file",
+          name: "contradictions.txt",
 
           content: {
             en: `EVIDENCE CONTRADICTIONS
@@ -2970,8 +2971,8 @@ sử dụng MAINT-7.`,
         },
 
         {
-          type: 'file',
-          name: 'final-analysis.txt',
+          type: "file",
+          name: "final-analysis.txt",
 
           content: {
             en: `FORENSIC ANALYSIS
@@ -3049,13 +3050,13 @@ hay theo chỉ đạo từ bên ngoài.`,
     },
 
     {
-      type: 'directory',
-      name: 'external',
+      type: "directory",
+      name: "external",
 
       children: [
         {
-          type: 'file',
-          name: 'destination.txt',
+          type: "file",
+          name: "destination.txt",
 
           content: {
             en: `EXTERNAL NODE
@@ -3120,8 +3121,8 @@ của công ty.`,
         },
 
         {
-          type: 'file',
-          name: 'certificate.txt',
+          type: "file",
+          name: "certificate.txt",
 
           content: {
             en: `CERTIFICATE ANALYSIS
@@ -3177,8 +3178,8 @@ phải sử dụng Corporate CA.`,
         },
 
         {
-          type: 'file',
-          name: 'connection-history.txt',
+          type: "file",
+          name: "connection-history.txt",
 
           content: {
             en: `CONNECTION HISTORY
@@ -3250,373 +3251,697 @@ DC-WORKSTATION-07`,
 
   evidence: [
     {
-      id: 'system-activity',
-      title: { en: 'System Activity Timeline', vi: 'Dòng thời gian hoạt động hệ thống' },
+      id: "system-activity",
+      title: {
+        en: "System Activity Timeline",
+        vi: "Dòng thời gian hoạt động hệ thống",
+      },
       description: {
-        en: 'The workstation shows Daniel becoming idle, then service and archive activity leading to the final transfer.',
-        vi: 'Máy trạm cho thấy Daniel chuyển sang trạng thái không hoạt động, sau đó xuất hiện hoạt động của tài khoản dịch vụ và archive dẫn tới vụ chuyển dữ liệu.',
+        en: "The workstation shows Daniel becoming idle, then service and archive activity leading to the final transfer.",
+        vi: "Máy trạm cho thấy Daniel chuyển sang trạng thái không hoạt động, sau đó xuất hiện hoạt động của tài khoản dịch vụ và archive dẫn tới vụ chuyển dữ liệu.",
       },
-      type: 'digital',
+      type: "digital",
       hint: {
-        en: 'Start with the workstation timeline. Do not assume the account name identifies the operator.',
-        vi: 'Hãy bắt đầu từ dòng thời gian của máy trạm. Đừng mặc định tên tài khoản chính là người thực hiện.',
+        en: "Start with the workstation timeline. Do not assume the account name identifies the operator.",
+        vi: "Hãy bắt đầu từ dòng thời gian của máy trạm. Đừng mặc định tên tài khoản chính là người thực hiện.",
       },
-      discover: { type: 'cat', path: '/logs/system.log' },
+      discover: { type: "cat", path: "/logs/system.log" },
       highlight: {
-        en: ['USER SESSION IDLE', 'SERVICE ACCOUNT LOGIN', 'UNKNOWN-USB', 'ARCHIVE CREATED', 'OUTBOUND TRANSFER'],
-        vi: ['PHIÊN DANIEL KHÔNG HOẠT ĐỘNG', 'ĐĂNG NHẬP TÀI KHOẢN DỊCH VỤ', 'USB-ĐÁNG NGỜ', 'ARCHIVE ĐƯỢC TẠO', 'CHUYỂN DỮ LIỆU RA NGOÀI'],
+        en: [
+          "USER SESSION IDLE",
+          "SERVICE ACCOUNT LOGIN",
+          "UNKNOWN-USB",
+          "ARCHIVE CREATED",
+          "OUTBOUND TRANSFER",
+        ],
+        vi: [
+          "PHIÊN DANIEL KHÔNG HOẠT ĐỘNG",
+          "ĐĂNG NHẬP TÀI KHOẢN DỊCH VỤ",
+          "USB-ĐÁNG NGỜ",
+          "ARCHIVE ĐƯỢC TẠO",
+          "CHUYỂN DỮ LIỆU RA NGOÀI",
+        ],
       },
       requiresEvidence: [],
       discovered: false,
     },
     {
-      id: 'authentication-anomaly',
-      title: { en: 'Authentication Anomaly', vi: 'Bất thường xác thực' },
+      id: "authentication-anomaly",
+      title: { en: "Authentication Anomaly", vi: "Bất thường xác thực" },
       description: {
         en: "'Daniel's account was used from an unknown endpoint with MFA bypass after his legitimate session became idle.'",
-        vi: 'Tài khoản của Daniel bị sử dụng từ một endpoint không xác định với MFA bị bỏ qua sau khi phiên hợp lệ của anh chuyển sang không hoạt động.',
+        vi: "Tài khoản của Daniel bị sử dụng từ một endpoint không xác định với MFA bị bỏ qua sau khi phiên hợp lệ của anh chuyển sang không hoạt động.",
       },
-      type: 'digital',
-      hint: { en: "'Compare the suspicious login with Daniel's legitimate login.'", vi: 'So sánh lần đăng nhập đáng ngờ với lần đăng nhập hợp lệ của Daniel.' },
-      discover: { type: 'cat', path: '/logs/auth.log' },
-      highlight: { en: ['01:42:13', '01:59:31', 'MFA BYPASS', 'UNKNOWN-ENDPOINT'], vi: ['01:42:13', '01:59:31', 'BỎ QUA MFA', 'UNKNOWN-ENDPOINT'] },
-      requiresEvidence: ['system-activity'],
+      type: "digital",
+      hint: {
+        en: "'Compare the suspicious login with Daniel's legitimate login.'",
+        vi: "So sánh lần đăng nhập đáng ngờ với lần đăng nhập hợp lệ của Daniel.",
+      },
+      discover: { type: "cat", path: "/logs/auth.log" },
+      highlight: {
+        en: ["01:42:13", "01:59:31", "MFA BYPASS", "UNKNOWN-ENDPOINT"],
+        vi: ["01:42:13", "01:59:31", "BỎ QUA MFA", "UNKNOWN-ENDPOINT"],
+      },
+      requiresEvidence: ["system-activity"],
       discovered: false,
     },
     {
-      id: 'network-trace',
-      title: { en: 'Remote Connection Trace', vi: 'Truy dấu kết nối từ xa' },
+      id: "network-trace",
+      title: { en: "Remote Connection Trace", vi: "Truy dấu kết nối từ xa" },
       description: {
         en: "'The suspicious endpoint connected to Daniel's workstation through remote access shortly after the authentication anomaly.'",
-        vi: 'Endpoint đáng ngờ kết nối tới máy trạm của Daniel qua truy cập từ xa ngay sau bất thường xác thực.',
+        vi: "Endpoint đáng ngờ kết nối tới máy trạm của Daniel qua truy cập từ xa ngay sau bất thường xác thực.",
       },
-      type: 'digital',
-      hint: { en: 'Follow the unknown endpoint to the device that actually generated the traffic.', vi: 'Hãy truy endpoint không xác định về thiết bị thực sự tạo ra lưu lượng.' },
-      discover: { type: 'cat', path: '/network/network.log' },
-      highlight: { en: ['UNKNOWN-ENDPOINT', '10.44.12.77', '3389', '02:17:42'], vi: ['UNKNOWN-ENDPOINT', '10.44.12.77', '3389', '02:17:42'] },
-      requiresEvidence: ['authentication-anomaly'],
+      type: "digital",
+      hint: {
+        en: "Follow the unknown endpoint to the device that actually generated the traffic.",
+        vi: "Hãy truy endpoint không xác định về thiết bị thực sự tạo ra lưu lượng.",
+      },
+      discover: { type: "cat", path: "/network/network.log" },
+      highlight: {
+        en: ["UNKNOWN-ENDPOINT", "10.44.12.77", "3389", "02:17:42"],
+        vi: ["UNKNOWN-ENDPOINT", "10.44.12.77", "3389", "02:17:42"],
+      },
+      requiresEvidence: ["authentication-anomaly"],
       discovered: false,
     },
     {
-      id: 'dhcp-trace',
-      title: { en: 'DHCP Device Identification', vi: 'Xác định thiết bị qua DHCP' },
+      id: "dhcp-trace",
+      title: {
+        en: "DHCP Device Identification",
+        vi: "Xác định thiết bị qua DHCP",
+      },
       description: {
-        en: 'DHCP maps 10.44.12.77 to VICTOR-LAPTOP, connecting the remote intrusion to a physical device.',
-        vi: 'DHCP ánh xạ 10.44.12.77 tới VICTOR-LAPTOP, nối vụ truy cập từ xa với một thiết bị vật lý cụ thể.',
+        en: "DHCP maps 10.44.12.77 to VICTOR-LAPTOP, connecting the remote intrusion to a physical device.",
+        vi: "DHCP ánh xạ 10.44.12.77 tới VICTOR-LAPTOP, nối vụ truy cập từ xa với một thiết bị vật lý cụ thể.",
       },
-      type: 'digital',
-      hint: { en: 'An IP identifies a device, not automatically a person. Use the device identity as the next link.', vi: 'IP xác định thiết bị, chưa tự động xác định con người. Hãy dùng danh tính thiết bị làm mắt xích tiếp theo.' },
-      discover: { type: 'cat', path: '/network/dhcp.log' },
-      highlight: { en: ['10.44.12.77', 'VICTOR-LAPTOP'], vi: ['10.44.12.77', 'VICTOR-LAPTOP'] },
-      requiresEvidence: ['network-trace'],
+      type: "digital",
+      hint: {
+        en: "An IP identifies a device, not automatically a person. Use the device identity as the next link.",
+        vi: "IP xác định thiết bị, chưa tự động xác định con người. Hãy dùng danh tính thiết bị làm mắt xích tiếp theo.",
+      },
+      discover: { type: "cat", path: "/network/dhcp.log" },
+      highlight: {
+        en: ["10.44.12.77", "VICTOR-LAPTOP"],
+        vi: ["10.44.12.77", "VICTOR-LAPTOP"],
+      },
+      requiresEvidence: ["network-trace"],
       discovered: false,
     },
     {
-      id: 'maintenance-endpoint',
-      title: { en: 'Legacy Maintenance Endpoint', vi: 'Endpoint bảo trì Legacy' },
+      id: "maintenance-endpoint",
+      title: {
+        en: "Legacy Maintenance Endpoint",
+        vi: "Endpoint bảo trì Legacy",
+      },
       description: {
-        en: 'MAINT-7 was an authorized legacy maintenance endpoint for Victor and Ethan and could create remote sessions with weaker logging.',
-        vi: 'MAINT-7 là endpoint bảo trì legacy được cấp cho Victor và Ethan, có thể tạo phiên từ xa với cơ chế ghi log yếu hơn.',
+        en: "MAINT-7 was an authorized legacy maintenance endpoint for Victor and Ethan and could create remote sessions with weaker logging.",
+        vi: "MAINT-7 là endpoint bảo trì legacy được cấp cho Victor và Ethan, có thể tạo phiên từ xa với cơ chế ghi log yếu hơn.",
       },
-      type: 'digital',
-      hint: { en: 'The remote session mentions MAINT-7. Find out who was allowed to use it.', vi: 'Phiên từ xa nhắc tới MAINT-7. Hãy xác định ai được phép sử dụng nó.' },
-      discover: { type: 'cat', path: '/scripts/maintenance.txt' },
-      highlight: { en: ['MAINT-7', 'Victor Hale', 'Ethan Cole', 'Legacy sessions'], vi: ['MAINT-7', 'Victor Hale', 'Ethan Cole', 'Phiên Legacy'] },
-      requiresEvidence: ['network-trace'],
+      type: "digital",
+      hint: {
+        en: "The remote session mentions MAINT-7. Find out who was allowed to use it.",
+        vi: "Phiên từ xa nhắc tới MAINT-7. Hãy xác định ai được phép sử dụng nó.",
+      },
+      discover: { type: "cat", path: "/scripts/maintenance.txt" },
+      highlight: {
+        en: ["MAINT-7", "Victor Hale", "Ethan Cole", "Legacy sessions"],
+        vi: ["MAINT-7", "Victor Hale", "Ethan Cole", "Phiên Legacy"],
+      },
+      requiresEvidence: ["network-trace"],
       discovered: false,
     },
     {
-      id: 'service-account',
-      title: { en: 'Compromised Archive Service', vi: 'Tài khoản dịch vụ Archive bị xâm phạm' },
+      id: "service-account",
+      title: {
+        en: "Compromised Archive Service",
+        vi: "Tài khoản dịch vụ Archive bị xâm phạm",
+      },
       description: {
-        en: 'svc-archive had READ + WRITE access to research data and its credential had been exposed before the incident.',
-        vi: 'svc-archive có quyền ĐỌC + GHI dữ liệu nghiên cứu và thông tin xác thực của nó từng bị lộ trước vụ việc.',
+        en: "svc-archive had READ + WRITE access to research data and its credential had been exposed before the incident.",
+        vi: "svc-archive có quyền ĐỌC + GHI dữ liệu nghiên cứu và thông tin xác thực của nó từng bị lộ trước vụ việc.",
       },
-      type: 'digital',
-      hint: { en: 'Now that you know the maintenance path, identify the service account used by it.', vi: 'Sau khi biết đường đi qua endpoint bảo trì, hãy xác định tài khoản dịch vụ được sử dụng.' },
-      discover: { type: 'cat', path: '/users/service-accounts.txt' },
-      highlight: { en: ['svc-archive', 'READ + WRITE RESEARCH', 'credential was exposed'], vi: ['svc-archive', 'ĐỌC + GHI RESEARCH', 'thông tin xác thực đã bị lộ'] },
-      requiresEvidence: ['maintenance-endpoint'],
+      type: "digital",
+      hint: {
+        en: "Now that you know the maintenance path, identify the service account used by it.",
+        vi: "Sau khi biết đường đi qua endpoint bảo trì, hãy xác định tài khoản dịch vụ được sử dụng.",
+      },
+      discover: { type: "cat", path: "/users/service-accounts.txt" },
+      highlight: {
+        en: ["svc-archive", "READ + WRITE RESEARCH", "credential was exposed"],
+        vi: [
+          "svc-archive",
+          "ĐỌC + GHI RESEARCH",
+          "thông tin xác thực đã bị lộ",
+        ],
+      },
+      requiresEvidence: ["maintenance-endpoint"],
       discovered: false,
     },
     {
-      id: 'remote-session',
-      title: { en: 'Remote Session Evidence', vi: 'Bằng chứng phiên từ xa' },
+      id: "remote-session",
+      title: { en: "Remote Session Evidence", vi: "Bằng chứng phiên từ xa" },
       description: {
-        en: 'The server session shows svc-archive being used through MAINT-7 and then impersonating Daniel.',
-        vi: 'Phiên máy chủ cho thấy svc-archive được sử dụng qua MAINT-7 rồi mạo danh Daniel.',
+        en: "The server session shows svc-archive being used through MAINT-7 and then impersonating Daniel.",
+        vi: "Phiên máy chủ cho thấy svc-archive được sử dụng qua MAINT-7 rồi mạo danh Daniel.",
       },
-      type: 'digital',
-      hint: { en: "'This is the bridge between the suspicious network connection and Daniel's account.'", vi: 'Đây là cầu nối giữa kết nối mạng đáng ngờ và tài khoản Daniel.' },
-      discover: { type: 'cat', path: '/server/remote-session.log' },
-      highlight: { en: ['MAINT-7', 'svc-archive', 'IMPERSONATION', 'daniel'], vi: ['MAINT-7', 'svc-archive', 'MẠO DANH', 'daniel'] },
-      requiresEvidence: ['service-account'],
+      type: "digital",
+      hint: {
+        en: "'This is the bridge between the suspicious network connection and Daniel's account.'",
+        vi: "Đây là cầu nối giữa kết nối mạng đáng ngờ và tài khoản Daniel.",
+      },
+      discover: { type: "cat", path: "/server/remote-session.log" },
+      highlight: {
+        en: ["MAINT-7", "svc-archive", "IMPERSONATION", "daniel"],
+        vi: ["MAINT-7", "svc-archive", "MẠO DANH", "daniel"],
+      },
+      requiresEvidence: ["service-account"],
       discovered: false,
     },
     {
-      id: 'process-forensics',
-      title: { en: 'Archive Process Forensics', vi: 'Pháp y tiến trình tạo Archive' },
+      id: "process-forensics",
+      title: {
+        en: "Archive Process Forensics",
+        vi: "Pháp y tiến trình tạo Archive",
+      },
       description: {
-        en: 'The remote process spawned archive-worker and elevated it to SYSTEM, explaining how the archive was actually created.',
-        vi: 'Tiến trình từ xa tạo archive-worker và nâng quyền lên SYSTEM, giải thích archive thực sự được tạo như thế nào.',
+        en: "The remote process spawned archive-worker and elevated it to SYSTEM, explaining how the archive was actually created.",
+        vi: "Tiến trình từ xa tạo archive-worker và nâng quyền lên SYSTEM, giải thích archive thực sự được tạo như thế nào.",
       },
-      type: 'digital',
-      hint: { en: 'The audit log names Daniel, but process telemetry can identify the process that performed the operation.', vi: 'Audit log ghi tên Daniel, nhưng telemetry tiến trình có thể xác định tiến trình thực hiện thao tác.' },
-      discover: { type: 'cat', path: '/server/process.log' },
-      highlight: { en: ['remote-sync', 'archive-worker', 'PRIVILEGE: SYSTEM'], vi: ['remote-sync', 'archive-worker', 'QUYỀN: SYSTEM'] },
-      requiresEvidence: ['remote-session'],
+      type: "digital",
+      hint: {
+        en: "The audit log names Daniel, but process telemetry can identify the process that performed the operation.",
+        vi: "Audit log ghi tên Daniel, nhưng telemetry tiến trình có thể xác định tiến trình thực hiện thao tác.",
+      },
+      discover: { type: "cat", path: "/server/process.log" },
+      highlight: {
+        en: ["remote-sync", "archive-worker", "PRIVILEGE: SYSTEM"],
+        vi: ["remote-sync", "archive-worker", "QUYỀN: SYSTEM"],
+      },
+      requiresEvidence: ["remote-session"],
       discovered: false,
     },
     {
-      id: 'memory-forensics',
-      title: { en: 'Memory Credential Evidence', vi: 'Bằng chứng thông tin xác thực trong bộ nhớ' },
+      id: "memory-forensics",
+      title: {
+        en: "Memory Credential Evidence",
+        vi: "Bằng chứng thông tin xác thực trong bộ nhớ",
+      },
       description: {
-        en: 'Memory from the suspicious process contains the same MAINT-7 and svc-archive references, independently confirming the execution path.',
-        vi: 'Bộ nhớ của tiến trình đáng ngờ chứa cùng các tham chiếu MAINT-7 và svc-archive, xác nhận độc lập đường thực thi.',
+        en: "Memory from the suspicious process contains the same MAINT-7 and svc-archive references, independently confirming the execution path.",
+        vi: "Bộ nhớ của tiến trình đáng ngờ chứa cùng các tham chiếu MAINT-7 và svc-archive, xác nhận độc lập đường thực thi.",
       },
-      type: 'digital',
-      hint: { en: 'Use memory as independent confirmation of what the process actually used.', vi: 'Dùng bộ nhớ để xác nhận độc lập những gì tiến trình thực sự đã sử dụng.' },
-      discover: { type: 'cat', path: '/forensics/memory.txt' },
-      highlight: { en: ['MAINT-7', 'svc-archive', 'Token owner'], vi: ['MAINT-7', 'svc-archive', 'Chủ sở hữu token'] },
-      requiresEvidence: ['process-forensics'],
+      type: "digital",
+      hint: {
+        en: "Use memory as independent confirmation of what the process actually used.",
+        vi: "Dùng bộ nhớ để xác nhận độc lập những gì tiến trình thực sự đã sử dụng.",
+      },
+      discover: { type: "cat", path: "/forensics/memory.txt" },
+      highlight: {
+        en: ["MAINT-7", "svc-archive", "Token owner"],
+        vi: ["MAINT-7", "svc-archive", "Chủ sở hữu token"],
+      },
+      requiresEvidence: ["process-forensics"],
       discovered: false,
     },
     {
-      id: 'usb-device',
-      title: { en: 'Suspicious USB Device', vi: 'Thiết bị USB đáng ngờ' },
+      id: "usb-device",
+      title: { en: "Suspicious USB Device", vi: "Thiết bị USB đáng ngờ" },
       description: {
-        en: 'USB VX-7719 was connected shortly before the archive was created.',
-        vi: 'USB VX-7719 được kết nối ngay trước khi archive được tạo.',
+        en: "USB VX-7719 was connected shortly before the archive was created.",
+        vi: "USB VX-7719 được kết nối ngay trước khi archive được tạo.",
       },
-      type: 'digital',
-      hint: { en: 'The workstation timeline shows removable media. Inspect the device record.', vi: 'Dòng thời gian máy trạm cho thấy có thiết bị rời. Hãy kiểm tra hồ sơ thiết bị.' },
-      discover: { type: 'cat', path: '/devices/usb.log' },
-      highlight: { en: ['VX-7719', 'USB STORAGE', '02:14:02'], vi: ['VX-7719', 'USB STORAGE', '02:14:02'] },
-      requiresEvidence: ['system-activity'],
+      type: "digital",
+      hint: {
+        en: "The workstation timeline shows removable media. Inspect the device record.",
+        vi: "Dòng thời gian máy trạm cho thấy có thiết bị rời. Hãy kiểm tra hồ sơ thiết bị.",
+      },
+      discover: { type: "cat", path: "/devices/usb.log" },
+      highlight: {
+        en: ["VX-7719", "USB STORAGE", "02:14:02"],
+        vi: ["VX-7719", "USB STORAGE", "02:14:02"],
+      },
+      requiresEvidence: ["system-activity"],
       discovered: false,
     },
     {
-      id: 'usb-history',
-      title: { en: 'USB Ownership History', vi: 'Lịch sử sở hữu USB' },
+      id: "usb-history",
+      title: { en: "USB Ownership History", vi: "Lịch sử sở hữu USB" },
       description: {
-        en: 'Forensic device records connect VX-7719 to Security Lab 02 and identify Victor as its last user.',
-        vi: 'Hồ sơ pháp y thiết bị liên kết VX-7719 với Security Lab 02 và xác định Victor là người dùng cuối.',
+        en: "Forensic device records connect VX-7719 to Security Lab 02 and identify Victor as its last user.",
+        vi: "Hồ sơ pháp y thiết bị liên kết VX-7719 với Security Lab 02 và xác định Victor là người dùng cuối.",
       },
-      type: 'digital',
-      hint: { en: 'A suspicious USB matters only when you can connect it to a person or location.', vi: 'USB đáng ngờ chỉ có giá trị khi bạn liên kết được nó với người hoặc địa điểm.' },
-      discover: { type: 'cat', path: '/forensics/usb-forensics.txt' },
-      highlight: { en: ['VX-7719', 'SECURITY-LAB-02', 'LAST USER: VICTOR'], vi: ['VX-7719', 'SECURITY-LAB-02', 'NGƯỜI DÙNG CUỐI: VICTOR'] },
-      requiresEvidence: ['usb-device'],
+      type: "digital",
+      hint: {
+        en: "A suspicious USB matters only when you can connect it to a person or location.",
+        vi: "USB đáng ngờ chỉ có giá trị khi bạn liên kết được nó với người hoặc địa điểm.",
+      },
+      discover: { type: "cat", path: "/forensics/usb-forensics.txt" },
+      highlight: {
+        en: ["VX-7719", "SECURITY-LAB-02", "LAST USER: VICTOR"],
+        vi: ["VX-7719", "SECURITY-LAB-02", "NGƯỜI DÙNG CUỐI: VICTOR"],
+      },
+      requiresEvidence: ["usb-device"],
       discovered: false,
     },
     {
-      id: 'usb-content',
-      title: { en: 'Attack Toolkit on USB', vi: 'Bộ công cụ trên USB' },
+      id: "usb-content",
+      title: { en: "Attack Toolkit on USB", vi: "Bộ công cụ trên USB" },
       description: {
-        en: 'The USB contained the stolen archive plus access and cleanup scripts.',
-        vi: 'USB chứa archive bị đánh cắp cùng script truy cập và script xóa dấu vết.',
+        en: "The USB contained the stolen archive plus access and cleanup scripts.",
+        vi: "USB chứa archive bị đánh cắp cùng script truy cập và script xóa dấu vết.",
       },
-      type: 'digital',
-      hint: { en: 'Inspect the USB contents to see whether it carried more than the stolen data.', vi: 'Kiểm tra nội dung USB để xem nó có chứa gì ngoài dữ liệu bị đánh cắp.' },
-      discover: { type: 'cat', path: '/devices/usb-content.txt' },
-      highlight: { en: ['phoenix-export.tar', 'access-script.bin', 'cleanup.sh'], vi: ['phoenix-export.tar', 'access-script.bin', 'cleanup.sh'] },
-      requiresEvidence: ['usb-history'],
+      type: "digital",
+      hint: {
+        en: "Inspect the USB contents to see whether it carried more than the stolen data.",
+        vi: "Kiểm tra nội dung USB để xem nó có chứa gì ngoài dữ liệu bị đánh cắp.",
+      },
+      discover: { type: "cat", path: "/devices/usb-content.txt" },
+      highlight: {
+        en: ["phoenix-export.tar", "access-script.bin", "cleanup.sh"],
+        vi: ["phoenix-export.tar", "access-script.bin", "cleanup.sh"],
+      },
+      requiresEvidence: ["usb-history"],
       discovered: false,
     },
     {
-      id: 'access-script',
-      title: { en: 'Remote Access Script', vi: 'Script truy cập từ xa' },
+      id: "access-script",
+      title: { en: "Remote Access Script", vi: "Script truy cập từ xa" },
       description: {
-        en: 'The USB script references svc-archive, MAINT-7 and remote-sync—the same path seen in server telemetry.',
-        vi: 'Script trên USB tham chiếu svc-archive, MAINT-7 và remote-sync—đúng đường đi xuất hiện trong telemetry máy chủ.',
+        en: "The USB script references svc-archive, MAINT-7 and remote-sync—the same path seen in server telemetry.",
+        vi: "Script trên USB tham chiếu svc-archive, MAINT-7 và remote-sync—đúng đường đi xuất hiện trong telemetry máy chủ.",
       },
-      type: 'digital',
-      hint: { en: 'Compare the script with the remote session and process evidence.', vi: 'So sánh script với bằng chứng phiên từ xa và tiến trình.' },
-      discover: { type: 'cat', path: '/scripts/access-script.bin' },
-      highlight: { en: ['svc-archive', 'MAINT-7', 'remote-sync'], vi: ['svc-archive', 'MAINT-7', 'remote-sync'] },
-      requiresEvidence: ['usb-content', 'remote-session'],
+      type: "digital",
+      hint: {
+        en: "Compare the script with the remote session and process evidence.",
+        vi: "So sánh script với bằng chứng phiên từ xa và tiến trình.",
+      },
+      discover: { type: "cat", path: "/scripts/access-script.bin" },
+      highlight: {
+        en: ["svc-archive", "MAINT-7", "remote-sync"],
+        vi: ["svc-archive", "MAINT-7", "remote-sync"],
+      },
+      requiresEvidence: ["usb-content", "remote-session"],
       discovered: false,
     },
     {
-      id: 'cleanup-script',
-      title: { en: 'Evidence Cleanup Script', vi: 'Script xóa dấu vết' },
+      id: "cleanup-script",
+      title: { en: "Evidence Cleanup Script", vi: "Script xóa dấu vết" },
       description: {
-        en: 'The cleanup script attempts to terminate remote-sync and delete the stolen archive and remote-session log.',
-        vi: 'Script dọn dẹp cố kết thúc remote-sync và xóa archive bị đánh cắp cùng log phiên từ xa.',
+        en: "The cleanup script attempts to terminate remote-sync and delete the stolen archive and remote-session log.",
+        vi: "Script dọn dẹp cố kết thúc remote-sync và xóa archive bị đánh cắp cùng log phiên từ xa.",
       },
-      type: 'digital',
-      hint: { en: 'Once you find the access tool, inspect what the operator planned to erase.', vi: 'Sau khi tìm thấy công cụ truy cập, hãy kiểm tra những gì kẻ thực hiện định xóa.' },
-      discover: { type: 'cat', path: '/scripts/cleanup.sh' },
-      highlight: { en: ['killall remote-sync', 'rm /tmp/.cache/archive/phoenix-export.tar', 'rm /var/log/remote-session.log'], vi: ['killall remote-sync', 'rm /tmp/.cache/archive/phoenix-export.tar', 'rm /var/log/remote-session.log'] },
-      requiresEvidence: ['access-script'],
+      type: "digital",
+      hint: {
+        en: "Once you find the access tool, inspect what the operator planned to erase.",
+        vi: "Sau khi tìm thấy công cụ truy cập, hãy kiểm tra những gì kẻ thực hiện định xóa.",
+      },
+      discover: { type: "cat", path: "/scripts/cleanup.sh" },
+      highlight: {
+        en: [
+          "killall remote-sync",
+          "rm /tmp/.cache/archive/phoenix-export.tar",
+          "rm /var/log/remote-session.log",
+        ],
+        vi: [
+          "killall remote-sync",
+          "rm /tmp/.cache/archive/phoenix-export.tar",
+          "rm /var/log/remote-session.log",
+        ],
+      },
+      requiresEvidence: ["access-script"],
       discovered: false,
     },
     {
-      id: 'badge-analysis',
-      title: { en: 'Cloned Security Badge', vi: 'Thẻ an ninh bị sao chép' },
+      id: "badge-analysis",
+      title: { en: "Cloned Security Badge", vi: "Thẻ an ninh bị sao chép" },
       description: {
         en: "'Daniel's badge credential opened Server Room 4, but forensic analysis indicates the physical badge was cloned.'",
-        vi: 'Thông tin thẻ của Daniel mở được Phòng Máy chủ 4, nhưng pháp y cho thấy thẻ vật lý đã bị sao chép.',
+        vi: "Thông tin thẻ của Daniel mở được Phòng Máy chủ 4, nhưng pháp y cho thấy thẻ vật lý đã bị sao chép.",
       },
-      type: 'object',
-      hint: { en: 'The access system proves a credential was used, not who carried it.', vi: 'Hệ thống ra vào chỉ chứng minh một credential được sử dụng, không chứng minh ai mang nó.' },
-      discover: { type: 'cat', path: '/forensics/badge-forensics.txt' },
-      highlight: { en: ['DANIEL CROSS', 'CRYPTOGRAPHIC SIGNATURE: INVALID', 'CLONED BADGE'], vi: ['DANIEL CROSS', 'CHỮ KÝ MẬT MÃ: KHÔNG HỢP LỆ', 'THẺ BỊ SAO CHÉP'] },
+      type: "object",
+      hint: {
+        en: "The access system proves a credential was used, not who carried it.",
+        vi: "Hệ thống ra vào chỉ chứng minh một credential được sử dụng, không chứng minh ai mang nó.",
+      },
+      discover: { type: "cat", path: "/forensics/badge-forensics.txt" },
+      highlight: {
+        en: [
+          "DANIEL CROSS",
+          "CRYPTOGRAPHIC SIGNATURE: INVALID",
+          "CLONED BADGE",
+        ],
+        vi: ["DANIEL CROSS", "CHỮ KÝ MẬT MÃ: KHÔNG HỢP LỆ", "THẺ BỊ SAO CHÉP"],
+      },
       requiresEvidence: [],
       discovered: false,
     },
     {
-      id: 'camera-evidence',
-      title: { en: 'Server Room Camera Evidence', vi: 'Bằng chứng camera phòng máy chủ' },
-      description: {
-        en: 'Camera analysis shows the person entering Server Room 4 was not Daniel.',
-        vi: 'Phân tích camera cho thấy người bước vào Phòng Máy chủ 4 không phải Daniel.',
+      id: "camera-evidence",
+      title: {
+        en: "Server Room Camera Evidence",
+        vi: "Bằng chứng camera phòng máy chủ",
       },
-      type: 'photo',
-      hint: { en: 'Combine the cloned badge with the person actually seen on camera.', vi: 'Kết hợp thẻ bị sao chép với người thực sự xuất hiện trên camera.' },
-      discover: { type: 'cat', path: '/camera/camera-analysis.txt' },
-      highlight: { en: ['does NOT appear to be Daniel Cross', '180 CM', 'Daniel Cross', '174 CM'], vi: ['KHÔNG có vẻ là Daniel Cross', '180 CM', 'Daniel Cross', '174 CM'] },
-      requiresEvidence: ['badge-analysis'],
+      description: {
+        en: "Camera analysis shows the person entering Server Room 4 was not Daniel.",
+        vi: "Phân tích camera cho thấy người bước vào Phòng Máy chủ 4 không phải Daniel.",
+      },
+      type: "photo",
+      hint: {
+        en: "Combine the cloned badge with the person actually seen on camera.",
+        vi: "Kết hợp thẻ bị sao chép với người thực sự xuất hiện trên camera.",
+      },
+      discover: { type: "cat", path: "/camera/camera-analysis.txt" },
+      highlight: {
+        en: [
+          "does NOT appear to be Daniel Cross",
+          "180 CM",
+          "Daniel Cross",
+          "174 CM",
+        ],
+        vi: ["KHÔNG có vẻ là Daniel Cross", "180 CM", "Daniel Cross", "174 CM"],
+      },
+      requiresEvidence: ["badge-analysis"],
       discovered: false,
     },
     {
-      id: 'camera-timeline',
-      title: { en: 'Physical Surveillance Timeline', vi: 'Dòng thời gian giám sát vật lý' },
-      description: {
-        en: 'Camera footage places Victor in the Security Lab and later shows a taller person entering and leaving Server Room 4.',
-        vi: 'Camera đặt Victor tại Phòng An ninh và sau đó ghi nhận một người cao hơn bước vào rồi rời Phòng Máy chủ 4.',
+      id: "camera-timeline",
+      title: {
+        en: "Physical Surveillance Timeline",
+        vi: "Dòng thời gian giám sát vật lý",
       },
-      type: 'photo',
-      hint: { en: 'Build the physical timeline independently, then compare it with the network timeline.', vi: 'Tái dựng dòng thời gian vật lý trước, sau đó đối chiếu với dòng thời gian mạng.' },
-      discover: { type: 'cat', path: '/camera/camera.log' },
-      highlight: { en: ['Victor enters Security Lab', "'Person carrying Daniel's badge'", 'Person exits', 'Daniel Cross discovered'], vi: ['Victor bước vào Phòng An ninh', 'Người mang thẻ của Daniel', 'Người này rời đi', 'Phát hiện Daniel Cross'] },
-      requiresEvidence: ['camera-evidence'],
+      description: {
+        en: "Camera footage places Victor in the Security Lab and later shows a taller person entering and leaving Server Room 4.",
+        vi: "Camera đặt Victor tại Phòng An ninh và sau đó ghi nhận một người cao hơn bước vào rồi rời Phòng Máy chủ 4.",
+      },
+      type: "photo",
+      hint: {
+        en: "Build the physical timeline independently, then compare it with the network timeline.",
+        vi: "Tái dựng dòng thời gian vật lý trước, sau đó đối chiếu với dòng thời gian mạng.",
+      },
+      discover: { type: "cat", path: "/camera/camera.log" },
+      highlight: {
+        en: [
+          "Victor enters Security Lab",
+          "'Person carrying Daniel's badge'",
+          "Person exits",
+          "Daniel Cross discovered",
+        ],
+        vi: [
+          "Victor bước vào Phòng An ninh",
+          "Người mang thẻ của Daniel",
+          "Người này rời đi",
+          "Phát hiện Daniel Cross",
+        ],
+      },
+      requiresEvidence: ["camera-evidence"],
       discovered: false,
     },
     {
-      id: 'victor-profile',
-      title: { en: 'Victor Hale Profile', vi: 'Hồ sơ Victor Hale' },
+      id: "victor-profile",
+      title: { en: "Victor Hale Profile", vi: "Hồ sơ Victor Hale" },
       description: {
-        en: 'Victor is a security administrator, uses VICTOR-LAPTOP, has privileged access and is approximately the same height as the person in the server-room footage.',
-        vi: 'Victor là quản trị viên an ninh, sử dụng VICTOR-LAPTOP, có quyền đặc biệt và có chiều cao gần bằng người xuất hiện trong camera phòng máy chủ.',
+        en: "Victor is a security administrator, uses VICTOR-LAPTOP, has privileged access and is approximately the same height as the person in the server-room footage.",
+        vi: "Victor là quản trị viên an ninh, sử dụng VICTOR-LAPTOP, có quyền đặc biệt và có chiều cao gần bằng người xuất hiện trong camera phòng máy chủ.",
       },
-      type: 'object',
-      hint: { en: "'A physical match is not enough. Verify Victor's access and technical capability.'", vi: 'Khớp hình thể vẫn chưa đủ. Hãy xác minh quyền truy cập và khả năng kỹ thuật của Victor.' },
-      discover: { type: 'cat', path: '/users/victor.txt' },
-      highlight: { en: ['Victor Hale', '181 CM', 'PRIVILEGED ACCESS', 'VICTOR-LAPTOP'], vi: ['Victor Hale', '181 CM', 'QUYỀN TRUY CẬP ĐẶC BIỆT', 'VICTOR-LAPTOP'] },
-      requiresEvidence: ['dhcp-trace', 'camera-timeline'],
+      type: "object",
+      hint: {
+        en: "'A physical match is not enough. Verify Victor's access and technical capability.'",
+        vi: "Khớp hình thể vẫn chưa đủ. Hãy xác minh quyền truy cập và khả năng kỹ thuật của Victor.",
+      },
+      discover: { type: "cat", path: "/users/victor.txt" },
+      highlight: {
+        en: ["Victor Hale", "181 CM", "PRIVILEGED ACCESS", "VICTOR-LAPTOP"],
+        vi: [
+          "Victor Hale",
+          "181 CM",
+          "QUYỀN TRUY CẬP ĐẶC BIỆT",
+          "VICTOR-LAPTOP",
+        ],
+      },
+      requiresEvidence: ["dhcp-trace", "camera-timeline"],
       discovered: false,
     },
     {
-      id: 'deleted-email',
-      title: { en: 'Deleted Maintenance Message', vi: 'Tin nhắn bảo trì đã xóa' },
-      description: {
-        en: 'A recovered message directed Victor to use the old credential and MAINT-7 while keeping Daniel out of the operation.',
-        vi: 'Tin nhắn khôi phục cho thấy Victor được hướng dẫn dùng credential cũ và MAINT-7, đồng thời không liên quan Daniel.',
+      id: "deleted-email",
+      title: {
+        en: "Deleted Maintenance Message",
+        vi: "Tin nhắn bảo trì đã xóa",
       },
-      type: 'document',
-      hint: { en: 'Now ask why Victor would use this maintenance path. Search the recovered communications.', vi: 'Bây giờ hãy hỏi vì sao Victor lại dùng đường bảo trì này. Tìm các liên lạc đã được khôi phục.' },
-      discover: { type: 'cat', path: '/emails/deleted-mail.txt' },
-      highlight: { en: ['victor.hale@company.local', 'old credential still works', 'MAINT-7', 'Do not involve Daniel'], vi: ['victor.hale@company.local', 'thông tin xác thực cũ vẫn hoạt động', 'MAINT-7', 'Không được liên quan đến Daniel'] },
-      requiresEvidence: ['victor-profile', 'maintenance-endpoint'],
+      description: {
+        en: "A recovered message directed Victor to use the old credential and MAINT-7 while keeping Daniel out of the operation.",
+        vi: "Tin nhắn khôi phục cho thấy Victor được hướng dẫn dùng credential cũ và MAINT-7, đồng thời không liên quan Daniel.",
+      },
+      type: "document",
+      hint: {
+        en: "Now ask why Victor would use this maintenance path. Search the recovered communications.",
+        vi: "Bây giờ hãy hỏi vì sao Victor lại dùng đường bảo trì này. Tìm các liên lạc đã được khôi phục.",
+      },
+      discover: { type: "cat", path: "/emails/deleted-mail.txt" },
+      highlight: {
+        en: [
+          "victor.hale@company.local",
+          "old credential still works",
+          "MAINT-7",
+          "Do not involve Daniel",
+        ],
+        vi: [
+          "victor.hale@company.local",
+          "thông tin xác thực cũ vẫn hoạt động",
+          "MAINT-7",
+          "Không được liên quan đến Daniel",
+        ],
+      },
+      requiresEvidence: ["victor-profile", "maintenance-endpoint"],
       discovered: false,
     },
     {
-      id: 'external-node',
-      title: { en: 'Unknown External Node', vi: 'Node bên ngoài không xác định' },
-      description: {
-        en: 'The Phoenix archive was transferred to NODE-OMEGA at 10.44.19.88, a recently created system with no corporate ownership.',
-        vi: 'Archive Phoenix được chuyển tới NODE-OMEGA tại 10.44.19.88, một hệ thống mới tạo và không có chủ sở hữu doanh nghiệp.',
+      id: "external-node",
+      title: {
+        en: "Unknown External Node",
+        vi: "Node bên ngoài không xác định",
       },
-      type: 'digital',
-      hint: { en: 'Follow the destination of the 02:17 transfer.', vi: 'Hãy lần theo đích đến của vụ chuyển dữ liệu lúc 02:17.' },
-      discover: { type: 'cat', path: '/external/destination.txt' },
-      highlight: { en: ['10.44.19.88', 'NODE-OMEGA', '6 days ago', 'No corporate ownership found'], vi: ['10.44.19.88', 'NODE-OMEGA', '6 ngày trước', 'Không tìm thấy quyền sở hữu của công ty'] },
-      requiresEvidence: ['network-trace'],
+      description: {
+        en: "The Phoenix archive was transferred to NODE-OMEGA at 10.44.19.88, a recently created system with no corporate ownership.",
+        vi: "Archive Phoenix được chuyển tới NODE-OMEGA tại 10.44.19.88, một hệ thống mới tạo và không có chủ sở hữu doanh nghiệp.",
+      },
+      type: "digital",
+      hint: {
+        en: "Follow the destination of the 02:17 transfer.",
+        vi: "Hãy lần theo đích đến của vụ chuyển dữ liệu lúc 02:17.",
+      },
+      discover: { type: "cat", path: "/external/destination.txt" },
+      highlight: {
+        en: [
+          "10.44.19.88",
+          "NODE-OMEGA",
+          "6 days ago",
+          "No corporate ownership found",
+        ],
+        vi: [
+          "10.44.19.88",
+          "NODE-OMEGA",
+          "6 ngày trước",
+          "Không tìm thấy quyền sở hữu của công ty",
+        ],
+      },
+      requiresEvidence: ["network-trace"],
       discovered: false,
     },
     {
-      id: 'external-certificate',
-      title: { en: 'Suspicious External Certificate', vi: 'Chứng chỉ máy chủ bên ngoài đáng ngờ' },
-      description: {
-        en: 'NODE-OMEGA uses a development certificate rather than the corporate production certificate.',
-        vi: 'NODE-OMEGA dùng chứng chỉ development thay vì chứng chỉ production của công ty.',
+      id: "external-certificate",
+      title: {
+        en: "Suspicious External Certificate",
+        vi: "Chứng chỉ máy chủ bên ngoài đáng ngờ",
       },
-      type: 'digital',
-      hint: { en: 'Determine whether the destination looks like an approved production system.', vi: 'Xác định xem máy chủ đích có phải hệ thống production được phê duyệt hay không.' },
-      discover: { type: 'cat', path: '/external/certificate.txt' },
-      highlight: { en: ['Development CA', '6 DAYS AGO', 'UNASSIGNED'], vi: ['Development CA', '6 NGÀY TRƯỚC', 'CHƯA GÁN'] },
-      requiresEvidence: ['external-node'],
+      description: {
+        en: "NODE-OMEGA uses a development certificate rather than the corporate production certificate.",
+        vi: "NODE-OMEGA dùng chứng chỉ development thay vì chứng chỉ production của công ty.",
+      },
+      type: "digital",
+      hint: {
+        en: "Determine whether the destination looks like an approved production system.",
+        vi: "Xác định xem máy chủ đích có phải hệ thống production được phê duyệt hay không.",
+      },
+      discover: { type: "cat", path: "/external/certificate.txt" },
+      highlight: {
+        en: ["Development CA", "6 DAYS AGO", "UNASSIGNED"],
+        vi: ["Development CA", "6 NGÀY TRƯỚC", "CHƯA GÁN"],
+      },
+      requiresEvidence: ["external-node"],
       discovered: false,
     },
     {
-      id: 'external-history',
-      title: { en: 'External Connection History', vi: 'Lịch sử kết nối máy chủ bên ngoài' },
+      id: "external-history",
+      title: {
+        en: "External Connection History",
+        vi: "Lịch sử kết nối máy chủ bên ngoài",
+      },
       description: {
         en: "'NODE-OMEGA had prior connections to Security Lab 02 and Victor's laptop before the final transfer.'",
-        vi: 'NODE-OMEGA từng kết nối với Security Lab 02 và laptop của Victor trước vụ chuyển dữ liệu cuối cùng.',
+        vi: "NODE-OMEGA từng kết nối với Security Lab 02 và laptop của Victor trước vụ chuyển dữ liệu cuối cùng.",
       },
-      type: 'digital',
-      hint: { en: 'Trace NODE-OMEGA backward. The history may connect the external controller to the internal operation.', vi: 'Truy ngược NODE-OMEGA. Lịch sử có thể nối người điều khiển bên ngoài với hoạt động nội bộ.' },
-      discover: { type: 'cat', path: '/external/connection-history.txt' },
-      highlight: { en: ['SECURITY-LAB-02', '10.44.12.77', 'DC-WORKSTATION-07'], vi: ['SECURITY-LAB-02', '10.44.12.77', 'DC-WORKSTATION-07'] },
-      requiresEvidence: ['external-certificate', 'dhcp-trace'],
+      type: "digital",
+      hint: {
+        en: "Trace NODE-OMEGA backward. The history may connect the external controller to the internal operation.",
+        vi: "Truy ngược NODE-OMEGA. Lịch sử có thể nối người điều khiển bên ngoài với hoạt động nội bộ.",
+      },
+      discover: { type: "cat", path: "/external/connection-history.txt" },
+      highlight: {
+        en: ["SECURITY-LAB-02", "10.44.12.77", "DC-WORKSTATION-07"],
+        vi: ["SECURITY-LAB-02", "10.44.12.77", "DC-WORKSTATION-07"],
+      },
+      requiresEvidence: ["external-certificate", "dhcp-trace"],
       discovered: false,
     },
     {
-      id: 'log-tampering',
-      title: { en: 'Tampered Authentication Log', vi: 'Nhật ký xác thực bị chỉnh sửa' },
+      id: "log-tampering",
+      title: {
+        en: "Tampered Authentication Log",
+        vi: "Nhật ký xác thực bị chỉnh sửa",
+      },
       description: {
-        en: 'The integrity report proves auth.log was modified, so it cannot be treated as the sole source of truth.',
-        vi: 'Báo cáo toàn vẹn chứng minh auth.log đã bị sửa, vì vậy không thể dùng nó làm nguồn sự thật duy nhất.',
+        en: "The integrity report proves auth.log was modified, so it cannot be treated as the sole source of truth.",
+        vi: "Báo cáo toàn vẹn chứng minh auth.log đã bị sửa, vì vậy không thể dùng nó làm nguồn sự thật duy nhất.",
       },
-      type: 'digital',
-      hint: { en: 'Before trusting a suspicious login record, verify the log integrity.', vi: 'Trước khi tin một bản ghi đăng nhập đáng ngờ, hãy kiểm tra tính toàn vẹn của log.' },
-      discover: { type: 'cat', path: '/logs/integrity.log' },
-      highlight: { en: ['auth.log', 'STATUS: MODIFIED'], vi: ['auth.log', 'TRẠNG THÁI: ĐÃ CHỈNH SỬA'] },
-      requiresEvidence: ['authentication-anomaly'],
+      type: "digital",
+      hint: {
+        en: "Before trusting a suspicious login record, verify the log integrity.",
+        vi: "Trước khi tin một bản ghi đăng nhập đáng ngờ, hãy kiểm tra tính toàn vẹn của log.",
+      },
+      discover: { type: "cat", path: "/logs/integrity.log" },
+      highlight: {
+        en: ["auth.log", "STATUS: MODIFIED"],
+        vi: ["auth.log", "TRẠNG THÁI: ĐÃ CHỈNH SỬA"],
+      },
+      requiresEvidence: ["authentication-anomaly"],
       discovered: false,
     },
     {
-      id: 'incident-contradictions',
-      title: { en: 'Evidence Contradictions', vi: 'Mâu thuẫn trong bằng chứng' },
+      id: "incident-contradictions",
+      title: {
+        en: "Evidence Contradictions",
+        vi: "Mâu thuẫn trong bằng chứng",
+      },
       description: {
         en: "'Independent evidence shows that Daniel's account and badge were used, but Daniel was not the person performing the operation.'",
-        vi: 'Các nguồn bằng chứng độc lập cho thấy tài khoản và thẻ của Daniel bị sử dụng, nhưng Daniel không phải người thực hiện.',
+        vi: "Các nguồn bằng chứng độc lập cho thấy tài khoản và thẻ của Daniel bị sử dụng, nhưng Daniel không phải người thực hiện.",
       },
-      type: 'digital',
-      hint: { en: 'Compare account, process, network and camera evidence. Look for a consistent alternative explanation.', vi: 'So sánh bằng chứng tài khoản, tiến trình, mạng và camera. Tìm một lời giải thích thay thế nhất quán.' },
-      discover: { type: 'cat', path: '/incident/contradictions.txt' },
-      highlight: { en: ['MFA BYPASS', 'cloned', 'archive-worker', 'does not match Daniel', 'VICTOR-LAPTOP', 'MAINT-7'], vi: ['BỎ QUA MFA', 'bị sao chép', 'archive-worker', 'không khớp với Daniel', 'VICTOR-LAPTOP', 'MAINT-7'] },
-      requiresEvidence: ['log-tampering', 'process-forensics', 'camera-evidence', 'dhcp-trace'],
+      type: "digital",
+      hint: {
+        en: "Compare account, process, network and camera evidence. Look for a consistent alternative explanation.",
+        vi: "So sánh bằng chứng tài khoản, tiến trình, mạng và camera. Tìm một lời giải thích thay thế nhất quán.",
+      },
+      discover: { type: "cat", path: "/incident/contradictions.txt" },
+      highlight: {
+        en: [
+          "MFA BYPASS",
+          "cloned",
+          "archive-worker",
+          "does not match Daniel",
+          "VICTOR-LAPTOP",
+          "MAINT-7",
+        ],
+        vi: [
+          "BỎ QUA MFA",
+          "bị sao chép",
+          "archive-worker",
+          "không khớp với Daniel",
+          "VICTOR-LAPTOP",
+          "MAINT-7",
+        ],
+      },
+      requiresEvidence: [
+        "log-tampering",
+        "process-forensics",
+        "camera-evidence",
+        "dhcp-trace",
+      ],
       discovered: false,
     },
     {
-      id: 'final-forensics',
-      title: { en: 'Final Forensic Analysis', vi: 'Phân tích pháp y cuối cùng' },
-      description: {
-        en: 'The evidence separates Daniel as the impersonated account, Victor as the likely physical operator, and an unknown party controlling NODE-OMEGA.',
-        vi: 'Bằng chứng tách Daniel thành chủ tài khoản bị mạo danh, Victor là người có khả năng trực tiếp thực hiện, và một bên không xác định kiểm soát NODE-OMEGA.',
+      id: "final-forensics",
+      title: {
+        en: "Final Forensic Analysis",
+        vi: "Phân tích pháp y cuối cùng",
       },
-      type: 'digital',
-      hint: { en: 'Do not collapse the physical operator and external controller into one identity without evidence.', vi: 'Đừng gộp người trực tiếp thực hiện và người điều khiển bên ngoài thành một danh tính nếu chưa có bằng chứng.' },
-      discover: { type: 'cat', path: '/incident/final-analysis.txt' },
-      highlight: { en: ['IDENTITY A', 'IDENTITY B', 'IDENTITY C', 'Victor Hale', 'unknown party'], vi: ['DANH TÍNH A', 'DANH TÍNH B', 'DANH TÍNH C', 'Victor Hale', 'bên không xác định'] },
-      requiresEvidence: ['incident-contradictions', 'external-history', 'deleted-email'],
+      description: {
+        en: "The evidence separates Daniel as the impersonated account, Victor as the likely physical operator, and an unknown party controlling NODE-OMEGA.",
+        vi: "Bằng chứng tách Daniel thành chủ tài khoản bị mạo danh, Victor là người có khả năng trực tiếp thực hiện, và một bên không xác định kiểm soát NODE-OMEGA.",
+      },
+      type: "digital",
+      hint: {
+        en: "Do not collapse the physical operator and external controller into one identity without evidence.",
+        vi: "Đừng gộp người trực tiếp thực hiện và người điều khiển bên ngoài thành một danh tính nếu chưa có bằng chứng.",
+      },
+      discover: { type: "cat", path: "/incident/final-analysis.txt" },
+      highlight: {
+        en: [
+          "IDENTITY A",
+          "IDENTITY B",
+          "IDENTITY C",
+          "Victor Hale",
+          "unknown party",
+        ],
+        vi: [
+          "DANH TÍNH A",
+          "DANH TÍNH B",
+          "DANH TÍNH C",
+          "Victor Hale",
+          "bên không xác định",
+        ],
+      },
+      requiresEvidence: [
+        "incident-contradictions",
+        "external-history",
+        "deleted-email",
+      ],
       discovered: false,
     },
     {
-      id: 'final-timeline',
-      title: { en: 'Complete Incident Timeline', vi: 'Dòng thời gian hoàn chỉnh của sự việc' },
-      description: {
-        en: 'The final timeline connects the account compromise, remote session, physical access, USB tooling, archive creation and external transfer.',
-        vi: 'Dòng thời gian cuối cùng liên kết việc chiếm quyền tài khoản, phiên từ xa, truy cập vật lý, công cụ USB, tạo archive và chuyển dữ liệu ra ngoài.',
+      id: "final-timeline",
+      title: {
+        en: "Complete Incident Timeline",
+        vi: "Dòng thời gian hoàn chỉnh của sự việc",
       },
-      type: 'digital',
-      hint: { en: 'Only after the separate evidence chains agree should you reconstruct the whole operation.', vi: 'Chỉ sau khi các chuỗi bằng chứng độc lập khớp nhau mới tái dựng toàn bộ hoạt động.' },
-      discover: { type: 'cat', path: '/incident/timeline.txt' },
-      highlight: { en: ['18:32', '01:49', '01:58', '01:59', '02:11', '02:14', '02:17', '02:19'], vi: ['18:32', '01:49', '01:58', '01:59', '02:11', '02:14', '02:17', '02:19'] },
-      requiresEvidence: ['final-forensics', 'cleanup-script', 'camera-timeline', 'external-history'],
+      description: {
+        en: "The final timeline connects the account compromise, remote session, physical access, USB tooling, archive creation and external transfer.",
+        vi: "Dòng thời gian cuối cùng liên kết việc chiếm quyền tài khoản, phiên từ xa, truy cập vật lý, công cụ USB, tạo archive và chuyển dữ liệu ra ngoài.",
+      },
+      type: "digital",
+      hint: {
+        en: "Only after the separate evidence chains agree should you reconstruct the whole operation.",
+        vi: "Chỉ sau khi các chuỗi bằng chứng độc lập khớp nhau mới tái dựng toàn bộ hoạt động.",
+      },
+      discover: { type: "cat", path: "/incident/timeline.txt" },
+      highlight: {
+        en: [
+          "18:32",
+          "01:49",
+          "01:58",
+          "01:59",
+          "02:11",
+          "02:14",
+          "02:17",
+          "02:19",
+        ],
+        vi: [
+          "18:32",
+          "01:49",
+          "01:58",
+          "01:59",
+          "02:11",
+          "02:14",
+          "02:17",
+          "02:19",
+        ],
+      },
+      requiresEvidence: [
+        "final-forensics",
+        "cleanup-script",
+        "camera-timeline",
+        "external-history",
+      ],
       discovered: false,
     },
   ],
@@ -3629,130 +3954,166 @@ DC-WORKSTATION-07`,
 
   tasks: [
     {
-      id: 'reconstruct-digital-timeline',
-      title: { en: 'Reconstruct the digital timeline', vi: 'Tái dựng dòng thời gian kỹ thuật số' },
+      id: "reconstruct-digital-timeline",
+      title: {
+        en: "Reconstruct the digital timeline",
+        vi: "Tái dựng dòng thời gian kỹ thuật số",
+      },
       description: {
         en: "Establish when Daniel's legitimate session became idle and prove that the later login was anomalous.",
-        vi: 'Xác định thời điểm phiên hợp lệ của Daniel ngừng hoạt động và chứng minh lần đăng nhập sau đó là bất thường.',
+        vi: "Xác định thời điểm phiên hợp lệ của Daniel ngừng hoạt động và chứng minh lần đăng nhập sau đó là bất thường.",
       },
       completionSummary: {
         en: "Daniel's valid session was idle before an unknown endpoint bypassed MFA and used his identity.",
-        vi: 'Phiên hợp lệ của Daniel đã ngừng hoạt động trước khi một endpoint lạ bỏ qua MFA và sử dụng danh tính của anh.',
+        vi: "Phiên hợp lệ của Daniel đã ngừng hoạt động trước khi một endpoint lạ bỏ qua MFA và sử dụng danh tính của anh.",
       },
       nextLead: {
-        en: 'The anomalous login names an unknown endpoint. Follow its address through the network records.',
-        vi: 'Lần đăng nhập bất thường nhắc tới một endpoint lạ. Hãy lần theo địa chỉ của nó trong nhóm dữ liệu mạng.',
+        en: "The anomalous login names an unknown endpoint. Follow its address through the network records.",
+        vi: "Lần đăng nhập bất thường nhắc tới một endpoint lạ. Hãy lần theo địa chỉ của nó trong nhóm dữ liệu mạng.",
       },
-      requiresEvidence: ['system-activity', 'authentication-anomaly'],
+      requiresEvidence: ["system-activity", "authentication-anomaly"],
       completed: false,
     },
     {
-      id: 'identify-attack-source',
-      title: { en: 'Identify the attack source', vi: 'Xác định nguồn tấn công' },
+      id: "identify-attack-source",
+      title: {
+        en: "Identify the attack source",
+        vi: "Xác định nguồn tấn công",
+      },
       description: {
-        en: 'Trace the suspicious connection from the unknown endpoint to the physical device that generated it.',
-        vi: 'Truy dấu kết nối đáng ngờ từ endpoint không xác định tới thiết bị vật lý đã tạo ra nó.',
+        en: "Trace the suspicious connection from the unknown endpoint to the physical device that generated it.",
+        vi: "Truy dấu kết nối đáng ngờ từ endpoint không xác định tới thiết bị vật lý đã tạo ra nó.",
       },
       nextLead: {
-        en: 'Now inspect how the identified device reached the archive service through the legacy maintenance path.',
-        vi: 'Tiếp theo, hãy kiểm tra cách thiết bị vừa xác định đi qua đường bảo trì cũ để tới dịch vụ archive.',
+        en: "Now inspect how the identified device reached the archive service through the legacy maintenance path.",
+        vi: "Tiếp theo, hãy kiểm tra cách thiết bị vừa xác định đi qua đường bảo trì cũ để tới dịch vụ archive.",
       },
-      requiresEvidence: ['network-trace', 'dhcp-trace'],
+      requiresEvidence: ["network-trace", "dhcp-trace"],
       completed: false,
     },
     {
-      id: 'identify-execution-path',
-      title: { en: 'Identify the execution path', vi: 'Xác định đường thực thi' },
+      id: "identify-execution-path",
+      title: {
+        en: "Identify the execution path",
+        vi: "Xác định đường thực thi",
+      },
       description: {
-        en: 'Determine how the attacker moved from the maintenance endpoint to svc-archive and then to the archive worker.',
-        vi: 'Xác định kẻ tấn công đi từ endpoint bảo trì tới svc-archive rồi tới archive-worker như thế nào.',
+        en: "Determine how the attacker moved from the maintenance endpoint to svc-archive and then to the archive worker.",
+        vi: "Xác định kẻ tấn công đi từ endpoint bảo trì tới svc-archive rồi tới archive-worker như thế nào.",
       },
       nextLead: {
-        en: 'The system timeline also recorded removable media. Trace that USB and inspect the tools stored on it.',
-        vi: 'Dòng thời gian hệ thống còn ghi nhận thiết bị rời. Hãy truy dấu USB và kiểm tra các công cụ chứa bên trong.',
+        en: "The system timeline also recorded removable media. Trace that USB and inspect the tools stored on it.",
+        vi: "Dòng thời gian hệ thống còn ghi nhận thiết bị rời. Hãy truy dấu USB và kiểm tra các công cụ chứa bên trong.",
       },
-      requiresEvidence: ['remote-session', 'process-forensics', 'memory-forensics'],
+      requiresEvidence: [
+        "remote-session",
+        "process-forensics",
+        "memory-forensics",
+      ],
       completed: false,
     },
     {
-      id: 'trace-usb-device',
-      title: { en: 'Trace the suspicious USB', vi: 'Truy dấu USB đáng ngờ' },
+      id: "trace-usb-device",
+      title: { en: "Trace the suspicious USB", vi: "Truy dấu USB đáng ngờ" },
       description: {
-        en: 'Connect the USB to its previous owner and determine whether it carried the tools used in the operation.',
-        vi: 'Liên kết USB với người từng sử dụng nó và xác định liệu nó có chứa công cụ được dùng trong vụ việc hay không.',
+        en: "Connect the USB to its previous owner and determine whether it carried the tools used in the operation.",
+        vi: "Liên kết USB với người từng sử dụng nó và xác định liệu nó có chứa công cụ được dùng trong vụ việc hay không.",
       },
       nextLead: {
-        en: 'Digital attribution is not enough. Compare the cloned badge with camera evidence and the suspect profile.',
-        vi: 'Dấu vết số chưa đủ để kết luận. Hãy đối chiếu thẻ bị sao chép với camera và hồ sơ nghi phạm.',
+        en: "Digital attribution is not enough. Compare the cloned badge with camera evidence and the suspect profile.",
+        vi: "Dấu vết số chưa đủ để kết luận. Hãy đối chiếu thẻ bị sao chép với camera và hồ sơ nghi phạm.",
       },
-      requiresEvidence: ['usb-history', 'usb-content', 'access-script'],
+      requiresEvidence: ["usb-history", "usb-content", "access-script"],
       completed: false,
     },
     {
-      id: 'prove-physical-intrusion',
-      title: { en: 'Prove the physical intrusion', vi: 'Chứng minh vụ xâm nhập vật lý' },
+      id: "prove-physical-intrusion",
+      title: {
+        en: "Prove the physical intrusion",
+        vi: "Chứng minh vụ xâm nhập vật lý",
+      },
       description: {
-        en: 'Prove Daniel did not enter Server Room 4 and determine why the person using his badge is linked to Victor.',
-        vi: 'Chứng minh Daniel không vào Phòng Máy chủ 4 và xác định vì sao người dùng thẻ của anh lại liên quan tới Victor.',
+        en: "Prove Daniel did not enter Server Room 4 and determine why the person using his badge is linked to Victor.",
+        vi: "Chứng minh Daniel không vào Phòng Máy chủ 4 và xác định vì sao người dùng thẻ của anh lại liên quan tới Victor.",
       },
       nextLead: {
-        en: 'Search recovered communications to learn why Victor used MAINT-7 and whether somebody directed him.',
-        vi: 'Hãy tìm các liên lạc đã khôi phục để biết vì sao Victor dùng MAINT-7 và liệu có người chỉ đạo hắn hay không.',
+        en: "Search recovered communications to learn why Victor used MAINT-7 and whether somebody directed him.",
+        vi: "Hãy tìm các liên lạc đã khôi phục để biết vì sao Victor dùng MAINT-7 và liệu có người chỉ đạo hắn hay không.",
       },
-      requiresEvidence: ['camera-evidence', 'camera-timeline', 'victor-profile'],
+      requiresEvidence: [
+        "camera-evidence",
+        "camera-timeline",
+        "victor-profile",
+      ],
       completed: false,
     },
     {
-      id: 'trace-motive',
-      title: { en: 'Trace the motive and instruction', vi: 'Truy tìm động cơ và chỉ đạo' },
+      id: "trace-motive",
+      title: {
+        en: "Trace the motive and instruction",
+        vi: "Truy tìm động cơ và chỉ đạo",
+      },
       description: {
-        en: 'Find the communication that connects Victor to MAINT-7 and determine whether the operation was directed by someone else.',
-        vi: 'Tìm liên lạc kết nối Victor với MAINT-7 và xác định liệu hoạt động có được một bên khác chỉ đạo hay không.',
+        en: "Find the communication that connects Victor to MAINT-7 and determine whether the operation was directed by someone else.",
+        vi: "Tìm liên lạc kết nối Victor với MAINT-7 và xác định liệu hoạt động có được một bên khác chỉ đạo hay không.",
       },
       nextLead: {
-        en: 'The message suggests an outside controller. Follow the stolen archive to its external destination.',
-        vi: 'Tin nhắn cho thấy có thể tồn tại người điều khiển bên ngoài. Hãy lần theo archive tới đích chuyển dữ liệu.',
+        en: "The message suggests an outside controller. Follow the stolen archive to its external destination.",
+        vi: "Tin nhắn cho thấy có thể tồn tại người điều khiển bên ngoài. Hãy lần theo archive tới đích chuyển dữ liệu.",
       },
-      requiresEvidence: ['victor-profile', 'deleted-email'],
+      requiresEvidence: ["victor-profile", "deleted-email"],
       completed: false,
     },
     {
-      id: 'trace-exfiltration',
-      title: { en: 'Trace the stolen research', vi: 'Truy dấu dữ liệu bị đánh cắp' },
+      id: "trace-exfiltration",
+      title: {
+        en: "Trace the stolen research",
+        vi: "Truy dấu dữ liệu bị đánh cắp",
+      },
       description: {
-        en: 'Identify the destination of the Phoenix archive and determine whether it was an authorized corporate system.',
-        vi: 'Xác định đích đến của archive Phoenix và xem đó có phải hệ thống được công ty cấp phép hay không.',
+        en: "Identify the destination of the Phoenix archive and determine whether it was an authorized corporate system.",
+        vi: "Xác định đích đến của archive Phoenix và xem đó có phải hệ thống được công ty cấp phép hay không.",
       },
-      requiresEvidence: ['external-node', 'external-certificate', 'external-history'],
+      requiresEvidence: [
+        "external-node",
+        "external-certificate",
+        "external-history",
+      ],
       nextLead: {
-        en: 'Verify log integrity, then compare the digital, physical and external identities without merging them.',
-        vi: 'Hãy kiểm tra tính toàn vẹn của log rồi phân biệt các danh tính số, vật lý và bên ngoài.',
-      },
-      completed: false,
-    },
-    {
-      id: 'separate-identities',
-      title: { en: 'Separate the three identities', vi: 'Phân biệt ba danh tính' },
-      description: {
-        en: 'Separate Daniel as the impersonated account, Victor as the likely physical operator, and the unknown external controller.',
-        vi: 'Phân biệt Daniel là tài khoản bị mạo danh, Victor là người có khả năng trực tiếp thực hiện và bên điều khiển bên ngoài chưa xác định.',
-      },
-      requiresEvidence: ['incident-contradictions', 'final-forensics'],
-      nextLead: {
-        en: 'Inspect the attempted cleanup and assemble the final incident timeline.',
-        vi: 'Hãy kiểm tra nỗ lực xóa dấu vết và ghép dòng thời gian cuối cùng của sự việc.',
+        en: "Verify log integrity, then compare the digital, physical and external identities without merging them.",
+        vi: "Hãy kiểm tra tính toàn vẹn của log rồi phân biệt các danh tính số, vật lý và bên ngoài.",
       },
       completed: false,
     },
     {
-      id: 'reconstruct-full-operation',
-      title: { en: 'Reconstruct the Ghost Protocol', vi: 'Tái dựng Giao thức Bóng Ma' },
-      description: {
-        en: 'Combine the digital, physical and external evidence into one consistent account of the operation, including the attempted cleanup.',
-        vi: 'Kết hợp bằng chứng kỹ thuật số, vật lý và bên ngoài thành một diễn biến nhất quán, bao gồm cả nỗ lực xóa dấu vết.',
+      id: "separate-identities",
+      title: {
+        en: "Separate the three identities",
+        vi: "Phân biệt ba danh tính",
       },
-      requiresEvidence: ['cleanup-script', 'final-timeline'],
+      description: {
+        en: "Separate Daniel as the impersonated account, Victor as the likely physical operator, and the unknown external controller.",
+        vi: "Phân biệt Daniel là tài khoản bị mạo danh, Victor là người có khả năng trực tiếp thực hiện và bên điều khiển bên ngoài chưa xác định.",
+      },
+      requiresEvidence: ["incident-contradictions", "final-forensics"],
+      nextLead: {
+        en: "Inspect the attempted cleanup and assemble the final incident timeline.",
+        vi: "Hãy kiểm tra nỗ lực xóa dấu vết và ghép dòng thời gian cuối cùng của sự việc.",
+      },
+      completed: false,
+    },
+    {
+      id: "reconstruct-full-operation",
+      title: {
+        en: "Reconstruct the Ghost Protocol",
+        vi: "Tái dựng Giao thức Bóng Ma",
+      },
+      description: {
+        en: "Combine the digital, physical and external evidence into one consistent account of the operation, including the attempted cleanup.",
+        vi: "Kết hợp bằng chứng kỹ thuật số, vật lý và bên ngoài thành một diễn biến nhất quán, bao gồm cả nỗ lực xóa dấu vết.",
+      },
+      requiresEvidence: ["cleanup-script", "final-timeline"],
       completed: false,
     },
   ],
-}
+};

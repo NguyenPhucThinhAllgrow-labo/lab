@@ -1,9 +1,7 @@
-import type {
-  Scenario,
-} from '~/types/games/detective'
+import type { Scenario } from "~/types/games/detective";
 
 export const case001: Scenario = {
-  id: 'case001',
+  id: "case001",
 
   /*
    * --------------------------------------------------
@@ -12,20 +10,18 @@ export const case001: Scenario = {
    */
 
   title: {
-    en: 'THE MIDNIGHT TERMINAL',
+    en: "THE MIDNIGHT TERMINAL",
 
-    vi: 'THIẾT BỊ ĐẦU CUỐI LÚC NỬA ĐÊM',
+    vi: "THIẾT BỊ ĐẦU CUỐI LÚC NỬA ĐÊM",
   },
 
   description: {
-    en:
-      'Alex Morgan disappeared from his office at approximately 23:50. His workstation was left unlocked.',
+    en: "Alex Morgan disappeared from his office at approximately 23:50. His workstation was left unlocked.",
 
-    vi:
-      'Alex Morgan biến mất khỏi văn phòng vào khoảng 23:50. Máy tính làm việc của anh ta vẫn được mở khóa.',
+    vi: "Alex Morgan biến mất khỏi văn phòng vào khoảng 23:50. Máy tính làm việc của anh ta vẫn được mở khóa.",
   },
 
-  initialDirectory: '/',
+  initialDirectory: "/",
 
   /*
    * --------------------------------------------------
@@ -35,95 +31,95 @@ export const case001: Scenario = {
 
   intro: {
     en: [
-      'DETECTIVE TERMINAL v1.0',
-      '----------------------------------------',
-      'CASE: THE MIDNIGHT TERMINAL',
-      '',
-      'Alex Morgan disappeared from his office',
-      'at approximately 23:50.',
-      '',
-      'His workstation was left unlocked.',
-      '',
-      'Your objective:',
-      'Investigate the filesystem.',
-      'Find the evidence.',
-      'Identify the suspect.',
-      '',
+      "DETECTIVE TERMINAL v1.0",
+      "----------------------------------------",
+      "CASE: THE MIDNIGHT TERMINAL",
+      "",
+      "Alex Morgan disappeared from his office",
+      "at approximately 23:50.",
+      "",
+      "His workstation was left unlocked.",
+      "",
+      "Your objective:",
+      "Investigate the filesystem.",
+      "Find the evidence.",
+      "Identify the suspect.",
+      "",
       'Type "help" to see available commands.',
     ],
 
     vi: [
-      'DETECTIVE TERMINAL v1.0',
-      '----------------------------------------',
-      'VỤ ÁN: THIẾT BỊ ĐẦU CUỐI LÚC NỬA ĐÊM',
-      '',
-      'Alex Morgan biến mất khỏi văn phòng',
-      'vào khoảng 23:50.',
-      '',
-      'Máy tính làm việc của anh ta vẫn được mở khóa.',
-      '',
-      'Mục tiêu của bạn:',
-      'Điều tra hệ thống tệp.',
-      'Tìm bằng chứng.',
-      'Xác định nghi phạm.',
-      '',
+      "DETECTIVE TERMINAL v1.0",
+      "----------------------------------------",
+      "VỤ ÁN: THIẾT BỊ ĐẦU CUỐI LÚC NỬA ĐÊM",
+      "",
+      "Alex Morgan biến mất khỏi văn phòng",
+      "vào khoảng 23:50.",
+      "",
+      "Máy tính làm việc của anh ta vẫn được mở khóa.",
+      "",
+      "Mục tiêu của bạn:",
+      "Điều tra hệ thống tệp.",
+      "Tìm bằng chứng.",
+      "Xác định nghi phạm.",
+      "",
       'Gõ "help" để xem các lệnh khả dụng.',
     ],
   },
 
   people: [
     {
-      id: 'alex-morgan',
-      name: 'Alex Morgan',
-      role: { en: 'Missing employee', vi: 'Nhân viên mất tích' },
+      id: "alex-morgan",
+      name: "Alex Morgan",
+      role: { en: "Missing employee", vi: "Nhân viên mất tích" },
       summary: {
-        en: 'Owner of the unlocked workstation and a member of the confidential Nightfall project.',
-        vi: 'Chủ máy trạm bị bỏ lại trong trạng thái mở khóa và là thành viên của dự án mật Nightfall.',
+        en: "Owner of the unlocked workstation and a member of the confidential Nightfall project.",
+        vi: "Chủ máy trạm bị bỏ lại trong trạng thái mở khóa và là thành viên của dự án mật Nightfall.",
       },
       details: [
         {
-          label: { en: 'Last known activity', vi: 'Hoạt động cuối cùng' },
+          label: { en: "Last known activity", vi: "Hoạt động cuối cùng" },
           value: {
-            en: 'His session was locked at 23:50, shortly after an unknown USB device was connected.',
-            vi: 'Phiên của Alex bị khóa lúc 23:50, ngay sau khi một USB không xác định được kết nối.',
+            en: "His session was locked at 23:50, shortly after an unknown USB device was connected.",
+            vi: "Phiên của Alex bị khóa lúc 23:50, ngay sau khi một USB không xác định được kết nối.",
           },
-          requiresEvidence: ['terminal-log'],
+          requiresEvidence: ["terminal-log"],
         },
         {
-          label: { en: 'Planned meeting', vi: 'Cuộc hẹn đã lên kế hoạch' },
+          label: { en: "Planned meeting", vi: "Cuộc hẹn đã lên kế hoạch" },
           value: {
-            en: 'Alex agreed to meet an unknown sender alone at parking level B2.',
-            vi: 'Alex đồng ý gặp riêng một người gửi chưa xác định tại tầng B2 của bãi đỗ xe.',
+            en: "Alex agreed to meet an unknown sender alone at parking level B2.",
+            vi: "Alex đồng ý gặp riêng một người gửi chưa xác định tại tầng B2 của bãi đỗ xe.",
           },
-          requiresEvidence: ['sent-message'],
+          requiresEvidence: ["sent-message"],
         },
       ],
     },
     {
-      id: 'marcus-reed',
-      name: 'Marcus Reed',
-      role: { en: 'Person of interest', vi: 'Đối tượng cần điều tra' },
+      id: "marcus-reed",
+      name: "Marcus Reed",
+      role: { en: "Person of interest", vi: "Đối tượng cần điều tra" },
       summary: {
-        en: 'An internal user who had requested access to the Nightfall project.',
-        vi: 'Một người dùng nội bộ từng yêu cầu quyền truy cập dự án Nightfall.',
+        en: "An internal user who had requested access to the Nightfall project.",
+        vi: "Một người dùng nội bộ từng yêu cầu quyền truy cập dự án Nightfall.",
       },
-      requiresEvidence: ['project-document'],
+      requiresEvidence: ["project-document"],
       details: [
         {
-          label: { en: 'Project access', vi: 'Quyền truy cập dự án' },
+          label: { en: "Project access", vi: "Quyền truy cập dự án" },
           value: {
-            en: 'Marcus requested the Nightfall documentation, but Alex refused.',
-            vi: 'Marcus yêu cầu tài liệu Nightfall nhưng Alex đã từ chối.',
+            en: "Marcus requested the Nightfall documentation, but Alex refused.",
+            vi: "Marcus yêu cầu tài liệu Nightfall nhưng Alex đã từ chối.",
           },
-          requiresEvidence: ['project-document'],
+          requiresEvidence: ["project-document"],
         },
         {
-          label: { en: 'Recovered identity', vi: 'Danh tính được khôi phục' },
+          label: { en: "Recovered identity", vi: "Danh tính được khôi phục" },
           value: {
-            en: 'Partially decrypted USB data resolves to the name Marcus Reed.',
-            vi: 'Dữ liệu USB được giải mã một phần cho ra tên Marcus Reed.',
+            en: "Partially decrypted USB data resolves to the name Marcus Reed.",
+            vi: "Dữ liệu USB được giải mã một phần cho ra tên Marcus Reed.",
           },
-          requiresEvidence: ['encrypted-meeting'],
+          requiresEvidence: ["encrypted-meeting"],
         },
       ],
     },
@@ -137,15 +133,15 @@ export const case001: Scenario = {
 
   filesystem: [
     {
-      type: 'directory',
+      type: "directory",
 
-      name: 'logs',
+      name: "logs",
 
       children: [
         {
-          type: 'file',
+          type: "file",
 
-          name: 'system.log',
+          name: "system.log",
 
           content: {
             en: `[23:41:02] USER LOGIN: alex
@@ -167,9 +163,9 @@ export const case001: Scenario = {
         },
 
         {
-          type: 'file',
+          type: "file",
 
-          name: 'access.log',
+          name: "access.log",
 
           content: {
             en: `[23:38:11] OFFICE DOOR OPENED
@@ -185,9 +181,9 @@ export const case001: Scenario = {
         },
 
         {
-          type: 'file',
+          type: "file",
 
-          name: 'network.log',
+          name: "network.log",
 
           content: {
             en: `[23:46:21] OUTBOUND CONNECTION
@@ -211,15 +207,15 @@ PORT: 443
     },
 
     {
-      type: 'directory',
+      type: "directory",
 
-      name: 'documents',
+      name: "documents",
 
       children: [
         {
-          type: 'file',
+          type: "file",
 
-          name: 'project.txt',
+          name: "project.txt",
 
           content: {
             en: `PROJECT NIGHTFALL
@@ -253,9 +249,9 @@ Không được tin tưởng các kênh nội bộ.`,
         },
 
         {
-          type: 'file',
+          type: "file",
 
-          name: 'meeting.enc',
+          name: "meeting.enc",
 
           content: {
             en: `ENCRYPTED DATA
@@ -283,9 +279,9 @@ GIẢI MÃ MỘT PHẦN`,
         },
 
         {
-          type: 'file',
+          type: "file",
 
-          name: 'notes.txt',
+          name: "notes.txt",
 
           content: {
             en: `NOTES
@@ -311,15 +307,15 @@ Alex đã từ chối.`,
     },
 
     {
-      type: 'directory',
+      type: "directory",
 
-      name: 'emails',
+      name: "emails",
 
       children: [
         {
-          type: 'file',
+          type: "file",
 
-          name: 'inbox.txt',
+          name: "inbox.txt",
 
           content: {
             en: `INBOX
@@ -401,9 +397,9 @@ Nightfall vào ngày mai.`,
         },
 
         {
-          type: 'file',
+          type: "file",
 
-          name: 'sent.txt',
+          name: "sent.txt",
 
           content: {
             en: `SENT
@@ -439,15 +435,15 @@ Tôi sẽ đến đó.`,
     },
 
     {
-      type: 'directory',
+      type: "directory",
 
-      name: 'usb',
+      name: "usb",
 
       children: [
         {
-          type: 'file',
+          type: "file",
 
-          name: 'device.txt',
+          name: "device.txt",
 
           content: {
             en: `USB DEVICE REPORT
@@ -487,9 +483,9 @@ Trạng thái:
         },
 
         {
-          type: 'file',
+          type: "file",
 
-          name: 'files.txt',
+          name: "files.txt",
 
           content: {
             en: `USB CONTENT
@@ -513,15 +509,15 @@ THỜI GIAN SAO CHÉP:
     },
 
     {
-      type: 'directory',
+      type: "directory",
 
-      name: 'camera',
+      name: "camera",
 
       children: [
         {
-          type: 'file',
+          type: "file",
 
-          name: 'parking.txt',
+          name: "parking.txt",
 
           content: {
             en: `CAMERA FOOTAGE
@@ -565,9 +561,9 @@ KHÔNG KHẢ DỤNG`,
         },
 
         {
-          type: 'file',
+          type: "file",
 
-          name: 'office.txt',
+          name: "office.txt",
 
           content: {
             en: `OFFICE CAMERA
@@ -603,15 +599,15 @@ Phiên làm việc của Alex bị khóa.`,
     },
 
     {
-      type: 'directory',
+      type: "directory",
 
-      name: 'parking',
+      name: "parking",
 
       children: [
         {
-          type: 'file',
+          type: "file",
 
-          name: 'access.log',
+          name: "access.log",
 
           content: {
             en: `PARKING ACCESS LOG
@@ -651,15 +647,15 @@ TRẠNG THÁI:
     },
 
     {
-      type: 'directory',
+      type: "directory",
 
-      name: 'system',
+      name: "system",
 
       children: [
         {
-          type: 'file',
+          type: "file",
 
-          name: 'users.txt',
+          name: "users.txt",
 
           content: {
             en: `SYSTEM USERS
@@ -679,9 +675,9 @@ guest`,
         },
 
         {
-          type: 'file',
+          type: "file",
 
-          name: 'hostname.txt',
+          name: "hostname.txt",
 
           content: {
             en: `HOSTNAME
@@ -705,47 +701,115 @@ ALEX-WORKSTATION-01`,
 
   evidence: [
     {
-      id: 'terminal-log',
+      id: "terminal-log",
 
       title: {
-        en: 'Terminal Activity Log',
-        vi: 'Nhật ký hoạt động Terminal',
+        en: "Terminal Activity Log",
+        vi: "Nhật ký hoạt động Terminal",
       },
 
       description: {
-        en:
-          'The system log shows that an unknown USB device was mounted shortly before Alex disappeared.',
+        en: "The system log shows that an unknown USB device was mounted shortly before Alex disappeared.",
 
-        vi:
-          'Nhật ký hệ thống cho thấy một thiết bị USB không xác định đã được kết nối ngay trước khi Alex biến mất.',
+        vi: "Nhật ký hệ thống cho thấy một thiết bị USB không xác định đã được kết nối ngay trước khi Alex biến mất.",
       },
 
-      type: 'digital',
+      type: "digital",
 
       hint: {
-        en:
-          'Something unusual happened shortly before the workstation was locked. Look for system activity.',
+        en: "Something unusual happened shortly before the workstation was locked. Look for system activity.",
 
-        vi:
-          'Có điều bất thường xảy ra ngay trước khi máy tính bị khóa. Hãy kiểm tra hoạt động hệ thống.',
+        vi: "Có điều bất thường xảy ra ngay trước khi máy tính bị khóa. Hãy kiểm tra hoạt động hệ thống.",
       },
 
       discover: {
-        type: 'cat',
-        path: '/logs/system.log',
+        type: "cat",
+        path: "/logs/system.log",
+      },
+
+      highlight: {
+        en: ["USB DEVICE CONNECTED", "UNKNOWN-USB", "FILE COPIED"],
+
+        vi: ["USB DEVICE CONNECTED", "UNKNOWN-USB", "FILE COPIED"],
+      },
+
+      discovered: false,
+    },
+
+    {
+      id: "access-log",
+
+      title: {
+        en: "Office Access Log",
+        vi: "Nhật ký ra vào văn phòng",
+      },
+
+      description: {
+        en: "The office door was opened several times around the disappearance.",
+
+        vi: "Cửa văn phòng được mở nhiều lần xung quanh thời điểm Alex biến mất.",
+      },
+
+      type: "digital",
+
+      hint: {
+        en: "Someone physically entered the office around the time of the incident. Investigate access records.",
+
+        vi: "Có người đã trực tiếp vào văn phòng vào thời điểm xảy ra vụ việc. Hãy kiểm tra nhật ký ra vào.",
+      },
+
+      discover: {
+        type: "cat",
+        path: "/logs/access.log",
+      },
+
+      highlight: {
+        en: ["23:49:58", "OFFICE DOOR OPENED"],
+
+        vi: ["23:49:58", "OFFICE DOOR OPENED"],
+      },
+
+      discovered: false,
+    },
+
+    {
+      id: "project-document",
+
+      title: {
+        en: "Nightfall Project Document",
+        vi: "Tài liệu dự án Nightfall",
+      },
+
+      description: {
+        en: "The document mentions a meeting at parking level B2 and warns Alex not to trust internal channels.",
+
+        vi: "Tài liệu đề cập đến một cuộc gặp tại bãi đỗ xe tầng B2 và cảnh báo Alex không được tin tưởng các kênh nội bộ.",
+      },
+
+      type: "document",
+
+      hint: {
+        en: "There may be a project document containing information about the meeting.",
+
+        vi: "Có thể có một tài liệu dự án chứa thông tin về cuộc gặp.",
+      },
+
+      discover: {
+        type: "cat",
+        path: "/documents/project.txt",
       },
 
       highlight: {
         en: [
-          'USB DEVICE CONNECTED',
-          'UNKNOWN-USB',
-          'FILE COPIED',
+          "Transfer protocol",
+          "Parking level B2",
+          "Do not trust internal channels",
         ],
 
         vi: [
-          'USB DEVICE CONNECTED',
-          'UNKNOWN-USB',
-          'FILE COPIED',
+          "Giao thức chuyển giao",
+          "Bãi đỗ xe tầng B2",
+          "Không được tin tưởng các kênh nội bộ",
         ],
       },
 
@@ -753,45 +817,43 @@ ALEX-WORKSTATION-01`,
     },
 
     {
-      id: 'access-log',
+      id: "suspicious-email",
 
       title: {
-        en: 'Office Access Log',
-        vi: 'Nhật ký ra vào văn phòng',
+        en: "Suspicious Email",
+        vi: "Email đáng ngờ",
       },
 
       description: {
-        en:
-          'The office door was opened several times around the disappearance.',
+        en: "An unknown sender instructed Alex to meet at parking level B2 and come alone.",
 
-        vi:
-          'Cửa văn phòng được mở nhiều lần xung quanh thời điểm Alex biến mất.',
+        vi: "Một người gửi không xác định yêu cầu Alex gặp tại bãi đỗ xe tầng B2 và đi một mình.",
       },
 
-      type: 'digital',
+      type: "document",
 
       hint: {
-        en:
-          'Someone physically entered the office around the time of the incident. Investigate access records.',
+        en: "Someone contacted Alex shortly before the incident. Investigate the email records.",
 
-        vi:
-          'Có người đã trực tiếp vào văn phòng vào thời điểm xảy ra vụ việc. Hãy kiểm tra nhật ký ra vào.',
+        vi: "Có người đã liên lạc với Alex ngay trước vụ việc. Hãy kiểm tra nhật ký email.",
       },
 
       discover: {
-        type: 'cat',
-        path: '/logs/access.log',
+        type: "cat",
+        path: "/emails/inbox.txt",
       },
 
       highlight: {
         en: [
-          '23:49:58',
-          'OFFICE DOOR OPENED',
+          "unknown@secure-mail.local",
+          "Meet me at parking B2.",
+          "Come alone.",
         ],
 
         vi: [
-          '23:49:58',
-          'OFFICE DOOR OPENED',
+          "unknown@secure-mail.local",
+          "Gặp tôi tại bãi đỗ xe B2.",
+          "Hãy đi một mình.",
         ],
       },
 
@@ -799,389 +861,232 @@ ALEX-WORKSTATION-01`,
     },
 
     {
-      id: 'project-document',
+      id: "sent-message",
 
       title: {
-        en: 'Nightfall Project Document',
-        vi: 'Tài liệu dự án Nightfall',
+        en: "Alex Sent a Reply",
+        vi: "Alex đã gửi phản hồi",
       },
 
       description: {
-        en:
-          'The document mentions a meeting at parking level B2 and warns Alex not to trust internal channels.',
+        en: "Alex replied to the unknown sender and agreed to meet.",
 
-        vi:
-          'Tài liệu đề cập đến một cuộc gặp tại bãi đỗ xe tầng B2 và cảnh báo Alex không được tin tưởng các kênh nội bộ.',
+        vi: "Alex đã trả lời người gửi không xác định và đồng ý gặp mặt.",
       },
 
-      type: 'document',
+      type: "document",
 
       hint: {
-        en:
-          'There may be a project document containing information about the meeting.',
+        en: "The incoming message may not be the whole story. Look for outgoing communication.",
 
-        vi:
-          'Có thể có một tài liệu dự án chứa thông tin về cuộc gặp.',
+        vi: "Tin nhắn đến có thể chưa phải toàn bộ câu chuyện. Hãy tìm các liên lạc được gửi đi.",
       },
 
       discover: {
-        type: 'cat',
-        path: '/documents/project.txt',
+        type: "cat",
+        path: "/emails/sent.txt",
+      },
+
+      requiresEvidence: ["suspicious-email"],
+
+      discovered: false,
+    },
+
+    {
+      id: "usb-device",
+
+      title: {
+        en: "Unknown USB Device",
+        vi: "Thiết bị USB không xác định",
+      },
+
+      description: {
+        en: "USB-8841-X was connected at 23:48:01 and removed at 23:50:17.",
+
+        vi: "USB-8841-X được kết nối lúc 23:48:01 và được tháo ra lúc 23:50:17.",
+      },
+
+      type: "digital",
+
+      hint: {
+        en: "The system activity mentioned an external device. Investigate removable media.",
+
+        vi: "Hoạt động hệ thống đề cập đến một thiết bị bên ngoài. Hãy điều tra thiết bị lưu trữ di động.",
+      },
+
+      discover: {
+        type: "cat",
+        path: "/usb/device.txt",
+      },
+
+      highlight: {
+        en: ["UNKNOWN", "USB-8841-X", "23:48:01", "SUSPICIOUS"],
+
+        vi: ["UNKNOWN", "USB-8841-X", "23:48:01", "ĐÁNG NGỜ"],
+      },
+
+      requiresEvidence: ["terminal-log"],
+
+      discovered: false,
+    },
+
+    {
+      id: "usb-files",
+
+      title: {
+        en: "Copied Project Files",
+        vi: "Các tệp dự án đã sao chép",
+      },
+
+      description: {
+        en: "The USB contained copies of project.txt and meeting.enc.",
+
+        vi: "USB chứa các bản sao của project.txt và meeting.enc.",
+      },
+
+      type: "digital",
+
+      hint: {
+        en: "The suspicious USB may reveal what was copied from the workstation.",
+
+        vi: "Chiếc USB đáng ngờ có thể cho biết những gì đã được sao chép khỏi máy tính.",
+      },
+
+      discover: {
+        type: "cat",
+        path: "/usb/files.txt",
+      },
+
+      requiresEvidence: ["usb-device"],
+
+      discovered: false,
+    },
+
+    {
+      id: "encrypted-meeting",
+
+      title: {
+        en: "Encrypted Meeting File",
+        vi: "Tệp cuộc gặp được mã hóa",
+      },
+
+      description: {
+        en: "The encrypted data contains the name MARCUS REED.",
+
+        vi: "Dữ liệu được mã hóa chứa tên MARCUS REED.",
+      },
+
+      type: "document",
+
+      hint: {
+        en: "A suspicious encrypted document may connect the project to a person.",
+
+        vi: "Một tài liệu được mã hóa đáng ngờ có thể liên kết dự án với một người cụ thể.",
+      },
+
+      discover: {
+        type: "cat",
+        path: "/documents/meeting.enc",
+      },
+
+      requiresEvidence: ["project-document", "usb-files"],
+
+      highlight: {
+        en: ["4D 41 52 43 55 53", "52 45 45 44", "MARCUS REED"],
+
+        vi: ["4D 41 52 43 55 53", "52 45 45 44", "MARCUS REED"],
+      },
+
+      discovered: false,
+    },
+
+    {
+      id: "camera-footage",
+
+      title: {
+        en: "Security Camera Footage",
+        vi: "Hình ảnh camera an ninh",
+      },
+
+      description: {
+        en: "Camera footage shows an unknown person entering the office and leaving toward parking level B2.",
+
+        vi: "Camera cho thấy một người không xác định bước vào văn phòng và rời đi về phía bãi đỗ xe tầng B2.",
+      },
+
+      type: "photo",
+
+      hint: {
+        en: "Someone entered the office and later moved toward parking B2. Check the surveillance records.",
+
+        vi: "Có người bước vào văn phòng rồi di chuyển về phía bãi đỗ xe B2. Hãy kiểm tra camera giám sát.",
+      },
+
+      discover: {
+        type: "cat",
+        path: "/camera/parking.txt",
       },
 
       highlight: {
         en: [
-          'Transfer protocol',
-          'Parking level B2',
-          'Do not trust internal channels',
+          "23:43",
+          "A person wearing a dark hoodie",
+          "parking level B2",
+          "Camera service stopped",
         ],
 
         vi: [
-          'Giao thức chuyển giao',
-          'Bãi đỗ xe tầng B2',
-          'Không được tin tưởng các kênh nội bộ',
+          "23:43",
+          "Một người mặc áo hoodie tối màu",
+          "bãi đỗ xe tầng B2",
+          "Dịch vụ camera bị dừng",
         ],
       },
+
+      requiresEvidence: ["access-log"],
 
       discovered: false,
     },
 
     {
-      id: 'suspicious-email',
+      id: "parking-trace",
 
       title: {
-        en: 'Suspicious Email',
-        vi: 'Email đáng ngờ',
+        en: "Parking Access Trace",
+        vi: "Dấu vết ra vào bãi đỗ xe",
       },
 
       description: {
-        en:
-          'An unknown sender instructed Alex to meet at parking level B2 and come alone.',
+        en: "Parking card MR-8841 belongs to Marcus Reed.",
 
-        vi:
-          'Một người gửi không xác định yêu cầu Alex gặp tại bãi đỗ xe tầng B2 và đi một mình.',
+        vi: "Thẻ ra vào bãi đỗ xe MR-8841 thuộc về Marcus Reed.",
       },
 
-      type: 'document',
+      type: "object",
 
       hint: {
-        en:
-          'Someone contacted Alex shortly before the incident. Investigate the email records.',
+        en: "The camera trail leads toward parking level B2. Investigate the parking access records.",
 
-        vi:
-          'Có người đã liên lạc với Alex ngay trước vụ việc. Hãy kiểm tra nhật ký email.',
+        vi: "Dấu vết từ camera dẫn đến bãi đỗ xe tầng B2. Hãy kiểm tra nhật ký ra vào bãi đỗ xe.",
       },
 
       discover: {
-        type: 'cat',
-        path: '/emails/inbox.txt',
+        type: "cat",
+        path: "/parking/access.log",
       },
 
       highlight: {
-        en: [
-          'unknown@secure-mail.local',
-          'Meet me at parking B2.',
-          'Come alone.',
-        ],
+        en: ["MR-8841", "Marcus Reed", "Parking Level B2", "MATCH CONFIRMED"],
 
         vi: [
-          'unknown@secure-mail.local',
-          'Gặp tôi tại bãi đỗ xe B2.',
-          'Hãy đi một mình.',
+          "MR-8841",
+          "Marcus Reed",
+          "Bãi đỗ xe tầng B2",
+          "ĐÃ XÁC NHẬN TRÙNG KHỚP",
         ],
       },
 
-      discovered: false,
-    },
-
-    {
-      id: 'sent-message',
-
-      title: {
-        en: 'Alex Sent a Reply',
-        vi: 'Alex đã gửi phản hồi',
-      },
-
-      description: {
-        en:
-          'Alex replied to the unknown sender and agreed to meet.',
-
-        vi:
-          'Alex đã trả lời người gửi không xác định và đồng ý gặp mặt.',
-      },
-
-      type: 'document',
-
-      hint: {
-        en:
-          'The incoming message may not be the whole story. Look for outgoing communication.',
-
-        vi:
-          'Tin nhắn đến có thể chưa phải toàn bộ câu chuyện. Hãy tìm các liên lạc được gửi đi.',
-      },
-
-      discover: {
-        type: 'cat',
-        path: '/emails/sent.txt',
-      },
-
-      requiresEvidence: [
-        'suspicious-email',
-      ],
-
-      discovered: false,
-    },
-
-    {
-      id: 'usb-device',
-
-      title: {
-        en: 'Unknown USB Device',
-        vi: 'Thiết bị USB không xác định',
-      },
-
-      description: {
-        en:
-          'USB-8841-X was connected at 23:48:01 and removed at 23:50:17.',
-
-        vi:
-          'USB-8841-X được kết nối lúc 23:48:01 và được tháo ra lúc 23:50:17.',
-      },
-
-      type: 'digital',
-
-      hint: {
-        en:
-          'The system activity mentioned an external device. Investigate removable media.',
-
-        vi:
-          'Hoạt động hệ thống đề cập đến một thiết bị bên ngoài. Hãy điều tra thiết bị lưu trữ di động.',
-      },
-
-      discover: {
-        type: 'cat',
-        path: '/usb/device.txt',
-      },
-
-      highlight: {
-        en: [
-          'UNKNOWN',
-          'USB-8841-X',
-          '23:48:01',
-          'SUSPICIOUS',
-        ],
-
-        vi: [
-          'UNKNOWN',
-          'USB-8841-X',
-          '23:48:01',
-          'ĐÁNG NGỜ',
-        ],
-      },
-
-      requiresEvidence: [
-        'terminal-log',
-      ],
-
-      discovered: false,
-    },
-
-    {
-      id: 'usb-files',
-
-      title: {
-        en: 'Copied Project Files',
-        vi: 'Các tệp dự án đã sao chép',
-      },
-
-      description: {
-        en:
-          'The USB contained copies of project.txt and meeting.enc.',
-
-        vi:
-          'USB chứa các bản sao của project.txt và meeting.enc.',
-      },
-
-      type: 'digital',
-
-      hint: {
-        en:
-          'The suspicious USB may reveal what was copied from the workstation.',
-
-        vi:
-          'Chiếc USB đáng ngờ có thể cho biết những gì đã được sao chép khỏi máy tính.',
-      },
-
-      discover: {
-        type: 'cat',
-        path: '/usb/files.txt',
-      },
-
-      requiresEvidence: [
-        'usb-device',
-      ],
-
-      discovered: false,
-    },
-
-    {
-      id: 'encrypted-meeting',
-
-      title: {
-        en: 'Encrypted Meeting File',
-        vi: 'Tệp cuộc gặp được mã hóa',
-      },
-
-      description: {
-        en:
-          'The encrypted data contains the name MARCUS REED.',
-
-        vi:
-          'Dữ liệu được mã hóa chứa tên MARCUS REED.',
-      },
-
-      type: 'document',
-
-      hint: {
-        en:
-          'A suspicious encrypted document may connect the project to a person.',
-
-        vi:
-          'Một tài liệu được mã hóa đáng ngờ có thể liên kết dự án với một người cụ thể.',
-      },
-
-      discover: {
-        type: 'cat',
-        path: '/documents/meeting.enc',
-      },
-
-      requiresEvidence: [
-        'project-document',
-        'usb-files',
-      ],
-
-      highlight: {
-        en: [
-          '4D 41 52 43 55 53',
-          '52 45 45 44',
-          'MARCUS REED',
-        ],
-
-        vi: [
-          '4D 41 52 43 55 53',
-          '52 45 45 44',
-          'MARCUS REED',
-        ],
-      },
-
-      discovered: false,
-    },
-
-    {
-      id: 'camera-footage',
-
-      title: {
-        en: 'Security Camera Footage',
-        vi: 'Hình ảnh camera an ninh',
-      },
-
-      description: {
-        en:
-          'Camera footage shows an unknown person entering the office and leaving toward parking level B2.',
-
-        vi:
-          'Camera cho thấy một người không xác định bước vào văn phòng và rời đi về phía bãi đỗ xe tầng B2.',
-      },
-
-      type: 'photo',
-
-      hint: {
-        en:
-          'Someone entered the office and later moved toward parking B2. Check the surveillance records.',
-
-        vi:
-          'Có người bước vào văn phòng rồi di chuyển về phía bãi đỗ xe B2. Hãy kiểm tra camera giám sát.',
-      },
-
-      discover: {
-        type: 'cat',
-        path: '/camera/parking.txt',
-      },
-
-      highlight: {
-        en: [
-          '23:43',
-          'A person wearing a dark hoodie',
-          'parking level B2',
-          'Camera service stopped',
-        ],
-
-        vi: [
-          '23:43',
-          'Một người mặc áo hoodie tối màu',
-          'bãi đỗ xe tầng B2',
-          'Dịch vụ camera bị dừng',
-        ],
-      },
-
-      requiresEvidence: [
-        'access-log',
-      ],
-
-      discovered: false,
-    },
-
-    {
-      id: 'parking-trace',
-
-      title: {
-        en: 'Parking Access Trace',
-        vi: 'Dấu vết ra vào bãi đỗ xe',
-      },
-
-      description: {
-        en:
-          'Parking card MR-8841 belongs to Marcus Reed.',
-
-        vi:
-          'Thẻ ra vào bãi đỗ xe MR-8841 thuộc về Marcus Reed.',
-      },
-
-      type: 'object',
-
-      hint: {
-        en:
-          'The camera trail leads toward parking level B2. Investigate the parking access records.',
-
-        vi:
-          'Dấu vết từ camera dẫn đến bãi đỗ xe tầng B2. Hãy kiểm tra nhật ký ra vào bãi đỗ xe.',
-      },
-
-      discover: {
-        type: 'cat',
-        path: '/parking/access.log',
-      },
-
-      highlight: {
-        en: [
-          'MR-8841',
-          'Marcus Reed',
-          'Parking Level B2',
-          'MATCH CONFIRMED',
-        ],
-
-        vi: [
-          'MR-8841',
-          'Marcus Reed',
-          'Bãi đỗ xe tầng B2',
-          'ĐÃ XÁC NHẬN TRÙNG KHỚP',
-        ],
-      },
-
-      requiresEvidence: [
-        'camera-footage',
-        'encrypted-meeting',
-      ],
+      requiresEvidence: ["camera-footage", "encrypted-meeting"],
 
       discovered: false,
     },
@@ -1195,100 +1100,83 @@ ALEX-WORKSTATION-01`,
 
   tasks: [
     {
-      id: 'inspect-terminal',
+      id: "inspect-terminal",
 
       title: {
-        en: 'Inspect terminal activity',
-        vi: 'Kiểm tra hoạt động terminal',
+        en: "Inspect terminal activity",
+        vi: "Kiểm tra hoạt động terminal",
       },
 
       description: {
-        en:
-          'Determine what happened shortly before the workstation was locked.',
+        en: "Determine what happened shortly before the workstation was locked.",
 
-        vi:
-          'Xác định điều gì đã xảy ra ngay trước khi máy tính bị khóa.',
+        vi: "Xác định điều gì đã xảy ra ngay trước khi máy tính bị khóa.",
       },
 
-      requiresEvidence: [
-        'terminal-log',
-      ],
+      requiresEvidence: ["terminal-log"],
 
       completed: false,
     },
 
     {
-      id: 'investigate-communication',
+      id: "investigate-communication",
 
       title: {
-        en: 'Investigate communication',
-        vi: 'Điều tra liên lạc',
+        en: "Investigate communication",
+        vi: "Điều tra liên lạc",
       },
 
       description: {
-        en:
-          'Find out whether Alex was contacted before disappearing.',
+        en: "Find out whether Alex was contacted before disappearing.",
 
-        vi:
-          'Tìm hiểu xem Alex có nhận được liên lạc trước khi biến mất hay không.',
+        vi: "Tìm hiểu xem Alex có nhận được liên lạc trước khi biến mất hay không.",
       },
 
-      requiresEvidence: [
-        'suspicious-email',
-        'sent-message',
-      ],
+      requiresEvidence: ["suspicious-email", "sent-message"],
 
       completed: false,
     },
 
     {
-      id: 'investigate-usb',
+      id: "investigate-usb",
 
       title: {
-        en: 'Investigate the USB device',
-        vi: 'Điều tra thiết bị USB',
+        en: "Investigate the USB device",
+        vi: "Điều tra thiết bị USB",
       },
 
       description: {
-        en:
-          'Determine what external device was connected and what it contained.',
+        en: "Determine what external device was connected and what it contained.",
 
-        vi:
-          'Xác định thiết bị bên ngoài nào đã được kết nối và nó chứa những gì.',
+        vi: "Xác định thiết bị bên ngoài nào đã được kết nối và nó chứa những gì.",
       },
 
-      requiresEvidence: [
-        'terminal-log',
-        'usb-device',
-        'usb-files',
-      ],
+      requiresEvidence: ["terminal-log", "usb-device", "usb-files"],
 
       completed: false,
     },
 
     {
-      id: 'identify-suspect',
+      id: "identify-suspect",
 
       title: {
-        en: 'Identify the suspect',
-        vi: 'Xác định nghi phạm',
+        en: "Identify the suspect",
+        vi: "Xác định nghi phạm",
       },
 
       description: {
-        en:
-          'Connect the digital, physical and parking evidence to a suspect.',
+        en: "Connect the digital, physical and parking evidence to a suspect.",
 
-        vi:
-          'Liên kết các bằng chứng kỹ thuật số, vật lý và bãi đỗ xe với một nghi phạm.',
+        vi: "Liên kết các bằng chứng kỹ thuật số, vật lý và bãi đỗ xe với một nghi phạm.",
       },
 
       requiresEvidence: [
-        'encrypted-meeting',
-        'camera-footage',
-        'parking-trace',
+        "encrypted-meeting",
+        "camera-footage",
+        "parking-trace",
       ],
 
       completed: false,
     },
   ],
-}
+};

@@ -25,13 +25,7 @@
  * Vue sẽ tự tính vị trí cũ -> vị trí mới.
  */
 .array-move {
-  transition:
-    transform 320ms cubic-bezier(
-      0.22,
-      1,
-      0.36,
-      1
-    );
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* =========================================================
@@ -45,15 +39,9 @@
 
   overflow: hidden;
 
-  border-radius:
-    12px
-    12px
-    0
-    0;
+  border-radius: 12px 12px 0 0;
 
-  transform-origin:
-    bottom
-    center;
+  transform-origin: bottom center;
 
   transition:
     height 220ms ease,
@@ -61,10 +49,7 @@
     box-shadow 180ms ease,
     filter 180ms ease;
 
-  will-change:
-    height,
-    background,
-    box-shadow;
+  will-change: height, background, box-shadow;
 }
 
 /* =========================================================
@@ -72,16 +57,9 @@
 ========================================================= */
 
 .bar-default {
-  background:
-    linear-gradient(
-      180deg,
-      #475569 0%,
-      #1e293b 100%
-    );
+  background: linear-gradient(180deg, #475569 0%, #1e293b 100%);
 
-  box-shadow:
-    0 8px 24px
-    rgba(15, 23, 42, 0.2);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
 }
 
 /* =========================================================
@@ -89,16 +67,9 @@
 ========================================================= */
 
 .bar-sorted {
-  background:
-    linear-gradient(
-      180deg,
-      #34d399 0%,
-      #047857 100%
-    );
+  background: linear-gradient(180deg, #34d399 0%, #047857 100%);
 
-  box-shadow:
-    0 10px 28px
-    rgba(16, 185, 129, 0.24);
+  box-shadow: 0 10px 28px rgba(16, 185, 129, 0.24);
 }
 
 /* =========================================================
@@ -106,19 +77,11 @@
 ========================================================= */
 
 .bar-current {
-  background:
-    linear-gradient(
-      180deg,
-      #a78bfa 0%,
-      #6d28d9 100%
-    );
+  background: linear-gradient(180deg, #a78bfa 0%, #6d28d9 100%);
 
-  box-shadow:
-    0 12px 32px
-    rgba(139, 92, 246, 0.42);
+  box-shadow: 0 12px 32px rgba(139, 92, 246, 0.42);
 
-  filter:
-    brightness(1.08);
+  filter: brightness(1.08);
 }
 
 /* =========================================================
@@ -126,19 +89,11 @@
 ========================================================= */
 
 .bar-comparing {
-  background:
-    linear-gradient(
-      180deg,
-      #60a5fa 0%,
-      #1d4ed8 100%
-    );
+  background: linear-gradient(180deg, #60a5fa 0%, #1d4ed8 100%);
 
-  box-shadow:
-    0 12px 32px
-    rgba(59, 130, 246, 0.38);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.38);
 
-  filter:
-    brightness(1.08);
+  filter: brightness(1.08);
 }
 
 /* =========================================================
@@ -146,19 +101,11 @@
 ========================================================= */
 
 .bar-moving {
-  background:
-    linear-gradient(
-      180deg,
-      #fbbf24 0%,
-      #b45309 100%
-    );
+  background: linear-gradient(180deg, #fbbf24 0%, #b45309 100%);
 
-  box-shadow:
-    0 12px 32px
-    rgba(245, 158, 11, 0.42);
+  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.42);
 
-  filter:
-    brightness(1.1);
+  filter: brightness(1.1);
 }
 
 /* =========================================================
@@ -166,8 +113,7 @@
 ========================================================= */
 
 .value-glow {
-  text-shadow:
-    0 0 12px currentColor;
+  text-shadow: 0 0 12px currentColor;
 }
 
 /* =========================================================
@@ -175,7 +121,7 @@
 ========================================================= */
 
 .bar::before {
-  content: '';
+  content: "";
 
   position: absolute;
 
@@ -185,8 +131,7 @@
 
   height: 1px;
 
-  background:
-    rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.42);
 }
 
 /* =========================================================

@@ -13,9 +13,13 @@
   border: 1px solid rgb(245 158 11 / 26%);
   border-radius: 20px;
   padding: 28px 30px 26px;
-  background: radial-gradient(circle at 50% 0, rgb(180 83 9 / 17%), transparent 52%), rgb(15 13 11 / 95%);
+  background:
+    radial-gradient(circle at 50% 0, rgb(180 83 9 / 17%), transparent 52%),
+    rgb(15 13 11 / 95%);
   text-align: center;
-  box-shadow: 0 28px 70px rgb(0 0 0 / 48%), inset 0 1px rgb(255 255 255 / 4%);
+  box-shadow:
+    0 28px 70px rgb(0 0 0 / 48%),
+    inset 0 1px rgb(255 255 255 / 4%);
 }
 
 .board-waiting-card::before {

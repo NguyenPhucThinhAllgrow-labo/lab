@@ -9,16 +9,16 @@ Evidence được tìm thấy chưa tự động hoàn thành nhiệm vụ. Sau 
 Các Evidence cần nối cho từng task trong lượt giải chuẩn:
 
 | Task | Evidence cần đối chiếu |
-| --- | --- |
-| 1 | Evidence 01, 02 |
-| 2 | Evidence 03, 04 |
-| 3 | Evidence 07, 08, 09 |
-| 4 | Evidence 11, 12, 13 |
-| 5 | Evidence 16, 17, 18 |
-| 6 | Evidence 18, 19 |
-| 7 | Evidence 20, 21, 22 |
-| 8 | Evidence 24, 25 |
-| 9 | Evidence 14, 26 |
+| ---- | ---------------------- |
+| 1    | Evidence 01, 02        |
+| 2    | Evidence 03, 04        |
+| 3    | Evidence 07, 08, 09    |
+| 4    | Evidence 11, 12, 13    |
+| 5    | Evidence 16, 17, 18    |
+| 6    | Evidence 18, 19        |
+| 7    | Evidence 20, 21, 22    |
+| 8    | Evidence 24, 25        |
+| 9    | Evidence 14, 26        |
 
 Nếu muốn chơi lại từ đầu, nhấn **Reset game** và xác nhận xóa tiến trình hiện tại.
 

@@ -2,15 +2,11 @@ import type {
   ChineseChessPiece,
   PieceColor,
   Position,
-} from '~/types/games/chinese-chess'
+} from "~/types/games/chinese-chess";
 
-import {
-  getPseudoLegalMoves,
-} from '~/utils/chinese-chess/move'
+import { getPseudoLegalMoves } from "~/utils/chinese-chess/move";
 
-import {
-  movePiece,
-} from '~/utils/chinese-chess/game'
+import { movePiece } from "~/utils/chinese-chess/game";
 
 /**
  * ==========================================
@@ -23,10 +19,8 @@ function findGeneral(
   color: PieceColor,
 ): ChineseChessPiece | undefined {
   return board.find(
-    piece =>
-      piece.type === 'general' &&
-      piece.color === color,
-  )
+    (piece) => piece.type === "general" && piece.color === color,
+  );
 }
 
 /**
@@ -40,11 +34,7 @@ function getPieceAt(
   row: number,
   col: number,
 ): ChineseChessPiece | undefined {
-  return board.find(
-    piece =>
-      piece.row === row &&
-      piece.col === col,
-  )
+  return board.find((piece) => piece.row === row && piece.col === col);
 }
 
 /**
@@ -59,26 +49,13 @@ function getPieceAt(
  * mà không có quân nào ở giữa.
  */
 
-function areGeneralsFacing(
-  board: ChineseChessPiece[],
-): boolean {
-  const redGeneral =
-    findGeneral(
-      board,
-      'red',
-    )
+function areGeneralsFacing(board: ChineseChessPiece[]): boolean {
+  const redGeneral = findGeneral(board, "red");
 
-  const blackGeneral =
-    findGeneral(
-      board,
-      'black',
-    )
+  const blackGeneral = findGeneral(board, "black");
 
-  if (
-    !redGeneral ||
-    !blackGeneral
-  ) {
-    return false
+  if (!redGeneral || !blackGeneral) {
+    return false;
   }
 
   /**
@@ -86,50 +63,28 @@ function areGeneralsFacing(
    * => không đối mặt.
    */
 
-  if (
-    redGeneral.col !==
-    blackGeneral.col
-  ) {
-    return false
+  if (redGeneral.col !== blackGeneral.col) {
+    return false;
   }
 
-  const col =
-    redGeneral.col
+  const col = redGeneral.col;
 
-  const start =
-    Math.min(
-      redGeneral.row,
-      blackGeneral.row,
-    )
+  const start = Math.min(redGeneral.row, blackGeneral.row);
 
-  const end =
-    Math.max(
-      redGeneral.row,
-      blackGeneral.row,
-    )
+  const end = Math.max(redGeneral.row, blackGeneral.row);
 
   /**
    * Kiểm tra có quân nào
    * nằm giữa hai Tướng không.
    */
 
-  for (
-    let row = start + 1;
-    row < end;
-    row++
-  ) {
-    if (
-      getPieceAt(
-        board,
-        row,
-        col,
-      )
-    ) {
-      return false
+  for (let row = start + 1; row < end; row++) {
+    if (getPieceAt(board, row, col)) {
+      return false;
     }
   }
 
-  return true
+  return true;
 }
 
 /**
@@ -142,11 +97,7 @@ export function isInCheck(
   board: ChineseChessPiece[],
   color: PieceColor,
 ): boolean {
-  const general =
-    findGeneral(
-      board,
-      color,
-    )
+  const general = findGeneral(board, color);
 
   /**
    * Không còn Tướng
@@ -154,7 +105,7 @@ export function isInCheck(
    */
 
   if (!general) {
-    return true
+    return true;
   }
 
   /**
@@ -162,53 +113,34 @@ export function isInCheck(
    * cũng được tính là đang bị chiếu.
    */
 
-  if (
-    areGeneralsFacing(board)
-  ) {
-    return true
+  if (areGeneralsFacing(board)) {
+    return true;
   }
 
   /**
    * Tìm toàn bộ quân địch.
    */
 
-  const enemyPieces =
-    board.filter(
-      piece =>
-        piece.color !== color,
-    )
+  const enemyPieces = board.filter((piece) => piece.color !== color);
 
   /**
    * Kiểm tra từng quân địch
    * có thể ăn Tướng không.
    */
 
-  for (
-    const enemy of enemyPieces
-  ) {
-    const moves =
-      getPseudoLegalMoves(
-        enemy,
-        board,
-      )
+  for (const enemy of enemyPieces) {
+    const moves = getPseudoLegalMoves(enemy, board);
 
-    const attacksGeneral =
-      moves.some(
-        move =>
-          move.row ===
-            general.row &&
-          move.col ===
-            general.col,
-      )
+    const attacksGeneral = moves.some(
+      (move) => move.row === general.row && move.col === general.col,
+    );
 
-    if (
-      attacksGeneral
-    ) {
-      return true
+    if (attacksGeneral) {
+      return true;
     }
   }
 
-  return false
+  return false;
 }
 
 /**
@@ -222,11 +154,7 @@ function tryMove(
   piece: ChineseChessPiece,
   position: Position,
 ): ChineseChessPiece[] {
-  return movePiece(
-    board,
-    piece.id,
-    position,
-  )
+  return movePiece(board, piece.id, position);
 }
 
 /**
@@ -244,50 +172,33 @@ export function isLegalMove(
    * Lấy pseudo legal moves.
    */
 
-  const pseudoMoves =
-    getPseudoLegalMoves(
-      piece,
-      board,
-    )
+  const pseudoMoves = getPseudoLegalMoves(piece, board);
 
   /**
    * Không nằm trong
    * pseudo legal moves.
    */
 
-  const allowed =
-    pseudoMoves.some(
-      move =>
-        move.row ===
-          position.row &&
-        move.col ===
-          position.col,
-    )
+  const allowed = pseudoMoves.some(
+    (move) => move.row === position.row && move.col === position.col,
+  );
 
   if (!allowed) {
-    return false
+    return false;
   }
 
   /**
    * Thử nước đi.
    */
 
-  const nextBoard =
-    tryMove(
-      board,
-      piece,
-      position,
-    )
+  const nextBoard = tryMove(board, piece, position);
 
   /**
    * Sau khi đi,
    * Tướng mình không được chiếu.
    */
 
-  return !isInCheck(
-    nextBoard,
-    piece.color,
-  )
+  return !isInCheck(nextBoard, piece.color);
 }
 
 /**
@@ -300,50 +211,32 @@ export function getLegalMoves(
   board: ChineseChessPiece[],
   color: PieceColor,
 ): {
-  piece: ChineseChessPiece
-  moves: Position[]
+  piece: ChineseChessPiece;
+  moves: Position[];
 }[] {
   const result: {
-    piece: ChineseChessPiece
-    moves: Position[]
-  }[] = []
+    piece: ChineseChessPiece;
+    moves: Position[];
+  }[] = [];
 
-  const pieces =
-    board.filter(
-      piece =>
-        piece.color === color,
-    )
+  const pieces = board.filter((piece) => piece.color === color);
 
-  for (
-    const piece of pieces
-  ) {
-    const pseudoMoves =
-      getPseudoLegalMoves(
-        piece,
-        board,
-      )
+  for (const piece of pieces) {
+    const pseudoMoves = getPseudoLegalMoves(piece, board);
 
-    const legalMoves =
-      pseudoMoves.filter(
-        position =>
-          isLegalMove(
-            board,
-            piece,
-            position,
-          ),
-      )
+    const legalMoves = pseudoMoves.filter((position) =>
+      isLegalMove(board, piece, position),
+    );
 
-    if (
-      legalMoves.length > 0
-    ) {
+    if (legalMoves.length > 0) {
       result.push({
         piece,
         moves: legalMoves,
-      })
+      });
     }
   }
 
-  return result
+  return result;
 }
 
 /**
@@ -366,33 +259,22 @@ export function isCheckmate(
    * => không phải chiếu bí.
    */
 
-  if (
-    !isInCheck(
-      board,
-      color,
-    )
-  ) {
-    return false
+  if (!isInCheck(board, color)) {
+    return false;
   }
 
   /**
    * Tìm nước thoát.
    */
 
-  const legalMoves =
-    getLegalMoves(
-      board,
-      color,
-    )
+  const legalMoves = getLegalMoves(board, color);
 
   /**
    * Không còn nước nào
    * => CHIẾU BÍ.
    */
 
-  return (
-    legalMoves.length === 0
-  )
+  return legalMoves.length === 0;
 }
 
 /**
@@ -410,22 +292,11 @@ export function isStalemate(
    * => không phải stalemate.
    */
 
-  if (
-    isInCheck(
-      board,
-      color,
-    )
-  ) {
-    return false
+  if (isInCheck(board, color)) {
+    return false;
   }
 
-  const legalMoves =
-    getLegalMoves(
-      board,
-      color,
-    )
+  const legalMoves = getLegalMoves(board, color);
 
-  return (
-    legalMoves.length === 0
-  )
+  return legalMoves.length === 0;
 }

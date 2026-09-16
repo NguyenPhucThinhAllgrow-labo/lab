@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ThemeToggle from '~/components/common/ThemeToggle.vue'
+import ThemeToggle from "~/components/common/ThemeToggle.vue";
 import {
   ArrowRight,
   Blocks,
@@ -16,162 +16,173 @@ import {
   Swords,
   X,
   Zap,
-} from 'lucide-vue-next'
-import LogoutConfirmModal from '~/components/auth/LogoutConfirmModal.vue'
+} from "lucide-vue-next";
+import LogoutConfirmModal from "~/components/auth/LogoutConfirmModal.vue";
 
 useHead({
-  title: 'Game Lab — Play, Think, Improve',
-  meta: [{ name: 'description', content: 'Khám phá các game thử thách phản xạ, chiến thuật và tư duy trong Game Lab.' }],
-})
+  title: "Game Lab — Play, Think, Improve",
+  meta: [
+    {
+      name: "description",
+      content:
+        "Khám phá các game thử thách phản xạ, chiến thuật và tư duy trong Game Lab.",
+    },
+  ],
+});
 
-const { user, initialized, fetchUser, login, logout } = useAuth()
-const playerUser = computed(() => user.value?.role === 'user' ? user.value : null)
-const loggingOut = ref(false)
-const logoutError = ref('')
-const logoutConfirmOpen = ref(false)
-const loginModalOpen = ref(false)
-const loginEmail = ref('')
-const loginPassword = ref('')
-const loginLoading = ref(false)
-const loginError = ref('')
-const loginEmailInput = ref<HTMLInputElement | null>(null)
+const { user, initialized, fetchUser, login, logout } = useAuth();
+const playerUser = computed(() =>
+  user.value?.role === "user" ? user.value : null,
+);
+const loggingOut = ref(false);
+const logoutError = ref("");
+const logoutConfirmOpen = ref(false);
+const loginModalOpen = ref(false);
+const loginEmail = ref("");
+const loginPassword = ref("");
+const loginLoading = ref(false);
+const loginError = ref("");
+const loginEmailInput = ref<HTMLInputElement | null>(null);
 
 function openLoginModal() {
-  loginError.value = ''
-  loginModalOpen.value = true
+  loginError.value = "";
+  loginModalOpen.value = true;
 }
 
 function closeLoginModal() {
-  if (loginLoading.value) return
-  loginModalOpen.value = false
-  loginError.value = ''
+  if (loginLoading.value) return;
+  loginModalOpen.value = false;
+  loginError.value = "";
 }
 
 async function handleLogin() {
-  if (loginLoading.value) return
+  if (loginLoading.value) return;
 
-  loginError.value = ''
+  loginError.value = "";
   if (!loginEmail.value || !loginPassword.value) {
-    loginError.value = 'Vui lòng nhập email và mật khẩu.'
-    return
+    loginError.value = "Vui lòng nhập email và mật khẩu.";
+    return;
   }
 
-  loginLoading.value = true
+  loginLoading.value = true;
   try {
-    await login(loginEmail.value, loginPassword.value)
-    loginModalOpen.value = false
-    loginPassword.value = ''
+    await login(loginEmail.value, loginPassword.value);
+    loginModalOpen.value = false;
+    loginPassword.value = "";
   } catch (error: any) {
     if (error?.status === 422 || error?.status === 401) {
-      loginError.value = error?.data?.errors?.email?.[0]
-        || error?.data?.message
-        || 'Email hoặc mật khẩu không chính xác.'
+      loginError.value =
+        error?.data?.errors?.email?.[0] ||
+        error?.data?.message ||
+        "Email hoặc mật khẩu không chính xác.";
     } else if (error?.status === 419) {
-      loginError.value = 'Phiên bảo mật đã hết hạn. Vui lòng thử lại.'
+      loginError.value = "Phiên bảo mật đã hết hạn. Vui lòng thử lại.";
     } else {
-      loginError.value = error?.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.'
+      loginError.value =
+        error?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.";
     }
   } finally {
-    loginLoading.value = false
+    loginLoading.value = false;
   }
 }
 
 watch(loginModalOpen, async (isOpen) => {
-  if (!import.meta.client) return
+  if (!import.meta.client) return;
 
-  document.body.style.overflow = isOpen ? 'hidden' : ''
+  document.body.style.overflow = isOpen ? "hidden" : "";
   if (isOpen) {
-    await nextTick()
-    loginEmailInput.value?.focus()
+    await nextTick();
+    loginEmailInput.value?.focus();
   }
-})
+});
 
 onBeforeUnmount(() => {
-  if (import.meta.client) document.body.style.overflow = ''
-})
+  if (import.meta.client) document.body.style.overflow = "";
+});
 
 async function handleLogout() {
-  if (loggingOut.value) return
-  loggingOut.value = true
-  logoutError.value = ''
+  if (loggingOut.value) return;
+  loggingOut.value = true;
+  logoutError.value = "";
   try {
-    await logout()
+    await logout();
   } catch {
-    await fetchUser()
-    logoutError.value = 'Không thể đăng xuất. Vui lòng thử lại.'
+    await fetchUser();
+    logoutError.value = "Không thể đăng xuất. Vui lòng thử lại.";
   } finally {
-    loggingOut.value = false
-    logoutConfirmOpen.value = false
+    loggingOut.value = false;
+    logoutConfirmOpen.value = false;
   }
 }
 
 const games = [
   {
-    name: 'Aim Training',
-    code: 'AIM-01',
-    category: 'Precision',
-    description: 'Rèn tốc độ rê chuột, độ chính xác và khả năng khóa mục tiêu.',
-    path: '/games/aim',
+    name: "Aim Training",
+    code: "AIM-01",
+    category: "Precision",
+    description: "Rèn tốc độ rê chuột, độ chính xác và khả năng khóa mục tiêu.",
+    path: "/games/aim",
     icon: Crosshair,
-    tone: 'cyan',
+    tone: "cyan",
   },
   {
-    name: 'Chinese Chess',
-    code: 'XQ-02',
-    category: 'Strategy',
-    description: 'Điều binh khiển tướng trong bàn cờ chiến thuật cổ điển.',
-    path: '/games/chinese-chess',
+    name: "Chinese Chess",
+    code: "XQ-02",
+    category: "Strategy",
+    description: "Điều binh khiển tướng trong bàn cờ chiến thuật cổ điển.",
+    path: "/games/chinese-chess",
     icon: Swords,
-    tone: 'amber',
+    tone: "amber",
   },
   {
-    name: 'Reaction Test',
-    code: 'RFX-03',
-    category: 'Reflex',
-    description: 'Đo phản xạ tức thời qua những tín hiệu xuất hiện bất ngờ.',
-    path: '/games/reaction',
+    name: "Reaction Test",
+    code: "RFX-03",
+    category: "Reflex",
+    description: "Đo phản xạ tức thời qua những tín hiệu xuất hiện bất ngờ.",
+    path: "/games/reaction",
     icon: Zap,
-    tone: 'rose',
+    tone: "rose",
   },
   {
-    name: 'Tetris',
-    code: 'TRS-04',
-    category: 'Arcade',
-    description: 'Xếp khối, phá hàng và duy trì nhịp chơi lâu nhất có thể.',
-    path: '/games/tetris',
+    name: "Tetris",
+    code: "TRS-04",
+    category: "Arcade",
+    description: "Xếp khối, phá hàng và duy trì nhịp chơi lâu nhất có thể.",
+    path: "/games/tetris",
     icon: Blocks,
-    tone: 'violet',
+    tone: "violet",
   },
   {
-    name: 'Pandora Detective',
-    code: 'PDS-05',
-    category: 'Investigation',
-    description: 'Thu thập chứng cứ, kết nối manh mối và phá giải từng vụ án.',
-    path: '/games/pandora/detective',
+    name: "Pandora Detective",
+    code: "PDS-05",
+    category: "Investigation",
+    description: "Thu thập chứng cứ, kết nối manh mối và phá giải từng vụ án.",
+    path: "/games/pandora/detective",
     icon: Radar,
-    tone: 'indigo',
+    tone: "indigo",
   },
   {
-    name: 'Kingdom Defense',
-    code: 'TDF-06',
-    category: 'Tower Defense',
-    description: 'Xây tháp, đẩy lùi quái vật và bảo vệ lâu đài qua từng đợt tiến công.',
-    path: '/games/tower-defense',
+    name: "Kingdom Defense",
+    code: "TDF-06",
+    category: "Tower Defense",
+    description:
+      "Xây tháp, đẩy lùi quái vật và bảo vệ lâu đài qua từng đợt tiến công.",
+    path: "/games/tower-defense",
     icon: Shield,
-    tone: 'cyan',
+    tone: "cyan",
   },
-]
+];
 
 const algorithmLabs = [
-  { name: 'Bubble Sort', path: '/algorithm/sorting/bubble-sort' },
-  { name: 'Selection Sort', path: '/algorithm/sorting/selection-sort' },
-  { name: 'Insertion Sort', path: '/algorithm/sorting/insertion-sort' },
-  { name: 'Greedy', path: '/algorithm/greedy' },
-]
+  { name: "Bubble Sort", path: "/algorithm/sorting/bubble-sort" },
+  { name: "Selection Sort", path: "/algorithm/sorting/selection-sort" },
+  { name: "Insertion Sort", path: "/algorithm/sorting/insertion-sort" },
+  { name: "Greedy", path: "/algorithm/greedy" },
+];
 
 onMounted(async () => {
-  if (!initialized.value) await fetchUser()
-})
+  if (!initialized.value) await fetchUser();
+});
 </script>
 
 <template>
@@ -183,7 +194,9 @@ onMounted(async () => {
     <header class="home-header">
       <NuxtLink to="/" class="home-brand">
         <span><Gamepad2 /></span>
-        <div><strong>GAME LAB</strong><small>CHƠI · KHÁM PHÁ · TIẾN BỘ</small></div>
+        <div>
+          <strong>GAME LAB</strong><small>CHƠI · KHÁM PHÁ · TIẾN BỘ</small>
+        </div>
       </NuxtLink>
 
       <nav class="home-nav" aria-label="Điều hướng chính">
@@ -195,7 +208,9 @@ onMounted(async () => {
       <div class="home-account">
         <template v-if="playerUser">
           <div class="home-account__user">
-            <span class="home-account__avatar" aria-hidden="true">{{ playerUser.name.trim().slice(0, 1).toLocaleUpperCase('vi') }}</span>
+            <span class="home-account__avatar" aria-hidden="true">{{
+              playerUser.name.trim().slice(0, 1).toLocaleUpperCase("vi")
+            }}</span>
             <div class="home-account__identity">
               <strong :title="playerUser.name">{{ playerUser.name }}</strong>
               <small :title="playerUser.email">{{ playerUser.email }}</small>
@@ -210,27 +225,46 @@ onMounted(async () => {
             @click="logoutConfirmOpen = true"
           >
             <LogOut aria-hidden="true" />
-            <span>{{ loggingOut ? 'Đang thoát...' : 'Đăng xuất' }}</span>
+            <span>{{ loggingOut ? "Đang thoát..." : "Đăng xuất" }}</span>
           </button>
         </template>
         <template v-else-if="initialized">
-          <button type="button" class="home-account__login" @click="openLoginModal">Đăng nhập</button>
-          <NuxtLink class="home-account__register" to="/register">Tạo tài khoản</NuxtLink>
+          <button
+            type="button"
+            class="home-account__login"
+            @click="openLoginModal"
+          >
+            Đăng nhập
+          </button>
+          <NuxtLink class="home-account__register" to="/register"
+            >Tạo tài khoản</NuxtLink
+          >
         </template>
         <span v-else class="home-account__loading"></span>
-        <p v-if="logoutError" class="home-account__error" role="alert">{{ logoutError }}</p>
+        <p v-if="logoutError" class="home-account__error" role="alert">
+          {{ logoutError }}
+        </p>
       </div>
       <ThemeToggle class="home-theme-toggle" />
     </header>
 
     <section class="home-hero">
       <div class="home-hero__copy">
-        <div class="home-hero__eyebrow"><span></span> KHÔNG GIAN CHO TRÍ TÒ MÒ</div>
-        <h1>Một chút thử thách.<br><span>Mỗi ngày tiến xa.</span></h1>
-        <p>Luyện phản xạ, thử tài chiến thuật hoặc bước vào một vụ án bí ẩn. Chọn thử thách của bạn và bắt đầu khám phá.</p>
+        <div class="home-hero__eyebrow">
+          <span></span> KHÔNG GIAN CHO TRÍ TÒ MÒ
+        </div>
+        <h1>Một chút thử thách.<br /><span>Mỗi ngày tiến xa.</span></h1>
+        <p>
+          Luyện phản xạ, thử tài chiến thuật hoặc bước vào một vụ án bí ẩn. Chọn
+          thử thách của bạn và bắt đầu khám phá.
+        </p>
         <div class="home-hero__actions">
-          <a href="#games" class="home-button home-button--primary">Khám phá game <ArrowRight /></a>
-          <a href="#algorithm-lab" class="home-button home-button--ghost">Khám phá thuật toán <ChevronRight /></a>
+          <a href="#games" class="home-button home-button--primary"
+            >Khám phá game <ArrowRight
+          /></a>
+          <a href="#algorithm-lab" class="home-button home-button--ghost"
+            >Khám phá thuật toán <ChevronRight
+          /></a>
         </div>
         <div class="home-hero__metrics">
           <span><strong>06</strong><small>Trò chơi</small></span>
@@ -242,13 +276,19 @@ onMounted(async () => {
       </div>
 
       <NuxtLink to="/games/pandora/detective" class="home-feature">
-        <div class="home-feature__top"><span>THỬ THÁCH NỔI BẬT</span><span>01 / 06</span></div>
+        <div class="home-feature__top">
+          <span>THỬ THÁCH NỔI BẬT</span><span>01 / 06</span>
+        </div>
         <div class="home-feature__art" aria-hidden="true">
           <div class="home-feature__orbit home-feature__orbit--outer"></div>
           <div class="home-feature__orbit home-feature__orbit--inner"></div>
           <Radar />
-          <span class="home-feature__evidence home-feature__evidence--one">01 — MANH MỐI</span>
-          <span class="home-feature__evidence home-feature__evidence--two">02 — KẾT NỐI</span>
+          <span class="home-feature__evidence home-feature__evidence--one"
+            >01 — MANH MỐI</span
+          >
+          <span class="home-feature__evidence home-feature__evidence--two"
+            >02 — KẾT NỐI</span
+          >
         </div>
         <div class="home-feature__copy">
           <small>QUAN SÁT. SUY LUẬN. PHÁ ÁN.</small>
@@ -261,13 +301,28 @@ onMounted(async () => {
 
     <section id="games" class="home-section" aria-labelledby="home-games-title">
       <header class="home-section__header">
-        <div><small class="home-zone-label"><Gamepad2 :size="16" /> KHU TRÒ CHƠI · 06 THỬ THÁCH</small><h2 id="home-games-title">Hôm nay bạn muốn chơi gì?</h2></div>
+        <div>
+          <small class="home-zone-label"
+            ><Gamepad2 :size="16" /> KHU TRÒ CHƠI · 06 THỬ THÁCH</small
+          >
+          <h2 id="home-games-title">Hôm nay bạn muốn chơi gì?</h2>
+        </div>
         <p>Chọn thử thách phù hợp với kỹ năng bạn muốn chinh phục.</p>
       </header>
 
       <div class="home-games">
-        <NuxtLink v-for="(game, index) in games" :key="game.path" :to="game.path" class="home-game-card" :class="`home-game-card--${game.tone}`">
-          <div class="home-game-card__top"><span class="home-game-card__icon"><component :is="game.icon" /></span><code>{{ game.code }}</code></div>
+        <NuxtLink
+          v-for="(game, index) in games"
+          :key="game.path"
+          :to="game.path"
+          class="home-game-card"
+          :class="`home-game-card--${game.tone}`"
+        >
+          <div class="home-game-card__top">
+            <span class="home-game-card__icon"
+              ><component :is="game.icon" /></span
+            ><code>{{ game.code }}</code>
+          </div>
           <small>{{ game.category }}</small>
           <h3>{{ game.name }}</h3>
           <p>{{ game.description }}</p>
@@ -277,22 +332,49 @@ onMounted(async () => {
       </div>
     </section>
 
-    <section id="algorithm-lab" class="home-lab" aria-labelledby="home-lab-title">
+    <section
+      id="algorithm-lab"
+      class="home-lab"
+      aria-labelledby="home-lab-title"
+    >
       <div class="home-lab__icon"><BrainCircuit /></div>
-      <div class="home-lab__copy"><small class="home-zone-label">KHU HỌC TẬP · 04 MÔ PHỎNG</small><h2 id="home-lab-title">Algorithm Lab</h2><p>Quan sát thuật toán vận hành từng bước qua các mô phỏng trực quan và tương tác.</p></div>
+      <div class="home-lab__copy">
+        <small class="home-zone-label">KHU HỌC TẬP · 04 MÔ PHỎNG</small>
+        <h2 id="home-lab-title">Algorithm Lab</h2>
+        <p>
+          Quan sát thuật toán vận hành từng bước qua các mô phỏng trực quan và
+          tương tác.
+        </p>
+      </div>
       <div class="home-lab__links">
-        <NuxtLink v-for="lab in algorithmLabs" :key="lab.path" :to="lab.path"><Braces /><span>{{ lab.name }}</span><ChevronRight /></NuxtLink>
+        <NuxtLink v-for="lab in algorithmLabs" :key="lab.path" :to="lab.path"
+          ><Braces /><span>{{ lab.name }}</span
+          ><ChevronRight
+        /></NuxtLink>
       </div>
     </section>
 
     <footer class="home-footer">
-      <div class="home-brand"><span><Gamepad2 /></span><div><strong>GAME LAB</strong><small>PLAY. THINK. IMPROVE.</small></div></div>
+      <div class="home-brand">
+        <span><Gamepad2 /></span>
+        <div><strong>GAME LAB</strong><small>PLAY. THINK. IMPROVE.</small></div>
+      </div>
       <p>Dành cho những người luôn tò mò.</p>
-      <div><NuxtLink to="/portfolio">Portfolio</NuxtLink><button v-if="!playerUser" type="button" @click="openLoginModal">Đăng nhập</button><NuxtLink to="/admin/login">Admin</NuxtLink></div>
+      <div>
+        <NuxtLink to="/portfolio">Portfolio</NuxtLink
+        ><button v-if="!playerUser" type="button" @click="openLoginModal">
+          Đăng nhập</button
+        ><NuxtLink to="/admin/login">Admin</NuxtLink>
+      </div>
     </footer>
 
     <Transition name="home-modal">
-      <div v-if="loginModalOpen" class="home-login-modal" role="presentation" @click.self="closeLoginModal">
+      <div
+        v-if="loginModalOpen"
+        class="home-login-modal"
+        role="presentation"
+        @click.self="closeLoginModal"
+      >
         <section
           class="home-login-dialog"
           role="dialog"
@@ -300,18 +382,30 @@ onMounted(async () => {
           aria-labelledby="home-login-title"
           @keydown.esc="closeLoginModal"
         >
-          <button type="button" class="home-login-dialog__close" aria-label="Đóng cửa sổ đăng nhập" :disabled="loginLoading" @click="closeLoginModal">
+          <button
+            type="button"
+            class="home-login-dialog__close"
+            aria-label="Đóng cửa sổ đăng nhập"
+            :disabled="loginLoading"
+            @click="closeLoginModal"
+          >
             <X aria-hidden="true" />
           </button>
 
           <aside class="home-login-dialog__intro">
-            <span class="home-login-dialog__badge"><Gamepad2 aria-hidden="true" /></span>
+            <span class="home-login-dialog__badge"
+              ><Gamepad2 aria-hidden="true"
+            /></span>
             <div>
               <small>GAME LAB MEMBER</small>
-              <h2>Chào mừng<br>trở lại.</h2>
-              <p>Một tài khoản, toàn bộ trò chơi và hành trình tiến bộ của bạn.</p>
+              <h2>Chào mừng<br />trở lại.</h2>
+              <p>
+                Một tài khoản, toàn bộ trò chơi và hành trình tiến bộ của bạn.
+              </p>
             </div>
-            <div class="home-login-dialog__status"><i></i> Hệ thống sẵn sàng</div>
+            <div class="home-login-dialog__status">
+              <i></i> Hệ thống sẵn sàng
+            </div>
           </aside>
 
           <div class="home-login-dialog__form">
@@ -324,23 +418,59 @@ onMounted(async () => {
             <form novalidate @submit.prevent="handleLogin">
               <label class="home-login-field" for="home-login-email">
                 <span>Email</span>
-                <div><Mail aria-hidden="true" /><input id="home-login-email" ref="loginEmailInput" v-model="loginEmail" type="email" autocomplete="email" placeholder="player@example.com" :disabled="loginLoading"></div>
+                <div>
+                  <Mail aria-hidden="true" /><input
+                    id="home-login-email"
+                    ref="loginEmailInput"
+                    v-model="loginEmail"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="player@example.com"
+                    :disabled="loginLoading"
+                  />
+                </div>
               </label>
 
               <label class="home-login-field" for="home-login-password">
                 <span>Mật khẩu</span>
-                <div><KeyRound aria-hidden="true" /><input id="home-login-password" v-model="loginPassword" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" :disabled="loginLoading"></div>
+                <div>
+                  <KeyRound aria-hidden="true" /><input
+                    id="home-login-password"
+                    v-model="loginPassword"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Nhập mật khẩu"
+                    :disabled="loginLoading"
+                  />
+                </div>
               </label>
 
-              <p v-if="loginError" class="home-login-dialog__error" role="alert">{{ loginError }}</p>
+              <p
+                v-if="loginError"
+                class="home-login-dialog__error"
+                role="alert"
+              >
+                {{ loginError }}
+              </p>
 
-              <button class="home-login-dialog__submit" type="submit" :disabled="loginLoading">
-                <span>{{ loginLoading ? 'Đang xác thực...' : 'Đăng nhập' }}</span>
+              <button
+                class="home-login-dialog__submit"
+                type="submit"
+                :disabled="loginLoading"
+              >
+                <span>{{
+                  loginLoading ? "Đang xác thực..." : "Đăng nhập"
+                }}</span>
                 <ArrowRight aria-hidden="true" />
               </button>
             </form>
 
-            <p class="home-login-dialog__register">Chưa có tài khoản? <NuxtLink to="/register" @click="closeLoginModal">Tạo tài khoản</NuxtLink></p>
+            <p class="home-login-dialog__register">
+              Chưa có tài khoản?
+              <NuxtLink to="/register" @click="closeLoginModal"
+                >Tạo tài khoản</NuxtLink
+              >
+            </p>
           </div>
         </section>
       </div>

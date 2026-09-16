@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AdminDataTable from '~/components/admin/AdminDataTable.vue'
+import AdminDataTable from "~/components/admin/AdminDataTable.vue";
 import {
   ShoppingBag,
   Users,
@@ -7,141 +7,123 @@ import {
   ArrowDownRight,
   MoreHorizontal,
   CalendarDays,
-  CreditCard
-} from 'lucide-vue-next'
+  CreditCard,
+} from "lucide-vue-next";
 
 const stats = [
   {
-    title: 'Total Revenue',
-    value: '$84,420',
-    change: '+12.5%',
+    title: "Total Revenue",
+    value: "$84,420",
+    change: "+12.5%",
     positive: true,
-    icon: CreditCard
+    icon: CreditCard,
   },
   {
-    title: 'Total Users',
-    value: '12,840',
-    change: '+8.2%',
+    title: "Total Users",
+    value: "12,840",
+    change: "+8.2%",
     positive: true,
-    icon: Users
+    icon: Users,
   },
   {
-    title: 'Total Orders',
-    value: '3,642',
-    change: '+5.7%',
+    title: "Total Orders",
+    value: "3,642",
+    change: "+5.7%",
     positive: true,
-    icon: ShoppingBag
+    icon: ShoppingBag,
   },
   {
-    title: 'Refunds',
-    value: '$2,840',
-    change: '-3.4%',
+    title: "Refunds",
+    value: "$2,840",
+    change: "-3.4%",
     positive: false,
-    icon: ArrowDownRight
-  }
-]
+    icon: ArrowDownRight,
+  },
+];
 
 const recentOrders = [
   {
-    id: '#ORD-8291',
-    customer: 'John Doe',
-    email: 'john@example.com',
-    product: 'MacBook Pro',
-    amount: '$2,499',
-    status: 'Completed'
+    id: "#ORD-8291",
+    customer: "John Doe",
+    email: "john@example.com",
+    product: "MacBook Pro",
+    amount: "$2,499",
+    status: "Completed",
   },
   {
-    id: '#ORD-8290',
-    customer: 'Sarah Wilson',
-    email: 'sarah@example.com',
-    product: 'iPhone 16 Pro',
-    amount: '$1,199',
-    status: 'Processing'
+    id: "#ORD-8290",
+    customer: "Sarah Wilson",
+    email: "sarah@example.com",
+    product: "iPhone 16 Pro",
+    amount: "$1,199",
+    status: "Processing",
   },
   {
-    id: '#ORD-8289',
-    customer: 'Michael Brown',
-    email: 'michael@example.com',
-    product: 'AirPods Pro',
-    amount: '$249',
-    status: 'Completed'
+    id: "#ORD-8289",
+    customer: "Michael Brown",
+    email: "michael@example.com",
+    product: "AirPods Pro",
+    amount: "$249",
+    status: "Completed",
   },
   {
-    id: '#ORD-8288',
-    customer: 'Emma Davis',
-    email: 'emma@example.com',
-    product: 'iPad Air',
-    amount: '$699',
-    status: 'Pending'
+    id: "#ORD-8288",
+    customer: "Emma Davis",
+    email: "emma@example.com",
+    product: "iPad Air",
+    amount: "$699",
+    status: "Pending",
   },
   {
-    id: '#ORD-8287',
-    customer: 'James Wilson',
-    email: 'james@example.com',
-    product: 'Apple Watch',
-    amount: '$499',
-    status: 'Cancelled'
-  }
-]
+    id: "#ORD-8287",
+    customer: "James Wilson",
+    email: "james@example.com",
+    product: "Apple Watch",
+    amount: "$499",
+    status: "Cancelled",
+  },
+];
 
 const activities = [
   {
-    title: 'New order received',
-    description: 'Order #ORD-8291 has been created.',
-    time: '2 minutes ago'
+    title: "New order received",
+    description: "Order #ORD-8291 has been created.",
+    time: "2 minutes ago",
   },
   {
-    title: 'New user registered',
-    description: 'Sarah Wilson joined your platform.',
-    time: '15 minutes ago'
+    title: "New user registered",
+    description: "Sarah Wilson joined your platform.",
+    time: "15 minutes ago",
   },
   {
-    title: 'Payment completed',
-    description: 'Payment for #ORD-8289 was successful.',
-    time: '42 minutes ago'
+    title: "Payment completed",
+    description: "Payment for #ORD-8289 was successful.",
+    time: "42 minutes ago",
   },
   {
-    title: 'Product updated',
-    description: 'MacBook Pro inventory was updated.',
-    time: '1 hour ago'
-  }
-]
+    title: "Product updated",
+    description: "MacBook Pro inventory was updated.",
+    time: "1 hour ago",
+  },
+];
 </script>
 
 <template>
   <main class="p-4 sm:p-6 lg:p-8">
-
     <!-- Top -->
     <div
-      class="
-        mb-8 flex flex-col
-        justify-between gap-4
-        sm:flex-row sm:items-center
-      "
+      class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"
     >
       <div>
-        <p class="text-sm text-zinc-500">
-          Overview
-        </p>
+        <p class="text-sm text-zinc-500">Overview</p>
 
-        <h2 class="mt-1 text-2xl font-bold">
-          Today's performance
-        </h2>
+        <h2 class="mt-1 text-2xl font-bold">Today's performance</h2>
       </div>
 
       <div class="flex gap-3">
         <button
           type="button"
-          class="
-            flex items-center gap-2
-            rounded-xl
-            border border-white/[0.06]
-            bg-white/[0.02]
-            px-4 py-2.5
-            text-sm text-zinc-400
-            hover:bg-white/[0.05]
-            hover:text-white
-          "
+          class="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-sm text-zinc-400 hover:bg-white/[0.05] hover:text-white"
         >
           <CalendarDays class="h-4 w-4" />
           Last 30 days
@@ -149,16 +131,7 @@ const activities = [
 
         <button
           type="button"
-          class="
-            hidden items-center gap-2
-            rounded-xl
-            bg-violet-500
-            px-4 py-2.5
-            text-sm font-medium text-white
-            shadow-lg shadow-violet-500/20
-            hover:bg-violet-400
-            sm:flex
-          "
+          class="hidden items-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-violet-500/20 hover:bg-violet-400 sm:flex"
         >
           + Add new
         </button>
@@ -170,15 +143,7 @@ const activities = [
       <div
         v-for="stat in stats"
         :key="stat.title"
-        class="
-          group rounded-2xl
-          border border-white/[0.06]
-          bg-[#11111b]/70
-          p-5
-          transition-all duration-300
-          hover:-translate-y-1
-          hover:border-violet-500/20
-        "
+        class="group rounded-2xl border border-white/[0.06] bg-[#11111b]/70 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-violet-500/20"
       >
         <div class="flex items-start justify-between">
           <div>
@@ -192,71 +157,38 @@ const activities = [
           </div>
 
           <div
-            class="
-              flex h-10 w-10
-              items-center justify-center
-              rounded-xl
-              bg-violet-500/10
-              text-violet-400
-            "
+            class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400"
           >
-            <component
-              :is="stat.icon"
-              class="h-5 w-5"
-            />
+            <component :is="stat.icon" class="h-5 w-5" />
           </div>
         </div>
 
         <div class="mt-4 flex items-center gap-2">
           <span
             class="flex items-center gap-1 text-xs font-medium"
-            :class="
-              stat.positive
-                ? 'text-emerald-400'
-                : 'text-red-400'
-            "
+            :class="stat.positive ? 'text-emerald-400' : 'text-red-400'"
           >
-            <ArrowUpRight
-              v-if="stat.positive"
-              class="h-3.5 w-3.5"
-            />
+            <ArrowUpRight v-if="stat.positive" class="h-3.5 w-3.5" />
 
-            <ArrowDownRight
-              v-else
-              class="h-3.5 w-3.5"
-            />
+            <ArrowDownRight v-else class="h-3.5 w-3.5" />
 
             {{ stat.change }}
           </span>
 
-          <span class="text-xs text-zinc-700">
-            vs last month
-          </span>
+          <span class="text-xs text-zinc-700"> vs last month </span>
         </div>
       </div>
     </div>
 
     <!-- Chart + Activity -->
-    <div
-      class="
-        mt-6 grid gap-6
-        xl:grid-cols-[1fr_360px]
-      "
-    >
+    <div class="mt-6 grid gap-6 xl:grid-cols-[1fr_360px]">
       <!-- Chart -->
       <div
-        class="
-          rounded-2xl
-          border border-white/[0.06]
-          bg-[#11111b]/70
-          p-5 sm:p-6
-        "
+        class="rounded-2xl border border-white/[0.06] bg-[#11111b]/70 p-5 sm:p-6"
       >
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="font-semibold">
-              Revenue overview
-            </h3>
+            <h3 class="font-semibold">Revenue overview</h3>
 
             <p class="mt-1 text-xs text-zinc-600">
               Monthly revenue performance
@@ -269,18 +201,8 @@ const activities = [
         </div>
 
         <div class="relative mt-8 h-64">
-          <div
-            class="
-              absolute inset-0
-              flex flex-col
-              justify-between
-            "
-          >
-            <div
-              v-for="i in 5"
-              :key="i"
-              class="border-t border-white/[0.04]"
-            />
+          <div class="absolute inset-0 flex flex-col justify-between">
+            <div v-for="i in 5" :key="i" class="border-t border-white/[0.04]" />
           </div>
 
           <svg
@@ -289,33 +211,13 @@ const activities = [
             class="absolute inset-0 h-full w-full"
           >
             <defs>
-              <linearGradient
-                id="areaGradient"
-                x1="0"
-                x2="0"
-                y1="0"
-                y2="1"
-              >
-                <stop
-                  offset="0%"
-                  stop-color="#8b5cf6"
-                  stop-opacity="0.3"
-                />
+              <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.3" />
 
-                <stop
-                  offset="100%"
-                  stop-color="#8b5cf6"
-                  stop-opacity="0"
-                />
+                <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
               </linearGradient>
 
-              <linearGradient
-                id="lineGradient"
-                x1="0"
-                x2="1"
-                y1="0"
-                y2="0"
-              >
+              <linearGradient id="lineGradient" x1="0" x2="1" y1="0" y2="0">
                 <stop offset="0%" stop-color="#6366f1" />
                 <stop offset="100%" stop-color="#a78bfa" />
               </linearGradient>
@@ -355,12 +257,7 @@ const activities = [
           </svg>
 
           <div
-            class="
-              absolute bottom-0 left-0 right-0
-              flex justify-between
-              pt-4
-              text-[10px] text-zinc-700
-            "
+            class="absolute bottom-0 left-0 right-0 flex justify-between pt-4 text-[10px] text-zinc-700"
           >
             <span
               v-for="month in [
@@ -375,7 +272,7 @@ const activities = [
                 'Sep',
                 'Oct',
                 'Nov',
-                'Dec'
+                'Dec',
               ]"
               :key="month"
             >
@@ -387,31 +284,18 @@ const activities = [
 
       <!-- Activity -->
       <div
-        class="
-          rounded-2xl
-          border border-white/[0.06]
-          bg-[#11111b]/70
-          p-5 sm:p-6
-        "
+        class="rounded-2xl border border-white/[0.06] bg-[#11111b]/70 p-5 sm:p-6"
       >
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="font-semibold">
-              Recent activity
-            </h3>
+            <h3 class="font-semibold">Recent activity</h3>
 
-            <p class="mt-1 text-xs text-zinc-600">
-              Latest updates
-            </p>
+            <p class="mt-1 text-xs text-zinc-600">Latest updates</p>
           </div>
 
           <button
             type="button"
-            class="
-              text-xs
-              text-violet-400
-              hover:text-violet-300
-            "
+            class="text-xs text-violet-400 hover:text-violet-300"
           >
             View all
           </button>
@@ -424,20 +308,9 @@ const activities = [
             class="flex gap-3"
           >
             <div
-              class="
-                flex h-9 w-9 shrink-0
-                items-center justify-center
-                rounded-full
-                bg-violet-500/10
-              "
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/10"
             >
-              <span
-                class="
-                  h-2 w-2
-                  rounded-full
-                  bg-violet-400
-                "
-              />
+              <span class="h-2 w-2 rounded-full bg-violet-400" />
             </div>
 
             <div class="min-w-0 flex-1">
@@ -460,37 +333,20 @@ const activities = [
 
     <!-- Orders -->
     <div
-      class="
-        mt-6 overflow-hidden
-        rounded-2xl
-        border border-white/[0.06]
-        bg-[#11111b]/70
-      "
+      class="mt-6 overflow-hidden rounded-2xl border border-white/[0.06] bg-[#11111b]/70"
     >
       <div
-        class="
-          flex items-center justify-between
-          border-b border-white/[0.06]
-          px-5 py-5 sm:px-6
-        "
+        class="flex items-center justify-between border-b border-white/[0.06] px-5 py-5 sm:px-6"
       >
         <div>
-          <h3 class="font-semibold">
-            Recent orders
-          </h3>
+          <h3 class="font-semibold">Recent orders</h3>
 
-          <p class="mt-1 text-xs text-zinc-600">
-            Latest transactions
-          </p>
+          <p class="mt-1 text-xs text-zinc-600">Latest transactions</p>
         </div>
 
         <button
           type="button"
-          class="
-            text-xs
-            text-violet-400
-            hover:text-violet-300
-          "
+          class="text-xs text-violet-400 hover:text-violet-300"
         >
           View all
         </button>
@@ -498,75 +354,60 @@ const activities = [
 
       <!-- Shared responsive table -->
       <div class="min-w-0">
-        <AdminDataTable title="Recent orders" :rows="recentOrders" :columns="['Order', 'Customer', 'Product', 'Amount', 'Status', '']" :row-key="order => order.id">
+        <AdminDataTable
+          title="Recent orders"
+          :rows="recentOrders"
+          :columns="['Order', 'Customer', 'Product', 'Amount', 'Status', '']"
+          :row-key="(order) => order.id"
+        >
           <template #row="{ row: order }">
-              <td
-                class="
-                  px-6 py-4
-                  text-sm font-medium
-                  text-violet-300
-                "
+            <td class="px-6 py-4 text-sm font-medium text-violet-300">
+              {{ order.id }}
+            </td>
+
+            <td class="px-6 py-4">
+              <p class="text-sm font-medium text-zinc-300">
+                {{ order.customer }}
+              </p>
+
+              <p class="mt-0.5 text-xs text-zinc-700">
+                {{ order.email }}
+              </p>
+            </td>
+
+            <td class="px-6 py-4 text-sm text-zinc-500">
+              {{ order.product }}
+            </td>
+
+            <td class="px-6 py-4 text-sm font-medium text-zinc-300">
+              {{ order.amount }}
+            </td>
+
+            <td class="px-6 py-4">
+              <span
+                class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium"
+                :class="{
+                  'bg-emerald-500/10 text-emerald-400':
+                    order.status === 'Completed',
+
+                  'bg-amber-500/10 text-amber-400':
+                    order.status === 'Processing' || order.status === 'Pending',
+
+                  'bg-red-500/10 text-red-400': order.status === 'Cancelled',
+                }"
               >
-                {{ order.id }}
-              </td>
+                {{ order.status }}
+              </span>
+            </td>
 
-              <td class="px-6 py-4">
-                <p class="text-sm font-medium text-zinc-300">
-                  {{ order.customer }}
-                </p>
-
-                <p class="mt-0.5 text-xs text-zinc-700">
-                  {{ order.email }}
-                </p>
-              </td>
-
-              <td class="px-6 py-4 text-sm text-zinc-500">
-                {{ order.product }}
-              </td>
-
-              <td class="px-6 py-4 text-sm font-medium text-zinc-300">
-                {{ order.amount }}
-              </td>
-
-              <td class="px-6 py-4">
-                <span
-                  class="
-                    inline-flex
-                    rounded-full
-                    px-2.5 py-1
-                    text-[10px]
-                    font-medium
-                  "
-                  :class="{
-                    'bg-emerald-500/10 text-emerald-400':
-                      order.status === 'Completed',
-
-                    'bg-amber-500/10 text-amber-400':
-                      order.status === 'Processing' ||
-                      order.status === 'Pending',
-
-                    'bg-red-500/10 text-red-400':
-                      order.status === 'Cancelled'
-                  }"
-                >
-                  {{ order.status }}
-                </span>
-              </td>
-
-              <td class="px-6 py-4 text-right">
-                <button
-                  type="button"
-                  class="text-zinc-700 hover:text-zinc-300"
-                >
-                  <MoreHorizontal class="h-5 w-5" />
-                </button>
-              </td>
-            </template>
+            <td class="px-6 py-4 text-right">
+              <button type="button" class="text-zinc-700 hover:text-zinc-300">
+                <MoreHorizontal class="h-5 w-5" />
+              </button>
+            </td>
+          </template>
         </AdminDataTable>
       </div>
-
-
     </div>
-
   </main>
 </template>

@@ -1,36 +1,25 @@
 <script setup lang="ts">
-import {
-  computed,
-  onBeforeUnmount,
-  ref,
-  watch,
-} from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 import type {
   ChineseChessMoveHistory,
   ChineseChessPiece,
   PieceColor,
   Position,
-} from '~/types/games/chinese-chess'
-import type { ChineseChessSuggestedMove } from '~/utils/chinese-chess/advisor'
+} from "~/types/games/chinese-chess";
+import type { ChineseChessSuggestedMove } from "~/utils/chinese-chess/advisor";
 
-import {
-  createInitialBoard,
-} from '~/utils/chinese-chess/board'
+import { createInitialBoard } from "~/utils/chinese-chess/board";
 
-import {
-  getPseudoLegalMoves,
-} from '~/utils/chinese-chess/move'
+import { getPseudoLegalMoves } from "~/utils/chinese-chess/move";
 
-import {
-  movePiece,
-} from '~/utils/chinese-chess/game'
+import { movePiece } from "~/utils/chinese-chess/game";
 
 import {
   isInCheck,
   isCheckmate,
   isLegalMove,
-} from '~/utils/chinese-chess/check'
+} from "~/utils/chinese-chess/check";
 
 /**
  * ==========================================
@@ -39,15 +28,15 @@ import {
  */
 
 const props = defineProps<{
-  currentTurn: PieceColor
-  gameStarted: boolean
-  position?: ChineseChessPiece[]
-  playerColor?: PieceColor | null
-  readonly?: boolean
-  showWaitingOverlay?: boolean
-  lastMove?: Pick<ChineseChessMoveHistory, 'from' | 'to'> | null
-  suggestedMove?: ChineseChessSuggestedMove | null
-}>()
+  currentTurn: PieceColor;
+  gameStarted: boolean;
+  position?: ChineseChessPiece[];
+  playerColor?: PieceColor | null;
+  readonly?: boolean;
+  showWaitingOverlay?: boolean;
+  lastMove?: Pick<ChineseChessMoveHistory, "from" | "to"> | null;
+  suggestedMove?: ChineseChessSuggestedMove | null;
+}>();
 
 /**
  * ==========================================
@@ -58,26 +47,21 @@ const props = defineProps<{
 const emit = defineEmits<{
   move: [
     {
-      number: number
-      color: PieceColor
-      piece: ChineseChessPiece
-      from: Position
-      to: Position
-      captured: ChineseChessPiece | null
-      position: ChineseChessPiece[]
-      is_check: boolean
+      number: number;
+      color: PieceColor;
+      piece: ChineseChessPiece;
+      from: Position;
+      to: Position;
+      captured: ChineseChessPiece | null;
+      position: ChineseChessPiece[];
+      is_check: boolean;
     },
-  ]
+  ];
 
-  checkmate: [
-    winningColor: PieceColor,
-  ]
+  checkmate: [winningColor: PieceColor];
 
-  check: [
-    isCheck: boolean,
-    color: PieceColor | null,
-  ]
-}>()
+  check: [isCheck: boolean, color: PieceColor | null];
+}>();
 
 /**
  * ==========================================
@@ -86,94 +70,96 @@ const emit = defineEmits<{
  */
 
 // Display coordinates only: game rules and API moves keep their original coordinates.
-const flipped = computed(() => props.playerColor === 'black')
-const displayRow = (row: number) => flipped.value ? 9 - row : row
-const displayCol = (col: number) => flipped.value ? 8 - col : col
+const flipped = computed(() => props.playerColor === "black");
+const displayRow = (row: number) => (flipped.value ? 9 - row : row);
+const displayCol = (col: number) => (flipped.value ? 8 - col : col);
 
-const opponentReminderVisible = ref(false)
-let opponentReminderTimer: ReturnType<typeof setTimeout> | null = null
-let opponentReminderAutoHideTimer: ReturnType<typeof setTimeout> | null = null
+const opponentReminderVisible = ref(false);
+let opponentReminderTimer: ReturnType<typeof setTimeout> | null = null;
+let opponentReminderAutoHideTimer: ReturnType<typeof setTimeout> | null = null;
 
 const opponentReminderKey = computed(() => {
-  if (!props.lastMove) return ''
-  return `${props.currentTurn}:${props.lastMove.from.row}-${props.lastMove.from.col}:${props.lastMove.to.row}-${props.lastMove.to.col}`
-})
+  if (!props.lastMove) return "";
+  return `${props.currentTurn}:${props.lastMove.from.row}-${props.lastMove.from.col}:${props.lastMove.to.row}-${props.lastMove.to.col}`;
+});
 
-const canShowOpponentReminder = computed(() =>
-  props.gameStarted
-  && !!props.playerColor,
-)
+const canShowOpponentReminder = computed(
+  () => props.gameStarted && !!props.playerColor,
+);
 
 function clearOpponentReminderTimer(): void {
-  if (opponentReminderTimer) clearTimeout(opponentReminderTimer)
-  opponentReminderTimer = null
+  if (opponentReminderTimer) clearTimeout(opponentReminderTimer);
+  opponentReminderTimer = null;
 }
 
 function clearOpponentReminderAutoHideTimer(): void {
-  if (opponentReminderAutoHideTimer) clearTimeout(opponentReminderAutoHideTimer)
-  opponentReminderAutoHideTimer = null
+  if (opponentReminderAutoHideTimer)
+    clearTimeout(opponentReminderAutoHideTimer);
+  opponentReminderAutoHideTimer = null;
 }
 
 function clearOpponentReminderTimers(): void {
-  clearOpponentReminderTimer()
-  clearOpponentReminderAutoHideTimer()
+  clearOpponentReminderTimer();
+  clearOpponentReminderAutoHideTimer();
 }
 
 function dismissOpponentReminder(): void {
-  clearOpponentReminderAutoHideTimer()
-  opponentReminderVisible.value = false
+  clearOpponentReminderAutoHideTimer();
+  opponentReminderVisible.value = false;
 }
 
 watch(
   [opponentReminderKey, canShowOpponentReminder],
   ([moveKey, canShow]) => {
-    clearOpponentReminderTimers()
-    opponentReminderVisible.value = false
+    clearOpponentReminderTimers();
+    opponentReminderVisible.value = false;
 
-    if (!moveKey || !canShow) return
+    if (!moveKey || !canShow) return;
 
     opponentReminderTimer = setTimeout(() => {
-      opponentReminderVisible.value = true
-      opponentReminderTimer = null
+      opponentReminderVisible.value = true;
+      opponentReminderTimer = null;
 
       opponentReminderAutoHideTimer = setTimeout(() => {
-        opponentReminderVisible.value = false
-        opponentReminderAutoHideTimer = null
-      }, 10000)
-    }, 15000)
+        opponentReminderVisible.value = false;
+        opponentReminderAutoHideTimer = null;
+      }, 10000);
+    }, 15000);
   },
   { immediate: true },
-)
+);
 
-onBeforeUnmount(clearOpponentReminderTimers)
+onBeforeUnmount(clearOpponentReminderTimers);
 
 const board = ref<ChineseChessPiece[]>(
-  props.position?.map(piece => ({ ...piece })) ?? createInitialBoard(),
-)
+  props.position?.map((piece) => ({ ...piece })) ?? createInitialBoard(),
+);
 
 function boardSignature(position: ChineseChessPiece[]): string {
   return position
-    .map(piece => `${piece.id}:${piece.row}:${piece.col}`)
+    .map((piece) => `${piece.id}:${piece.row}:${piece.col}`)
     .sort()
-    .join('|')
+    .join("|");
 }
 
 watch(
   () => props.position,
   (position) => {
-    if (!position || boardSignature(position) === boardSignature(board.value)) return
+    if (!position || boardSignature(position) === boardSignature(board.value))
+      return;
 
-    board.value = position.map(piece => ({ ...piece }))
-    clearSelection()
+    board.value = position.map((piece) => ({ ...piece }));
+    clearSelection();
   },
   { deep: true },
-)
+);
 
-const canInteract = computed(() =>
-  props.gameStarted
-  && !props.readonly
-  && (!props.playerColor || props.playerColor === props.currentTurn),
-)
+const canInteract = computed(
+  () =>
+    props.gameStarted &&
+    !props.readonly &&
+    (!props.playerColor || props.playerColor === props.currentTurn),
+);
 
 /**
  * ==========================================
@@ -181,11 +167,9 @@ const canInteract = computed(() =>
  * ==========================================
  */
 
-const selectedPieceId =
-  ref<string | null>(null)
+const selectedPieceId = ref<string | null>(null);
 
-const validMoves =
-  ref<Position[]>([])
+const validMoves = ref<Position[]>([]);
 
 /**
  * ==========================================
@@ -193,29 +177,13 @@ const validMoves =
  * ==========================================
  */
 
-const redInCheck =
-  computed(() =>
-    isInCheck(
-      board.value,
-      'red',
-    ),
-  )
+const redInCheck = computed(() => isInCheck(board.value, "red"));
 
-const blackInCheck =
-  computed(() =>
-    isInCheck(
-      board.value,
-      'black',
-    ),
-  )
+const blackInCheck = computed(() => isInCheck(board.value, "black"));
 
-const currentPlayerInCheck =
-  computed(() =>
-    isInCheck(
-      board.value,
-      props.currentTurn,
-    ),
-  )
+const currentPlayerInCheck = computed(() =>
+  isInCheck(board.value, props.currentTurn),
+);
 
 /**
  * ==========================================
@@ -227,35 +195,23 @@ watch(
   [redInCheck, blackInCheck],
   ([redCheck, blackCheck]) => {
     if (redCheck) {
-      emit(
-        'check',
-        true,
-        'red',
-      )
+      emit("check", true, "red");
 
-      return
+      return;
     }
 
     if (blackCheck) {
-      emit(
-        'check',
-        true,
-        'black',
-      )
+      emit("check", true, "black");
 
-      return
+      return;
     }
 
-    emit(
-      'check',
-      false,
-      null,
-    )
+    emit("check", false, null);
   },
   {
     immediate: true,
   },
-)
+);
 
 /**
  * ==========================================
@@ -263,29 +219,19 @@ watch(
  * ==========================================
  */
 
-const checkedGeneral =
-  computed(() => {
-    if (
-      !redInCheck.value &&
-      !blackInCheck.value
-    ) {
-      return null
-    }
+const checkedGeneral = computed(() => {
+  if (!redInCheck.value && !blackInCheck.value) {
+    return null;
+  }
 
-    const color: PieceColor =
-      redInCheck.value
-        ? 'red'
-        : 'black'
+  const color: PieceColor = redInCheck.value ? "red" : "black";
 
-    return (
-      board.value.find(
-        (piece) =>
-          piece.type ===
-            'general' &&
-          piece.color === color,
-      ) ?? null
-    )
-  })
+  return (
+    board.value.find(
+      (piece) => piece.type === "general" && piece.color === color,
+    ) ?? null
+  );
+});
 
 /**
  * ==========================================
@@ -293,22 +239,15 @@ const checkedGeneral =
  * ==========================================
  */
 
-const selectedPiece =
-  computed(() => {
-    if (
-      !selectedPieceId.value
-    ) {
-      return null
-    }
+const selectedPiece = computed(() => {
+  if (!selectedPieceId.value) {
+    return null;
+  }
 
-    return (
-      board.value.find(
-        (piece) =>
-          piece.id ===
-          selectedPieceId.value,
-      ) ?? null
-    )
-  })
+  return (
+    board.value.find((piece) => piece.id === selectedPieceId.value) ?? null
+  );
+});
 
 /**
  * ==========================================
@@ -316,23 +255,16 @@ const selectedPiece =
  * ==========================================
  */
 
-function getPieceAt(
-  row: number,
-  col: number,
-): ChineseChessPiece | undefined {
-  return board.value.find(
-    (piece) =>
-      piece.row === row &&
-      piece.col === col,
-  )
+function getPieceAt(row: number, col: number): ChineseChessPiece | undefined {
+  return board.value.find((piece) => piece.row === row && piece.col === col);
 }
 
 function isLastMoveFrom(row: number, col: number): boolean {
-  return props.lastMove?.from.row === row && props.lastMove.from.col === col
+  return props.lastMove?.from.row === row && props.lastMove.from.col === col;
 }
 
 function isLastMoveTo(row: number, col: number): boolean {
-  return props.lastMove?.to.row === row && props.lastMove.to.col === col
+  return props.lastMove?.to.row === row && props.lastMove.to.col === col;
 }
 
 /**
@@ -341,15 +273,8 @@ function isLastMoveTo(row: number, col: number): boolean {
  * ==========================================
  */
 
-function isValidMove(
-  row: number,
-  col: number,
-): boolean {
-  return validMoves.value.some(
-    (move) =>
-      move.row === row &&
-      move.col === col,
-  )
+function isValidMove(row: number, col: number): boolean {
+  return validMoves.value.some((move) => move.row === row && move.col === col);
 }
 
 /**
@@ -358,40 +283,30 @@ function isValidMove(
  * ==========================================
  */
 
-function selectPiece(
-  piece: ChineseChessPiece,
-) {
+function selectPiece(piece: ChineseChessPiece) {
   /**
    * Chưa bắt đầu game
    */
 
   if (!canInteract.value) {
-    return
+    return;
   }
 
   /**
    * Không phải lượt quân này
    */
 
-  if (
-    piece.color !==
-    props.currentTurn
-  ) {
-    return
+  if (piece.color !== props.currentTurn) {
+    return;
   }
 
-  selectedPieceId.value =
-    piece.id
+  selectedPieceId.value = piece.id;
 
   /**
    * Pseudo legal moves
    */
 
-  const pseudoMoves =
-    getPseudoLegalMoves(
-      piece,
-      board.value,
-    )
+  const pseudoMoves = getPseudoLegalMoves(piece, board.value);
 
   /**
    * Lọc những nước:
@@ -400,40 +315,39 @@ function selectPiece(
    * - Không vi phạm luật
    */
 
-  validMoves.value =
-    pseudoMoves.filter(
-      (position) =>
-        isLegalMove(
-          board.value,
-          piece,
-          position,
-        ),
-      )
+  validMoves.value = pseudoMoves.filter((position) =>
+    isLegalMove(board.value, piece, position),
+  );
 }
 
 watch(
   () => props.suggestedMove,
   (suggestedMove) => {
-    if (!suggestedMove || !canInteract.value) return
+    if (!suggestedMove || !canInteract.value) return;
 
-    const piece = board.value.find(candidate =>
-      candidate.id === suggestedMove.pieceId
-      && candidate.row === suggestedMove.from.row
-      && candidate.col === suggestedMove.from.col)
+    const piece = board.value.find(
+      (candidate) =>
+        candidate.id === suggestedMove.pieceId &&
+        candidate.row === suggestedMove.from.row &&
+        candidate.col === suggestedMove.from.col,
+    );
 
-    if (piece) selectPiece(piece)
+    if (piece) selectPiece(piece);
   },
   { deep: true },
-)
+);
 
 function isSuggestedMoveFrom(row: number, col: number): boolean {
-  return props.suggestedMove?.from.row === row
-    && props.suggestedMove.from.col === col
+  return (
+    props.suggestedMove?.from.row === row &&
+    props.suggestedMove.from.col === col
+  );
 }
 
 function isSuggestedMoveTo(row: number, col: number): boolean {
-  return props.suggestedMove?.to.row === row
-    && props.suggestedMove.to.col === col
+  return (
+    props.suggestedMove?.to.row === row && props.suggestedMove.to.col === col
+  );
 }
 
 /**
@@ -443,10 +357,9 @@ function isSuggestedMoveTo(row: number, col: number): boolean {
  */
 
 function clearSelection() {
-  selectedPieceId.value =
-    null
+  selectedPieceId.value = null;
 
-  validMoves.value = []
+  validMoves.value = [];
 }
 
 /**
@@ -455,27 +368,20 @@ function clearSelection() {
  * ==========================================
  */
 
-function handlePointClick(
-  row: number,
-  col: number,
-) {
+function handlePointClick(row: number, col: number) {
   /**
    * Chưa bắt đầu
    */
 
   if (!canInteract.value) {
-    return
+    return;
   }
 
   /**
    * Quân tại vị trí click
    */
 
-  const clickedPiece =
-    getPieceAt(
-      row,
-      col,
-    )
+  const clickedPiece = getPieceAt(row, col);
 
   /**
    * ========================================
@@ -483,25 +389,15 @@ function handlePointClick(
    * ========================================
    */
 
-  if (
-    selectedPiece.value
-  ) {
+  if (selectedPiece.value) {
     /**
      * Click vào ô hợp lệ
      */
 
-    if (
-      isValidMove(
-        row,
-        col,
-      )
-    ) {
-      performMove(
-        row,
-        col,
-      )
+    if (isValidMove(row, col)) {
+      performMove(row, col);
 
-      return
+      return;
     }
 
     /**
@@ -510,16 +406,10 @@ function handlePointClick(
      * Cho phép đổi quân
      */
 
-    if (
-      clickedPiece &&
-      clickedPiece.color ===
-        props.currentTurn
-    ) {
-      selectPiece(
-        clickedPiece,
-      )
+    if (clickedPiece && clickedPiece.color === props.currentTurn) {
+      selectPiece(clickedPiece);
 
-      return
+      return;
     }
 
     /**
@@ -529,7 +419,7 @@ function handlePointClick(
      * Không làm gì.
      */
 
-    return
+    return;
   }
 
   /**
@@ -538,12 +428,8 @@ function handlePointClick(
    * ========================================
    */
 
-  if (
-    clickedPiece
-  ) {
-    selectPiece(
-      clickedPiece,
-    )
+  if (clickedPiece) {
+    selectPiece(clickedPiece);
   }
 }
 
@@ -553,28 +439,21 @@ function handlePointClick(
  * ==========================================
  */
 
-function performMove(
-  row: number,
-  col: number,
-) {
-  const piece =
-    selectedPiece.value
+function performMove(row: number, col: number) {
+  const piece = selectedPiece.value;
 
   if (!piece) {
-    return
+    return;
   }
 
   /**
    * Kiểm tra lại lượt.
    */
 
-  if (
-    piece.color !==
-    props.currentTurn
-  ) {
-    clearSelection()
+  if (piece.color !== props.currentTurn) {
+    clearSelection();
 
-    return
+    return;
   }
 
   /**
@@ -583,16 +462,12 @@ function performMove(
    */
 
   if (
-    !isLegalMove(
-      board.value,
-      piece,
-      {
-        row,
-        col,
-      },
-    )
+    !isLegalMove(board.value, piece, {
+      row,
+      col,
+    })
   ) {
-    return
+    return;
   }
 
   /**
@@ -602,7 +477,7 @@ function performMove(
   const from: Position = {
     row: piece.row,
     col: piece.col,
-  }
+  };
 
   /**
    * Lưu quân bị ăn.
@@ -612,11 +487,7 @@ function performMove(
    * khỏi board.
    */
 
-  const captured =
-    getPieceAt(
-      row,
-      col,
-    ) ?? null
+  const captured = getPieceAt(row, col) ?? null;
 
   /**
    * Lưu piece trước khi move.
@@ -627,15 +498,15 @@ function performMove(
 
   const movedPiece: ChineseChessPiece = {
     ...piece,
-  }
+  };
 
-  const nextBoard = movePiece(board.value, piece.id, { row, col })
-  const opponentColor: PieceColor = piece.color === 'red' ? 'black' : 'red'
-  const isCheck = isInCheck(nextBoard, opponentColor)
+  const nextBoard = movePiece(board.value, piece.id, { row, col });
+  const opponentColor: PieceColor = piece.color === "red" ? "black" : "red";
+  const isCheck = isInCheck(nextBoard, opponentColor);
 
   if (props.position) {
-    clearSelection()
-    emit('move', {
+    clearSelection();
+    emit("move", {
       number: 0,
       color: piece.color,
       piece: movedPiece,
@@ -644,11 +515,11 @@ function performMove(
       captured,
       position: nextBoard,
       is_check: isCheck,
-    })
+    });
     if (isCheckmate(nextBoard, opponentColor)) {
-      emit('checkmate', piece.color)
+      emit("checkmate", piece.color);
     }
-    return
+    return;
   }
 
   /**
@@ -659,14 +530,13 @@ function performMove(
    * Cập nhật board.
    */
 
-  board.value =
-    nextBoard
+  board.value = nextBoard;
 
   /**
    * Xóa selection.
    */
 
-  clearSelection()
+  clearSelection();
 
   /**
    * ========================================
@@ -684,18 +554,13 @@ function performMove(
    * Nếu đối thủ đã bị chiếu bí
    */
 
-  if (
-    isCheckmate(
-      board.value,
-      opponentColor,
-    )
-  ) {
+  if (isCheckmate(board.value, opponentColor)) {
     /**
      * Gửi lịch sử nước đi
      * trước khi kết thúc game.
      */
 
-    emit('move', {
+    emit("move", {
       number: 0,
       color: piece.color,
       piece: movedPiece,
@@ -707,18 +572,15 @@ function performMove(
       captured,
       position: nextBoard,
       is_check: isCheck,
-    })
+    });
 
     /**
      * Người vừa đi là người thắng.
      */
 
-    emit(
-      'checkmate',
-      piece.color,
-    )
+    emit("checkmate", piece.color);
 
-    return
+    return;
   }
 
   /**
@@ -727,7 +589,7 @@ function performMove(
    * ========================================
    */
 
-  emit('move', {
+  emit("move", {
     number: 0,
     color: piece.color,
     piece: movedPiece,
@@ -739,7 +601,7 @@ function performMove(
     captured,
     position: nextBoard,
     is_check: isCheck,
-  })
+  });
 }
 
 /**
@@ -748,18 +610,12 @@ function performMove(
  * ==========================================
  */
 
-function isCheckedGeneral(
-  row: number,
-  col: number,
-): boolean {
+function isCheckedGeneral(row: number, col: number): boolean {
   return (
-    checkedGeneral.value !==
-      null &&
-    checkedGeneral.value.row ===
-      row &&
-    checkedGeneral.value.col ===
-      col
-  )
+    checkedGeneral.value !== null &&
+    checkedGeneral.value.row === row &&
+    checkedGeneral.value.col === col
+  );
 }
 
 /**
@@ -768,42 +624,24 @@ function isCheckedGeneral(
  * ==========================================
  */
 
-function isCurrentTurnPiece(
-  piece: ChineseChessPiece,
-): boolean {
-  return (
-    canInteract.value &&
-    piece.color === props.currentTurn
-  )
+function isCurrentTurnPiece(piece: ChineseChessPiece): boolean {
+  return canInteract.value && piece.color === props.currentTurn;
 }
 
 const displayedFileLabels = computed(() =>
-  Array.from(
-    { length: 9 },
-    (_, index) => String.fromCharCode(65 + displayCol(index)),
+  Array.from({ length: 9 }, (_, index) =>
+    String.fromCharCode(65 + displayCol(index)),
   ),
-)
+);
 
 const displayedRankLabels = computed(() =>
-  Array.from(
-    { length: 10 },
-    (_, index) => displayRow(index) + 1,
-  ),
-)
+  Array.from({ length: 10 }, (_, index) => displayRow(index) + 1),
+);
 </script>
 
 <template>
-  <div
-    class="
-      chess-board-layout
-      w-full
-      max-w-[600px]
-    "
-  >
-    <div
-      class="chess-rank-axis"
-      aria-hidden="true"
-    >
+  <div class="chess-board-layout w-full max-w-[600px]">
+    <div class="chess-rank-axis" aria-hidden="true">
       <span
         v-for="rank in displayedRankLabels"
         :key="`rank-${rank}`"
@@ -821,489 +659,293 @@ const displayedRankLabels = computed(() =>
       class="chess-board-frame"
       :class="{
         'has-turn-glow': gameStarted && playerColor === currentTurn,
-        'is-red-turn': gameStarted && playerColor === 'red' && currentTurn === 'red',
-        'is-black-turn': gameStarted && playerColor === 'black' && currentTurn === 'black',
+        'is-red-turn':
+          gameStarted && playerColor === 'red' && currentTurn === 'red',
+        'is-black-turn':
+          gameStarted && playerColor === 'black' && currentTurn === 'black',
       }"
     >
       <div
-        class="
-          chess-board-surface
-          relative
-          aspect-[8/9]
-          w-full
-          overflow-hidden
-          rounded-lg
-        "
+        class="chess-board-surface relative aspect-[8/9] w-full overflow-hidden rounded-lg"
       >
-      <!-- ================================= -->
-      <!-- CHECK EFFECT -->
-      <!-- ================================= -->
+        <!-- ================================= -->
+        <!-- CHECK EFFECT -->
+        <!-- ================================= -->
 
-      <div
-        v-if="checkedGeneral"
-        class="
-          pointer-events-none
-          absolute
-          z-30
-          -translate-x-1/2
-          -translate-y-1/2
-          animate-pulse
-          rounded-full
-          border-4
-          border-red-500
-          bg-red-500/20
-          shadow-[0_0_30px_rgba(239,68,68,0.9)]
-        "
-        :style="{
-          left: `${
-            5 +
-            (displayCol(checkedGeneral.col) / 8) *
-              90
-          }%`,
-
-          top: `${
-            5 +
-            (displayRow(checkedGeneral.row) / 9) *
-              90
-          }%`,
-
-          width: '12%',
-          aspectRatio: '1',
-        }"
-      />
-
-      <Transition name="opponent-reminder">
         <div
-          v-if="opponentReminderVisible && lastMove"
-          class="opponent-turn-reminder"
-          :class="{
-            'is-below': displayRow(lastMove.to.row) < 2,
-            'is-left-edge': displayCol(lastMove.to.col) < 2,
-            'is-right-edge': displayCol(lastMove.to.col) > 6,
-          }"
+          v-if="checkedGeneral"
+          class="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-1/2 animate-pulse rounded-full border-4 border-red-500 bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.9)]"
           :style="{
-            left: `${5 + (displayCol(lastMove.to.col) / 8) * 90}%`,
-            top: `${5 + (displayRow(lastMove.to.row) / 9) * 90}%`,
+            left: `${5 + (displayCol(checkedGeneral.col) / 8) * 90}%`,
+
+            top: `${5 + (displayRow(checkedGeneral.row) / 9) * 90}%`,
+
+            width: '12%',
+            aspectRatio: '1',
           }"
-          role="status"
-        >
-          <button
-            type="button"
-            aria-label="Đóng lời nhắc"
-            @click.stop="dismissOpponentReminder"
-          >
-            ×
-          </button>
-          <div class="opponent-turn-reminder__cue" aria-hidden="true">
-            <span><i></i><i></i><i></i></span>
-            <small>NHẮC LƯỢT</small>
-          </div>
-          <strong>Đã tới lượt của ngươi rồi đó!</strong>
-          <span>Hãy hành động đi.</span>
-        </div>
-      </Transition>
-
-      <!-- ================================= -->
-      <!-- BOARD SVG -->
-      <!-- ================================= -->
-
-      <svg
-        class="
-          chess-board-grid
-          absolute
-          inset-[5%]
-          h-[90%]
-          w-[90%]
-        "
-        viewBox="0 0 8 9"
-        preserveAspectRatio="none"
-      >
-        <!-- =============================== -->
-        <!-- HORIZONTAL -->
-        <!-- =============================== -->
-
-        <g
-          stroke="#5f381b"
-          stroke-width="0.018"
-        >
-          <line
-            v-for="row in 10"
-            :key="`h-${row}`"
-            x1="0"
-            :y1="row - 1"
-            x2="8"
-            :y2="row - 1"
-          />
-        </g>
-
-        <!-- =============================== -->
-        <!-- VERTICAL -->
-        <!-- =============================== -->
-
-        <g
-          stroke="#5f381b"
-          stroke-width="0.018"
-        >
-          <!-- TOP -->
-
-          <line
-            v-for="col in 9"
-            :key="
-              `top-v-${col}`
-            "
-            :x1="col - 1"
-            y1="0"
-            :x2="col - 1"
-            y2="4"
-          />
-
-          <!-- BOTTOM -->
-
-          <line
-            v-for="col in 9"
-            :key="
-              `bottom-v-${col}`
-            "
-            :x1="col - 1"
-            y1="5"
-            :x2="col - 1"
-            y2="9"
-          />
-        </g>
-
-        <!-- =============================== -->
-        <!-- TOP PALACE -->
-        <!-- =============================== -->
-
-        <line
-          x1="3"
-          y1="0"
-          x2="5"
-          y2="2"
-          stroke="#5f381b"
-          stroke-width="0.018"
         />
 
-        <line
-          x1="5"
-          y1="0"
-          x2="3"
-          y2="2"
-          stroke="#5f381b"
-          stroke-width="0.018"
-        />
-
-        <!-- =============================== -->
-        <!-- BOTTOM PALACE -->
-        <!-- =============================== -->
-
-        <line
-          x1="3"
-          y1="7"
-          x2="5"
-          y2="9"
-          stroke="#5f381b"
-          stroke-width="0.018"
-        />
-
-        <line
-          x1="5"
-          y1="7"
-          x2="3"
-          y2="9"
-          stroke="#5f381b"
-          stroke-width="0.018"
-        />
-      </svg>
-
-      <!-- ================================= -->
-      <!-- RIVER -->
-      <!-- ================================= -->
-
-      <div
-        class="
-          chess-board-river
-          pointer-events-none
-          absolute
-          left-[5%]
-          right-[5%]
-          top-[45%]
-          h-[10%]
-        "
-      >
-        <div
-          class="
-            flex
-            h-full
-            items-center
-            justify-center
-            gap-[15%]
-            font-serif
-            text-[clamp(0.9rem,3vw,1.6rem)]
-            font-bold
-            tracking-widest
-            text-[#5f381b]
-          "
-        >
-          <span>
-            楚河
-          </span>
-
-          <span>
-            漢界
-          </span>
-        </div>
-      </div>
-
-      <!-- ================================= -->
-      <!-- INTERACTION -->
-      <!-- ================================= -->
-
-      <div
-        class="
-          absolute
-          inset-[5%]
-          h-[90%]
-          w-[90%]
-        "
-      >
-        <!-- 10 x 9 = 90 intersections -->
-
-        <template
-          v-for="row in 10"
-          :key="
-            `row-${row}`
-          "
-        >
-          <button
-            v-for="col in 9"
-            :key="
-              `${row}-${col}`
-            "
-            type="button"
-            class="
-              absolute
-              z-20
-              flex
-              h-[11.11%]
-              w-[12.5%]
-              -translate-x-1/2
-              -translate-y-1/2
-              items-center
-              justify-center
-              rounded-full
-            "
+        <Transition name="opponent-reminder">
+          <div
+            v-if="opponentReminderVisible && lastMove"
+            class="opponent-turn-reminder"
             :class="{
-              'cursor-pointer':
-                canInteract,
-
-              'cursor-not-allowed':
-                !canInteract,
+              'is-below': displayRow(lastMove.to.row) < 2,
+              'is-left-edge': displayCol(lastMove.to.col) < 2,
+              'is-right-edge': displayCol(lastMove.to.col) > 6,
             }"
             :style="{
-              left: `${
-                (displayCol(col - 1) / 8) *
-                100
-              }%`,
-
-              top: `${
-                (displayRow(row - 1) / 9) *
-                100
-              }%`,
+              left: `${5 + (displayCol(lastMove.to.col) / 8) * 90}%`,
+              top: `${5 + (displayRow(lastMove.to.row) / 9) * 90}%`,
             }"
-            @click="
-              handlePointClick(
-                row - 1,
-                col - 1,
-              )
-            "
+            role="status"
           >
-            <span
-              v-if="isLastMoveFrom(row - 1, col - 1)"
-              class="chess-last-move-marker is-from"
-            />
-
-            <span
-              v-if="isLastMoveTo(row - 1, col - 1)"
-              class="chess-last-move-marker is-to"
-            />
-
-            <span
-              v-if="isSuggestedMoveFrom(row - 1, col - 1)"
-              class="chess-move-suggestion is-from"
-              aria-hidden="true"
-            />
-
-            <span
-              v-if="isSuggestedMoveTo(row - 1, col - 1)"
-              class="chess-move-suggestion is-to"
-              aria-hidden="true"
+            <button
+              type="button"
+              aria-label="Đóng lời nhắc"
+              @click.stop="dismissOpponentReminder"
             >
-              <small>ĐI</small>
-            </span>
+              ×
+            </button>
+            <div class="opponent-turn-reminder__cue" aria-hidden="true">
+              <span><i></i><i></i><i></i></span>
+              <small>NHẮC LƯỢT</small>
+            </div>
+            <strong>Đã tới lượt của ngươi rồi đó!</strong>
+            <span>Hãy hành động đi.</span>
+          </div>
+        </Transition>
 
-            <!-- =========================== -->
-            <!-- VALID MOVE -->
-            <!-- =========================== -->
+        <!-- ================================= -->
+        <!-- BOARD SVG -->
+        <!-- ================================= -->
 
-            <span
-              v-if="
-                isValidMove(
-                  row - 1,
-                  col - 1,
-                )
-              "
-              class="
-                absolute
-                h-3
-                w-3
-                rounded-full
-                bg-green-600
-                ring-2
-                ring-white/60
-              "
-            />
-
-            <!-- =========================== -->
-            <!-- CHECKED GENERAL -->
-            <!-- =========================== -->
-
-            <span
-              v-if="
-                isCheckedGeneral(
-                  row - 1,
-                  col - 1,
-                )
-              "
-              class="
-                absolute
-                h-[82%]
-                w-[82%]
-                animate-pulse
-                rounded-full
-                border-[3px]
-                border-red-500
-                bg-red-500/10
-                shadow-[0_0_18px_rgba(239,68,68,0.8)]
-              "
-            />
-
-            <!-- =========================== -->
-            <!-- PIECE -->
-            <!-- =========================== -->
-
-            <ChineseChessPiece
-              v-if="
-                getPieceAt(
-                  row - 1,
-                  col - 1,
-                )
-              "
-              :piece="
-                getPieceAt(
-                  row - 1,
-                  col - 1,
-                )!
-              "
-              :selected="
-                getPieceAt(
-                  row - 1,
-                  col - 1,
-                )?.id ===
-                selectedPieceId
-              "
-              :class="{
-                'chess-last-moved-piece': isLastMoveTo(row - 1, col - 1),
-              }"
-            />
-
-            <!-- =========================== -->
-            <!-- TURN LOCK OVERLAY -->
-            <!-- =========================== -->
-
-            <span
-              v-if="
-                getPieceAt(
-                  row - 1,
-                  col - 1,
-                ) &&
-                !isCurrentTurnPiece(
-                  getPieceAt(
-                    row - 1,
-                    col - 1,
-                  )!,
-                )
-              "
-              class="
-                pointer-events-none
-                absolute
-                inset-0
-                rounded-full
-              "
-            />
-          </button>
-        </template>
-      </div>
-
-      <!-- ================================= -->
-      <!-- NOT STARTED OVERLAY -->
-      <!-- ================================= -->
-
-      <div
-        v-if="!gameStarted && showWaitingOverlay !== false"
-        class="
-          pointer-events-none
-          absolute
-          inset-0
-          z-40
-          flex
-          items-center
-          justify-center
-          bg-black/20
-        "
-      >
-        <div
-          class="
-            rounded-2xl
-            border
-            border-white/20
-            bg-black/60
-            px-6
-            py-4
-            text-center
-            backdrop-blur-sm
-          "
+        <svg
+          class="chess-board-grid absolute inset-[5%] h-[90%] w-[90%]"
+          viewBox="0 0 8 9"
+          preserveAspectRatio="none"
         >
-          <p
-            class="
-              text-lg
-              font-bold
-              text-white
-            "
-          >
-            Sẵn sàng
-          </p>
+          <!-- =============================== -->
+          <!-- HORIZONTAL -->
+          <!-- =============================== -->
 
-          <p
-            class="
-              mt-1
-              text-sm
-              text-slate-300
-            "
+          <g stroke="#5f381b" stroke-width="0.018">
+            <line
+              v-for="row in 10"
+              :key="`h-${row}`"
+              x1="0"
+              :y1="row - 1"
+              x2="8"
+              :y2="row - 1"
+            />
+          </g>
+
+          <!-- =============================== -->
+          <!-- VERTICAL -->
+          <!-- =============================== -->
+
+          <g stroke="#5f381b" stroke-width="0.018">
+            <!-- TOP -->
+
+            <line
+              v-for="col in 9"
+              :key="`top-v-${col}`"
+              :x1="col - 1"
+              y1="0"
+              :x2="col - 1"
+              y2="4"
+            />
+
+            <!-- BOTTOM -->
+
+            <line
+              v-for="col in 9"
+              :key="`bottom-v-${col}`"
+              :x1="col - 1"
+              y1="5"
+              :x2="col - 1"
+              y2="9"
+            />
+          </g>
+
+          <!-- =============================== -->
+          <!-- TOP PALACE -->
+          <!-- =============================== -->
+
+          <line
+            x1="3"
+            y1="0"
+            x2="5"
+            y2="2"
+            stroke="#5f381b"
+            stroke-width="0.018"
+          />
+
+          <line
+            x1="5"
+            y1="0"
+            x2="3"
+            y2="2"
+            stroke="#5f381b"
+            stroke-width="0.018"
+          />
+
+          <!-- =============================== -->
+          <!-- BOTTOM PALACE -->
+          <!-- =============================== -->
+
+          <line
+            x1="3"
+            y1="7"
+            x2="5"
+            y2="9"
+            stroke="#5f381b"
+            stroke-width="0.018"
+          />
+
+          <line
+            x1="5"
+            y1="7"
+            x2="3"
+            y2="9"
+            stroke="#5f381b"
+            stroke-width="0.018"
+          />
+        </svg>
+
+        <!-- ================================= -->
+        <!-- RIVER -->
+        <!-- ================================= -->
+
+        <div
+          class="chess-board-river pointer-events-none absolute left-[5%] right-[5%] top-[45%] h-[10%]"
+        >
+          <div
+            class="flex h-full items-center justify-center gap-[15%] font-serif text-[clamp(0.9rem,3vw,1.6rem)] font-bold tracking-widest text-[#5f381b]"
           >
-            Nhấn "Bắt đầu" để chơi
-          </p>
+            <span> 楚河 </span>
+
+            <span> 漢界 </span>
+          </div>
+        </div>
+
+        <!-- ================================= -->
+        <!-- INTERACTION -->
+        <!-- ================================= -->
+
+        <div class="absolute inset-[5%] h-[90%] w-[90%]">
+          <!-- 10 x 9 = 90 intersections -->
+
+          <template v-for="row in 10" :key="`row-${row}`">
+            <button
+              v-for="col in 9"
+              :key="`${row}-${col}`"
+              type="button"
+              class="absolute z-20 flex h-[11.11%] w-[12.5%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+              :class="{
+                'cursor-pointer': canInteract,
+
+                'cursor-not-allowed': !canInteract,
+              }"
+              :style="{
+                left: `${(displayCol(col - 1) / 8) * 100}%`,
+
+                top: `${(displayRow(row - 1) / 9) * 100}%`,
+              }"
+              @click="handlePointClick(row - 1, col - 1)"
+            >
+              <span
+                v-if="isLastMoveFrom(row - 1, col - 1)"
+                class="chess-last-move-marker is-from"
+              />
+
+              <span
+                v-if="isLastMoveTo(row - 1, col - 1)"
+                class="chess-last-move-marker is-to"
+              />
+
+              <span
+                v-if="isSuggestedMoveFrom(row - 1, col - 1)"
+                class="chess-move-suggestion is-from"
+                aria-hidden="true"
+              />
+
+              <span
+                v-if="isSuggestedMoveTo(row - 1, col - 1)"
+                class="chess-move-suggestion is-to"
+                aria-hidden="true"
+              >
+                <small>ĐI</small>
+              </span>
+
+              <!-- =========================== -->
+              <!-- VALID MOVE -->
+              <!-- =========================== -->
+
+              <span
+                v-if="isValidMove(row - 1, col - 1)"
+                class="absolute h-3 w-3 rounded-full bg-green-600 ring-2 ring-white/60"
+              />
+
+              <!-- =========================== -->
+              <!-- CHECKED GENERAL -->
+              <!-- =========================== -->
+
+              <span
+                v-if="isCheckedGeneral(row - 1, col - 1)"
+                class="absolute h-[82%] w-[82%] animate-pulse rounded-full border-[3px] border-red-500 bg-red-500/10 shadow-[0_0_18px_rgba(239,68,68,0.8)]"
+              />
+
+              <!-- =========================== -->
+              <!-- PIECE -->
+              <!-- =========================== -->
+
+              <ChineseChessPiece
+                v-if="getPieceAt(row - 1, col - 1)"
+                :piece="getPieceAt(row - 1, col - 1)!"
+                :selected="getPieceAt(row - 1, col - 1)?.id === selectedPieceId"
+                :class="{
+                  'chess-last-moved-piece': isLastMoveTo(row - 1, col - 1),
+                }"
+              />
+
+              <!-- =========================== -->
+              <!-- TURN LOCK OVERLAY -->
+              <!-- =========================== -->
+
+              <span
+                v-if="
+                  getPieceAt(row - 1, col - 1) &&
+                  !isCurrentTurnPiece(getPieceAt(row - 1, col - 1)!)
+                "
+                class="pointer-events-none absolute inset-0 rounded-full"
+              />
+            </button>
+          </template>
+        </div>
+
+        <!-- ================================= -->
+        <!-- NOT STARTED OVERLAY -->
+        <!-- ================================= -->
+
+        <div
+          v-if="!gameStarted && showWaitingOverlay !== false"
+          class="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/20"
+        >
+          <div
+            class="rounded-2xl border border-white/20 bg-black/60 px-6 py-4 text-center backdrop-blur-sm"
+          >
+            <p class="text-lg font-bold text-white">Sẵn sàng</p>
+
+            <p class="mt-1 text-sm text-slate-300">Nhấn "Bắt đầu" để chơi</p>
+          </div>
         </div>
       </div>
-    </div>
     </div>
 
     <div aria-hidden="true" />
 
-    <div
-      class="chess-file-axis"
-      aria-hidden="true"
-    >
+    <div class="chess-file-axis" aria-hidden="true">
       <span
         v-for="file in displayedFileLabels"
         :key="`file-${file}`"
@@ -1323,8 +965,17 @@ const displayedRankLabels = computed(() =>
   border-color: #704523;
   border-radius: clamp(10px, 1.4vw, 14px);
   background:
-    linear-gradient(112deg, rgb(255 247 218 / 15%), transparent 26% 76%, rgb(91 52 24 / 8%)),
-    repeating-linear-gradient(2deg, transparent 0 21px, rgb(91 59 31 / 3.5%) 22px 23px),
+    linear-gradient(
+      112deg,
+      rgb(255 247 218 / 15%),
+      transparent 26% 76%,
+      rgb(91 52 24 / 8%)
+    ),
+    repeating-linear-gradient(
+      2deg,
+      transparent 0 21px,
+      rgb(91 59 31 / 3.5%) 22px 23px
+    ),
     linear-gradient(145deg, #dfc38f 0%, #d7b77d 54%, #cda568 100%);
   box-shadow:
     0 clamp(3px, 0.5vw, 5px) 0 #422713,
@@ -1340,7 +991,12 @@ const displayedRankLabels = computed(() =>
   z-index: 1;
   background:
     radial-gradient(circle at 28% 16%, rgb(255 250 226 / 13%), transparent 32%),
-    linear-gradient(90deg, rgb(255 255 255 / 4%), transparent 16% 84%, rgb(73 42 20 / 5%));
+    linear-gradient(
+      90deg,
+      rgb(255 255 255 / 4%),
+      transparent 16% 84%,
+      rgb(73 42 20 / 5%)
+    );
   box-shadow:
     inset 7px 0 12px -12px rgb(255 243 211 / 56%),
     inset -8px 0 14px -12px rgb(62 38 19 / 46%),
@@ -1403,8 +1059,12 @@ const displayedRankLabels = computed(() =>
 }
 
 @keyframes chess-turn-glow-pulse {
-  from { opacity: .55; }
-  to { opacity: 1; }
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes chess-turn-border-run {
@@ -1423,13 +1083,20 @@ const displayedRankLabels = computed(() =>
   border: 1px solid #c88a3c;
   border-radius: 14px 14px 14px 5px;
   padding: 10px 30px 11px 12px;
-  background: linear-gradient(145deg, rgb(255 249 231 / 98%), rgb(241 220 176 / 98%));
+  background: linear-gradient(
+    145deg,
+    rgb(255 249 231 / 98%),
+    rgb(241 220 176 / 98%)
+  );
   box-shadow:
     0 10px 24px rgb(64 35 13 / 28%),
     inset 0 1px rgb(255 255 255 / 78%);
   color: #3f2b18;
   pointer-events: auto;
-  transform: translate(var(--reminder-x), calc(-100% - clamp(30px, 5.5vw, 40px)));
+  transform: translate(
+    var(--reminder-x),
+    calc(-100% - clamp(30px, 5.5vw, 40px))
+  );
   animation: opponent-reminder-enter 220ms cubic-bezier(0.2, 0.85, 0.3, 1.12);
 }
 
@@ -1590,8 +1257,7 @@ const displayedRankLabels = computed(() =>
 }
 
 .chess-board-grid {
-  filter:
-    drop-shadow(0 1px 0 rgb(255 231 172 / 42%))
+  filter: drop-shadow(0 1px 0 rgb(255 231 172 / 42%))
     drop-shadow(0 1.2px 0.35px rgb(70 35 12 / 28%));
 }
 
@@ -1714,7 +1380,9 @@ const displayedRankLabels = computed(() =>
 .chess-last-move-marker.is-to {
   border: 3px solid #fbbf24;
   background: rgb(250 204 21 / 17%);
-  box-shadow: 0 0 0 3px rgb(255 255 255 / 42%), 0 0 22px rgb(245 158 11 / 78%);
+  box-shadow:
+    0 0 0 3px rgb(255 255 255 / 42%),
+    0 0 22px rgb(245 158 11 / 78%);
   animation: opponent-move-ring 0.85s ease-out;
 }
 
@@ -1739,9 +1407,18 @@ const displayedRankLabels = computed(() =>
 }
 
 @keyframes opponent-piece-arrive {
-  0% { transform: scale(0.72); filter: brightness(1.65); }
-  55% { transform: scale(1.14); filter: brightness(1.2); }
-  100% { transform: scale(1); filter: brightness(1); }
+  0% {
+    transform: scale(0.72);
+    filter: brightness(1.65);
+  }
+  55% {
+    transform: scale(1.14);
+    filter: brightness(1.2);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

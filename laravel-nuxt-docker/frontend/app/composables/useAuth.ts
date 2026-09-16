@@ -1,91 +1,73 @@
 interface User {
-  id: number
-  name: string
-  email: string
-  role: 'admin' | 'user'
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "user";
 }
 
 interface LoginResponse {
-  message: string
-  user: User
+  message: string;
+  user: User;
 }
 
 interface UserResponse {
-  user: User
+  user: User;
 }
 
 interface LogoutResponse {
-  message: string
+  message: string;
 }
 
 export const useAuth = () => {
-  const api = useApi()
+  const api = useApi();
 
-  const user = useState<User | null>(
-    'auth-user',
-    () => null,
-  )
+  const user = useState<User | null>("auth-user", () => null);
 
-  const initialized = useState<boolean>(
-    'auth-initialized',
-    () => false,
-  )
+  const initialized = useState<boolean>("auth-initialized", () => false);
 
   /**
    * Lấy CSRF cookie từ Laravel
    */
   const csrf = async () => {
-    await api('/sanctum/csrf-cookie')
-  }
+    await api("/sanctum/csrf-cookie");
+  };
 
   /**
    * Login
    */
-  const login = async (
-    email: string,
-    password: string,
-  ) => {
+  const login = async (email: string, password: string) => {
     // Lấy CSRF cookie trước
-    await csrf()
+    await csrf();
 
-    const response = await api<LoginResponse>(
-      '/api/login',
-      {
-        method: 'POST',
+    const response = await api<LoginResponse>("/api/login", {
+      method: "POST",
 
-        body: {
-          email,
-          password,
-        },
+      body: {
+        email,
+        password,
       },
-    )
+    });
 
-    user.value = response.user
+    user.value = response.user;
 
-    return response
-  }
+    return response;
+  };
 
-  const adminLogin = async (
-    email: string,
-    password: string,
-  ) => {
-    await csrf()
+  const adminLogin = async (email: string, password: string) => {
+    await csrf();
 
-    const response = await api<LoginResponse>(
-      '/api/admin/login',
-      {
-        method: 'POST',
-        body: {
-          email,
-          password,
-        },
+    const response = await api<LoginResponse>("/api/admin/login", {
+      method: "POST",
+      body: {
+        email,
+        password,
       },
-    )
+    });
 
-    user.value = response.user
+    user.value = response.user;
 
-    return response
-  }
+    return response;
+  };
 
   const register = async (
     name: string,
@@ -93,59 +75,54 @@ export const useAuth = () => {
     password: string,
     passwordConfirmation: string,
   ) => {
-    await csrf()
+    await csrf();
 
-    const response = await api<LoginResponse>('/api/register', {
-      method: 'POST',
+    const response = await api<LoginResponse>("/api/register", {
+      method: "POST",
       body: {
         name,
         email,
         password,
         password_confirmation: passwordConfirmation,
       },
-    })
+    });
 
-    user.value = response.user
+    user.value = response.user;
 
-    return response
-  }
+    return response;
+  };
 
   /**
    * Lấy user hiện tại
    */
   const fetchUser = async () => {
     try {
-      const response = await api<UserResponse>(
-        '/api/user',
-      )
+      const response = await api<UserResponse>("/api/user");
 
-      user.value = response.user
+      user.value = response.user;
 
-      return response.user
+      return response.user;
     } catch {
-      user.value = null
+      user.value = null;
 
-      return null
+      return null;
     } finally {
-      initialized.value = true
+      initialized.value = true;
     }
-  }
+  };
 
   /**
    * Logout
    */
   const logout = async () => {
     try {
-      await api<LogoutResponse>(
-        '/api/logout',
-        {
-          method: 'POST',
-        },
-      )
+      await api<LogoutResponse>("/api/logout", {
+        method: "POST",
+      });
     } finally {
-      user.value = null
+      user.value = null;
     }
-  }
+  };
 
   return {
     user,
@@ -156,5 +133,5 @@ export const useAuth = () => {
     adminLogin,
     fetchUser,
     logout,
-  }
-}
+  };
+};

@@ -3,24 +3,16 @@ import type {
   PieceColor,
   PieceType,
   Position,
-} from '~/types/games/chinese-chess'
+} from "~/types/games/chinese-chess";
 
-const ROWS = 10
-const COLS = 9
+const ROWS = 10;
+const COLS = 9;
 
 /**
  * Kiểm tra vị trí có nằm trong bàn cờ hay không.
  */
-function insideBoard(
-  row: number,
-  col: number,
-): boolean {
-  return (
-    row >= 0 &&
-    row < ROWS &&
-    col >= 0 &&
-    col < COLS
-  )
+function insideBoard(row: number, col: number): boolean {
+  return row >= 0 && row < ROWS && col >= 0 && col < COLS;
 }
 
 /**
@@ -31,11 +23,7 @@ function getPieceAt(
   row: number,
   col: number,
 ): ChineseChessPiece | undefined {
-  return board.find(
-    piece =>
-      piece.row === row &&
-      piece.col === col,
-  )
+  return board.find((piece) => piece.row === row && piece.col === col);
 }
 
 /**
@@ -45,7 +33,7 @@ function isEnemy(
   piece: ChineseChessPiece | undefined,
   color: PieceColor,
 ): boolean {
-  return !!piece && piece.color !== color
+  return !!piece && piece.color !== color;
 }
 
 /**
@@ -55,7 +43,7 @@ function isFriendly(
   piece: ChineseChessPiece | undefined,
   color: PieceColor,
 ): boolean {
-  return !!piece && piece.color === color
+  return !!piece && piece.color === color;
 }
 
 /**
@@ -71,85 +59,46 @@ function countPiecesBetween(
   from: Position,
   to: Position,
 ): number {
-  let count = 0
+  let count = 0;
 
   if (from.row === to.row) {
-    const start = Math.min(
-      from.col,
-      to.col,
-    )
+    const start = Math.min(from.col, to.col);
 
-    const end = Math.max(
-      from.col,
-      to.col,
-    )
+    const end = Math.max(from.col, to.col);
 
-    for (
-      let col = start + 1;
-      col < end;
-      col++
-    ) {
-      if (
-        getPieceAt(
-          board,
-          from.row,
-          col,
-        )
-      ) {
-        count++
+    for (let col = start + 1; col < end; col++) {
+      if (getPieceAt(board, from.row, col)) {
+        count++;
       }
     }
   } else if (from.col === to.col) {
-    const start = Math.min(
-      from.row,
-      to.row,
-    )
+    const start = Math.min(from.row, to.row);
 
-    const end = Math.max(
-      from.row,
-      to.row,
-    )
+    const end = Math.max(from.row, to.row);
 
-    for (
-      let row = start + 1;
-      row < end;
-      row++
-    ) {
-      if (
-        getPieceAt(
-          board,
-          row,
-          from.col,
-        )
-      ) {
-        count++
+    for (let row = start + 1; row < end; row++) {
+      if (getPieceAt(board, row, from.col)) {
+        count++;
       }
     }
   }
 
-  return count
+  return count;
 }
 
 /**
  * Kiểm tra một vị trí có nằm trong cung của Tướng/Sĩ.
  */
-function insidePalace(
-  color: PieceColor,
-  row: number,
-  col: number,
-): boolean {
-  if (
-    col < 3 ||
-    col > 5
-  ) {
-    return false
+function insidePalace(color: PieceColor, row: number, col: number): boolean {
+  if (col < 3 || col > 5) {
+    return false;
   }
 
-  if (color === 'black') {
-    return row >= 0 && row <= 2
+  if (color === "black") {
+    return row >= 0 && row <= 2;
   }
 
-  return row >= 7 && row <= 9
+  return row >= 7 && row <= 9;
 }
 
 /**
@@ -163,55 +112,38 @@ function getGeneralMoves(
   piece: ChineseChessPiece,
   board: ChineseChessPiece[],
 ): Position[] {
-  const moves: Position[] = []
+  const moves: Position[] = [];
 
-  const directions: Array<
-    [number, number]
-  > = [
+  const directions: Array<[number, number]> = [
     [-1, 0],
     [1, 0],
     [0, -1],
     [0, 1],
-  ]
+  ];
 
   for (const [dr, dc] of directions) {
-    const row = piece.row + dr
-    const col = piece.col + dc
+    const row = piece.row + dr;
+    const col = piece.col + dc;
 
     if (!insideBoard(row, col)) {
-      continue
+      continue;
     }
 
-    if (
-      !insidePalace(
-        piece.color,
-        row,
-        col,
-      )
-    ) {
-      continue
+    if (!insidePalace(piece.color, row, col)) {
+      continue;
     }
 
-    const target = getPieceAt(
-      board,
-      row,
-      col,
-    )
+    const target = getPieceAt(board, row, col);
 
-    if (
-      !isFriendly(
-        target,
-        piece.color,
-      )
-    ) {
+    if (!isFriendly(target, piece.color)) {
       moves.push({
         row,
         col,
-      })
+      });
     }
   }
 
-  return moves
+  return moves;
 }
 
 /**
@@ -225,55 +157,38 @@ function getAdvisorMoves(
   piece: ChineseChessPiece,
   board: ChineseChessPiece[],
 ): Position[] {
-  const moves: Position[] = []
+  const moves: Position[] = [];
 
-  const directions: Array<
-    [number, number]
-  > = [
+  const directions: Array<[number, number]> = [
     [-1, -1],
     [-1, 1],
     [1, -1],
     [1, 1],
-  ]
+  ];
 
   for (const [dr, dc] of directions) {
-    const row = piece.row + dr
-    const col = piece.col + dc
+    const row = piece.row + dr;
+    const col = piece.col + dc;
 
     if (!insideBoard(row, col)) {
-      continue
+      continue;
     }
 
-    if (
-      !insidePalace(
-        piece.color,
-        row,
-        col,
-      )
-    ) {
-      continue
+    if (!insidePalace(piece.color, row, col)) {
+      continue;
     }
 
-    const target = getPieceAt(
-      board,
-      row,
-      col,
-    )
+    const target = getPieceAt(board, row, col);
 
-    if (
-      !isFriendly(
-        target,
-        piece.color,
-      )
-    ) {
+    if (!isFriendly(target, piece.color)) {
       moves.push({
         row,
         col,
-      })
+      });
     }
   }
 
-  return moves
+  return moves;
 }
 
 /**
@@ -288,78 +203,53 @@ function getElephantMoves(
   piece: ChineseChessPiece,
   board: ChineseChessPiece[],
 ): Position[] {
-  const moves: Position[] = []
+  const moves: Position[] = [];
 
-  const directions: Array<
-    [number, number]
-  > = [
+  const directions: Array<[number, number]> = [
     [-2, -2],
     [-2, 2],
     [2, -2],
     [2, 2],
-  ]
+  ];
 
   for (const [dr, dc] of directions) {
-    const row = piece.row + dr
-    const col = piece.col + dc
+    const row = piece.row + dr;
+    const col = piece.col + dc;
 
     if (!insideBoard(row, col)) {
-      continue
+      continue;
     }
 
     // Tượng đen không được sang phần đỏ.
-    if (
-      piece.color === 'black' &&
-      row > 4
-    ) {
-      continue
+    if (piece.color === "black" && row > 4) {
+      continue;
     }
 
     // Tượng đỏ không được sang phần đen.
-    if (
-      piece.color === 'red' &&
-      row < 5
-    ) {
-      continue
+    if (piece.color === "red" && row < 5) {
+      continue;
     }
 
     // Kiểm tra mắt tượng.
-    const eyeRow =
-      piece.row + dr / 2
+    const eyeRow = piece.row + dr / 2;
 
-    const eyeCol =
-      piece.col + dc / 2
+    const eyeCol = piece.col + dc / 2;
 
-    if (
-      getPieceAt(
-        board,
-        eyeRow,
-        eyeCol,
-      )
-    ) {
-      continue
+    if (getPieceAt(board, eyeRow, eyeCol)) {
+      continue;
     }
 
-    const target = getPieceAt(
-      board,
-      row,
-      col,
-    )
+    const target = getPieceAt(board, row, col);
 
-    if (
-      !isFriendly(
-        target,
-        piece.color,
-      )
-    ) {
+    if (!isFriendly(target, piece.color)) {
       moves.push({
         row,
         col,
-      })
+      });
     }
   }
 
-  return moves
+  return moves;
 }
 
 /**
@@ -373,13 +263,13 @@ function getHorseMoves(
   piece: ChineseChessPiece,
   board: ChineseChessPiece[],
 ): Position[] {
-  const moves: Position[] = []
+  const moves: Position[] = [];
 
   const horseMoves: Array<{
-    dr: number
-    dc: number
-    br: number
-    bc: number
+    dr: number;
+    dc: number;
+    br: number;
+    bc: number;
   }> = [
     {
       dr: -2,
@@ -429,56 +319,37 @@ function getHorseMoves(
       br: 0,
       bc: 1,
     },
-  ]
+  ];
 
   for (const move of horseMoves) {
-    const blockRow =
-      piece.row + move.br
+    const blockRow = piece.row + move.br;
 
-    const blockCol =
-      piece.col + move.bc
+    const blockCol = piece.col + move.bc;
 
     // Chân mã bị chặn.
-    if (
-      getPieceAt(
-        board,
-        blockRow,
-        blockCol,
-      )
-    ) {
-      continue
+    if (getPieceAt(board, blockRow, blockCol)) {
+      continue;
     }
 
-    const row =
-      piece.row + move.dr
+    const row = piece.row + move.dr;
 
-    const col =
-      piece.col + move.dc
+    const col = piece.col + move.dc;
 
     if (!insideBoard(row, col)) {
-      continue
+      continue;
     }
 
-    const target = getPieceAt(
-      board,
-      row,
-      col,
-    )
+    const target = getPieceAt(board, row, col);
 
-    if (
-      !isFriendly(
-        target,
-        piece.color,
-      )
-    ) {
+    if (!isFriendly(target, piece.color)) {
       moves.push({
         row,
         col,
-      })
+      });
     }
   }
 
-  return moves
+  return moves;
 }
 
 /**
@@ -492,59 +363,46 @@ function getChariotMoves(
   piece: ChineseChessPiece,
   board: ChineseChessPiece[],
 ): Position[] {
-  const moves: Position[] = []
+  const moves: Position[] = [];
 
-  const directions: Array<
-    [number, number]
-  > = [
+  const directions: Array<[number, number]> = [
     [-1, 0],
     [1, 0],
     [0, -1],
     [0, 1],
-  ]
+  ];
 
   for (const [dr, dc] of directions) {
-    let row = piece.row + dr
-    let col = piece.col + dc
+    let row = piece.row + dr;
+    let col = piece.col + dc;
 
-    while (
-      insideBoard(row, col)
-    ) {
-      const target = getPieceAt(
-        board,
-        row,
-        col,
-      )
+    while (insideBoard(row, col)) {
+      const target = getPieceAt(board, row, col);
 
       if (!target) {
         moves.push({
           row,
           col,
-        })
+        });
       } else {
         // Có thể ăn quân địch.
-        if (
-          isEnemy(
-            target,
-            piece.color,
-          )
-        ) {
+        if (isEnemy(target, piece.color)) {
           moves.push({
             row,
             col,
-          })
+          });
         }
 
         // Gặp bất kỳ quân nào đều dừng.
-        break
+        break;
       }
 
-      row += dr
-      col += dc
+      row += dr;
+      col += dc;
     }
   }
 
-  return moves
+  return moves;
 }
 
 /**
@@ -559,31 +417,23 @@ function getCannonMoves(
   piece: ChineseChessPiece,
   board: ChineseChessPiece[],
 ): Position[] {
-  const moves: Position[] = []
+  const moves: Position[] = [];
 
-  const directions: Array<
-    [number, number]
-  > = [
+  const directions: Array<[number, number]> = [
     [-1, 0],
     [1, 0],
     [0, -1],
     [0, 1],
-  ]
+  ];
 
   for (const [dr, dc] of directions) {
-    let row = piece.row + dr
-    let col = piece.col + dc
+    let row = piece.row + dr;
+    let col = piece.col + dc;
 
-    let jumped = false
+    let jumped = false;
 
-    while (
-      insideBoard(row, col)
-    ) {
-      const target = getPieceAt(
-        board,
-        row,
-        col,
-      )
+    while (insideBoard(row, col)) {
+      const target = getPieceAt(board, row, col);
 
       if (!jumped) {
         if (!target) {
@@ -591,38 +441,33 @@ function getCannonMoves(
           moves.push({
             row,
             col,
-          })
+          });
         } else {
           // Quân đầu tiên là ngòi.
-          jumped = true
+          jumped = true;
         }
       } else {
         if (target) {
           // Quân đầu tiên sau ngòi
           // là quân có thể bị ăn.
-          if (
-            isEnemy(
-              target,
-              piece.color,
-            )
-          ) {
+          if (isEnemy(target, piece.color)) {
             moves.push({
               row,
               col,
-            })
+            });
           }
 
           // Không được đi tiếp.
-          break
+          break;
         }
       }
 
-      row += dr
-      col += dc
+      row += dr;
+      col += dc;
     }
   }
 
-  return moves
+  return moves;
 }
 
 /**
@@ -641,39 +486,21 @@ function getSoldierMoves(
   piece: ChineseChessPiece,
   board: ChineseChessPiece[],
 ): Position[] {
-  const moves: Position[] = []
+  const moves: Position[] = [];
 
-  const forward =
-    piece.color === 'black'
-      ? 1
-      : -1
+  const forward = piece.color === "black" ? 1 : -1;
 
   // Đi thẳng.
-  const forwardRow =
-    piece.row + forward
+  const forwardRow = piece.row + forward;
 
-  if (
-    insideBoard(
-      forwardRow,
-      piece.col,
-    )
-  ) {
-    const target = getPieceAt(
-      board,
-      forwardRow,
-      piece.col,
-    )
+  if (insideBoard(forwardRow, piece.col)) {
+    const target = getPieceAt(board, forwardRow, piece.col);
 
-    if (
-      !isFriendly(
-        target,
-        piece.color,
-      )
-    ) {
+    if (!isFriendly(target, piece.color)) {
       moves.push({
         row: forwardRow,
         col: piece.col,
-      })
+      });
     }
   }
 
@@ -681,53 +508,38 @@ function getSoldierMoves(
    * Kiểm tra đã qua sông chưa.
    */
   const crossedRiver =
-    piece.color === 'black'
-      ? piece.row >= 5
-      : piece.row <= 4
+    piece.color === "black" ? piece.row >= 5 : piece.row <= 4;
 
   if (!crossedRiver) {
-    return moves
+    return moves;
   }
 
   // Sau khi qua sông được đi ngang.
-  const sideMoves: Array<
-    [number, number]
-  > = [
+  const sideMoves: Array<[number, number]> = [
     [0, -1],
     [0, 1],
-  ]
+  ];
 
   for (const [dr, dc] of sideMoves) {
-    const row =
-      piece.row + dr
+    const row = piece.row + dr;
 
-    const col =
-      piece.col + dc
+    const col = piece.col + dc;
 
     if (!insideBoard(row, col)) {
-      continue
+      continue;
     }
 
-    const target = getPieceAt(
-      board,
-      row,
-      col,
-    )
+    const target = getPieceAt(board, row, col);
 
-    if (
-      !isFriendly(
-        target,
-        piece.color,
-      )
-    ) {
+    if (!isFriendly(target, piece.color)) {
       moves.push({
         row,
         col,
-      })
+      });
     }
   }
 
-  return moves
+  return moves;
 }
 
 /**
@@ -746,49 +558,28 @@ export function getPseudoLegalMoves(
   board: ChineseChessPiece[],
 ): Position[] {
   switch (piece.type) {
-    case 'general':
-      return getGeneralMoves(
-        piece,
-        board,
-      )
+    case "general":
+      return getGeneralMoves(piece, board);
 
-    case 'advisor':
-      return getAdvisorMoves(
-        piece,
-        board,
-      )
+    case "advisor":
+      return getAdvisorMoves(piece, board);
 
-    case 'elephant':
-      return getElephantMoves(
-        piece,
-        board,
-      )
+    case "elephant":
+      return getElephantMoves(piece, board);
 
-    case 'horse':
-      return getHorseMoves(
-        piece,
-        board,
-      )
+    case "horse":
+      return getHorseMoves(piece, board);
 
-    case 'chariot':
-      return getChariotMoves(
-        piece,
-        board,
-      )
+    case "chariot":
+      return getChariotMoves(piece, board);
 
-    case 'cannon':
-      return getCannonMoves(
-        piece,
-        board,
-      )
+    case "cannon":
+      return getCannonMoves(piece, board);
 
-    case 'soldier':
-      return getSoldierMoves(
-        piece,
-        board,
-      )
+    case "soldier":
+      return getSoldierMoves(piece, board);
 
     default:
-      return []
+      return [];
   }
 }

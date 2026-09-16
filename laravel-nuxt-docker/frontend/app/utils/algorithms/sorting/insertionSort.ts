@@ -1,6 +1,4 @@
-import type {
-  InsertionSortSimulationStep,
-} from '~/types/algorithm/sort/insertion'
+import type { InsertionSortSimulationStep } from "~/types/algorithm/sort/insertion";
 
 /**
  * Generate visual simulation steps for Insertion Sort.
@@ -27,9 +25,7 @@ import type {
 export function generateInsertionSortSteps(
   input: number[],
 ): InsertionSortSimulationStep[] {
-  const values: number[] = [
-    ...input,
-  ]
+  const values: number[] = [...input];
 
   /**
    * ID cố định cho từng phần tử.
@@ -37,16 +33,14 @@ export function generateInsertionSortSteps(
    * ID này đại diện cho "identity" của element,
    * không phải index hiện tại.
    */
-  const ids: number[] = input.map(
-    (_, index) => index,
-  )
+  const ids: number[] = input.map((_, index) => index);
 
-  const steps: InsertionSortSimulationStep[] = []
+  const steps: InsertionSortSimulationStep[] = [];
 
   /**
    * Những index hiện tại đã sorted.
    */
-  const sortedIndices = new Set<number>()
+  const sortedIndices = new Set<number>();
 
   /**
    * Snapshot một trạng thái.
@@ -62,36 +56,28 @@ export function generateInsertionSortSteps(
 
       ids: [...ids],
 
-      comparing: [
-        ...comparing,
-      ],
+      comparing: [...comparing],
 
-      swapping: [
-        ...swapping,
-      ],
+      swapping: [...swapping],
 
-      sorted: [
-        ...sortedIndices,
-      ],
+      sorted: [...sortedIndices],
 
       description,
 
       currentIndex,
-    })
-  }
+    });
+  };
 
-  const n: number = values.length
+  const n: number = values.length;
 
   /* =======================================================
      EMPTY
   ======================================================= */
 
   if (n === 0) {
-    addStep(
-      'Mảng rỗng. Không có phần tử nào để sắp xếp.',
-    )
+    addStep("Mảng rỗng. Không có phần tử nào để sắp xếp.");
 
-    return steps
+    return steps;
   }
 
   /* =======================================================
@@ -99,40 +85,39 @@ export function generateInsertionSortSteps(
   ======================================================= */
 
   if (n === 1) {
-    sortedIndices.add(0)
+    sortedIndices.add(0);
 
     addStep(
       `${values[0]} là phần tử duy nhất nên mảng đã được sắp xếp.`,
       [],
       [],
       0,
-    )
+    );
 
-    return steps
+    return steps;
   }
 
   /* =======================================================
      INITIAL
   ======================================================= */
 
-  sortedIndices.add(0)
+  sortedIndices.add(0);
 
   addStep(
     `Bắt đầu Insertion Sort. ${values[0]} được xem là đã sắp xếp.`,
     [],
     [],
     0,
-  )
+  );
 
   /* =======================================================
      MAIN LOOP
   ======================================================= */
 
   for (let i = 1; i < n; i++) {
-    let j: number = i
+    let j: number = i;
 
-    const currentValue: number =
-      values[i]!
+    const currentValue: number = values[i]!;
 
     /* -------------------------------------------------------
        SELECT
@@ -143,24 +128,20 @@ export function generateInsertionSortSteps(
       [],
       [],
       i,
-    )
+    );
 
     /* -------------------------------------------------------
        INSERTION
     ------------------------------------------------------- */
 
     while (j > 0) {
-      const leftIndex: number =
-        j - 1
+      const leftIndex: number = j - 1;
 
-      const rightIndex: number =
-        j
+      const rightIndex: number = j;
 
-      const leftValue: number =
-        values[leftIndex]!
+      const leftValue: number = values[leftIndex]!;
 
-      const rightValue: number =
-        values[rightIndex]!
+      const rightValue: number = values[rightIndex]!;
 
       /* -----------------------------------------------------
          COMPARE
@@ -168,13 +149,10 @@ export function generateInsertionSortSteps(
 
       addStep(
         `So sánh ${rightValue} với ${leftValue}.`,
-        [
-          leftIndex,
-          rightIndex,
-        ],
+        [leftIndex, rightIndex],
         [],
         rightIndex,
-      )
+      );
 
       /* -----------------------------------------------------
          CORRECT POSITION
@@ -183,15 +161,12 @@ export function generateInsertionSortSteps(
       if (leftValue <= rightValue) {
         addStep(
           `${leftValue} ≤ ${rightValue} → ${rightValue} đã ở đúng vị trí.`,
-          [
-            leftIndex,
-            rightIndex,
-          ],
+          [leftIndex, rightIndex],
           [],
           rightIndex,
-        )
+        );
 
-        break
+        break;
       }
 
       /* -----------------------------------------------------
@@ -200,42 +175,30 @@ export function generateInsertionSortSteps(
 
       addStep(
         `${leftValue} > ${rightValue} → dịch ${rightValue} sang trái.`,
-        [
-          leftIndex,
-          rightIndex,
-        ],
-        [
-          leftIndex,
-          rightIndex,
-        ],
+        [leftIndex, rightIndex],
+        [leftIndex, rightIndex],
         rightIndex,
-      )
+      );
 
       /* -----------------------------------------------------
          SWAP VALUE
       ----------------------------------------------------- */
 
-      const tempValue: number =
-        values[leftIndex]!
+      const tempValue: number = values[leftIndex]!;
 
-      values[leftIndex] =
-        values[rightIndex]!
+      values[leftIndex] = values[rightIndex]!;
 
-      values[rightIndex] =
-        tempValue
+      values[rightIndex] = tempValue;
 
       /* -----------------------------------------------------
          SWAP ID
       ----------------------------------------------------- */
 
-      const tempId: number =
-        ids[leftIndex]!
+      const tempId: number = ids[leftIndex]!;
 
-      ids[leftIndex] =
-        ids[rightIndex]!
+      ids[leftIndex] = ids[rightIndex]!;
 
-      ids[rightIndex] =
-        tempId
+      ids[rightIndex] = tempId;
 
       /* -----------------------------------------------------
          AFTER MOVE
@@ -244,26 +207,19 @@ export function generateInsertionSortSteps(
       addStep(
         `Đưa ${rightValue} từ index ${rightIndex} sang index ${leftIndex}.`,
         [],
-        [
-          leftIndex,
-          rightIndex,
-        ],
+        [leftIndex, rightIndex],
         leftIndex,
-      )
+      );
 
-      j--
+      j--;
     }
 
     /* -------------------------------------------------------
        SORTED REGION
     ------------------------------------------------------- */
 
-    for (
-      let index = 0;
-      index <= i;
-      index++
-    ) {
-      sortedIndices.add(index)
+    for (let index = 0; index <= i; index++) {
+      sortedIndices.add(index);
     }
 
     addStep(
@@ -271,24 +227,18 @@ export function generateInsertionSortSteps(
       [],
       [],
       j,
-    )
+    );
   }
 
   /* =======================================================
      FINAL
   ======================================================= */
 
-  for (
-    let index = 0;
-    index < n;
-    index++
-  ) {
-    sortedIndices.add(index)
+  for (let index = 0; index < n; index++) {
+    sortedIndices.add(index);
   }
 
-  addStep(
-    'Hoàn thành Insertion Sort. Tất cả phần tử đã được sắp xếp.',
-  )
+  addStep("Hoàn thành Insertion Sort. Tất cả phần tử đã được sắp xếp.");
 
-  return steps
+  return steps;
 }

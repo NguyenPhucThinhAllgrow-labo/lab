@@ -1,17 +1,12 @@
-import type {
-  ChineseChessPiece,
-  Position,
-} from '~/types/games/chinese-chess'
+import type { ChineseChessPiece, Position } from "~/types/games/chinese-chess";
 
 export function getPieceAt(
   board: ChineseChessPiece[],
   position: Position,
 ): ChineseChessPiece | undefined {
   return board.find(
-    piece =>
-      piece.row === position.row &&
-      piece.col === position.col,
-  )
+    (piece) => piece.row === position.row && piece.col === position.col,
+  );
 }
 
 export function movePiece(
@@ -19,66 +14,42 @@ export function movePiece(
   pieceId: string,
   to: Position,
 ): ChineseChessPiece[] {
-  const nextBoard = board.map(
-    piece => ({
-      ...piece,
-    }),
-  )
+  const nextBoard = board.map((piece) => ({
+    ...piece,
+  }));
 
-  const movingPiece =
-    nextBoard.find(
-      piece =>
-        piece.id === pieceId,
-    )
+  const movingPiece = nextBoard.find((piece) => piece.id === pieceId);
 
   if (!movingPiece) {
-    return board
+    return board;
   }
 
-  const capturedPiece =
-    getPieceAt(
-      nextBoard,
-      to,
-    )
+  const capturedPiece = getPieceAt(nextBoard, to);
 
   // Không cho ăn quân cùng màu
-  if (
-    capturedPiece &&
-    capturedPiece.color ===
-      movingPiece.color
-  ) {
-    return board
+  if (capturedPiece && capturedPiece.color === movingPiece.color) {
+    return board;
   }
 
   // Ăn quân
   if (capturedPiece) {
-    const capturedIndex =
-      nextBoard.findIndex(
-        piece =>
-          piece.id ===
-          capturedPiece.id,
-      )
+    const capturedIndex = nextBoard.findIndex(
+      (piece) => piece.id === capturedPiece.id,
+    );
 
     if (capturedIndex !== -1) {
-      nextBoard.splice(
-        capturedIndex,
-        1,
-      )
+      nextBoard.splice(capturedIndex, 1);
     }
   }
 
   // Di chuyển
-  const index =
-    nextBoard.findIndex(
-      piece =>
-        piece.id === pieceId,
-    )
+  const index = nextBoard.findIndex((piece) => piece.id === pieceId);
 
   nextBoard[index] = {
     ...movingPiece,
     row: to.row,
     col: to.col,
-  }
+  };
 
-  return nextBoard
+  return nextBoard;
 }

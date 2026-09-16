@@ -68,9 +68,7 @@
               "en": "His session was locked at 23:50, shortly after an unknown USB device was connected.",
               "vi": "Phiên của Alex bị khóa lúc 23:50, ngay sau khi một USB không xác định được kết nối."
             },
-            "requiresEvidence": [
-              "terminal-log"
-            ]
+            "requiresEvidence": ["terminal-log"]
           },
           {
             "label": {
@@ -81,9 +79,7 @@
               "en": "Alex agreed to meet an unknown sender alone at parking level B2.",
               "vi": "Alex đồng ý gặp riêng một người gửi chưa xác định tại tầng B2 của bãi đỗ xe."
             },
-            "requiresEvidence": [
-              "sent-message"
-            ]
+            "requiresEvidence": ["sent-message"]
           }
         ]
       },
@@ -98,9 +94,7 @@
           "en": "An internal user who had requested access to the Nightfall project.",
           "vi": "Một người dùng nội bộ từng yêu cầu quyền truy cập dự án Nightfall."
         },
-        "requiresEvidence": [
-          "project-document"
-        ],
+        "requiresEvidence": ["project-document"],
         "details": [
           {
             "label": {
@@ -111,9 +105,7 @@
               "en": "Marcus requested the Nightfall documentation, but Alex refused.",
               "vi": "Marcus yêu cầu tài liệu Nightfall nhưng Alex đã từ chối."
             },
-            "requiresEvidence": [
-              "project-document"
-            ]
+            "requiresEvidence": ["project-document"]
           },
           {
             "label": {
@@ -124,9 +116,7 @@
               "en": "Partially decrypted USB data resolves to the name Marcus Reed.",
               "vi": "Dữ liệu USB được giải mã một phần cho ra tên Marcus Reed."
             },
-            "requiresEvidence": [
-              "encrypted-meeting"
-            ]
+            "requiresEvidence": ["encrypted-meeting"]
           }
         ]
       }
@@ -316,16 +306,8 @@
           "path": "/logs/system.log"
         },
         "highlight": {
-          "en": [
-            "USB DEVICE CONNECTED",
-            "UNKNOWN-USB",
-            "FILE COPIED"
-          ],
-          "vi": [
-            "USB DEVICE CONNECTED",
-            "UNKNOWN-USB",
-            "FILE COPIED"
-          ]
+          "en": ["USB DEVICE CONNECTED", "UNKNOWN-USB", "FILE COPIED"],
+          "vi": ["USB DEVICE CONNECTED", "UNKNOWN-USB", "FILE COPIED"]
         },
         "discovered": false
       },
@@ -349,14 +331,8 @@
           "path": "/logs/access.log"
         },
         "highlight": {
-          "en": [
-            "23:49:58",
-            "OFFICE DOOR OPENED"
-          ],
-          "vi": [
-            "23:49:58",
-            "OFFICE DOOR OPENED"
-          ]
+          "en": ["23:49:58", "OFFICE DOOR OPENED"],
+          "vi": ["23:49:58", "OFFICE DOOR OPENED"]
         },
         "discovered": false
       },
@@ -445,9 +421,7 @@
           "type": "cat",
           "path": "/emails/sent.txt"
         },
-        "requiresEvidence": [
-          "suspicious-email"
-        ],
+        "requiresEvidence": ["suspicious-email"],
         "discovered": false
       },
       {
@@ -470,22 +444,10 @@
           "path": "/usb/device.txt"
         },
         "highlight": {
-          "en": [
-            "UNKNOWN",
-            "USB-8841-X",
-            "23:48:01",
-            "SUSPICIOUS"
-          ],
-          "vi": [
-            "UNKNOWN",
-            "USB-8841-X",
-            "23:48:01",
-            "ĐÁNG NGỜ"
-          ]
+          "en": ["UNKNOWN", "USB-8841-X", "23:48:01", "SUSPICIOUS"],
+          "vi": ["UNKNOWN", "USB-8841-X", "23:48:01", "ĐÁNG NGỜ"]
         },
-        "requiresEvidence": [
-          "terminal-log"
-        ],
+        "requiresEvidence": ["terminal-log"],
         "discovered": false
       },
       {
@@ -507,9 +469,7 @@
           "type": "cat",
           "path": "/usb/files.txt"
         },
-        "requiresEvidence": [
-          "usb-device"
-        ],
+        "requiresEvidence": ["usb-device"],
         "discovered": false
       },
       {
@@ -531,21 +491,10 @@
           "type": "cat",
           "path": "/documents/meeting.enc"
         },
-        "requiresEvidence": [
-          "project-document",
-          "usb-files"
-        ],
+        "requiresEvidence": ["project-document", "usb-files"],
         "highlight": {
-          "en": [
-            "4D 41 52 43 55 53",
-            "52 45 45 44",
-            "MARCUS REED"
-          ],
-          "vi": [
-            "4D 41 52 43 55 53",
-            "52 45 45 44",
-            "MARCUS REED"
-          ]
+          "en": ["4D 41 52 43 55 53", "52 45 45 44", "MARCUS REED"],
+          "vi": ["4D 41 52 43 55 53", "52 45 45 44", "MARCUS REED"]
         },
         "discovered": false
       },
@@ -582,9 +531,7 @@
             "Dịch vụ camera bị dừng"
           ]
         },
-        "requiresEvidence": [
-          "access-log"
-        ],
+        "requiresEvidence": ["access-log"],
         "discovered": false
       },
       {
@@ -620,10 +567,7 @@
             "ĐÃ XÁC NHẬN TRÙNG KHỚP"
           ]
         },
-        "requiresEvidence": [
-          "camera-footage",
-          "encrypted-meeting"
-        ],
+        "requiresEvidence": ["camera-footage", "encrypted-meeting"],
         "discovered": false
       }
     ],
@@ -638,9 +582,7 @@
           "en": "Determine what happened shortly before the workstation was locked.",
           "vi": "Xác định điều gì đã xảy ra ngay trước khi máy tính bị khóa."
         },
-        "requiresEvidence": [
-          "terminal-log"
-        ],
+        "requiresEvidence": ["terminal-log"],
         "completed": false
       },
       {
@@ -653,10 +595,7 @@
           "en": "Find out whether Alex was contacted before disappearing.",
           "vi": "Tìm hiểu xem Alex có nhận được liên lạc trước khi biến mất hay không."
         },
-        "requiresEvidence": [
-          "suspicious-email",
-          "sent-message"
-        ],
+        "requiresEvidence": ["suspicious-email", "sent-message"],
         "completed": false
       },
       {
@@ -669,11 +608,7 @@
           "en": "Determine what external device was connected and what it contained.",
           "vi": "Xác định thiết bị bên ngoài nào đã được kết nối và nó chứa những gì."
         },
-        "requiresEvidence": [
-          "terminal-log",
-          "usb-device",
-          "usb-files"
-        ],
+        "requiresEvidence": ["terminal-log", "usb-device", "usb-files"],
         "completed": false
       },
       {
@@ -768,9 +703,7 @@
               "en": "The transfer occurred during Alice’s logged-in session, which does not by itself identify the operator.",
               "vi": "Vụ chuyển dữ liệu xảy ra trong phiên đăng nhập của Alice, nhưng riêng điều đó chưa xác định được người thao tác."
             },
-            "requiresEvidence": [
-              "evidence-002-01"
-            ]
+            "requiresEvidence": ["evidence-002-01"]
           },
           {
             "label": {
@@ -781,9 +714,7 @@
               "en": "Alice denied authorizing the confidential transfer.",
               "vi": "Alice phủ nhận việc cho phép chuyển dữ liệu mật."
             },
-            "requiresEvidence": [
-              "evidence-002-05"
-            ]
+            "requiresEvidence": ["evidence-002-05"]
           }
         ]
       },
@@ -798,9 +729,7 @@
           "en": "An IT employee listed in the company directory.",
           "vi": "Nhân viên CNTT có tên trong danh bạ công ty."
         },
-        "requiresEvidence": [
-          "evidence-002-02"
-        ],
+        "requiresEvidence": ["evidence-002-02"],
         "details": []
       },
       {
@@ -814,9 +743,7 @@
           "en": "A security employee authorized for Project Orion who requested emergency access to Alice’s workstation.",
           "vi": "Nhân viên an ninh có quyền với dự án Orion và từng yêu cầu sử dụng máy trạm của Alice."
         },
-        "requiresEvidence": [
-          "evidence-002-02"
-        ],
+        "requiresEvidence": ["evidence-002-02"],
         "details": [
           {
             "label": {
@@ -827,9 +754,7 @@
               "en": "A temporary security exception created just before the USB connection belonged to Daniel Reed.",
               "vi": "Ngoại lệ bảo mật tạm thời được tạo ngay trước khi USB kết nối thuộc về Daniel Reed."
             },
-            "requiresEvidence": [
-              "evidence-002-03"
-            ]
+            "requiresEvidence": ["evidence-002-03"]
           },
           {
             "label": {
@@ -840,9 +765,7 @@
               "en": "Daniel asked Alice to leave the workstation unlocked for emergency maintenance.",
               "vi": "Daniel yêu cầu Alice để máy trạm mở khóa cho công việc bảo trì khẩn cấp."
             },
-            "requiresEvidence": [
-              "evidence-002-04"
-            ]
+            "requiresEvidence": ["evidence-002-04"]
           }
         ]
       }
@@ -1000,16 +923,8 @@
           "path": "/logs/system.log"
         },
         "highlight": {
-          "en": [
-            "USB DEVICE CONNECTED",
-            "00:17:42",
-            "/dev/usb0"
-          ],
-          "vi": [
-            "THIẾT BỊ USB ĐƯỢC KẾT NỐI",
-            "00:17:42",
-            "/dev/usb0"
-          ]
+          "en": ["USB DEVICE CONNECTED", "00:17:42", "/dev/usb0"],
+          "vi": ["THIẾT BỊ USB ĐƯỢC KẾT NỐI", "00:17:42", "/dev/usb0"]
         },
         "requiresEvidence": [],
         "discovered": false
@@ -1034,22 +949,10 @@
           "path": "/usb/transfer.log"
         },
         "highlight": {
-          "en": [
-            "archive.zip",
-            "148 MB",
-            "transfer completed",
-            "USB-7782"
-          ],
-          "vi": [
-            "archive.zip",
-            "148 MB",
-            "chuyển dữ liệu hoàn tất",
-            "USB-7782"
-          ]
+          "en": ["archive.zip", "148 MB", "transfer completed", "USB-7782"],
+          "vi": ["archive.zip", "148 MB", "chuyển dữ liệu hoàn tất", "USB-7782"]
         },
-        "requiresEvidence": [
-          "evidence-002-01"
-        ],
+        "requiresEvidence": ["evidence-002-01"],
         "discovered": false
       },
       {
@@ -1144,20 +1047,14 @@
           "path": "/email/sent.txt"
         },
         "highlight": {
-          "en": [
-            "00:21",
-            "I did not authorize any transfer",
-            "Project Orion"
-          ],
+          "en": ["00:21", "I did not authorize any transfer", "Project Orion"],
           "vi": [
             "00:21",
             "Tôi không cho phép bất kỳ việc chuyển giao nào",
             "Dự án Orion"
           ]
         },
-        "requiresEvidence": [
-          "evidence-002-02"
-        ],
+        "requiresEvidence": ["evidence-002-02"],
         "discovered": false
       }
     ],
@@ -1172,9 +1069,7 @@
           "en": "Determine when the suspicious USB device was connected.",
           "vi": "Xác định thời điểm thiết bị USB đáng ngờ được kết nối."
         },
-        "requiresEvidence": [
-          "evidence-002-01"
-        ],
+        "requiresEvidence": ["evidence-002-01"],
         "completed": false
       },
       {
@@ -1187,10 +1082,7 @@
           "en": "Establish that the confidential archive was copied to the USB device.",
           "vi": "Xác nhận rằng kho lưu trữ bảo mật đã được sao chép vào thiết bị USB."
         },
-        "requiresEvidence": [
-          "evidence-002-01",
-          "evidence-002-02"
-        ],
+        "requiresEvidence": ["evidence-002-01", "evidence-002-02"],
         "completed": false
       },
       {
@@ -1203,9 +1095,7 @@
           "en": "Determine who created the security exception before the incident.",
           "vi": "Xác định ai đã tạo ngoại lệ bảo mật trước khi sự việc xảy ra."
         },
-        "requiresEvidence": [
-          "evidence-002-03"
-        ],
+        "requiresEvidence": ["evidence-002-03"],
         "completed": false
       },
       {
@@ -1329,9 +1219,7 @@
               "en": "Authentication evidence indicates that Daniel’s identity was used from another endpoint.",
               "vi": "Bằng chứng xác thực cho thấy danh tính Daniel đã bị sử dụng từ một thiết bị đầu cuối khác."
             },
-            "requiresEvidence": [
-              "authentication-anomaly"
-            ]
+            "requiresEvidence": ["authentication-anomaly"]
           },
           {
             "label": {
@@ -1342,9 +1230,7 @@
               "en": "Independent badge and camera evidence shows that the person moving through the facility was not Daniel.",
               "vi": "Dữ liệu thẻ và camera độc lập cho thấy người di chuyển trong cơ sở không phải Daniel."
             },
-            "requiresEvidence": [
-              "camera-timeline"
-            ]
+            "requiresEvidence": ["camera-timeline"]
           }
         ]
       },
@@ -1359,9 +1245,7 @@
           "en": "A privileged employee whose access and equipment become relevant as the physical evidence develops.",
           "vi": "Nhân viên có đặc quyền, với quyền truy cập và thiết bị trở nên đáng chú ý khi chuỗi chứng cứ vật lý được làm rõ."
         },
-        "requiresEvidence": [
-          "victor-profile"
-        ],
+        "requiresEvidence": ["victor-profile"],
         "details": [
           {
             "label": {
@@ -1372,9 +1256,7 @@
               "en": "Profile, camera and endpoint records connect Victor to the cloned badge, USB device and maintenance endpoint.",
               "vi": "Hồ sơ, camera và bản ghi thiết bị nối Victor với thẻ sao chép, USB và endpoint bảo trì."
             },
-            "requiresEvidence": [
-              "incident-contradictions"
-            ]
+            "requiresEvidence": ["incident-contradictions"]
           },
           {
             "label": {
@@ -1385,9 +1267,7 @@
               "en": "A deleted message instructed Victor to use an old credential and keep Daniel uninvolved.",
               "vi": "Một tin nhắn đã xóa yêu cầu Victor dùng thông tin xác thực cũ và không để Daniel liên quan."
             },
-            "requiresEvidence": [
-              "deleted-email"
-            ]
+            "requiresEvidence": ["deleted-email"]
           }
         ]
       },
@@ -1402,9 +1282,7 @@
           "en": "An unidentified party associated with the external transfer destination.",
           "vi": "Một bên chưa xác định có liên hệ với đích chuyển dữ liệu bên ngoài."
         },
-        "requiresEvidence": [
-          "external-node"
-        ],
+        "requiresEvidence": ["external-node"],
         "details": [
           {
             "label": {
@@ -1415,9 +1293,7 @@
               "en": "Certificate and command history tie NODE-OMEGA to the external phase of the operation.",
               "vi": "Chứng thư và lịch sử lệnh nối NODE-OMEGA với giai đoạn bên ngoài của chiến dịch."
             },
-            "requiresEvidence": [
-              "external-history"
-            ]
+            "requiresEvidence": ["external-history"]
           }
         ]
       }
@@ -1945,22 +1821,10 @@
           "path": "/logs/auth.log"
         },
         "highlight": {
-          "en": [
-            "01:42:13",
-            "01:59:31",
-            "MFA BYPASS",
-            "UNKNOWN-ENDPOINT"
-          ],
-          "vi": [
-            "01:42:13",
-            "01:59:31",
-            "BỎ QUA MFA",
-            "UNKNOWN-ENDPOINT"
-          ]
+          "en": ["01:42:13", "01:59:31", "MFA BYPASS", "UNKNOWN-ENDPOINT"],
+          "vi": ["01:42:13", "01:59:31", "BỎ QUA MFA", "UNKNOWN-ENDPOINT"]
         },
-        "requiresEvidence": [
-          "system-activity"
-        ],
+        "requiresEvidence": ["system-activity"],
         "discovered": false
       },
       {
@@ -1983,22 +1847,10 @@
           "path": "/network/network.log"
         },
         "highlight": {
-          "en": [
-            "UNKNOWN-ENDPOINT",
-            "10.44.12.77",
-            "3389",
-            "02:17:42"
-          ],
-          "vi": [
-            "UNKNOWN-ENDPOINT",
-            "10.44.12.77",
-            "3389",
-            "02:17:42"
-          ]
+          "en": ["UNKNOWN-ENDPOINT", "10.44.12.77", "3389", "02:17:42"],
+          "vi": ["UNKNOWN-ENDPOINT", "10.44.12.77", "3389", "02:17:42"]
         },
-        "requiresEvidence": [
-          "authentication-anomaly"
-        ],
+        "requiresEvidence": ["authentication-anomaly"],
         "discovered": false
       },
       {
@@ -2021,18 +1873,10 @@
           "path": "/network/dhcp.log"
         },
         "highlight": {
-          "en": [
-            "10.44.12.77",
-            "VICTOR-LAPTOP"
-          ],
-          "vi": [
-            "10.44.12.77",
-            "VICTOR-LAPTOP"
-          ]
+          "en": ["10.44.12.77", "VICTOR-LAPTOP"],
+          "vi": ["10.44.12.77", "VICTOR-LAPTOP"]
         },
-        "requiresEvidence": [
-          "network-trace"
-        ],
+        "requiresEvidence": ["network-trace"],
         "discovered": false
       },
       {
@@ -2055,22 +1899,10 @@
           "path": "/scripts/maintenance.txt"
         },
         "highlight": {
-          "en": [
-            "MAINT-7",
-            "Victor Hale",
-            "Ethan Cole",
-            "Legacy sessions"
-          ],
-          "vi": [
-            "MAINT-7",
-            "Victor Hale",
-            "Ethan Cole",
-            "Phiên Legacy"
-          ]
+          "en": ["MAINT-7", "Victor Hale", "Ethan Cole", "Legacy sessions"],
+          "vi": ["MAINT-7", "Victor Hale", "Ethan Cole", "Phiên Legacy"]
         },
-        "requiresEvidence": [
-          "network-trace"
-        ],
+        "requiresEvidence": ["network-trace"],
         "discovered": false
       },
       {
@@ -2104,9 +1936,7 @@
             "thông tin xác thực đã bị lộ"
           ]
         },
-        "requiresEvidence": [
-          "maintenance-endpoint"
-        ],
+        "requiresEvidence": ["maintenance-endpoint"],
         "discovered": false
       },
       {
@@ -2129,22 +1959,10 @@
           "path": "/server/remote-session.log"
         },
         "highlight": {
-          "en": [
-            "MAINT-7",
-            "svc-archive",
-            "IMPERSONATION",
-            "daniel"
-          ],
-          "vi": [
-            "MAINT-7",
-            "svc-archive",
-            "MẠO DANH",
-            "daniel"
-          ]
+          "en": ["MAINT-7", "svc-archive", "IMPERSONATION", "daniel"],
+          "vi": ["MAINT-7", "svc-archive", "MẠO DANH", "daniel"]
         },
-        "requiresEvidence": [
-          "service-account"
-        ],
+        "requiresEvidence": ["service-account"],
         "discovered": false
       },
       {
@@ -2167,20 +1985,10 @@
           "path": "/server/process.log"
         },
         "highlight": {
-          "en": [
-            "remote-sync",
-            "archive-worker",
-            "PRIVILEGE: SYSTEM"
-          ],
-          "vi": [
-            "remote-sync",
-            "archive-worker",
-            "QUYỀN: SYSTEM"
-          ]
+          "en": ["remote-sync", "archive-worker", "PRIVILEGE: SYSTEM"],
+          "vi": ["remote-sync", "archive-worker", "QUYỀN: SYSTEM"]
         },
-        "requiresEvidence": [
-          "remote-session"
-        ],
+        "requiresEvidence": ["remote-session"],
         "discovered": false
       },
       {
@@ -2203,20 +2011,10 @@
           "path": "/forensics/memory.txt"
         },
         "highlight": {
-          "en": [
-            "MAINT-7",
-            "svc-archive",
-            "Token owner"
-          ],
-          "vi": [
-            "MAINT-7",
-            "svc-archive",
-            "Chủ sở hữu token"
-          ]
+          "en": ["MAINT-7", "svc-archive", "Token owner"],
+          "vi": ["MAINT-7", "svc-archive", "Chủ sở hữu token"]
         },
-        "requiresEvidence": [
-          "process-forensics"
-        ],
+        "requiresEvidence": ["process-forensics"],
         "discovered": false
       },
       {
@@ -2239,20 +2037,10 @@
           "path": "/devices/usb.log"
         },
         "highlight": {
-          "en": [
-            "VX-7719",
-            "USB STORAGE",
-            "02:14:02"
-          ],
-          "vi": [
-            "VX-7719",
-            "USB STORAGE",
-            "02:14:02"
-          ]
+          "en": ["VX-7719", "USB STORAGE", "02:14:02"],
+          "vi": ["VX-7719", "USB STORAGE", "02:14:02"]
         },
-        "requiresEvidence": [
-          "system-activity"
-        ],
+        "requiresEvidence": ["system-activity"],
         "discovered": false
       },
       {
@@ -2275,20 +2063,10 @@
           "path": "/forensics/usb-forensics.txt"
         },
         "highlight": {
-          "en": [
-            "VX-7719",
-            "SECURITY-LAB-02",
-            "LAST USER: VICTOR"
-          ],
-          "vi": [
-            "VX-7719",
-            "SECURITY-LAB-02",
-            "NGƯỜI DÙNG CUỐI: VICTOR"
-          ]
+          "en": ["VX-7719", "SECURITY-LAB-02", "LAST USER: VICTOR"],
+          "vi": ["VX-7719", "SECURITY-LAB-02", "NGƯỜI DÙNG CUỐI: VICTOR"]
         },
-        "requiresEvidence": [
-          "usb-device"
-        ],
+        "requiresEvidence": ["usb-device"],
         "discovered": false
       },
       {
@@ -2311,20 +2089,10 @@
           "path": "/devices/usb-content.txt"
         },
         "highlight": {
-          "en": [
-            "phoenix-export.tar",
-            "access-script.bin",
-            "cleanup.sh"
-          ],
-          "vi": [
-            "phoenix-export.tar",
-            "access-script.bin",
-            "cleanup.sh"
-          ]
+          "en": ["phoenix-export.tar", "access-script.bin", "cleanup.sh"],
+          "vi": ["phoenix-export.tar", "access-script.bin", "cleanup.sh"]
         },
-        "requiresEvidence": [
-          "usb-history"
-        ],
+        "requiresEvidence": ["usb-history"],
         "discovered": false
       },
       {
@@ -2347,21 +2115,10 @@
           "path": "/scripts/access-script.bin"
         },
         "highlight": {
-          "en": [
-            "svc-archive",
-            "MAINT-7",
-            "remote-sync"
-          ],
-          "vi": [
-            "svc-archive",
-            "MAINT-7",
-            "remote-sync"
-          ]
+          "en": ["svc-archive", "MAINT-7", "remote-sync"],
+          "vi": ["svc-archive", "MAINT-7", "remote-sync"]
         },
-        "requiresEvidence": [
-          "usb-content",
-          "remote-session"
-        ],
+        "requiresEvidence": ["usb-content", "remote-session"],
         "discovered": false
       },
       {
@@ -2395,9 +2152,7 @@
             "rm /var/log/remote-session.log"
           ]
         },
-        "requiresEvidence": [
-          "access-script"
-        ],
+        "requiresEvidence": ["access-script"],
         "discovered": false
       },
       {
@@ -2467,9 +2222,7 @@
             "174 CM"
           ]
         },
-        "requiresEvidence": [
-          "badge-analysis"
-        ],
+        "requiresEvidence": ["badge-analysis"],
         "discovered": false
       },
       {
@@ -2505,9 +2258,7 @@
             "Phát hiện Daniel Cross"
           ]
         },
-        "requiresEvidence": [
-          "camera-evidence"
-        ],
+        "requiresEvidence": ["camera-evidence"],
         "discovered": false
       },
       {
@@ -2530,12 +2281,7 @@
           "path": "/users/victor.txt"
         },
         "highlight": {
-          "en": [
-            "Victor Hale",
-            "181 CM",
-            "PRIVILEGED ACCESS",
-            "VICTOR-LAPTOP"
-          ],
+          "en": ["Victor Hale", "181 CM", "PRIVILEGED ACCESS", "VICTOR-LAPTOP"],
           "vi": [
             "Victor Hale",
             "181 CM",
@@ -2543,10 +2289,7 @@
             "VICTOR-LAPTOP"
           ]
         },
-        "requiresEvidence": [
-          "dhcp-trace",
-          "camera-timeline"
-        ],
+        "requiresEvidence": ["dhcp-trace", "camera-timeline"],
         "discovered": false
       },
       {
@@ -2582,10 +2325,7 @@
             "Không được liên quan đến Daniel"
           ]
         },
-        "requiresEvidence": [
-          "victor-profile",
-          "maintenance-endpoint"
-        ],
+        "requiresEvidence": ["victor-profile", "maintenance-endpoint"],
         "discovered": false
       },
       {
@@ -2621,9 +2361,7 @@
             "Không tìm thấy quyền sở hữu của công ty"
           ]
         },
-        "requiresEvidence": [
-          "network-trace"
-        ],
+        "requiresEvidence": ["network-trace"],
         "discovered": false
       },
       {
@@ -2646,20 +2384,10 @@
           "path": "/external/certificate.txt"
         },
         "highlight": {
-          "en": [
-            "Development CA",
-            "6 DAYS AGO",
-            "UNASSIGNED"
-          ],
-          "vi": [
-            "Development CA",
-            "6 NGÀY TRƯỚC",
-            "CHƯA GÁN"
-          ]
+          "en": ["Development CA", "6 DAYS AGO", "UNASSIGNED"],
+          "vi": ["Development CA", "6 NGÀY TRƯỚC", "CHƯA GÁN"]
         },
-        "requiresEvidence": [
-          "external-node"
-        ],
+        "requiresEvidence": ["external-node"],
         "discovered": false
       },
       {
@@ -2682,21 +2410,10 @@
           "path": "/external/connection-history.txt"
         },
         "highlight": {
-          "en": [
-            "SECURITY-LAB-02",
-            "10.44.12.77",
-            "DC-WORKSTATION-07"
-          ],
-          "vi": [
-            "SECURITY-LAB-02",
-            "10.44.12.77",
-            "DC-WORKSTATION-07"
-          ]
+          "en": ["SECURITY-LAB-02", "10.44.12.77", "DC-WORKSTATION-07"],
+          "vi": ["SECURITY-LAB-02", "10.44.12.77", "DC-WORKSTATION-07"]
         },
-        "requiresEvidence": [
-          "external-certificate",
-          "dhcp-trace"
-        ],
+        "requiresEvidence": ["external-certificate", "dhcp-trace"],
         "discovered": false
       },
       {
@@ -2719,18 +2436,10 @@
           "path": "/logs/integrity.log"
         },
         "highlight": {
-          "en": [
-            "auth.log",
-            "STATUS: MODIFIED"
-          ],
-          "vi": [
-            "auth.log",
-            "TRẠNG THÁI: ĐÃ CHỈNH SỬA"
-          ]
+          "en": ["auth.log", "STATUS: MODIFIED"],
+          "vi": ["auth.log", "TRẠNG THÁI: ĐÃ CHỈNH SỬA"]
         },
-        "requiresEvidence": [
-          "authentication-anomaly"
-        ],
+        "requiresEvidence": ["authentication-anomaly"],
         "discovered": false
       },
       {
@@ -2899,10 +2608,7 @@
           "en": "Trace the suspicious connection from the unknown endpoint to the physical device that generated it.",
           "vi": "Truy dấu kết nối đáng ngờ từ endpoint không xác định tới thiết bị vật lý đã tạo ra nó."
         },
-        "requiresEvidence": [
-          "network-trace",
-          "dhcp-trace"
-        ],
+        "requiresEvidence": ["network-trace", "dhcp-trace"],
         "completed": false
       },
       {
@@ -3004,10 +2710,7 @@
           "en": "Separate Daniel as the impersonated account, Victor as the likely physical operator, and the unknown external controller.",
           "vi": "Phân biệt Daniel là tài khoản bị mạo danh, Victor là người có khả năng trực tiếp thực hiện và bên điều khiển bên ngoài chưa xác định."
         },
-        "requiresEvidence": [
-          "incident-contradictions",
-          "final-forensics"
-        ],
+        "requiresEvidence": ["incident-contradictions", "final-forensics"],
         "completed": false
       },
       {
@@ -3096,21 +2799,14 @@
     },
     "operationalReport": {
       "answers": {
-        "suspect": [
-          "Grant Mercer"
-        ],
-        "vehicle": [
-          "51H-742.19",
-          "51H74219"
-        ],
+        "suspect": ["Grant Mercer"],
+        "vehicle": ["51H-742.19", "51H74219"],
         "target": [
           "Kho Northstar số 6",
           "Northstar Warehouse 6",
           "Warehouse 6"
         ],
-        "victim": [
-          "Claire Bennett"
-        ]
+        "victim": ["Claire Bennett"]
       }
     },
     "timeline": [
@@ -3125,9 +2821,7 @@
           "en": "Ethan opens the encrypted source archive on his laptop.",
           "vi": "Ethan mở ổ đĩa mã hóa ORPHEUS trên laptop."
         },
-        "requiresEvidence": [
-          "device-timeline"
-        ]
+        "requiresEvidence": ["device-timeline"]
       },
       {
         "time": "00:52",
@@ -3140,9 +2834,7 @@
           "en": "Claire confirms the procurement files are real and says she is being followed.",
           "vi": "Claire xác nhận hồ sơ mua sắm là thật và cho biết có người bám theo."
         },
-        "requiresEvidence": [
-          "claire-abducted"
-        ]
+        "requiresEvidence": ["claire-abducted"]
       },
       {
         "time": "00:57",
@@ -3155,9 +2847,7 @@
           "en": "Parking stub P-4187 records sedan 51H-742.19 entering the visitor bay.",
           "vi": "Vé P-4187 ghi nhận sedan 51H-742.19 vào bãi khách."
         },
-        "requiresEvidence": [
-          "vehicle-route"
-        ]
+        "requiresEvidence": ["vehicle-route"]
       },
       {
         "time": "01:03",
@@ -3170,9 +2860,7 @@
           "en": "Guest code EW-INTERVIEW-04, created by Ethan at 00:41 for Grant Mercer and labeled \"ORPHEUS source interview\", opens the front door without forced access.",
           "vi": "Mã khách EW-INTERVIEW-04 do Ethan tạo lúc 00:41 cho Grant Mercer, với ghi chú “phỏng vấn nguồn tin ORPHEUS”, đã mở cửa chính mà không cần cạy phá."
         },
-        "requiresEvidence": [
-          "device-timeline"
-        ]
+        "requiresEvidence": ["device-timeline"]
       },
       {
         "time": "01:06",
@@ -3185,9 +2873,7 @@
           "en": "A message claiming Claire is safe is signed by her desktop, not her phone.",
           "vi": "Tin nhắn nói Claire đã an toàn thực ra được gửi từ máy tính tại bàn làm việc, không phải điện thoại của cô."
         },
-        "requiresEvidence": [
-          "claire-abducted"
-        ]
+        "requiresEvidence": ["claire-abducted"]
       },
       {
         "time": "01:14",
@@ -3200,9 +2886,7 @@
           "en": "Ethan's wearable records impact inside the homicide window.",
           "vi": "Đồng hồ Ethan ghi nhận va chạm trong khoảng gây án."
         },
-        "requiresEvidence": [
-          "forensic-window"
-        ]
+        "requiresEvidence": ["forensic-window"]
       },
       {
         "time": "01:19",
@@ -3215,9 +2899,7 @@
           "en": "The encrypted source drive is disconnected from the laptop.",
           "vi": "Ổ nguồn tin mã hóa bị ngắt khỏi laptop."
         },
-        "requiresEvidence": [
-          "device-timeline"
-        ]
+        "requiresEvidence": ["device-timeline"]
       },
       {
         "time": "01:21",
@@ -3230,10 +2912,7 @@
           "en": "FIELDKIT-MERCER uses the compromised Lucas Reed account to erase an Orpheus lookup.",
           "vi": "Thiết bị FIELDKIT-MERCER sử dụng tài khoản bị đánh cắp của Lucas Reed để xóa lịch sử tra cứu ORPHEUS."
         },
-        "requiresEvidence": [
-          "account-compromise",
-          "fieldkit-trace"
-        ]
+        "requiresEvidence": ["account-compromise", "fieldkit-trace"]
       },
       {
         "time": "01:31",
@@ -3246,9 +2925,7 @@
           "en": "The sedan exits Tower 17 and heads east toward River Road.",
           "vi": "Chiếc sedan rời Tòa nhà 17 và đi về phía đông đường Ven Sông."
         },
-        "requiresEvidence": [
-          "vehicle-route"
-        ]
+        "requiresEvidence": ["vehicle-route"]
       },
       {
         "time": "01:52",
@@ -3261,9 +2938,7 @@
           "en": "An immutable road sensor records the vehicle after correcting the camera clock.",
           "vi": "Sau khi sửa sai lệch 6 phút của camera, một cảm biến giao thông độc lập xác nhận chiếc xe tới RIVER-3 lúc 01:52."
         },
-        "requiresEvidence": [
-          "clock-correction"
-        ]
+        "requiresEvidence": ["clock-correction"]
       },
       {
         "time": "01:54",
@@ -3276,9 +2951,7 @@
           "en": "Cellular bearings narrow her position to Warehouse Row 4–7.",
           "vi": "Hai trạm di động đo hướng tín hiệu và khoanh vùng Claire quanh dãy kho số 4 đến số 7."
         },
-        "requiresEvidence": [
-          "live-beacon"
-        ]
+        "requiresEvidence": ["live-beacon"]
       },
       {
         "time": "02:07",
@@ -3291,9 +2964,7 @@
           "en": "Mercer's burner calls the Northstar gate handset from River-3.",
           "vi": "Máy rác của Mercer gọi máy cổng Northstar từ vùng River-3."
         },
-        "requiresEvidence": [
-          "gps-spoof"
-        ]
+        "requiresEvidence": ["gps-spoof"]
       },
       {
         "time": "06:42",
@@ -3343,9 +3014,7 @@
               "en": "Found dead in apartment 17B. The ORPHEUS drive was missing and the bedroom clock could not be trusted.",
               "vi": "Được phát hiện đã tử vong tại căn hộ 17B. Ổ ORPHEUS biến mất và đồng hồ phòng ngủ không phải nguồn giờ đáng tin cậy."
             },
-            "requiresEvidence": [
-              "scene-baseline"
-            ]
+            "requiresEvidence": ["scene-baseline"]
           },
           {
             "label": {
@@ -3356,9 +3025,7 @@
               "en": "Forensic and wearable evidence places the fatal struggle between 01:10 and 01:35 true time.",
               "vi": "Pháp y và dữ liệu thiết bị đeo xác định cuộc giằng co dẫn đến án mạng xảy ra trong khoảng 01:10–01:35 theo giờ chuẩn."
             },
-            "requiresEvidence": [
-              "forensic-window"
-            ]
+            "requiresEvidence": ["forensic-window"]
           },
           {
             "label": {
@@ -3369,9 +3036,7 @@
               "en": "A source using the codename LYRA delivered an encrypted drive through the newsroom secure drop. Ethan verified its checksum, named the archive ORPHEUS and kept the only decryption key offline.",
               "vi": "Nguồn tin mang mật danh LYRA gửi một ổ đĩa mã hóa qua hộp nhận tài liệu an toàn của tòa soạn. Ethan kiểm tra checksum, đặt tên kho dữ liệu là ORPHEUS và giữ khóa giải mã duy nhất ở chế độ ngoại tuyến."
             },
-            "requiresEvidence": [
-              "device-timeline"
-            ]
+            "requiresEvidence": ["device-timeline"]
           },
           {
             "label": {
@@ -3382,9 +3047,7 @@
               "en": "Ethan scheduled Grant Mercer as an ORPHEUS source interview and issued guest code EW-INTERVIEW-04.",
               "vi": "Ethan hẹn Grant Mercer dưới danh nghĩa phỏng vấn nguồn tin ORPHEUS và cấp mã khách EW-INTERVIEW-04."
             },
-            "requiresEvidence": [
-              "device-timeline"
-            ]
+            "requiresEvidence": ["device-timeline"]
           }
         ]
       },
@@ -3409,9 +3072,7 @@
               "en": "The “I am safe” message used her desktop key, not her phone key. An unsent draft mentions a blue truck, river cranes and a fifteen-minute bell.",
               "vi": "Tin nhắn “tôi an toàn” dùng khóa máy bàn, không phải khóa điện thoại. Bản nháp chưa gửi nhắc tới xe tải xanh, cần cẩu ven sông và tiếng chuông mỗi 15 phút."
             },
-            "requiresEvidence": [
-              "claire-abducted"
-            ]
+            "requiresEvidence": ["claire-abducted"]
           },
           {
             "label": {
@@ -3422,9 +3083,7 @@
               "en": "Ethan protected the source and raw archive; Claire independently verified vendors, invoices and payment dates so the investigation would not rely on a single anonymous claim.",
               "vi": "Ethan bảo vệ nguồn tin và dữ liệu gốc; Claire kiểm chứng độc lập nhà cung cấp, hóa đơn và ngày thanh toán để bài điều tra không chỉ dựa vào lời của một nguồn ẩn danh."
             },
-            "requiresEvidence": [
-              "claire-abducted"
-            ]
+            "requiresEvidence": ["claire-abducted"]
           },
           {
             "label": {
@@ -3435,9 +3094,7 @@
               "en": "Her phone reached River-3 and began a low-power emergency beacon near Warehouse Row 4–7.",
               "vi": "Điện thoại của Claire tới RIVER-3 rồi phát tín hiệu khẩn cấp yếu quanh dãy kho số 4–7."
             },
-            "requiresEvidence": [
-              "live-beacon"
-            ]
+            "requiresEvidence": ["live-beacon"]
           },
           {
             "label": {
@@ -3448,9 +3105,7 @@
               "en": "Independent environmental and radio clues converge on Northstar Warehouse 6.",
               "vi": "Các manh mối môi trường và vô tuyến độc lập cùng hội tụ tại Kho Northstar số 6."
             },
-            "requiresEvidence": [
-              "target-location"
-            ]
+            "requiresEvidence": ["target-location"]
           }
         ]
       },
@@ -3465,9 +3120,7 @@
           "en": "Lucas owns the police account used during the intrusion, but an account name alone does not identify its operator.",
           "vi": "Lucas là chủ tài khoản cảnh sát được dùng trong phiên xâm nhập, nhưng tên tài khoản không đồng nghĩa với người trực tiếp thao tác."
         },
-        "requiresEvidence": [
-          "account-compromise"
-        ],
+        "requiresEvidence": ["account-compromise"],
         "details": [
           {
             "label": {
@@ -3502,9 +3155,7 @@
           "en": "After Ethan requested comment on the suspicious approvals, Mercer claimed he could privately authenticate the records. Ethan treated him as a potential corroborating source and issued a temporary guest code.",
           "vi": "Sau khi Ethan yêu cầu giải trình về các phê duyệt đáng ngờ, Mercer nói rằng hắn có thể bí mật xác thực hồ sơ. Ethan xem hắn như một nguồn có khả năng đối chứng và cấp mã khách tạm thời."
         },
-        "requiresEvidence": [
-          "device-timeline"
-        ],
+        "requiresEvidence": ["device-timeline"],
         "details": [
           {
             "label": {
@@ -3515,9 +3166,7 @@
               "en": "Former police digital-evidence supervisor. Recovery code RC-04 had previously been printed for him.",
               "vi": "Cựu giám sát viên vật chứng số của cảnh sát. Mã khôi phục RC-04 từng được in cho Mercer."
             },
-            "requiresEvidence": [
-              "account-compromise"
-            ]
+            "requiresEvidence": ["account-compromise"]
           },
           {
             "label": {
@@ -3528,9 +3177,7 @@
               "en": "Mercer responded to Ethan’s request for comment by posing as a confidential corroborating source. The meeting gave him lawful-looking access to apartment 17B and an opportunity to seize ORPHEUS.",
               "vi": "Mercer phản hồi yêu cầu giải trình của Ethan bằng cách giả làm nguồn đối chứng bí mật. Cuộc hẹn giúp hắn vào căn hộ 17B mà không cần phá cửa và tạo cơ hội chiếm ORPHEUS."
             },
-            "requiresEvidence": [
-              "motive"
-            ]
+            "requiresEvidence": ["motive"]
           },
           {
             "label": {
@@ -3541,9 +3188,7 @@
               "en": "FIELDKIT-MERCER is an unreturned police field kit formerly assigned to Mercer.",
               "vi": "FIELDKIT-MERCER là bộ thiết bị hiện trường của cảnh sát từng cấp cho Mercer nhưng chưa được hoàn trả."
             },
-            "requiresEvidence": [
-              "fieldkit-trace"
-            ]
+            "requiresEvidence": ["fieldkit-trace"]
           },
           {
             "label": {
@@ -3554,9 +3199,7 @@
               "en": "A documented right-thumb scar matches the scene trace. Mercer knew evidence systems, GPS simulation and River District cameras.",
               "vi": "Vết sẹo ngón cái phải trong hồ sơ phù hợp dấu vết hiện trường. Mercer hiểu hệ thống vật chứng, giả lập GPS và camera Quận Ven Sông."
             },
-            "requiresEvidence": [
-              "suspect-profile"
-            ]
+            "requiresEvidence": ["suspect-profile"]
           },
           {
             "label": {
@@ -3567,9 +3210,7 @@
               "en": "ORPHEUS exposes diverted Northstar emergency-radio contracts bearing Mercer’s approval.",
               "vi": "ORPHEUS phơi bày các hợp đồng vô tuyến Northstar bị biển thủ có tên Mercer trong chuỗi phê duyệt."
             },
-            "requiresEvidence": [
-              "motive"
-            ]
+            "requiresEvidence": ["motive"]
           },
           {
             "label": {
@@ -3580,9 +3221,7 @@
               "en": "His gray sedan 51H-742.19 entered Tower 17 and later travelled toward River-3.",
               "vi": "Sedan xám 51H-742.19 của Mercer vào Tòa nhà 17 rồi di chuyển về RIVER-3."
             },
-            "requiresEvidence": [
-              "vehicle-route"
-            ]
+            "requiresEvidence": ["vehicle-route"]
           }
         ]
       }
@@ -3897,16 +3536,8 @@
           "path": "/scene/first-response.txt"
         },
         "highlight": {
-          "en": [
-            "two cups",
-            "P-4187",
-            "17 minutes slow"
-          ],
-          "vi": [
-            "hai chiếc cốc",
-            "P-4187",
-            "chạy chậm 17 phút"
-          ]
+          "en": ["two cups", "P-4187", "17 minutes slow"],
+          "vi": ["hai chiếc cốc", "P-4187", "chạy chậm 17 phút"]
         },
         "requiresEvidence": [],
         "discovered": false
@@ -3944,9 +3575,7 @@
             "sợi đay"
           ]
         },
-        "requiresEvidence": [
-          "scene-baseline"
-        ],
+        "requiresEvidence": ["scene-baseline"],
         "discovered": false
       },
       {
@@ -3969,20 +3598,10 @@
           "path": "/laptop/timeline.log"
         },
         "highlight": {
-          "en": [
-            "verified NTP network time",
-            "01:14:22",
-            "01:19:50"
-          ],
-          "vi": [
-            "NTP được xác minh",
-            "01:14:22",
-            "01:19:50"
-          ]
+          "en": ["verified NTP network time", "01:14:22", "01:19:50"],
+          "vi": ["NTP được xác minh", "01:14:22", "01:19:50"]
         },
-        "requiresEvidence": [
-          "scene-baseline"
-        ],
+        "requiresEvidence": ["scene-baseline"],
         "discovered": false
       },
       {
@@ -4020,9 +3639,7 @@
             "mười lăm phút"
           ]
         },
-        "requiresEvidence": [
-          "device-timeline"
-        ],
+        "requiresEvidence": ["device-timeline"],
         "discovered": false
       },
       {
@@ -4058,9 +3675,7 @@
             "evidence.metro-police.local"
           ]
         },
-        "requiresEvidence": [
-          "device-timeline"
-        ],
+        "requiresEvidence": ["device-timeline"],
         "discovered": false
       },
       {
@@ -4098,9 +3713,7 @@
             "bị chiếm dụng"
           ]
         },
-        "requiresEvidence": [
-          "separate-device"
-        ],
+        "requiresEvidence": ["separate-device"],
         "discovered": false
       },
       {
@@ -4136,9 +3749,7 @@
             "chưa được hoàn trả"
           ]
         },
-        "requiresEvidence": [
-          "account-compromise"
-        ],
+        "requiresEvidence": ["account-compromise"],
         "discovered": false
       },
       {
@@ -4167,17 +3778,9 @@
             "GPS simulation",
             "River District"
           ],
-          "vi": [
-            "sẹo dài 22 mm",
-            "51H-742.19",
-            "giả lập GPS",
-            "Quận Ven Sông"
-          ]
+          "vi": ["sẹo dài 22 mm", "51H-742.19", "giả lập GPS", "Quận Ven Sông"]
         },
-        "requiresEvidence": [
-          "forensic-window",
-          "fieldkit-trace"
-        ],
+        "requiresEvidence": ["forensic-window", "fieldkit-trace"],
         "discovered": false
       },
       {
@@ -4200,20 +3803,10 @@
           "path": "/police/corruption-case.txt"
         },
         "highlight": {
-          "en": [
-            "Northstar Logistics",
-            "Grant Mercer",
-            "motive, not presence"
-          ],
-          "vi": [
-            "Northstar Logistics",
-            "Grant Mercer",
-            "động cơ gây án"
-          ]
+          "en": ["Northstar Logistics", "Grant Mercer", "motive, not presence"],
+          "vi": ["Northstar Logistics", "Grant Mercer", "động cơ gây án"]
         },
-        "requiresEvidence": [
-          "suspect-profile"
-        ],
+        "requiresEvidence": ["suspect-profile"],
         "discovered": false
       },
       {
@@ -4236,23 +3829,10 @@
           "path": "/city/parking.log"
         },
         "highlight": {
-          "en": [
-            "P-4187",
-            "51H-742.19",
-            "River Road",
-            "BLUE paint"
-          ],
-          "vi": [
-            "P-4187",
-            "51H-742.19",
-            "đường Ven Sông",
-            "SƠN XANH"
-          ]
+          "en": ["P-4187", "51H-742.19", "River Road", "BLUE paint"],
+          "vi": ["P-4187", "51H-742.19", "đường Ven Sông", "SƠN XANH"]
         },
-        "requiresEvidence": [
-          "scene-baseline",
-          "suspect-profile"
-        ],
+        "requiresEvidence": ["scene-baseline", "suspect-profile"],
         "discovered": false
       },
       {
@@ -4288,9 +3868,7 @@
             "river-cam-04"
           ]
         },
-        "requiresEvidence": [
-          "fieldkit-trace"
-        ],
+        "requiresEvidence": ["fieldkit-trace"],
         "discovered": false
       },
       {
@@ -4313,21 +3891,10 @@
           "path": "/telecom/suspect-phone.log"
         },
         "highlight": {
-          "en": [
-            "GPS attestation: FAILED",
-            "RIVER-3",
-            "Northstar gate"
-          ],
-          "vi": [
-            "tính xác thực GPS: THẤT BẠI",
-            "RIVER-3",
-            "cổng Northstar"
-          ]
+          "en": ["GPS attestation: FAILED", "RIVER-3", "Northstar gate"],
+          "vi": ["tính xác thực GPS: THẤT BẠI", "RIVER-3", "cổng Northstar"]
         },
-        "requiresEvidence": [
-          "vpn-deception",
-          "motive"
-        ],
+        "requiresEvidence": ["vpn-deception", "motive"],
         "discovered": false
       },
       {
@@ -4350,20 +3917,10 @@
           "path": "/telecom/claire-phone.log"
         },
         "highlight": {
-          "en": [
-            "RIVER-3",
-            "emergency beacon",
-            "Warehouse Row 4–7"
-          ],
-          "vi": [
-            "RIVER-3",
-            "tín hiệu khẩn cấp",
-            "dãy kho số 4 đến số 7"
-          ]
+          "en": ["RIVER-3", "emergency beacon", "Warehouse Row 4–7"],
+          "vi": ["RIVER-3", "tín hiệu khẩn cấp", "dãy kho số 4 đến số 7"]
         },
-        "requiresEvidence": [
-          "claire-abducted"
-        ],
+        "requiresEvidence": ["claire-abducted"],
         "discovered": false
       },
       {
@@ -4399,11 +3956,7 @@
             "khớp nhau"
           ]
         },
-        "requiresEvidence": [
-          "device-timeline",
-          "vehicle-route",
-          "live-beacon"
-        ],
+        "requiresEvidence": ["device-timeline", "vehicle-route", "live-beacon"],
         "discovered": false
       },
       {
@@ -4571,11 +4124,7 @@
           "en": "Claire may still be alive and her safety message cannot yet be trusted. Authenticate her messages and follow her emergency radio signal.",
           "vi": "Claire có thể vẫn còn sống và chưa thể tin vào tin nhắn báo an toàn. Hãy xác thực thiết bị gửi tin rồi lần theo tín hiệu vô tuyến khẩn cấp của cô."
         },
-        "requiresEvidence": [
-          "suspect-profile",
-          "motive",
-          "vehicle-route"
-        ],
+        "requiresEvidence": ["suspect-profile", "motive", "vehicle-route"],
         "completed": false
       },
       {
@@ -4600,10 +4149,7 @@
           "en": "The beacon points to River-3, while Mercer’s digital traces point to Central Library. Correct the conflicting clocks and determine which location records are false.",
           "vi": "Beacon chỉ tới RIVER-3, trong khi dấu vết số của Mercer lại chỉ tới Thư viện Trung tâm. Hãy hiệu chỉnh các nguồn giờ xung đột và xác định bản ghi vị trí nào đã bị làm giả."
         },
-        "requiresEvidence": [
-          "claire-abducted",
-          "live-beacon"
-        ],
+        "requiresEvidence": ["claire-abducted", "live-beacon"],
         "completed": false
       },
       {
@@ -4657,9 +4203,7 @@
           "en": "The evidentiary chain is complete. Prepare the operational report with the suspect, vehicle, target and victim.",
           "vi": "Chuỗi chứng cứ đã hoàn chỉnh. Hãy lập văn bản tác chiến với nghi phạm, phương tiện, mục tiêu và nạn nhân."
         },
-        "requiresEvidence": [
-          "target-location"
-        ],
+        "requiresEvidence": ["target-location"],
         "completed": false
       }
     ]

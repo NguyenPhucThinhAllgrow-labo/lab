@@ -1,181 +1,163 @@
-import type {
-  TerminalCommand,
-} from '~/types/games/terminal'
+import type { TerminalCommand } from "~/types/games/terminal";
 
-export const terminalCommands:
-  TerminalCommand[] = [
-    {
-      command: 'pwd',
+export const terminalCommands: TerminalCommand[] = [
+  {
+    command: "pwd",
 
-      description:
-        'Print current directory',
+    description: "Print current directory",
 
-      requiresArgument: false,
-    },
-    {
-      command: 'intro',
+    requiresArgument: false,
+  },
+  {
+    command: "intro",
 
-      description:
-        'Print current intro',
+    description: "Print current intro",
 
-      requiresArgument: false,
-    },
-    {
-      command: 'ls',
+    requiresArgument: false,
+  },
+  {
+    command: "ls",
 
-      description:
-        'List directory contents',
+    description: "List directory contents",
 
-      requiresArgument: false,
-    },
+    requiresArgument: false,
+  },
 
-    {
-      command: 'cd',
+  {
+    command: "cd",
 
-      description:
-        'Change directory',
+    description: "Change directory",
 
-      requiresArgument: true,
-    },
+    requiresArgument: true,
+  },
 
-    {
-      command: 'cat',
+  {
+    command: "cat",
 
-      description:
-        'Read file',
+    description: "Read file",
 
-      requiresArgument: true,
-    },
+    requiresArgument: true,
+  },
 
-    {
-      command: 'grep',
-      description: 'Search text inside a file',
-      requiresArgument: true,
-    },
+  {
+    command: "grep",
+    description: "Search text inside a file",
+    requiresArgument: true,
+  },
 
-    {
-      command: 'head',
-      description: 'Read the first lines of a file',
-      requiresArgument: true,
-    },
+  {
+    command: "head",
+    description: "Read the first lines of a file",
+    requiresArgument: true,
+  },
 
-    {
-      command: 'tail',
-      description: 'Read the last lines of a file',
-      requiresArgument: true,
-    },
+  {
+    command: "tail",
+    description: "Read the last lines of a file",
+    requiresArgument: true,
+  },
 
-    {
-      command: 'stat',
-      description: 'Inspect file metadata',
-      requiresArgument: true,
-    },
+  {
+    command: "stat",
+    description: "Inspect file metadata",
+    requiresArgument: true,
+  },
 
-    {
-      command: 'diff',
-      description: 'Compare two files',
-      requiresArgument: true,
-    },
+  {
+    command: "diff",
+    description: "Compare two files",
+    requiresArgument: true,
+  },
 
-    {
-      command: 'strings',
-      description: 'Extract readable strings from a file',
-      requiresArgument: true,
-    },
+  {
+    command: "strings",
+    description: "Extract readable strings from a file",
+    requiresArgument: true,
+  },
 
-    {
-      command: 'checksum',
-      description: 'Calculate a forensic file checksum',
-      requiresArgument: true,
-    },
+  {
+    command: "checksum",
+    description: "Calculate a forensic file checksum",
+    requiresArgument: true,
+  },
 
-    {
-      command: 'find',
+  {
+    command: "find",
 
-      description:
-        'Find files',
+    description: "Find files",
 
-      requiresArgument: true,
-    },
+    requiresArgument: true,
+  },
 
-    {
-      command: 'sudo',
+  {
+    command: "sudo",
 
-      description:
-        'Run a filesystem command with elevated access',
+    description: "Run a filesystem command with elevated access",
 
-      requiresArgument: true,
-    },
+    requiresArgument: true,
+  },
 
-    {
-      command: 'history',
+  {
+    command: "history",
 
-      description:
-        'Show command history',
+    description: "Show command history",
 
-      requiresArgument: false,
-    },
+    requiresArgument: false,
+  },
 
-    {
-      command: 'whoami',
+  {
+    command: "whoami",
 
-      description:
-        'Show current user',
+    description: "Show current user",
 
-      requiresArgument: false,
-    },
+    requiresArgument: false,
+  },
 
-    {
-      command: 'hint',
+  {
+    command: "hint",
 
-      description:
-        'Get a progressive investigation hint (levels 1–3)',
+    description: "Get a progressive investigation hint (levels 1–3)",
 
-      requiresArgument: false,
-    },
+    requiresArgument: false,
+  },
 
-    {
-      command: 'confirm',
+  {
+    command: "confirm",
 
-      description:
-        'Confirm a point-costing hint',
+    description: "Confirm a point-costing hint",
 
-      requiresArgument: true,
-    },
+    requiresArgument: true,
+  },
 
-    {
-      command: 'guide',
+  {
+    command: "guide",
 
-      description:
-        'Explain investigation folders',
+    description: "Explain investigation folders",
 
-      requiresArgument: true,
-    },
+    requiresArgument: true,
+  },
 
-    {
-      command: 'help',
+  {
+    command: "help",
 
-      description:
-        'Show available commands',
+    description: "Show available commands",
 
-      requiresArgument: false,
-    },
+    requiresArgument: false,
+  },
 
-    {
-      command: 'lang',
+  {
+    command: "lang",
 
-      description:
-        'Change terminal language',
+    description: "Change terminal language",
 
-      requiresArgument: true,
-    },
+    requiresArgument: true,
+  },
 
-    {
-      command: 'clear',
+  {
+    command: "clear",
 
-      description:
-        'Clear terminal',
+    description: "Clear terminal",
 
-      requiresArgument: false,
-    },
-  ]
+    requiresArgument: false,
+  },
+];

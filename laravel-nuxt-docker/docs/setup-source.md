@@ -6,15 +6,15 @@ Tài liệu này hướng dẫn cài đặt project trên một máy mới sau k
 
 Docker Compose của project gồm:
 
-| Service | Vai trò |
-|---|---|
-| `nginx` | Reverse proxy, public ứng dụng ở cổng 80 |
-| `backend` | Laravel/PHP-FPM |
-| `frontend` | Nuxt development server |
-| `mysql` | Cơ sở dữ liệu MySQL 8 |
-| `redis` | Redis |
-| `pikafish` | Chinese Chess engine và NNUE |
-| `cloudflared` | Cloudflare Quick Tunnel tùy chọn |
+| Service       | Vai trò                                  |
+| ------------- | ---------------------------------------- |
+| `nginx`       | Reverse proxy, public ứng dụng ở cổng 80 |
+| `backend`     | Laravel/PHP-FPM                          |
+| `frontend`    | Nuxt development server                  |
+| `mysql`       | Cơ sở dữ liệu MySQL 8                    |
+| `redis`       | Redis                                    |
+| `pikafish`    | Chinese Chess engine và NNUE             |
+| `cloudflared` | Cloudflare Quick Tunnel tùy chọn         |
 
 Không cần tải dataset hoặc train Machine Learning để chạy game. Pikafish sử dụng NNUE trong Docker image và model fallback đã được lưu sẵn trong source.
 
@@ -66,11 +66,11 @@ ls Makefile docker-compose.yml
 
 Các file `.env` chứa secret nên không được lấy trực tiếp từ Git. Hãy nhận chúng qua kênh an toàn từ người quản lý dự án hoặc tạo cấu hình local mới.
 
-| File | Bắt buộc | Mục đích |
-|---|---|---|
-| `backend/.env` | Có | Laravel, database, session, Sanctum và Pusher |
-| `frontend/.env` | Nên có | URL API và cấu hình Pusher public |
-| `.env` ở root project | Không | Ghi đè cấu hình Docker/Pikafish |
+| File                  | Bắt buộc | Mục đích                                      |
+| --------------------- | -------- | --------------------------------------------- |
+| `backend/.env`        | Có       | Laravel, database, session, Sanctum và Pusher |
+| `frontend/.env`       | Nên có   | URL API và cấu hình Pusher public             |
+| `.env` ở root project | Không    | Ghi đè cấu hình Docker/Pikafish               |
 
 Không commit hoặc chia sẻ:
 
@@ -155,11 +155,11 @@ Mặc định `auto` chọn theo kiến trúc container Docker: `amd64` → `x86
 
 Có thể ghi đè khi cần:
 
-| Máy | `PIKAFISH_ARCH` |
-|---|---|
-| Intel/AMD 64-bit phổ thông | `x86-64-sse41-popcnt` |
-| Intel/AMD cũ | `x86-64` |
-| Mac Apple Silicon / Windows ARM / Linux ARM64 | `armv8` |
+| Máy                                           | `PIKAFISH_ARCH`       |
+| --------------------------------------------- | --------------------- |
+| Intel/AMD 64-bit phổ thông                    | `x86-64-sse41-popcnt` |
+| Intel/AMD cũ                                  | `x86-64`              |
+| Mac Apple Silicon / Windows ARM / Linux ARM64 | `armv8`               |
 
 ## 5. Cài đặt lần đầu
 
@@ -209,7 +209,7 @@ curl http://localhost/api/ping
 Kết quả hợp lệ:
 
 ```json
-{"message":"Laravel API OK"}
+{ "message": "Laravel API OK" }
 ```
 
 ### 6.3 Pikafish/NNUE
@@ -221,7 +221,7 @@ make pikafish-health
 Kết quả hợp lệ:
 
 ```json
-{"status":"ok","engine":"Pikafish dev-20260910-99793311"}
+{ "status": "ok", "engine": "Pikafish dev-20260910-99793311" }
 ```
 
 ### 6.4 Frontend
@@ -300,19 +300,19 @@ docker compose up -d --force-recreate frontend
 
 ## 9. Các lệnh thường dùng
 
-| Lệnh | Công dụng |
-|---|---|
-| `make setup` | Cài đặt project lần đầu |
-| `make up` | Khởi động container |
-| `make down` | Dừng container |
-| `make ps` | Xem trạng thái |
-| `make logs` | Theo dõi log backend |
-| `make migrate` | Chạy migration |
-| `make cache-clear` | Xóa cache Laravel |
-| `make test` | Chạy backend test |
-| `make pikafish-build` | Build và chạy Pikafish |
+| Lệnh                   | Công dụng               |
+| ---------------------- | ----------------------- |
+| `make setup`           | Cài đặt project lần đầu |
+| `make up`              | Khởi động container     |
+| `make down`            | Dừng container          |
+| `make ps`              | Xem trạng thái          |
+| `make logs`            | Theo dõi log backend    |
+| `make migrate`         | Chạy migration          |
+| `make cache-clear`     | Xóa cache Laravel       |
+| `make test`            | Chạy backend test       |
+| `make pikafish-build`  | Build và chạy Pikafish  |
 | `make pikafish-health` | Kiểm tra engine và NNUE |
-| `make pikafish-logs` | Xem log Pikafish |
+| `make pikafish-logs`   | Xem log Pikafish        |
 
 Xem toàn bộ lệnh:
 

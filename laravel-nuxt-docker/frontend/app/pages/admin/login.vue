@@ -1,46 +1,46 @@
 <script setup lang="ts">
-const email = ref('')
-const password = ref('')
-const loading = ref(false)
-const error = ref('')
+const email = ref("");
+const password = ref("");
+const loading = ref(false);
+const error = ref("");
 
-const { adminLogin } = useAuth()
+const { adminLogin } = useAuth();
 
 async function handleLogin() {
-  error.value = ''
+  error.value = "";
 
   if (!email.value || !password.value) {
-    error.value = 'Vui lòng nhập email và mật khẩu'
-    return
+    error.value = "Vui lòng nhập email và mật khẩu";
+    return;
   }
 
-  loading.value = true
+  loading.value = true;
 
   try {
-    await adminLogin(email.value, password.value)
+    await adminLogin(email.value, password.value);
 
-    const route = useRoute()
-    const requestedRedirect = typeof route.query.redirect === 'string'
-      ? route.query.redirect
-      : ''
-    const redirect = requestedRedirect.startsWith('/')
-      && !requestedRedirect.startsWith('//')
-      ? requestedRedirect
-      : '/admin'
+    const route = useRoute();
+    const requestedRedirect =
+      typeof route.query.redirect === "string" ? route.query.redirect : "";
+    const redirect =
+      requestedRedirect.startsWith("/") && !requestedRedirect.startsWith("//")
+        ? requestedRedirect
+        : "/admin";
 
-    await navigateTo(redirect)
+    await navigateTo(redirect);
   } catch (err: any) {
     if (err?.status === 422 || err?.status === 401) {
-      error.value = err?.data?.errors?.email?.[0]
-        || 'Email hoặc mật khẩu admin không chính xác.'
+      error.value =
+        err?.data?.errors?.email?.[0] ||
+        "Email hoặc mật khẩu admin không chính xác.";
     } else if (err?.status === 419) {
-      error.value = 'Phiên bảo mật đã hết hạn. Vui lòng thử lại.'
+      error.value = "Phiên bảo mật đã hết hạn. Vui lòng thử lại.";
     } else {
-      error.value = err?.data?.message
-        || 'Đăng nhập thất bại. Vui lòng thử lại.'
+      error.value =
+        err?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.";
     }
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 </script>
@@ -89,7 +89,7 @@ async function handleLogin() {
         <p v-if="error" class="error" role="alert">{{ error }}</p>
 
         <button type="submit" :disabled="loading">
-          {{ loading ? 'Đang đăng nhập...' : 'Đăng nhập admin' }}
+          {{ loading ? "Đang đăng nhập..." : "Đăng nhập admin" }}
         </button>
       </form>
 

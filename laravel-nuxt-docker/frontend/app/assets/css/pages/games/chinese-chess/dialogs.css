@@ -28,10 +28,14 @@
   border: 1px solid rgb(245 158 11 / 24%);
   border-radius: 22px;
   padding: 36px;
-  background: radial-gradient(circle at 50% 0, rgb(180 83 9 / 16%), transparent 48%), #12100e;
+  background:
+    radial-gradient(circle at 50% 0, rgb(180 83 9 / 16%), transparent 48%),
+    #12100e;
   color: #eee8dc;
   text-align: center;
-  box-shadow: 0 35px 110px rgb(0 0 0 / 68%), inset 0 1px rgb(255 255 255 / 4%);
+  box-shadow:
+    0 35px 110px rgb(0 0 0 / 68%),
+    inset 0 1px rgb(255 255 255 / 4%);
 }
 
 .chess-dialog::before {
@@ -138,7 +142,9 @@
 
 .chess-dialog-enter-active .chess-dialog,
 .chess-dialog-leave-active .chess-dialog {
-  transition: transform 0.24s ease, opacity 0.2s ease;
+  transition:
+    transform 0.24s ease,
+    opacity 0.2s ease;
 }
 
 .chess-dialog-enter-from,

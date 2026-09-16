@@ -1,14 +1,10 @@
-export type SimulationStatus =
-  | 'idle'
-  | 'running'
-  | 'paused'
-  | 'completed'
+export type SimulationStatus = "idle" | "running" | "paused" | "completed";
 
 export interface InsertionSortSimulationStep {
   /**
    * Giá trị hiện tại của array.
    */
-  values: number[]
+  values: number[];
 
   /**
    * ID cố định của từng phần tử.
@@ -25,37 +21,37 @@ export interface InsertionSortSimulationStep {
    *
    * ID không bao giờ thay đổi theo value.
    */
-  ids: number[]
+  ids: number[];
 
   /**
    * Các index đang được so sánh.
    */
-  comparing: number[]
+  comparing: number[];
 
   /**
    * Các index đang di chuyển.
    */
-  swapping: number[]
+  swapping: number[];
 
   /**
    * Các index thuộc vùng đã sorted.
    */
-  sorted: number[]
+  sorted: number[];
 
   /**
    * Text mô tả thao tác hiện tại.
    */
-  description: string
+  description: string;
 
   /**
    * Index hiện tại đang được xử lý.
    */
-  currentIndex?: number
+  currentIndex?: number;
 }
 
 export interface Complexity {
-  best: string
-  average: string
-  worst: string
-  space: string
+  best: string;
+  average: string;
+  worst: string;
+  space: string;
 }

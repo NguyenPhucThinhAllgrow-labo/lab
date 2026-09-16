@@ -32,17 +32,17 @@ Model JSON đã train nằm trong `backend/resources/ml/chinese-chess-model.json
 
 ## 2. Các file chính
 
-| Thành phần | File | Vai trò |
-|---|---|---|
-| Chế độ chơi với máy | `frontend/app/pages/games/chinese-chess/index.vue` | Gọi engine, fallback và áp dụng nước |
-| Sinh ứng viên | `frontend/app/utils/chinese-chess/advisor.ts` | Sinh nước hợp lệ, đặc trưng và Minimax |
-| Chuyển FEN/UCI | `frontend/app/utils/chinese-chess/uci.ts` | Chuyển board frontend sang định dạng Pikafish |
-| API Pikafish | `backend/app/Http/Controllers/Api/ChineseChessEngineController.php` | Validate và gọi engine nội bộ |
-| API model fallback | `backend/app/Http/Controllers/Api/ChineseChessMlController.php` | Xếp hạng ứng viên bằng model JSON |
-| HTTP bridge | `docker/pikafish/server.py` | Giữ tiến trình UCI chạy thường trực |
-| Image engine | `docker/pikafish/Dockerfile` | Build Pikafish và đóng gói NNUE |
-| Model fallback | `backend/resources/ml/chinese-chess-model.json` | Trọng số đang sử dụng |
-| Trainer tùy chọn | `scripts/train-chinese-chess-ml.py` | Train lại model fallback từ JSONL |
+| Thành phần          | File                                                                | Vai trò                                       |
+| ------------------- | ------------------------------------------------------------------- | --------------------------------------------- |
+| Chế độ chơi với máy | `frontend/app/pages/games/chinese-chess/index.vue`                  | Gọi engine, fallback và áp dụng nước          |
+| Sinh ứng viên       | `frontend/app/utils/chinese-chess/advisor.ts`                       | Sinh nước hợp lệ, đặc trưng và Minimax        |
+| Chuyển FEN/UCI      | `frontend/app/utils/chinese-chess/uci.ts`                           | Chuyển board frontend sang định dạng Pikafish |
+| API Pikafish        | `backend/app/Http/Controllers/Api/ChineseChessEngineController.php` | Validate và gọi engine nội bộ                 |
+| API model fallback  | `backend/app/Http/Controllers/Api/ChineseChessMlController.php`     | Xếp hạng ứng viên bằng model JSON             |
+| HTTP bridge         | `docker/pikafish/server.py`                                         | Giữ tiến trình UCI chạy thường trực           |
+| Image engine        | `docker/pikafish/Dockerfile`                                        | Build Pikafish và đóng gói NNUE               |
+| Model fallback      | `backend/resources/ml/chinese-chess-model.json`                     | Trọng số đang sử dụng                         |
+| Trainer tùy chọn    | `scripts/train-chinese-chess-ml.py`                                 | Train lại model fallback từ JSONL             |
 
 ## 3. Cài đặt project
 
@@ -80,11 +80,11 @@ PIKAFISH_THREADS=1
 PIKAFISH_HASH_MB=128
 ```
 
-| Máy | `PIKAFISH_ARCH` |
-|---|---|
+| Máy                        | `PIKAFISH_ARCH`       |
+| -------------------------- | --------------------- |
 | Intel/AMD 64-bit phổ thông | `x86-64-sse41-popcnt` |
-| Intel/AMD cũ | `x86-64` |
-| ARM64/Linux | `armv8` |
+| Intel/AMD cũ               | `x86-64`              |
+| ARM64/Linux                | `armv8`               |
 
 Sau khi đổi kiến trúc:
 
@@ -104,11 +104,11 @@ CHINESE_CHESS_ENGINE_TIMEOUT_SECONDS=5
 ```
 
 | Mức gợi ý | Thời gian suy nghĩ |
-|---|---:|
-| Nhanh/nhẹ | 200–400 ms |
-| Cân bằng | 600–1000 ms |
-| Khó | 1500–3000 ms |
-| Rất khó | 3000–5000 ms |
+| --------- | -----------------: |
+| Nhanh/nhẹ |         200–400 ms |
+| Cân bằng  |        600–1000 ms |
+| Khó       |       1500–3000 ms |
+| Rất khó   |       3000–5000 ms |
 
 `CHINESE_CHESS_ENGINE_MOVE_TIME_MS` được giới hạn từ 100 đến 5000 ms. Timeout phải lớn hơn thời gian suy nghĩ.
 
@@ -177,15 +177,15 @@ API trả HTTP 503 khi engine lỗi, timeout hoặc trả nước ngoài tập �
 
 Model hiện tại là **pairwise logistic ranking**, không phải neural network. Nó xếp hạng các nước hợp lệ bằng bảy đặc trưng:
 
-| Đặc trưng | Ý nghĩa |
-|---|---|
-| `capture_value` | Giá trị quân có thể ăn |
-| `gives_check` | Nước tạo chiếu |
-| `gives_checkmate` | Nước tạo chiếu bí |
-| `material_balance` | Chênh lệch vật chất |
-| `own_mobility` | Độ cơ động của bên đi |
+| Đặc trưng           | Ý nghĩa                        |
+| ------------------- | ------------------------------ |
+| `capture_value`     | Giá trị quân có thể ăn         |
+| `gives_check`       | Nước tạo chiếu                 |
+| `gives_checkmate`   | Nước tạo chiếu bí              |
+| `material_balance`  | Chênh lệch vật chất            |
+| `own_mobility`      | Độ cơ động của bên đi          |
 | `opponent_mobility` | Độ cơ động còn lại của đối thủ |
-| `piece_position` | Điểm vị trí của quân |
+| `piece_position`    | Điểm vị trí của quân           |
 
 ```text
 score = bias + Σ(weight[feature] × candidate[feature])
@@ -268,11 +268,11 @@ python3 scripts/train-chinese-chess-ml.py \
 
 Mặc định:
 
-| Tham số | Giá trị |
-|---|---:|
-| `--epochs` | 40 |
-| `--learning-rate` | 0.03 |
-| `--regularization` | 0.0005 |
+| Tham số            | Giá trị |
+| ------------------ | ------: |
+| `--epochs`         |      40 |
+| `--learning-rate`  |    0.03 |
+| `--regularization` |  0.0005 |
 
 Không cần build lại frontend hoặc Pikafish khi chỉ thay model JSON.
 

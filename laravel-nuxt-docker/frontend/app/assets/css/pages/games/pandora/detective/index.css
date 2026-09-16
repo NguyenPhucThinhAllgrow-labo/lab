@@ -24,7 +24,7 @@
   position: absolute;
   width: 18px;
   height: 18px;
-  content: '';
+  content: "";
   pointer-events: none;
 }
 
@@ -50,7 +50,7 @@
 .case-border-runner::before {
   position: absolute;
   inset: -100%;
-  content: '';
+  content: "";
   background: conic-gradient(
     from 0deg,
     transparent 0deg 285deg,
@@ -87,14 +87,22 @@
 }
 
 @keyframes cursor-blink {
-  50% { opacity: 0; }
+  50% {
+    opacity: 0;
+  }
 }
 
 @keyframes case-border-spin {
-  to { transform: rotate(1turn); }
+  to {
+    transform: rotate(1turn);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cursor-blink { animation: none; }
-  .case-border-runner::before { animation: none; }
+  .cursor-blink {
+    animation: none;
+  }
+  .case-border-runner::before {
+    animation: none;
+  }
 }

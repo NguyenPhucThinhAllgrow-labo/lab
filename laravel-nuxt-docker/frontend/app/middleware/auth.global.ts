@@ -1,57 +1,52 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  const isAdminLogin = to.path === '/admin/login'
-  const isUserLogin = to.path === '/login'
-  const isUserRegister = to.path === '/register'
-  const requiredRole = to.path.startsWith('/admin')
-    ? 'admin'
-    : to.path.startsWith('/games')
-      ? 'user'
-      : null
+  const isAdminLogin = to.path === "/admin/login";
+  const isUserLogin = to.path === "/login";
+  const isUserRegister = to.path === "/register";
+  const requiredRole = to.path.startsWith("/admin")
+    ? "admin"
+    : to.path.startsWith("/games")
+      ? "user"
+      : null;
 
   if (!requiredRole && !isUserLogin && !isUserRegister) {
-    return
+    return;
   }
 
-  const {
-    user,
-    initialized,
-    fetchUser,
-  } = useAuth()
+  const { user, initialized, fetchUser } = useAuth();
 
   if (!initialized.value) {
-    await fetchUser()
+    await fetchUser();
   }
 
   if (isAdminLogin) {
-    if (user.value?.role === 'admin') {
-      return navigateTo('/admin')
+    if (user.value?.role === "admin") {
+      return navigateTo("/admin");
     }
 
-    return
+    return;
   }
 
   if (isUserLogin || isUserRegister) {
-    if (user.value?.role === 'user') {
-      const redirect = typeof to.query.redirect === 'string'
-        ? to.query.redirect
-        : '/games/pandora/detective'
+    if (user.value?.role === "user") {
+      const redirect =
+        typeof to.query.redirect === "string"
+          ? to.query.redirect
+          : "/games/pandora/detective";
 
-      return navigateTo(redirect)
+      return navigateTo(redirect);
     }
 
-    return
+    return;
   }
 
   if (user.value?.role !== requiredRole) {
-    const loginPath = requiredRole === 'admin'
-      ? '/admin/login'
-      : '/login'
+    const loginPath = requiredRole === "admin" ? "/admin/login" : "/login";
 
     return navigateTo({
       path: loginPath,
       query: {
         redirect: to.fullPath,
       },
-    })
+    });
   }
-})
+});

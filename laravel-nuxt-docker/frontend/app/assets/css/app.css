@@ -40,6 +40,10 @@ html.viewport-resizing .online-chess .player-card {
   box-shadow: none !important;
   filter: none !important;
 }
-html.viewport-resizing .online-chess .chess-board-grid { filter: none !important; }
+html.viewport-resizing .online-chess .chess-board-grid {
+  filter: none !important;
+}
 html.viewport-resizing .online-chess .chess-board-frame::after,
-html.viewport-resizing .online-chess .chess-piece::after { visibility: hidden; }
+html.viewport-resizing .online-chess .chess-piece::after {
+  visibility: hidden;
+}
