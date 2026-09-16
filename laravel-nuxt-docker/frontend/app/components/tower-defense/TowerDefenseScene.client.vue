@@ -3,14 +3,15 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
-import { DEFENSE_GRID_COLUMNS, DEFENSE_GRID_ROWS, DEFENSE_PATH, DEFENSE_PATH_TILES, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, defensePathPosition } from '~/composables/useTowerDefense'
+import { DEFENSE_GRID_COLUMNS, DEFENSE_GRID_ROWS, DEFENSE_PATH, DEFENSE_PATHS, DEFENSE_PATH_TILES, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, defensePathPosition } from '~/composables/useTowerDefense'
 import type { Enemy, GamePhase, Impact, Projectile, Tower, TowerKind } from '~/types/games/towerDefense'
 
-const props = defineProps<{ towers: Tower[]; enemies: Enemy[]; projectiles: Projectile[]; impacts: Impact[]; selectedTowerId: number | null; selectedKind: TowerKind | null; phase: GamePhase; speedMultiplier: 1 | 2 }>()
+const props = defineProps<{ towers: Tower[]; enemies: Enemy[]; projectiles: Projectile[]; impacts: Impact[]; selectedTowerId: number | null; selectedKind: TowerKind | null; phase: GamePhase; isPaused: boolean; speedMultiplier: 1 | 2 }>()
 const emit = defineEmits<{
   cellSelect: [x: number, y: number]
   backgroundSelect: []
   selectedTowerPosition: [x: number, y: number, visible: boolean]
+  ready: []
 }>()
 const host = ref<HTMLDivElement | null>(null)
 const renderError = ref('')
@@ -27,13 +28,17 @@ let frostWaveTexture: THREE.CanvasTexture | null = null
 let fireWaveTexture: THREE.CanvasTexture | null = null
 let fireFlameTexture: THREE.CanvasTexture | null = null
 const clock = new THREE.Clock()
+let visualElapsed = 0
+let visualNow = 0
 const towerModels = new Map<number, THREE.Group>()
+const towerUpgradeEffects = new Map<number, { group: THREE.Group; bornAt: number; kind: TowerKind }>()
 const enemyModels = new Map<number, THREE.Group>()
 const projectileModels = new Map<number, { group: THREE.Group; bornAt: number }>()
 const impactModels = new Map<number, THREE.Group>()
 const towerTemplates = new Map<Tower['kind'], THREE.Group>()
 let towerPreviewModel: THREE.Group | null = null
 let towerPreviewKind: TowerKind | null = null
+let castleModel: THREE.Group | null = null
 const projectileTemplates = new Map<Projectile['kind'], THREE.Group>()
 let enemyTemplate: THREE.Group | null = null
 let riggedEnemyTemplate: THREE.Group | null = null
@@ -310,7 +315,9 @@ function createArcherTower() {
   const cap = mesh(new THREE.CylinderGeometry(.08, .11, .1, 12), 0x756047, { metalness: .25, roughness: .44 }); cap.position.y = .67
   const flagPole = mesh(new THREE.CylinderGeometry(.012, .012, .66, 8), 0x40352b, { metalness: .28, roughness: .4 }); flagPole.position.set(0, .82, 0)
   const flag = createBanner(0x344a35, 0xb79852); flag.scale.set(.82, .82, .82); flag.position.set(.13, .98, 0); flag.rotation.y = Math.PI / 2
-  turret.name = 'towerTurret'; flag.name = 'towerFlag'
+  // Mái, cờ và bốn trụ là kiến trúc cố định; tháp cung không có cụm pháo
+  // cơ khí cần quay theo mục tiêu như tháp pháo.
+  turret.name = 'archerRoof'; flag.name = 'towerFlag'
   turret.add(roof, roofTrim, cap, flagPole, flag); group.add(base, body, lowerBand, deck, turret)
   return group
 }
@@ -334,6 +341,21 @@ function createCannonTower() {
   const barrel = mesh(new THREE.CylinderGeometry(.085, .14, .82, 16), 0x3e4546, { metalness: .78, roughness: .26 }); barrel.rotation.x = Math.PI / 2; barrel.position.z = .38
   const muzzle = mesh(new THREE.CylinderGeometry(.145, .145, .17, 16), 0x292e2f, { metalness: .82, roughness: .22 }); muzzle.rotation.x = Math.PI / 2; muzzle.position.z = .82
   const muzzleFlash = mesh(new THREE.OctahedronGeometry(.11, 0), 0xffb347, { emissive: 0xff6a22, roughness: .14, flatShading: true }); muzzleFlash.name = 'towerMuzzleFlash'; muzzleFlash.position.z = .96; muzzleFlash.visible = false
+  const muzzleCharge = new THREE.Group(); muzzleCharge.name = 'cannonMuzzleCharge'; muzzleCharge.position.z = .98; muzzleCharge.visible = false
+  for (let index = 0; index < 2; index++) {
+    const chargeRing = new THREE.Mesh(
+      new THREE.TorusGeometry(.16 + index * .045, .012, 6, 28),
+      new THREE.MeshBasicMaterial({ color: index ? 0xff7b28 : 0xffcf66, transparent: true, opacity: .72 - index * .16, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    )
+    chargeRing.name = 'cannonMuzzleRing'; chargeRing.userData.index = index; muzzleCharge.add(chargeRing)
+  }
+  for (let index = 0; index < 8; index++) {
+    const spark = new THREE.Mesh(
+      new THREE.TetrahedronGeometry(index % 3 === 0 ? .025 : .017, 0),
+      new THREE.MeshBasicMaterial({ color: index % 2 ? 0xff7a24 : 0xffe19a, transparent: true, opacity: .9, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    )
+    spark.name = 'cannonMuzzleSpark'; spark.userData.index = index; spark.userData.angle = index / 8 * Math.PI * 2; muzzleCharge.add(spark)
+  }
   for (const z of [.16, .43, .69]) {
     const barrelBand = mesh(new THREE.TorusGeometry(.12, .018, 7, 16), 0x8d7148, { metalness: .72, roughness: .28 }); barrelBand.rotation.x = Math.PI / 2; barrelBand.position.z = z; barrelRig.add(barrelBand)
   }
@@ -342,7 +364,7 @@ function createCannonTower() {
     const hub = mesh(new THREE.CylinderGeometry(.065, .065, .1, 12), 0x846844, { metalness: .48, roughness: .35 }); hub.rotation.z = Math.PI / 2; hub.position.copy(wheel.position); turret.add(hub)
   }
   turret.name = 'towerTurret'; barrel.name = 'towerBarrel'; muzzle.name = 'towerMuzzle'
-  barrelRig.add(barrel, muzzle, muzzleFlash); turret.add(cradle, barrelRig); group.add(base, wall, lowerBand, rim, turret)
+  barrelRig.add(barrel, muzzle, muzzleFlash, muzzleCharge); turret.add(cradle, barrelRig); group.add(base, wall, lowerBand, rim, turret)
   return group
 }
 
@@ -434,6 +456,7 @@ function bindTowerParts(group: THREE.Group) {
   group.userData.barrel = group.getObjectByName('towerBarrel')
   group.userData.muzzle = group.getObjectByName('towerMuzzle')
   group.userData.muzzleFlash = group.getObjectByName('towerMuzzleFlash')
+  group.userData.cannonMuzzleCharge = group.getObjectByName('cannonMuzzleCharge')
   group.userData.aura = group.getObjectByName('towerAura')
   const glows: THREE.Object3D[] = []
   const energyRings: THREE.Mesh[] = []
@@ -449,7 +472,8 @@ function bindTowerParts(group: THREE.Group) {
 }
 
 function towerScaleForLevel(level: number) {
-  const levelScale = .94 + level * .075
+  // Khoảng cách kích thước đủ lớn để nhận ra cấp tháp ngay từ camera toàn cảnh.
+  const levelScale = level === 1 ? 1 : level === 2 ? 1.13 : 1.27
   return { horizontal: levelScale * .93, vertical: levelScale * 1.24 }
 }
 
@@ -458,15 +482,287 @@ function setTowerScale(group: THREE.Group, level: number) {
   group.scale.set(scale.horizontal, scale.vertical, scale.horizontal)
 }
 
+function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
+  const previous = group.getObjectByName('towerLevelEffect')
+  if (previous) disposeObject(previous)
+  const effect = new THREE.Group(); effect.name = 'towerLevelEffect'; effect.userData.kind = tower.kind
+  if (tower.level === 1) { group.add(effect); return }
+  const colors: Record<TowerKind, number> = { archer: 0x86e45c, cannon: 0xffa53b, frost: 0x6cecff, fire: 0xff5438 }
+  const accentColors: Record<TowerKind, number> = { archer: 0xeaffb8, cannon: 0xffe08a, frost: 0xe8fdff, fire: 0xffd45c }
+  const effectMaterial = (opacity: number) => new THREE.MeshBasicMaterial({ color: colors[tower.kind], transparent: true, opacity, depthWrite: false, toneMapped: false })
+
+  // Mỗi cấp thêm một lớp kiến trúc cố định, giúp nhận biết level ngay cả khi
+  // tower đang không tấn công và các particle nằm ngoài góc camera.
+  const baseBand = new THREE.Mesh(new THREE.TorusGeometry(.45, .035, 7, 36), effectMaterial(.88))
+  baseBand.name = 'levelFxBaseBand'; baseBand.rotation.x = Math.PI / 2; baseBand.position.y = .16; effect.add(baseBand)
+
+  // Ấn cấp và hào quang tồn tại vĩnh viễn, giúp phân biệt level 2/3 cả khi
+  // tháp đang đứng yên. Số tinh thể tương ứng trực tiếp với cấp hiện tại.
+  const levelAura = new THREE.Mesh(
+    new THREE.RingGeometry(.5, tower.level >= 3 ? .59 : .56, 48),
+    effectMaterial(tower.level >= 3 ? .52 : .34),
+  )
+  levelAura.name = 'levelFxAura'; levelAura.rotation.x = -Math.PI / 2; levelAura.position.y = .08; effect.add(levelAura)
+  for (let index = 0; index < tower.level; index++) {
+    const badge = new THREE.Mesh(
+      new THREE.OctahedronGeometry(tower.level >= 3 ? .075 : .06, 0),
+      new THREE.MeshBasicMaterial({ color: colors[tower.kind], transparent: true, opacity: tower.level >= 3 ? 1 : .9, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    )
+    badge.name = 'levelFxBadge'
+    badge.userData.index = index
+    badge.userData.count = tower.level
+    effect.add(badge)
+
+    const badgeGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: getFrostGlowTexture(), color: colors[tower.kind], transparent: true, opacity: tower.level >= 3 ? .55 : .38, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))
+    badgeGlow.name = 'levelFxBadgeGlow'; badgeGlow.userData.index = index; badgeGlow.userData.count = tower.level
+    badgeGlow.scale.setScalar(tower.level >= 3 ? .28 : .22); effect.add(badgeGlow)
+  }
+  const wispCount = tower.level >= 3 ? 9 : 5
+  for (let index = 0; index < wispCount; index++) {
+    const wisp = new THREE.Mesh(
+      new THREE.OctahedronGeometry(index % 3 === 0 ? .022 : .015, 0),
+      new THREE.MeshBasicMaterial({ color: index % 2 ? colors[tower.kind] : accentColors[tower.kind], transparent: true, opacity: index % 3 === 0 ? .92 : .68, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    )
+    wisp.name = 'levelFxWisp'; wisp.userData.index = index; wisp.userData.count = wispCount
+    wisp.userData.phase = index / wispCount * Math.PI * 2; effect.add(wisp)
+
+    const wispGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: getFrostGlowTexture(), color: index % 2 ? colors[tower.kind] : accentColors[tower.kind], transparent: true, opacity: .28, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))
+    wispGlow.name = 'levelFxWispGlow'; wispGlow.userData.index = index; wispGlow.userData.phase = wisp.userData.phase
+    wispGlow.scale.setScalar(index % 3 === 0 ? .15 : .11); effect.add(wispGlow)
+
+    const trail = new THREE.Mesh(
+      new THREE.SphereGeometry(.014, 6, 5),
+      new THREE.MeshBasicMaterial({ color: accentColors[tower.kind], transparent: true, opacity: tower.level >= 3 ? .42 : .3, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    )
+    trail.name = 'levelFxWispTrail'; trail.userData.index = index; trail.userData.phase = wisp.userData.phase; effect.add(trail)
+  }
+  if (tower.level >= 3) {
+    const upperBand = new THREE.Mesh(new THREE.TorusGeometry(.36, .025, 7, 36), effectMaterial(.92))
+    upperBand.name = 'levelFxUpperBand'; upperBand.rotation.x = Math.PI / 2; upperBand.position.y = .34; effect.add(upperBand)
+    for (let index = 0; index < 4; index++) {
+      const crest = new THREE.Mesh(new THREE.OctahedronGeometry(.065, 0), effectMaterial(.96)); const angle = index * Math.PI / 2
+      crest.name = 'levelFxCrest'; crest.userData.index = index; crest.position.set(Math.cos(angle) * .39, .38, Math.sin(angle) * .39); crest.scale.y = 1.65; effect.add(crest)
+    }
+  }
+
+  if (tower.kind === 'archer') {
+    const orbit = new THREE.Mesh(new THREE.TorusGeometry(.43, .014, 6, 40), effectMaterial(.55)); orbit.name = 'levelFxOrbit'; orbit.rotation.x = Math.PI / 2; orbit.position.y = .22; effect.add(orbit)
+    if (tower.level >= 3) {
+      const crown = new THREE.Mesh(new THREE.TorusGeometry(.2, .018, 6, 32), effectMaterial(.72)); crown.name = 'levelFxCrown'; crown.rotation.x = Math.PI / 2; crown.position.y = 1.55; effect.add(crown)
+      for (let index = 0; index < 3; index++) {
+        const arrow = new THREE.Mesh(new THREE.ConeGeometry(.035, .16, 5), effectMaterial(.82)); const angle = index / 3 * Math.PI * 2
+        arrow.name = 'levelFxArrow'; arrow.userData.angle = angle; arrow.userData.index = index; effect.add(arrow)
+      }
+    }
+  } else if (tower.kind === 'cannon') {
+    const ringCount = tower.level >= 3 ? 2 : 1
+    for (let index = 0; index < ringCount; index++) {
+      const chargeRing = new THREE.Mesh(new THREE.RingGeometry(.4 + index * .14, .45 + index * .14, 40), effectMaterial(.42 - index * .08))
+      chargeRing.name = 'levelFxCharge'; chargeRing.userData.index = index; chargeRing.rotation.x = -Math.PI / 2; chargeRing.position.y = .13; effect.add(chargeRing)
+    }
+    if (tower.level >= 3) {
+      for (let index = 0; index < 4; index++) {
+        const ember = new THREE.Mesh(new THREE.DodecahedronGeometry(.025, 0), effectMaterial(.78)); const angle = index * Math.PI / 2
+        ember.name = 'levelFxEmber'; ember.userData.angle = angle; ember.position.set(Math.cos(angle) * .42, .35, Math.sin(angle) * .42); effect.add(ember)
+      }
+    }
+  } else if (tower.kind === 'frost') {
+    const count = tower.level >= 3 ? 6 : 3
+    const ringCount = tower.level >= 3 ? 2 : 1
+    for (let index = 0; index < ringCount; index++) {
+      const iceRing = new THREE.Mesh(new THREE.TorusGeometry(.31 + index * .13, .012, 6, 36), effectMaterial(.4 - index * .08))
+      iceRing.name = 'levelFxIceRing'; iceRing.userData.index = index; iceRing.rotation.x = Math.PI / 2; iceRing.position.y = .58 + index * .28; effect.add(iceRing)
+    }
+    for (let index = 0; index < count; index++) {
+      const shard = new THREE.Mesh(new THREE.OctahedronGeometry(.035, 0), effectMaterial(.68)); const angle = index / count * Math.PI * 2
+      shard.name = 'levelFxShard'; shard.userData.angle = angle; shard.userData.index = index; effect.add(shard)
+    }
+  } else {
+    const count = tower.level >= 3 ? 6 : 3
+    const ringCount = tower.level >= 3 ? 2 : 1
+    for (let index = 0; index < ringCount; index++) {
+      const fireRing = new THREE.Mesh(new THREE.TorusGeometry(.3 + index * .14, .016, 6, 36), effectMaterial(.48 - index * .09))
+      fireRing.name = 'levelFxFireRing'; fireRing.userData.index = index; fireRing.rotation.x = Math.PI / 2; fireRing.position.y = .34 + index * .32; effect.add(fireRing)
+    }
+    for (let index = 0; index < count; index++) {
+      const flame = new THREE.Mesh(new THREE.ConeGeometry(.035, .14, 6), effectMaterial(.58)); const angle = index / count * Math.PI * 2
+      flame.name = 'levelFxFlame'; flame.userData.angle = angle; flame.userData.index = index; effect.add(flame)
+    }
+  }
+  group.add(effect)
+}
+
+function animateTowerLevelAppearance(model: THREE.Group, tower: Tower, elapsed: number) {
+  const effect = model.getObjectByName('towerLevelEffect') as THREE.Group | undefined
+  if (!effect) return
+  effect.children.forEach((child) => {
+    if (child.name === 'levelFxOrbit') child.rotation.z = elapsed * .7
+    else if (child.name === 'levelFxBaseBand') { const pulse = 1 + Math.sin(elapsed * 2.2 + tower.id) * .018; child.scale.setScalar(pulse) }
+    else if (child.name === 'levelFxAura') { child.rotation.z = elapsed * (tower.level >= 3 ? .8 : .45); child.scale.setScalar(1 + Math.sin(elapsed * 3 + tower.id) * .055) }
+    else if (child.name === 'levelFxBadge') {
+      const index = Number(child.userData.index); const count = Number(child.userData.count)
+      const angle = index / count * Math.PI * 2 - elapsed * (tower.level >= 3 ? .9 : .62)
+      const radius = tower.level >= 3 ? .54 : .48
+      child.position.set(Math.cos(angle) * radius, .52 + Math.sin(elapsed * 3.2 + index * 2.1) * .09, Math.sin(angle) * radius)
+      child.rotation.x = elapsed * 1.4 + index; child.rotation.y = elapsed * 2 + index
+      const shimmer = 1 + Math.sin(elapsed * 6 + index * 2.4) * .22
+      child.scale.setScalar(shimmer)
+    }
+    else if (child.name === 'levelFxBadgeGlow') {
+      const index = Number(child.userData.index); const count = Number(child.userData.count)
+      const angle = index / count * Math.PI * 2 - elapsed * (tower.level >= 3 ? .9 : .62)
+      const radius = tower.level >= 3 ? .54 : .48
+      child.position.set(Math.cos(angle) * radius, .52 + Math.sin(elapsed * 3.2 + index * 2.1) * .09, Math.sin(angle) * radius)
+      const glowScale = (tower.level >= 3 ? .29 : .23) * (1 + Math.sin(elapsed * 5.5 + index) * .16)
+      child.scale.set(glowScale, glowScale, 1)
+    }
+    else if (child.name === 'levelFxWisp') {
+      const index = Number(child.userData.index); const phase = Number(child.userData.phase)
+      const layer = index % 3
+      const direction = layer === 1 ? -1 : 1
+      const angle = phase + elapsed * direction * (.55 + layer * .17)
+      const radius = .38 + layer * .105 + Math.sin(elapsed * 1.8 + phase) * .035
+      const baseY = .38 + layer * .3
+      child.position.set(Math.cos(angle) * radius, baseY + Math.sin(elapsed * (1.9 + layer * .25) + phase * 2) * .14, Math.sin(angle) * radius)
+      child.scale.setScalar(.72 + Math.sin(elapsed * 7 + index) * .25 + (tower.level - 2) * .18)
+      child.rotation.x = elapsed * (2.6 + layer * .4) + phase; child.rotation.y = -elapsed * 3.2 + index
+    }
+    else if (child.name === 'levelFxWispGlow' || child.name === 'levelFxWispTrail') {
+      const index = Number(child.userData.index); const phase = Number(child.userData.phase)
+      const layer = index % 3
+      const direction = layer === 1 ? -1 : 1
+      const angle = phase + elapsed * direction * (.55 + layer * .17)
+      const radius = .38 + layer * .105 + Math.sin(elapsed * 1.8 + phase) * .035
+      const baseY = .38 + layer * .3
+      const y = baseY + Math.sin(elapsed * (1.9 + layer * .25) + phase * 2) * .14
+      if (child.name === 'levelFxWispGlow') {
+        child.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius)
+        const glowSize = (index % 3 === 0 ? .16 : .115) * (1 + Math.sin(elapsed * 6.5 + index) * .18 + (tower.level - 2) * .12)
+        child.scale.set(glowSize, glowSize, 1)
+      } else {
+        const trailingAngle = angle - direction * .075
+        child.position.set(Math.cos(trailingAngle) * radius, y - .012, Math.sin(trailingAngle) * radius)
+        child.rotation.y = -trailingAngle
+        const trailPulse = 1 + Math.sin(elapsed * 5.2 + index) * .2
+        child.scale.set(.55 * trailPulse, .55 * trailPulse, (tower.level >= 3 ? 3.2 : 2.5) * trailPulse)
+      }
+    }
+    else if (child.name === 'levelFxUpperBand') child.rotation.z = -elapsed * .32
+    else if (child.name === 'levelFxCrest') { const index = Number(child.userData.index); child.rotation.y = elapsed * 1.2 + index; child.position.y = .38 + Math.sin(elapsed * 2.8 + index) * .025 }
+    else if (child.name === 'levelFxCrown') { child.rotation.z = -elapsed; child.position.y = 1.55 + Math.sin(elapsed * 2.4) * .025 }
+    else if (child.name === 'levelFxArrow') {
+      const index = Number(child.userData.index); const angle = Number(child.userData.angle) - elapsed * .8
+      child.position.set(Math.cos(angle) * .31, 1.28 + Math.sin(elapsed * 3 + index) * .06, Math.sin(angle) * .31); child.rotation.y = -angle
+    } else if (child.name === 'levelFxCharge') {
+      const index = Number(child.userData.index); const pulse = 1 + Math.sin(elapsed * (3.4 + index * .5) + tower.id) * .07
+      child.scale.setScalar(pulse); child.rotation.z = elapsed * (index ? -.45 : .35)
+    }
+    else if (child.name === 'levelFxEmber') {
+      const angle = Number(child.userData.angle) + elapsed * .75; child.position.set(Math.cos(angle) * .42, .34 + Math.sin(elapsed * 3 + angle) * .08, Math.sin(angle) * .42)
+    } else if (child.name === 'levelFxShard') {
+      const index = Number(child.userData.index); const angle = Number(child.userData.angle) + elapsed * .62
+      child.position.set(Math.cos(angle) * .4, .72 + Math.sin(elapsed * 2.2 + index) * .12, Math.sin(angle) * .4); child.rotation.y = elapsed * 1.8 + index
+    } else if (child.name === 'levelFxIceRing') {
+      const index = Number(child.userData.index); child.rotation.z = elapsed * (index ? -.42 : .55); child.scale.setScalar(1 + Math.sin(elapsed * 2.5 + index) * .035)
+    } else if (child.name === 'levelFxFlame') {
+      const index = Number(child.userData.index); const angle = Number(child.userData.angle) + elapsed * .48
+      child.position.set(Math.cos(angle) * .36, .48 + Math.sin(elapsed * 4.2 + index) * .1, Math.sin(angle) * .36); child.scale.y = .8 + Math.sin(elapsed * 6 + index) * .25
+    } else if (child.name === 'levelFxFireRing') {
+      const index = Number(child.userData.index); child.rotation.z = elapsed * (index ? -1.05 : .8); child.scale.setScalar(1 + Math.sin(elapsed * 4 + index) * .05)
+    }
+  })
+}
+
 function createTowerModel(tower: Tower) {
   const template = towerTemplates.get(tower.kind)
   if (!template) throw new Error(`Missing tower template: ${tower.kind}`)
   const group = template.clone(true)
   bindTowerParts(group)
   setTowerScale(group, tower.level)
+  applyTowerLevelAppearance(group, tower)
   group.position.copy(worldPosition(tower.x, tower.y)); group.position.y = .05
-  group.userData.shotSequence = tower.shotSequence; group.userData.firedAt = 0
+  group.userData.shotSequence = tower.shotSequence; group.userData.firedAt = 0; group.userData.level = tower.level
   scene!.add(group); return group
+}
+
+function createTowerUpgradeEffect(tower: Tower, now: number) {
+  const existing = towerUpgradeEffects.get(tower.id)
+  if (existing) disposeObject(existing.group)
+  const group = new THREE.Group()
+  group.position.copy(worldPosition(tower.x, tower.y)); group.position.y = .1
+  const colors: Record<TowerKind, number> = { archer: 0x8ee85e, cannon: 0xffa83d, frost: 0x6ee7ff, fire: 0xff593d }
+  const material = (opacity = .9) => new THREE.MeshBasicMaterial({ color: colors[tower.kind], transparent: true, opacity, depthWrite: false, toneMapped: false })
+
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.18, .42, 2.4, 24, 1, true), material(.3))
+  beam.name = 'upgradeBeam'; beam.position.y = 1.05; group.add(beam)
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(.25, 18, 12), material(.95))
+  flash.name = 'upgradeFlash'; flash.position.y = .78; group.add(flash)
+  for (let index = 0; index < 3; index++) {
+    const shockwave = new THREE.Mesh(new THREE.RingGeometry(.24, .31, 48), material(.88 - index * .16))
+    shockwave.name = 'upgradeShockwave'; shockwave.rotation.x = -Math.PI / 2; shockwave.position.y = .08; shockwave.userData.delay = index * .14; group.add(shockwave)
+  }
+
+  if (tower.kind === 'archer') {
+    for (let index = 0; index < 3; index++) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(.38 + index * .1, .018, 6, 40), material(.72 - index * .12))
+      ring.name = 'upgradeRing'; ring.rotation.set(Math.PI / 2, index * .5, index * .35); ring.userData.delay = index * .08; group.add(ring)
+    }
+  } else if (tower.kind === 'cannon') {
+    for (let index = 0; index < 2; index++) {
+      const wave = new THREE.Mesh(new THREE.RingGeometry(.28, .34, 48), material(.82 - index * .18))
+      wave.name = 'upgradeWave'; wave.rotation.x = -Math.PI / 2; wave.position.y = .02; wave.userData.delay = index * .18; group.add(wave)
+    }
+  } else if (tower.kind === 'frost') {
+    for (let index = 0; index < 8; index++) {
+      const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(.07, 0), material(.88))
+      const angle = index / 8 * Math.PI * 2
+      crystal.name = 'upgradeCrystal'; crystal.userData.angle = angle; crystal.position.set(Math.cos(angle) * .28, .38, Math.sin(angle) * .28); group.add(crystal)
+    }
+  } else {
+    for (let index = 0; index < 7; index++) {
+      const flame = new THREE.Mesh(new THREE.ConeGeometry(.055, .22, 7), material(.86))
+      const angle = index / 7 * Math.PI * 2
+      flame.name = 'upgradeFlame'; flame.userData.angle = angle; flame.position.set(Math.cos(angle) * .25, .16, Math.sin(angle) * .25); group.add(flame)
+    }
+  }
+  group.renderOrder = 8; scene!.add(group)
+  towerUpgradeEffects.set(tower.id, { group, bornAt: now, kind: tower.kind })
+}
+
+function syncTowerUpgradeEffects(now: number) {
+  for (const [towerId, effect] of towerUpgradeEffects) {
+    const progress = (now - effect.bornAt) / 1550
+    if (progress >= 1) { disposeObject(effect.group); towerUpgradeEffects.delete(towerId); continue }
+    const fade = 1 - THREE.MathUtils.smoothstep(progress, .45, 1)
+    effect.group.children.forEach((child, index) => {
+      const item = child as THREE.Mesh
+      const itemMaterial = item.material as THREE.MeshBasicMaterial
+      itemMaterial.opacity = fade * (.7 + index % 3 * .1)
+      if (item.name === 'upgradeBeam') {
+        item.scale.set(1 + progress * 1.5, 1, 1 + progress * 1.5)
+        itemMaterial.opacity = fade * .34
+        item.rotation.y += .035
+      } else if (item.name === 'upgradeFlash') {
+        const burst = Math.sin(Math.min(1, progress * 2.2) * Math.PI)
+        item.scale.setScalar(.3 + burst * 2.5)
+        itemMaterial.opacity = fade * .82
+      } else if (item.name === 'upgradeShockwave') {
+        const local = Math.max(0, progress - Number(item.userData.delay))
+        item.scale.setScalar(.35 + local * 4.2)
+        itemMaterial.opacity = local > 0 ? fade * .72 : 0
+      } else if (item.name === 'upgradeRing') {
+        const local = Math.max(0, progress - Number(item.userData.delay)); item.scale.setScalar(.55 + local * 1.5); item.rotation.z += .045 + index * .012
+      } else if (item.name === 'upgradeWave') {
+        const local = Math.max(0, progress - Number(item.userData.delay)); item.scale.setScalar(.45 + local * 3.1)
+      } else if (item.name === 'upgradeCrystal') {
+        const angle = Number(item.userData.angle); const radius = .28 + progress * .68
+        item.position.set(Math.cos(angle) * radius, .38 + Math.sin(progress * Math.PI) * .8, Math.sin(angle) * radius); item.rotation.y += .09
+      } else if (item.name === 'upgradeFlame') {
+        const angle = Number(item.userData.angle); const radius = .25 + progress * .55
+        item.position.set(Math.cos(angle) * radius, .16 + progress * 1.15, Math.sin(angle) * radius); item.scale.setScalar(1 + Math.sin(progress * Math.PI) * .8)
+      }
+    })
+  }
 }
 
 function removeTowerPreview() {
@@ -656,16 +952,21 @@ function addEnemyFrostEffect(group: THREE.Group) {
   group.userData.frostEffect = effect
 }
 
-function createEnemyModel() {
+function createEnemyModel(enemy: Enemy) {
   if (riggedEnemyTemplate) {
     const group = cloneSkeleton(riggedEnemyTemplate) as THREE.Group
     const health = group.getObjectByName('enemyHealth') as THREE.Mesh
+    if (enemy.kind === 'boss') {
+      health.material = (health.material as THREE.Material).clone()
+      if (health.material instanceof THREE.MeshStandardMaterial) { health.material.color.setHex(0xe34b38); health.material.emissive.setHex(0x54130c) }
+    }
     const mixer = new THREE.AnimationMixer(group)
     const walk = riggedEnemyAnimations.find(clip => clip.name === 'Walk') ?? riggedEnemyAnimations[0]
     if (walk) mixer.clipAction(walk).play()
     group.userData.health = health
     group.userData.mixer = mixer
     group.userData.isSkinnedCharacter = true
+    group.userData.isBoss = enemy.kind === 'boss'
     addEnemyBurnEffect(group)
     addEnemyFrostEffect(group)
     scene!.add(group)
@@ -686,6 +987,7 @@ function createEnemyModel() {
   group.userData.head = group.getObjectByName('enemyHead')
   group.userData.rig = group.getObjectByName('enemyRigRoot')
   group.userData.health = group.getObjectByName('enemyHealth')
+  group.userData.isBoss = enemy.kind === 'boss'
   addEnemyBurnEffect(group)
   addEnemyFrostEffect(group)
   const bones: THREE.Bone[] = []
@@ -835,7 +1137,13 @@ function createProjectileTemplate(kind: Projectile['kind']) {
   const group = new THREE.Group()
   let shot: THREE.Mesh
   if (kind === 'archer') {
-    shot = mesh(new THREE.CylinderGeometry(.025, .025, .42, 6), 0xf2d28a); shot.rotation.x = Math.PI / 2
+    shot = mesh(new THREE.CylinderGeometry(.018, .018, .42, 7), 0xc99a58); shot.rotation.x = Math.PI / 2
+    const arrowHead = mesh(new THREE.ConeGeometry(.055, .13, 6), 0xd8dde0, { metalness: .7, roughness: .28 })
+    arrowHead.rotation.x = Math.PI / 2; arrowHead.position.z = .265; group.add(arrowHead)
+    for (const rotation of [0, Math.PI / 2]) {
+      const feather = mesh(new THREE.BoxGeometry(.055, .012, .11), 0x7d342f, { roughness: .85 })
+      feather.position.z = -.19; feather.rotation.z = rotation; group.add(feather)
+    }
   } else if (kind === 'cannon') {
     shot = mesh(new THREE.SphereGeometry(.11, 9, 7), 0x332b25, { metalness: .7 });
   } else if (kind === 'fire') {
@@ -850,24 +1158,33 @@ function createProjectileTemplate(kind: Projectile['kind']) {
   return group
 }
 
-function createProjectile(projectile: Projectile) {
+function createProjectile(projectile: Projectile, now: number) {
   const template = projectileTemplates.get(projectile.kind)
   if (!template) throw new Error(`Missing projectile template: ${projectile.kind}`)
   const group = template.clone(true)
+  const levelScale = 1 + (projectile.level - 1) * .2
+  group.scale.setScalar(levelScale)
+  if (projectile.kind === 'archer' && projectile.level >= 2) {
+    const trail = new THREE.Mesh(new THREE.CylinderGeometry(.008, .018, .2 + projectile.level * .035, 6), new THREE.MeshBasicMaterial({ color: projectile.level >= 3 ? 0xa8e878 : 0xffdfa0, transparent: true, opacity: projectile.level >= 3 ? .34 : .22, depthWrite: false, toneMapped: false }))
+    trail.name = 'arrowTrail'; trail.rotation.x = Math.PI / 2; trail.position.z = -.34; group.add(trail)
+  } else if (projectile.kind === 'cannon' && projectile.level >= 2) {
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(.15 + projectile.level * .025, 10, 8), new THREE.MeshBasicMaterial({ color: projectile.level >= 3 ? 0xff5a24 : 0xffa43d, transparent: true, opacity: .22 + projectile.level * .06, depthWrite: false, toneMapped: false }))
+    glow.name = 'cannonShotGlow'; group.add(glow)
+  }
   scene!.add(group)
-  return { group, bornAt: performance.now() }
+  return { group, bornAt: now }
 }
 
 function createImpact(impact: Impact, now: number) {
   const color = impact.kind === 'frost' ? 0x6ee7ff : impact.kind === 'fire' ? 0xff3b1f : impact.kind === 'cannon' ? 0xff7a2f : 0xffe2a1
-  const group = new THREE.Group(); group.position.copy(worldPosition(impact.position.x, impact.position.y)); group.userData.bornAt = now; group.userData.visualDuration = (impact.kind === 'frost' ? 1050 : impact.kind === 'fire' ? 650 : 240) / props.speedMultiplier
+  const group = new THREE.Group(); group.position.copy(worldPosition(impact.position.x, impact.position.y)); group.userData.bornAt = now; group.userData.level = impact.level; group.userData.visualDuration = (impact.kind === 'frost' ? 1050 : impact.kind === 'fire' ? 650 : 420) / props.speedMultiplier
   if (impact.kind === 'frost') {
     group.position.y = .08
     const radius = impact.radius ?? 1
 
     // Sóng gradient lan trực tiếp từ chân tháp ra toàn bộ vùng sát thương.
     const waveMaterial = (opacity: number) => {
-      const material = new THREE.MeshBasicMaterial({ map: getFrostWaveTexture(), color: 0xb6f4ff, transparent: true, opacity, depthWrite: false, blending: THREE.NormalBlending, toneMapped: false })
+      const material = new THREE.MeshBasicMaterial({ map: getFrostWaveTexture(), color: impact.level >= 3 ? 0xe4fbff : impact.level === 2 ? 0x8feeff : 0x68d9ef, transparent: true, opacity: opacity * (.78 + impact.level * .11), depthWrite: false, blending: THREE.NormalBlending, toneMapped: false })
       return material
     }
     const disc = new THREE.Mesh(new THREE.PlaneGeometry(radius * 2, radius * 2), waveMaterial(.66))
@@ -888,7 +1205,7 @@ function createImpact(impact: Impact, now: number) {
   } else if (impact.kind === 'fire') {
     group.position.y = .08
     const radius = impact.radius ?? 1
-    const waveMaterial = (opacity: number) => new THREE.MeshBasicMaterial({ map: getFireWaveTexture(), color: 0xffb05a, transparent: true, opacity, depthWrite: false, blending: THREE.NormalBlending, toneMapped: false })
+    const waveMaterial = (opacity: number) => new THREE.MeshBasicMaterial({ map: getFireWaveTexture(), color: impact.level >= 3 ? 0xffe06a : impact.level === 2 ? 0xff8b38 : 0xff5a28, transparent: true, opacity: opacity * (.78 + impact.level * .11), depthWrite: false, blending: THREE.NormalBlending, toneMapped: false })
     const outerWave = new THREE.Mesh(new THREE.PlaneGeometry(radius * 2, radius * 2), waveMaterial(.68))
     outerWave.rotation.x = -Math.PI / 2
     outerWave.position.y = .025
@@ -905,9 +1222,37 @@ function createImpact(impact: Impact, now: number) {
     }
     group.userData.fireBlastWaves = [outerWave, innerWave]
     group.add(outerWave, innerWave)
+  } else if (impact.kind === 'archer') {
+    group.position.y = .42
+    const slashCount = impact.level >= 3 ? 3 : impact.level === 2 ? 2 : 1
+    for (let index = 0; index < slashCount; index++) {
+      const slash = new THREE.Mesh(new THREE.BoxGeometry(.018, .24 + index * .035, .018), new THREE.MeshBasicMaterial({ color: impact.level >= 3 ? 0xb5ef86 : 0xffe5a6, transparent: true, opacity: .88 - index * .13, depthWrite: false, toneMapped: false }))
+      slash.name = 'archerHitSlash'; slash.userData.index = index; slash.rotation.z = -.62 + index * .62; slash.rotation.y = index * .8; group.add(slash)
+    }
+    const sparkCount = impact.level === 1 ? 3 : impact.level === 2 ? 6 : 10
+    for (let index = 0; index < sparkCount; index++) {
+      const spark = new THREE.Mesh(new THREE.ConeGeometry(.018, .13 + impact.level * .025, 5), new THREE.MeshBasicMaterial({ color: impact.level >= 3 ? 0xb5ff82 : 0xffe2a1, transparent: true, opacity: .9, depthWrite: false, toneMapped: false }))
+      const angle = index / sparkCount * Math.PI * 2; spark.name = 'archerHitSpark'; spark.userData.angle = angle; spark.userData.index = index; spark.rotation.z = -angle; group.add(spark)
+    }
   } else {
-    group.position.y = .45
-    const ring = mesh(new THREE.TorusGeometry(.12, .035, 7, 18), color, { emissive: color }); ring.rotation.x = Math.PI / 2; group.add(ring)
+    group.position.y = .08
+    const flash = new THREE.Mesh(new THREE.SphereGeometry(.16 + impact.level * .035, 12, 8), new THREE.MeshBasicMaterial({ color: impact.level >= 3 ? 0xffdd72 : 0xff8b38, transparent: true, opacity: .82, depthWrite: false, toneMapped: false }))
+    flash.name = 'cannonHitFlash'; flash.position.y = .22; group.add(flash)
+    const waveCount = impact.level >= 3 ? 2 : 1
+    for (let index = 0; index < waveCount; index++) {
+      const wave = new THREE.Mesh(new THREE.RingGeometry(.12 + index * .06, .19 + index * .07, 32), new THREE.MeshBasicMaterial({ color: impact.level >= 3 ? 0xff5728 : color, transparent: true, opacity: .78 - index * .18, depthWrite: false, toneMapped: false }))
+      wave.name = 'cannonHitWave'; wave.userData.index = index; wave.rotation.x = -Math.PI / 2; group.add(wave)
+    }
+    const debrisCount = impact.level === 1 ? 4 : impact.level === 2 ? 7 : 12
+    for (let index = 0; index < debrisCount; index++) {
+      const debris = new THREE.Mesh(new THREE.DodecahedronGeometry(.025 + impact.level * .006, 0), new THREE.MeshBasicMaterial({ color: index % 2 ? 0x3d332b : 0xff8a35, transparent: true, opacity: .9, depthWrite: false }))
+      const angle = index / debrisCount * Math.PI * 2; debris.name = 'cannonHitDebris'; debris.userData.angle = angle; debris.userData.index = index; group.add(debris)
+    }
+    const smokeCount = impact.level === 1 ? 2 : impact.level === 2 ? 4 : 6
+    for (let index = 0; index < smokeCount; index++) {
+      const smoke = new THREE.Mesh(new THREE.SphereGeometry(.09 + index % 2 * .025, 8, 6), new THREE.MeshBasicMaterial({ color: 0x292824, transparent: true, opacity: .5, depthWrite: false }))
+      const angle = index / smokeCount * Math.PI * 2; smoke.name = 'cannonHitSmoke'; smoke.userData.angle = angle; smoke.userData.index = index; smoke.position.y = .18; group.add(smoke)
+    }
   }
   scene!.add(group); return group
 }
@@ -947,6 +1292,42 @@ function createCobblestonePath() {
     }
   }
   stones.castShadow = true; stones.receiveShadow = true; stones.instanceMatrix.needsUpdate = true; scene!.add(stones)
+}
+
+function createEnemyRouteLines() {
+  const routeColors = [0xffc857, 0x67d5ff]
+
+  for (const lane of [0, 1] as const) {
+    const path = DEFENSE_PATHS[lane]
+    const curve = new THREE.CurvePath<THREE.Vector3>()
+    const sampleStep = .08
+    const lastProgress = path.length - 1
+    let previous = pathPosition(-.78, lane)
+    previous.y = .105
+
+    for (let progress = -.78 + sampleStep; progress < lastProgress; progress += sampleStep) {
+      const next = pathPosition(Math.min(progress, lastProgress), lane)
+      next.y = .105
+      curve.add(new THREE.LineCurve3(previous.clone(), next.clone()))
+      previous = next
+    }
+
+    const end = pathPosition(lastProgress, lane)
+    end.y = .105
+    curve.add(new THREE.LineCurve3(previous.clone(), end))
+
+    const glow = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, Math.ceil(lastProgress / sampleStep), .06, 8, false),
+      new THREE.MeshBasicMaterial({ color: routeColors[lane], transparent: true, opacity: .055, depthWrite: false, toneMapped: false }),
+    )
+    const line = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, Math.ceil(lastProgress / sampleStep), .018, 8, false),
+      new THREE.MeshBasicMaterial({ color: routeColors[lane], transparent: true, opacity: .28, depthWrite: false, toneMapped: false }),
+    )
+    glow.renderOrder = 3
+    line.renderOrder = 4
+    scene!.add(glow, line)
+  }
 }
 
 function createPineTree(x: number, z: number, scale: number) {
@@ -1012,31 +1393,48 @@ function createMapScenery() {
     const cap = mesh(new THREE.ConeGeometry(.18, .24, 10), 0x3f493d, { roughness: .78 }); cap.position.set(0, 1, z); entry.add(post, cap)
   }
   const beam = mesh(new THREE.BoxGeometry(.16, .16, 1.02), 0x4a3729, { roughness: .82 }); beam.position.set(0, .88, 0); entry.add(beam)
-  entry.position.copy(worldPosition(-.78, DEFENSE_PATH[0]!.y + .5)); entry.position.y = .02; scene!.add(entry)
+  for (const path of DEFENSE_PATHS) {
+    const routeEntry = entry.clone(true)
+    routeEntry.position.copy(worldPosition(-.78, path[0]!.y))
+    routeEntry.position.y = .02
+    scene!.add(routeEntry)
+  }
 }
 
-function createCastle() {
-  const group = new THREE.Group()
-  const plinth = mesh(new THREE.CylinderGeometry(.72, .82, .2, 16), 0x4d4c47, { roughness: .92 }); plinth.position.y = .1
-  const keep = mesh(new THREE.BoxGeometry(.78, 1.1, .78, 3, 4, 3), 0x999287, { roughness: .94 }); keep.position.y = .7
-  const gate = mesh(new THREE.BoxGeometry(.3, .46, .045), 0x3d2c23, { roughness: .8 }); gate.position.set(0, .32, .415)
-  const gateArch = mesh(new THREE.TorusGeometry(.15, .035, 7, 16, Math.PI), 0x68645d, { roughness: .86 }); gateArch.position.set(0, .54, .44); gateArch.rotation.z = Math.PI
-  group.add(plinth, keep, gate, gateArch)
-  const cornerPositions: Array<[number, number]> = [[-.48, -.44], [.48, -.44], [-.48, .44], [.48, .44]]
-  for (const [x, z] of cornerPositions) {
-    const tower = mesh(new THREE.CylinderGeometry(.19, .25, 1.02, 14), 0x888278, { roughness: .94 }); tower.position.set(x, .59, z)
-    const towerBand = mesh(new THREE.CylinderGeometry(.215, .215, .07, 14), 0x68645d, { roughness: .84 }); towerBand.position.set(x, .92, z)
-    const roof = mesh(new THREE.ConeGeometry(.28, .4, 14), 0x653a31, { roughness: .72 }); roof.position.set(x, 1.28, z)
-    group.add(tower, towerBand, roof)
+async function loadCastleModel() {
+  try {
+    const gltf = await new GLTFLoader().loadAsync('/models/games/tower-defense/castle.glb')
+    if (!scene) { disposeObject(gltf.scene); return }
+    const source = gltf.scene
+    const bounds = new THREE.Box3().setFromObject(source)
+    const size = bounds.getSize(new THREE.Vector3())
+    const center = bounds.getCenter(new THREE.Vector3())
+    const largestHorizontalSide = Math.max(size.x, size.z, .001)
+    const modelScale = Math.min(8.5 / Math.max(size.y, .001), 8.5 / largestHorizontalSide)
+    source.position.set(-center.x, -bounds.min.y, -center.z)
+    source.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return
+      child.castShadow = true
+      child.receiveShadow = true
+      child.geometry.computeBoundingSphere()
+      if ((child.geometry.boundingSphere?.radius ?? 0) < size.length() * .012) child.castShadow = false
+    })
+    const container = new THREE.Group()
+    container.name = 'castleModel'
+    container.add(source)
+    container.scale.setScalar(modelScale)
+    const castleCell = DEFENSE_PATH.at(-1)!
+    // Tâm model nằm ngoài vùng xây dựng, nhưng phần cổng/cầu thang được kéo sát
+    // điểm cuối con đường và hạ nhẹ để móng lâu đài bám vào mặt đất.
+    container.position.copy(worldPosition(DEFENSE_GRID_COLUMNS + 1.5, castleCell.y))
+    container.position.y = -.22
+    container.rotation.y = -Math.PI / 2
+    if (castleModel) disposeObject(castleModel)
+    castleModel = container
+    scene.add(container)
+  } catch (error) {
+    console.warn('[Kingdom Defense] Không thể tải castle.glb.', error)
   }
-  for (const x of [-.2, .2]) {
-    const slit = mesh(new THREE.BoxGeometry(.07, .2, .025), 0x1e211f, { roughness: .55 }); slit.position.set(x, .82, .405); group.add(slit)
-  }
-  addBattlements(group, 1.3, .32, 0xb0aaa0, 8)
-  const flagPole = mesh(new THREE.CylinderGeometry(.015, .015, .86, 8), 0x4b3c2d, { metalness: .2, roughness: .5 }); flagPole.position.set(0, 1.62, 0)
-  const flag = createBanner(0x6e342d, 0xc19a58); flag.scale.set(1.1, 1.1, 1.1); flag.position.set(.14, 1.84, 0); flag.rotation.y = Math.PI / 2
-  const castleCell = DEFENSE_PATH.at(-1)!
-  group.add(flagPole, flag); group.position.copy(worldPosition(castleCell.x, castleCell.y + .5)); group.position.y = .07; group.rotation.y = -Math.PI / 2; group.scale.setScalar(.76); scene!.add(group)
 }
 
 function syncScene(elapsed: number, frameDelta: number, now: number) {
@@ -1121,6 +1519,9 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   for (const [id, model] of towerModels) if (!towerIds.has(id)) { disposeObject(model, false); towerModels.delete(id) }
   for (const tower of props.towers) {
     const model = towerModels.get(tower.id) ?? createTowerModel(tower); towerModels.set(tower.id, model)
+    const renderedLevel = Number(model.userData.level)
+    if (renderedLevel < tower.level) { createTowerUpgradeEffect(tower, now); applyTowerLevelAppearance(model, tower) }
+    model.userData.level = tower.level
     const turret = model.userData.turret as THREE.Group | undefined
     const targetRotation = Math.PI / 2 - THREE.MathUtils.degToRad(tower.aimAngle)
     if (turret) turret.rotation.y += Math.atan2(Math.sin(targetRotation - turret.rotation.y), Math.cos(targetRotation - turret.rotation.y)) * .14
@@ -1130,16 +1531,39 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     const towerPosition = worldPosition(tower.x, tower.y)
     model.position.set(towerPosition.x, .05, towerPosition.z)
     setTowerScale(model, tower.level)
+    animateTowerLevelAppearance(model, tower, elapsed)
     const aura = model.userData.aura as THREE.Group | undefined
     if (aura) { aura.rotation.y = elapsed * (.18 + tower.id % 3 * .035); aura.position.y = .105 + Math.sin(elapsed * 1.8 + tower.id) * .008 }
     const barrel = model.userData.barrel as THREE.Mesh | undefined
     const muzzle = model.userData.muzzle as THREE.Mesh | undefined
     const barrelRig = model.userData.barrelRig as THREE.Group | undefined
     const muzzleFlash = model.userData.muzzleFlash as THREE.Mesh | undefined
+    const muzzleCharge = model.userData.cannonMuzzleCharge as THREE.Group | undefined
     if (barrel) barrel.position.z = .38
     if (muzzle) muzzle.position.z = .82
     if (barrelRig) barrelRig.position.z = -recoil * .13
     if (muzzleFlash) { const flash = recoilAge < 70 ? 1 - recoilAge / 70 : 0; muzzleFlash.visible = flash > 0; muzzleFlash.scale.setScalar(.45 + flash * .9) }
+    if (muzzleCharge) {
+      muzzleCharge.visible = tower.level >= 2
+      if (muzzleCharge.visible) {
+        muzzleCharge.children.forEach((child) => {
+          const index = Number(child.userData.index)
+          if (child.name === 'cannonMuzzleRing') {
+            child.visible = index === 0 || tower.level >= 3
+            child.rotation.z = elapsed * (index ? -2.1 : 1.6)
+            child.scale.setScalar(1 + Math.sin(elapsed * (5 + index) + tower.id) * .1 + recoil * .28)
+          } else if (child.name === 'cannonMuzzleSpark') {
+            child.visible = index < (tower.level >= 3 ? 8 : 4)
+            const angle = Number(child.userData.angle) + elapsed * (2.8 + index % 3 * .45)
+            const flicker = .72 + Math.sin(elapsed * 11 + index * 1.7) * .28
+            const radius = (tower.level >= 3 ? .23 : .18) * flicker
+            child.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, Math.sin(elapsed * 7 + index) * .07)
+            child.scale.setScalar(.65 + flicker * .65 + recoil * .8)
+            child.rotation.x = elapsed * 5 + index; child.rotation.y = elapsed * 4.2 - index
+          }
+        })
+      }
+    }
     const flag = model.userData.flag as THREE.Mesh | undefined
     if (flag) flag.rotation.z = Math.sin(elapsed * 2.4 + tower.id) * .08
     if (tower.kind === 'frost' || tower.kind === 'fire') {
@@ -1152,6 +1576,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       particles.forEach((particle, index) => { const angle = Number(particle.userData.orbitAngle) + elapsed * (.28 + index % 3 * .035); const radius = Number(particle.userData.orbitRadius); particle.position.set(Math.cos(angle) * radius, Number(particle.userData.baseY) + Math.sin(elapsed * 1.25 + index) * .1, Math.sin(angle) * radius); particle.rotation.y = elapsed + index })
     }
   }
+  syncTowerUpgradeEffects(now)
 
   if (renderer && camera && now - lastTowerAnchorUpdate >= 34) {
     lastTowerAnchorUpdate = now
@@ -1190,7 +1615,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   const enemyIds = new Set(props.enemies.map(item => item.id))
   for (const [id, model] of enemyModels) if (!enemyIds.has(id)) { disposeEnemyModel(model); enemyModels.delete(id) }
   for (const enemy of props.enemies) {
-    const model = enemyModels.get(enemy.id) ?? createEnemyModel(); enemyModels.set(enemy.id, model)
+    const model = enemyModels.get(enemy.id) ?? createEnemyModel(enemy); enemyModels.set(enemy.id, model)
     const previousObserved = Number(model.userData.observedProgress)
     if (!Number.isFinite(previousObserved)) {
       model.userData.observedProgress = enemy.progress
@@ -1222,7 +1647,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       const rotationDelta = Math.atan2(Math.sin(targetRotation - model.rotation.y), Math.cos(targetRotation - model.rotation.y))
       model.rotation.y += rotationDelta * (1 - Math.exp(-12 * frameDelta))
     }
-    model.scale.setScalar(.494)
+    model.scale.setScalar(enemy.kind === 'normal' ? .494 : 1.05)
     const mixer = model.userData.mixer as THREE.AnimationMixer | undefined
     if (mixer) {
       mixer.timeScale = gaitSpeed * 1.25
@@ -1287,7 +1712,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   const projectileIds = new Set(props.projectiles.map(item => item.id))
   for (const [id, item] of projectileModels) if (!projectileIds.has(id)) { disposeObject(item.group, false); projectileModels.delete(id) }
   for (const projectile of props.projectiles) {
-    const item = projectileModels.get(projectile.id) ?? createProjectile(projectile); projectileModels.set(projectile.id, item)
+    const item = projectileModels.get(projectile.id) ?? createProjectile(projectile, now); projectileModels.set(projectile.id, item)
     const ratio = Math.min(1, (now - item.bornAt) / (projectile.duration * 1000))
     item.group.visible = ratio < 1
     if (ratio >= 1) continue
@@ -1353,8 +1778,36 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
         ;(wave.material as THREE.MeshBasicMaterial).opacity = Number(wave.userData.baseOpacity) * fade * delayedProgress
         wave.rotation.z = (index % 2 ? -1 : 1) * elapsed * .22
       })
+    } else if (impact.kind === 'archer') {
+      const fade = 1 - THREE.MathUtils.smoothstep(progress, .45, 1)
+      model.children.forEach((child) => {
+        const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial
+        material.opacity = fade * (child.name === 'archerHitSlash' ? .92 : .95)
+        if (child.name === 'archerHitSlash') {
+          const index = Number(child.userData.index); child.scale.set(.7 + progress * .7, 1 + progress * (1.1 + impact.level * .2), 1); child.rotation.z += (index % 2 ? -.07 : .07)
+        } else if (child.name === 'archerHitSpark') {
+          const angle = Number(child.userData.angle); const distance = progress * (.35 + impact.level * .12)
+          child.position.set(Math.cos(angle) * distance, Math.sin(progress * Math.PI) * (.24 + impact.level * .07), Math.sin(angle) * distance)
+        }
+      })
     } else {
-      model.scale.setScalar(1 + progress * 3); model.rotation.z += .12
+      const fade = 1 - THREE.MathUtils.smoothstep(progress, .5, 1)
+      model.children.forEach((child) => {
+        const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial
+        material.opacity = fade * (child.name === 'cannonHitWave' ? .72 : .9)
+        if (child.name === 'cannonHitFlash') {
+          child.scale.setScalar(.7 + Math.sin(progress * Math.PI) * (1.5 + impact.level * .25)); material.opacity = fade * .72
+        } else if (child.name === 'cannonHitWave') {
+          const index = Number(child.userData.index); const delayed = Math.max(0, progress - index * .12)
+          child.scale.setScalar(1 + delayed * (3.2 + impact.level * .7)); child.rotation.z += index ? -.08 : .1
+        } else if (child.name === 'cannonHitDebris') {
+          const angle = Number(child.userData.angle); const distance = progress * (.42 + impact.level * .15)
+          child.position.set(Math.cos(angle) * distance, Math.sin(progress * Math.PI) * (.3 + impact.level * .1), Math.sin(angle) * distance); child.rotation.x += .14; child.rotation.y += .1
+        } else if (child.name === 'cannonHitSmoke') {
+          const index = Number(child.userData.index); const angle = Number(child.userData.angle); const spread = .08 + progress * (.16 + impact.level * .035)
+          child.position.set(Math.cos(angle) * spread, .18 + progress * (.48 + index % 2 * .12), Math.sin(angle) * spread); child.scale.setScalar(.65 + progress * (1.25 + impact.level * .12)); material.opacity = fade * .42
+        }
+      })
     }
   }
 }
@@ -1384,7 +1837,7 @@ function handleCameraPointerUp(event: PointerEvent) {
   controls.enabled = false
 }
 
-function createWorld() {
+async function createWorld() {
   const target = host.value
   if (!target) return
   try {
@@ -1395,8 +1848,6 @@ function createWorld() {
     const frostPlaceholder = new THREE.Group(); frostPlaceholder.userData.frostEffectCenterY = 1.77; frostPlaceholder.add(groundShadow(.42)); decorateFrostTower(frostPlaceholder); towerTemplates.set('frost', frostPlaceholder)
     towerTemplates.set('fire', createFireTowerTemplate(frostPlaceholder))
     enemyTemplate = createGoblinTemplate(); optimizeTemplateShadows(enemyTemplate)
-    void loadFrostTower()
-    void loadRiggedEnemy()
     projectileTemplates.set('archer', createProjectileTemplate('archer'))
     projectileTemplates.set('cannon', createProjectileTemplate('cannon'))
     projectileTemplates.set('frost', createProjectileTemplate('frost'))
@@ -1421,6 +1872,7 @@ function createWorld() {
       tile.position.copy(worldPosition(x, y)); tile.position.y = isPath ? -.025 : 0; tile.userData.cell = { x, y }; tileMeshes.push(tile); scene.add(tile)
     }
     createCobblestonePath()
+    createEnemyRouteLines()
     createMapScenery()
     createMysticAtmosphere()
     hoverMarker = new THREE.Mesh(new THREE.PlaneGeometry(.88, .88), new THREE.MeshBasicMaterial({ color: 0xf8edba, transparent: true, opacity: .25, depthWrite: false, side: THREE.DoubleSide }))
@@ -1436,7 +1888,6 @@ function createWorld() {
     const focusRing = new THREE.Mesh(new THREE.RingGeometry(.55, .59, 56), new THREE.MeshBasicMaterial({ color: 0xe43845, transparent: true, opacity: .98, depthWrite: false, side: THREE.DoubleSide }))
     for (const marker of [focusHalo, focusRing]) { marker.rotation.x = -Math.PI / 2; marker.renderOrder = 6; marker.frustumCulled = false }
     towerFocusMarker.add(focusHalo, focusRing); towerFocusMarker.visible = false; scene.add(towerFocusMarker)
-    createCastle()
     const resize = () => {
       if (!renderer || !camera) return
       const width = Math.max(target.clientWidth, 2)
@@ -1478,29 +1929,40 @@ function createWorld() {
     const animate = () => {
       animationFrame = requestAnimationFrame(animate)
       const frameDelta = Math.min(clock.getDelta(), .05)
-      const elapsed = clock.elapsedTime
-      const now = performance.now()
+      if (!props.isPaused) { visualElapsed += frameDelta; visualNow += frameDelta * 1000 }
       if (cameraReturning) updateCameraReturn(frameDelta)
       else controls?.update()
-      syncScene(elapsed, frameDelta, now); renderer!.render(scene!, camera!)
+      if (!props.isPaused) syncScene(visualElapsed, frameDelta, visualNow)
+      renderer!.render(scene!, camera!)
     }
     window.addEventListener('pointerup', handleCameraPointerUp)
+    await Promise.allSettled([
+      loadFrostTower(),
+      loadRiggedEnemy(),
+      loadCastleModel(),
+    ])
+    if (!renderer || !scene || !camera || !host.value?.isConnected) return
+    syncScene(visualElapsed, 0, visualNow)
+    renderer.render(scene, camera)
+    emit('ready')
     animate()
   } catch (error) {
     renderError.value = 'Không thể khởi tạo đồ họa 3D. Hãy bật WebGL hoặc tăng tốc phần cứng trong trình duyệt.'
     console.error('[Kingdom Defense] Scene initialization failed:', error)
+    emit('ready')
   }
 }
 
 onMounted(async () => {
   await nextTick()
-  animationFrame = requestAnimationFrame(createWorld)
+  animationFrame = requestAnimationFrame(() => { void createWorld() })
 })
 onBeforeUnmount(() => {
   window.removeEventListener('pointerup', handleCameraPointerUp)
   cancelAnimationFrame(animationFrame); resizeObserver?.disconnect(); controls?.dispose(); controls = null; tileMeshes.length = 0
   for (const model of enemyModels.values()) disposeEnemyModel(model)
   enemyModels.clear()
+  towerUpgradeEffects.clear()
   if (riggedEnemyTemplate) disposeObject(riggedEnemyTemplate)
   riggedEnemyTemplate = null; riggedEnemyAnimations = []
   scene?.traverse(child => { if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) { if (child instanceof THREE.Mesh) child.geometry.dispose(); const materials = Array.isArray(child.material) ? child.material : [child.material]; materials.forEach(material => material.dispose()) } })
@@ -1515,7 +1977,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.tower-defense-scene { position: absolute; z-index: 1; inset: 0; overflow: hidden; border-radius: 10px; background: linear-gradient(#b8d494 0 45%, #80965f 45% 100%); }
+.tower-defense-scene { position: absolute; z-index: 1; inset: 0; overflow: hidden; border-radius: 10px; background: linear-gradient(#b8d494 0 45%, #80965f 45% 100%); touch-action: none; -webkit-user-select: none; user-select: none; }
 .tower-defense-scene :deep(canvas) { display: block; width: 100%; height: 100%; }
 .tower-defense-scene__error { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; padding: 24px; background: #172017; color: #f3d899; text-align: center; }
 </style>

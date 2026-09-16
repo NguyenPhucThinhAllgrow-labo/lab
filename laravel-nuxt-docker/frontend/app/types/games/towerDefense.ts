@@ -1,4 +1,5 @@
 export type TowerKind = 'archer' | 'cannon' | 'frost' | 'fire'
+export type EnemyKind = 'normal' | 'boss'
 
 export interface GridPoint { x: number; y: number }
 
@@ -32,6 +33,7 @@ export interface Tower extends GridPoint {
 
 export interface Enemy {
   id: number
+  kind: EnemyKind
   lane: 0 | 1
   progress: number
   hp: number
@@ -53,6 +55,7 @@ export interface Projectile {
   duration: number
   targetId: number
   damage: number
+  level: number
   slow?: number
   burnDuration?: number
   burnDamagePerSecond?: number
@@ -65,6 +68,7 @@ export interface Impact {
   kind: TowerKind
   position: GridPoint
   life: number
+  level: number
   radius?: number
 }
 

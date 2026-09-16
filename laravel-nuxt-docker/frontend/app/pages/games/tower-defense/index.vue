@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Coins, Crown, Gauge, HeartPulse, Move, Play, RotateCcw, ShieldCheck, Sparkles, Swords } from 'lucide-vue-next'
-import { TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, useTowerDefense } from '~/composables/useTowerDefense'
+import { Coins, Crown, Gauge, HeartPulse, Move, Pause, Play, RotateCcw, ShieldCheck, Sparkles, Swords, Undo2 } from 'lucide-vue-next'
+import { FROST_SLOW_DURATION_SECONDS, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, useTowerDefense } from '~/composables/useTowerDefense'
 import type { TowerKind } from '~/types/games/towerDefense'
 
 useHead({
@@ -9,10 +9,10 @@ useHead({
 })
 
 const {
-  credits, castleHealth, wave, score, bestWave, phase, speedMultiplier, selectedKind,
-  selectedTowerId, selectedTower, towers, enemies, projectiles, impacts, pendingEnemies, nextWaveCountdown, message, canStartWave,
-  upgradeCost, selectCell, upgradeSelected, enableSelectedRelocation, sellSelected,
-  startWave, resetGame,
+  credits, castleHealth, wave, score, bestWave, phase, isPaused, speedMultiplier, selectedKind,
+  selectedTowerId, selectedTower, towers, enemies, projectiles, impacts, pendingEnemies, nextWaveCountdown, message, canStartWave, canUndoSelectedPlacement,
+  upgradeCost, selectCell, upgradeSelected, enableSelectedRelocation, sellSelected, undoSelectedPlacement,
+  startWave, resetGame, togglePause,
 } = useTowerDefense()
 
 const towerKinds = Object.keys(TOWER_DEFINITIONS) as TowerKind[]
@@ -22,13 +22,25 @@ const towerImages = {
   frost: '/images/games/tower-defense/frost-tower.png?v=20260914-2',
   fire: '/images/games/tower-defense/frost-tower.png?v=20260914-2',
 }
-const phaseLabel = computed(() => ({ ready: 'Sẵn sàng', wave: 'Đang giao chiến', between: 'Chuẩn bị đợt mới', gameover: 'Lâu đài thất thủ' })[phase.value])
+const phaseLabel = computed(() => isPaused.value ? 'Đã tạm dừng' : ({ ready: 'Sẵn sàng', wave: 'Đang giao chiến', between: 'Chuẩn bị đợt mới', gameover: 'Lâu đài thất thủ' })[phase.value])
 const enemiesRemaining = computed(() => enemies.value.length + pendingEnemies.value)
 const selectedTowerAnchor = ref({ x: 0, y: 0, visible: false })
 const isMovePlacementMode = ref(false)
 const hoveredTowerKind = ref<TowerKind | null>(null)
 const towerTooltipPosition = ref({ x: 0, y: 0 })
 const hoveredTowerDefinition = computed(() => hoveredTowerKind.value ? TOWER_DEFINITIONS[hoveredTowerKind.value] : null)
+const sceneReady = ref(false)
+const imagesReady = ref(false)
+const isGameReady = computed(() => sceneReady.value && imagesReady.value)
+
+function preloadTowerImages() {
+  const sources = [...new Set(Object.values(towerImages))]
+  return Promise.allSettled(sources.map(source => new Promise<void>((resolve) => {
+    const image = new Image()
+    image.onload = image.onerror = () => resolve()
+    image.src = source
+  })))
+}
 
 function positionTowerTooltip(clientX: number, clientY: number) {
   towerTooltipPosition.value = {
@@ -96,9 +108,11 @@ watch(phase, (currentPhase) => {
   if (currentPhase === 'wave' || currentPhase === 'gameover') isMovePlacementMode.value = false
 })
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', closeTowerPopupOnOutsideClick)
   window.addEventListener('keydown', cancelSelectionOnEscape)
+  await preloadTowerImages()
+  imagesReady.value = true
 })
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeTowerPopupOnOutsideClick)
@@ -111,7 +125,7 @@ onBeforeUnmount(() => {
   <main class="defense-page">
     <div class="defense-page__grid" aria-hidden="true" />
 
-    <section class="defense-shell">
+    <section class="defense-shell" :class="{ 'is-loading': !isGameReady }" :aria-hidden="!isGameReady">
       <section class="defense-board-panel">
         <div class="defense-board-stage">
           <div class="defense-board has-webgl" role="grid" aria-label="Bản đồ phòng thủ 3D, 18 cột và 14 hàng">
@@ -124,10 +138,12 @@ onBeforeUnmount(() => {
                 :selected-tower-id="selectedTowerId"
                 :selected-kind="selectedKind"
                 :phase="phase"
+                :is-paused="isPaused"
                 :speed-multiplier="speedMultiplier"
                 @cell-select="handleCellSelect"
                 @background-select="clearBoardSelection"
                 @selected-tower-position="updateSelectedTowerAnchor"
+                @ready="sceneReady = true"
               />
               <template #fallback><div class="defense-scene-loading">Đang dựng chiến trường 3D…</div></template>
             </ClientOnly>
@@ -167,13 +183,18 @@ onBeforeUnmount(() => {
               </button>
               <small>THÁP ĐANG CHỌN</small>
               <h3>{{ TOWER_DEFINITIONS[selectedTower.kind].name }} · LV.{{ selectedTower.level }}</h3>
+              <p class="defense-upgrade__description">{{ TOWER_DEFINITIONS[selectedTower.kind].description }}</p>
               <p>{{ selectedTower.canRelocate && canStartWave ? 'Chọn một ô trống trên bản đồ để đặt lại tháp.' : canStartWave ? 'Nhấn Di chuyển để chọn vị trí mới cho tháp.' : 'Chỉ có thể di chuyển tháp trong thời gian chuẩn bị.' }}</p>
-              <div><span>Sát thương</span><b>{{ Math.round(TOWER_DEFINITIONS[selectedTower.kind].damage * (1 + (selectedTower.level - 1) * 0.55)) }}</b></div>
-              <div><span>{{ selectedTower.kind === 'frost' ? 'Bán kính vùng' : 'Tầm bắn' }}</span><b>{{ (selectedTower.kind === 'frost' ? TOWER_DEFINITIONS.frost.range : TOWER_DEFINITIONS[selectedTower.kind].range + (selectedTower.level - 1) * TOWER_RANGE_LEVEL_BONUS).toFixed(1) }}</b></div>
-              <div v-if="selectedTower.kind === 'fire'" class="is-splash"><span>Bán kính nổ</span><b>{{ TOWER_DEFINITIONS.fire.splashRadius }}</b></div>
-              <div v-if="selectedTower.kind === 'fire'" class="is-burn"><span>Thiêu đốt</span><b>{{ ((TOWER_DEFINITIONS.fire.burnDamagePerSecond ?? 0) * (1 + (selectedTower.level - 1) * 0.55)).toFixed(1) }}/s · 5s</b></div>
+              <div class="is-price"><span>{{ selectedTower.level > 1 ? 'Tổng đầu tư' : 'Giá xây' }}</span><b>{{ selectedTower.invested }} vàng</b></div>
+              <div class="is-damage"><span>Sát thương</span><b>{{ Math.round(TOWER_DEFINITIONS[selectedTower.kind].damage * (1 + (selectedTower.level - 1) * 0.55)) }}</b></div>
+              <div class="is-range"><span>{{ selectedTower.kind === 'frost' ? 'Bán kính vùng' : 'Tầm bắn' }}</span><b>{{ (selectedTower.kind === 'frost' ? TOWER_DEFINITIONS.frost.range : TOWER_DEFINITIONS[selectedTower.kind].range + (selectedTower.level - 1) * TOWER_RANGE_LEVEL_BONUS).toFixed(1) }}</b></div>
+              <div class="is-rate"><span>Nhịp bắn</span><b>{{ (TOWER_DEFINITIONS[selectedTower.kind].fireRate / (1 + (selectedTower.level - 1) * 0.18)).toFixed(2) }} giây</b></div>
+              <div v-if="selectedTower.kind === 'frost'" class="is-slow"><span>Làm chậm</span><b>{{ Math.round((TOWER_DEFINITIONS.frost.slow ?? 0) * 100) }}% · {{ FROST_SLOW_DURATION_SECONDS }} giây</b></div>
+              <div v-if="selectedTower.kind === 'fire' || selectedTower.kind === 'cannon'" class="is-splash"><span>Bán kính nổ</span><b>{{ TOWER_DEFINITIONS[selectedTower.kind].splashRadius }}</b></div>
+              <div v-if="selectedTower.kind === 'fire'" class="is-burn"><span>Thiêu đốt</span><b>{{ ((TOWER_DEFINITIONS.fire.burnDamagePerSecond ?? 0) * (1 + (selectedTower.level - 1) * 0.55)).toFixed(1) }}/s · {{ TOWER_DEFINITIONS.fire.burnDuration }}s</b></div>
               <button type="button" :disabled="selectedTower.level >= 3 || credits < upgradeCost" @click="upgradeSelected">{{ selectedTower.level >= 3 ? 'Đã tối đa' : `Nâng cấp · ${upgradeCost}` }}</button>
               <button type="button" class="is-move" :disabled="!canStartWave || selectedTower.canRelocate" @click="beginTowerRelocation"><Move />{{ selectedTower.canRelocate ? 'Đang chọn vị trí' : 'Di chuyển' }}</button>
+              <button v-if="canUndoSelectedPlacement" type="button" class="is-undo" title="Gỡ tháp và nhận lại toàn bộ vàng đã đầu tư" @click="undoSelectedPlacement"><Undo2 />Hoàn tác đặt tháp · {{ selectedTower.invested }}</button>
               <button type="button" class="is-sell" @click="sellSelected">Bán · {{ Math.floor(selectedTower.invested * 0.7) }}</button>
             </section>
 
@@ -209,12 +230,22 @@ onBeforeUnmount(() => {
 
             <footer class="defense-board-footer">
               <p><span>CHỈ HUY</span>{{ message }}</p>
-              <div><div class="defense-speed"><Gauge /><button type="button" :class="{ active: speedMultiplier === 1 }" @click="speedMultiplier = 1">1×</button><button type="button" :class="{ active: speedMultiplier === 2 }" @click="speedMultiplier = 2">2×</button></div></div>
+              <div><div class="defense-speed"><button v-if="phase === 'wave'" type="button" :class="{ active: isPaused }" :title="isPaused ? 'Tiếp tục' : 'Tạm dừng'" @click="togglePause"><Play v-if="isPaused" /><Pause v-else />{{ isPaused ? 'Tiếp tục' : 'Tạm dừng' }}</button><Gauge /><button type="button" :class="{ active: speedMultiplier === 1 }" @click="speedMultiplier = 1">1×</button><button type="button" :class="{ active: speedMultiplier === 2 }" @click="speedMultiplier = 2">2×</button></div></div>
             </footer>
           </div>
         </div>
       </section>
     </section>
+
+    <Transition name="defense-loader">
+      <section v-if="!isGameReady" class="defense-loading-screen" role="status" aria-live="polite" aria-label="Đang tải trò chơi">
+        <div class="defense-loading-screen__crest"><Crown /></div>
+        <span>ĐANG TRIỆU TẬP QUÂN ĐỘI</span>
+        <h1>Kingdom <em>Defense</em></h1>
+        <div class="defense-loading-screen__bar"><i /></div>
+        <p>Đang chuẩn bị chiến trường và tài nguyên 3D…</p>
+      </section>
+    </Transition>
 
     <Teleport to="body">
       <aside
@@ -230,8 +261,8 @@ onBeforeUnmount(() => {
           <div class="is-damage"><dt>Sát thương</dt><dd>{{ hoveredTowerDefinition.damage }}</dd></div>
           <div class="is-range"><dt>{{ hoveredTowerKind === 'frost' ? 'Bán kính vùng' : 'Tầm bắn' }}</dt><dd>{{ hoveredTowerDefinition.range.toFixed(1) }}</dd></div>
           <div class="is-rate"><dt>Nhịp bắn</dt><dd>{{ hoveredTowerDefinition.fireRate.toFixed(2) }} giây</dd></div>
-          <div v-if="hoveredTowerKind === 'frost'" class="is-slow"><dt>Làm chậm</dt><dd>{{ Math.round((hoveredTowerDefinition.slow ?? 0) * 100) }}%</dd></div>
-          <div v-if="hoveredTowerKind === 'fire'" class="is-splash"><dt>Nổ lan</dt><dd>{{ hoveredTowerDefinition.splashRadius }}</dd></div>
+          <div v-if="hoveredTowerKind === 'frost'" class="is-slow"><dt>Làm chậm</dt><dd>{{ Math.round((hoveredTowerDefinition.slow ?? 0) * 100) }}% · {{ FROST_SLOW_DURATION_SECONDS }} giây</dd></div>
+          <div v-if="hoveredTowerKind === 'fire' || hoveredTowerKind === 'cannon'" class="is-splash"><dt>Nổ lan</dt><dd>{{ hoveredTowerDefinition.splashRadius }}</dd></div>
           <div v-if="hoveredTowerKind === 'fire'" class="is-burn"><dt>Thiêu đốt</dt><dd>{{ hoveredTowerDefinition.burnDamagePerSecond }}/s · {{ hoveredTowerDefinition.burnDuration }}s</dd></div>
         </dl>
       </aside>
