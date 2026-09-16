@@ -4,30 +4,32 @@ import type { BossClass, Enemy, GamePhase, GridPoint, Impact, Projectile, Tower,
 const STORAGE_KEY = 'game-lab:kingdom-defense:best-wave'
 export const FROST_EFFECT_RADIUS = 2.1
 export const FROST_SLOW_DURATION_SECONDS = 1.4
-export const WATER_SLOW_DURATION_SECONDS = 2.2
+export const WATER_SLOW_DURATION_SECONDS = 2
 export const DEFENSE_GRID_COLUMNS = 18
 export const DEFENSE_GRID_ROWS = 14
-export const TOWER_RANGE_LEVEL_BONUS = 0.28
+export const MAX_TOWER_COUNT = 12
+export const MAX_TOWER_LEVEL = 3
+export const TOWER_RANGE_LEVEL_BONUS = 0.22
 const ENEMY_HIT_RADIUS = 0.28
 const ENEMY_SPAWN_PROGRESS = -0.85
 const BETWEEN_WAVE_DELAY_SECONDS = 30
-const STARTING_CREDITS = 3000
-const WAVE_BASE_REWARD = 35
-const WAVE_REWARD_GROWTH = 5
-const BOSS_HEALTH_MULTIPLIER = 7
-const BOSS_REWARD_MULTIPLIER = 6
+const STARTING_CREDITS = 500
+const WAVE_BASE_REWARD = 30
+const WAVE_REWARD_GROWTH = 4
+const BOSS_HEALTH_MULTIPLIER = 5.5
+const BOSS_REWARD_MULTIPLIER = 5
 const BOSS_CLASSES: BossClass[] = ['barbarian', 'knight', 'mage', 'ranger', 'rogue']
 // Chế độ kiểm tra đội hình: wave đầu thả đủ năm class boss để duyệt model/vũ khí.
 const PREVIEW_ALL_BOSSES_ON_FIRST_WAVE = false
-const UPGRADE_COST_MULTIPLIERS = { 1: 0.85, 2: 1.25 } as const
+const UPGRADE_COST_MULTIPLIERS = { 1: 0.75, 2: 1.1 } as const
 
 export const TOWER_DEFINITIONS: Record<TowerKind, TowerDefinition> = {
-  archer: { kind: 'archer', name: 'Tháp cung', description: 'Tầm xa, sát thương ổn định.', cost: 75, damage: 11, range: 3.15, fireRate: 0.72, color: '#65a30d' },
-  cannon: { kind: 'cannon', name: 'Tháp pháo', description: 'Uy lực lớn, nổ lan quanh mục tiêu.', cost: 120, damage: 32, range: 2.8, fireRate: 1.3, splashRadius: 0.9, splashDamageRatio: 0.45, color: '#d97706' },
-  frost: { kind: 'frost', name: 'Tháp băng', description: 'Đóng băng hoàn toàn kẻ địch trong vùng.', cost: 105, damage: 0, range: FROST_EFFECT_RADIUS, fireRate: 2.35, color: '#0891b2' },
-  fire: { kind: 'fire', name: 'Tháp lửa', description: 'Cầu lửa nổ lan và thiêu đốt trong 4 giây.', cost: 125, damage: 11, range: 2.65, fireRate: 1, burnDuration: 4, burnDamagePerSecond: 4.5, splashRadius: 1.15, splashDamageRatio: 0.58, color: '#dc2626' },
-  thunder: { kind: 'thunder', name: 'Tháp sét', description: 'Tia điện liên tục, nối chuỗi qua nhiều mục tiêu.', cost: 145, damage: 18, range: 3.2, fireRate: 0, color: '#7c3aed' },
-  water: { kind: 'water', name: 'Tháp nước', description: 'Phun dòng nước gây sát thương và làm chậm.', cost: 130, damage: 14, range: 2.9, fireRate: 0.82, slow: 0.3, slowDuration: WATER_SLOW_DURATION_SECONDS, color: '#0284c7' },
+  archer: { kind: 'archer', name: 'Tháp cung', description: 'Tầm xa, sát thương ổn định.', cost: 90, damage: 10, range: 3.4, fireRate: 0.75, color: '#65a30d' },
+  cannon: { kind: 'cannon', name: 'Tháp pháo', description: 'Uy lực lớn, nổ lan quanh mục tiêu.', cost: 145, damage: 34, range: 2.7, fireRate: 1.45, splashRadius: 0.9, splashDamageRatio: 0.45, color: '#d97706' },
+  frost: { kind: 'frost', name: 'Tháp băng', description: 'Đóng băng hoàn toàn kẻ địch trong vùng.', cost: 120, damage: 0, range: FROST_EFFECT_RADIUS, fireRate: 2.6, color: '#0891b2' },
+  fire: { kind: 'fire', name: 'Tháp lửa', description: 'Cầu lửa nổ lan và thiêu đốt trong 4 giây.', cost: 150, damage: 10, range: 2.7, fireRate: 1.1, burnDuration: 4, burnDamagePerSecond: 4, splashRadius: 1.05, splashDamageRatio: 0.55, color: '#dc2626' },
+  thunder: { kind: 'thunder', name: 'Tháp sét', description: 'Tia điện liên tục, nối chuỗi qua nhiều mục tiêu.', cost: 175, damage: 16, range: 3.05, fireRate: 0, color: '#7c3aed' },
+  water: { kind: 'water', name: 'Tháp nước', description: 'Phun dòng nước gây sát thương và làm chậm.', cost: 135, damage: 12, range: 2.85, fireRate: 0.85, slow: 0.25, slowDuration: WATER_SLOW_DURATION_SECONDS, color: '#0284c7' },
 }
 
 /**
@@ -149,7 +151,7 @@ export function useTowerDefense() {
   const canUndoSelectedPlacement = computed(() => canStartWave.value && selectedTower.value !== null && undoableTowerIds.value.includes(selectedTower.value.id))
   const upgradeCost = computed(() => {
     const tower = selectedTower.value
-    if (!tower || tower.level >= 3) return 0
+    if (!tower || tower.level >= MAX_TOWER_LEVEL) return 0
     const multiplier = UPGRADE_COST_MULTIPLIERS[tower.level as 1 | 2]
     return Math.round(TOWER_DEFINITIONS[tower.kind].cost * multiplier / 5) * 5
   })
@@ -202,6 +204,10 @@ export function useTowerDefense() {
       return
     }
     const definition = TOWER_DEFINITIONS[selectedKind.value]
+    if (towers.value.length >= MAX_TOWER_COUNT) {
+      message.value = `Đã đạt giới hạn ${MAX_TOWER_COUNT} tháp. Hãy bán một tháp trước khi xây mới.`
+      return
+    }
     if (credits.value < definition.cost) { message.value = `Cần ${definition.cost} vàng để xây ${definition.name}.`; return }
     credits.value -= definition.cost
     const tower: Tower = { id: nextTowerId++, kind: definition.kind, x, y, level: 1, cooldown: 0, invested: definition.cost, firingUntil: 0, aimAngle: 0, shotSequence: 0, beamTargetIds: [], canRelocate: false }
@@ -218,7 +224,7 @@ export function useTowerDefense() {
   /** Trừ vàng, tăng level/invested và phát tín hiệu shallowRef cho tower đã chọn. */
   function upgradeSelected() {
     const tower = selectedTower.value
-    if (!tower || tower.level >= 3 || credits.value < upgradeCost.value) return
+    if (!tower || tower.level >= MAX_TOWER_LEVEL || credits.value < upgradeCost.value) return
     credits.value -= upgradeCost.value
     tower.invested += upgradeCost.value
     tower.level++
@@ -270,7 +276,7 @@ export function useTowerDefense() {
     for (const tower of towers.value) tower.canRelocate = false
     triggerRef(towers)
     wave.value++
-    const waveEnemyCount = 10 + wave.value * 4
+    const waveEnemyCount = 8 + wave.value * 3
     pendingEnemiesByLane[0] = Math.ceil(waveEnemyCount / 2)
     pendingEnemiesByLane[1] = Math.floor(waveEnemyCount / 2)
     pendingBosses = PREVIEW_ALL_BOSSES_ON_FIRST_WAVE && wave.value === 1
@@ -292,10 +298,10 @@ export function useTowerDefense() {
     const bossIndex = pendingBosses.findIndex(boss => boss.lane === lane)
     const boss = bossIndex >= 0 ? pendingBosses[bossIndex]! : null
     if (!boss && pendingEnemiesByLane[lane] <= 0) return
-    const maxHp = 70 + wave.value * 23 + Math.floor(wave.value * wave.value * 0.9)
+    const maxHp = 60 + wave.value * 18 + Math.floor(wave.value * wave.value * 1.15)
     const id = nextEnemyId++
     const enemyHp = boss ? maxHp * BOSS_HEALTH_MULTIPLIER : maxHp
-    const baseReward = 5 + Math.floor(wave.value * 0.65)
+    const baseReward = 6 + Math.floor(wave.value * 0.55)
     enemies.value.push({ id, kind: boss?.kind ?? 'normal', bossClass: boss?.bossClass, lane, progress: ENEMY_SPAWN_PROGRESS, hp: enemyHp, maxHp: enemyHp, speed: (0.72 + Math.min(wave.value * 0.025, 0.35)) * (boss ? .5 : 1), reward: baseReward * (boss ? BOSS_REWARD_MULTIPLIER : 1), slowUntil: 0, slowAmount: 0, isSlowed: false, frozenUntil: 0, isFrozen: false, burnRemaining: 0, burnDamagePerSecond: 0 })
     if (boss) pendingBosses.splice(bossIndex, 1)
     else pendingEnemiesByLane[lane]--

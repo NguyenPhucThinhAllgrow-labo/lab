@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Bomb, Coins, Crosshair, Crown, Flame, Gauge, HeartPulse, Move, Pause, Play, RotateCcw, ShieldCheck, Snowflake, Sparkles, Swords, Undo2, Waves, Zap } from 'lucide-vue-next'
-import { FROST_SLOW_DURATION_SECONDS, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS, useTowerDefense } from '~/composables/useTowerDefense'
+import { FROST_SLOW_DURATION_SECONDS, MAX_TOWER_COUNT, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS, useTowerDefense } from '~/composables/useTowerDefense'
 import type { TowerKind } from '~/types/games/towerDefense'
 
 useHead({
@@ -202,14 +202,14 @@ onBeforeUnmount(() => {
               <p class="defense-upgrade__description">{{ TOWER_DEFINITIONS[selectedTower.kind].description }}</p>
               <p>{{ selectedTower.canRelocate && canStartWave ? 'Chọn một ô trống trên bản đồ để đặt lại tháp.' : canStartWave ? 'Nhấn Di chuyển để chọn vị trí mới cho tháp.' : 'Chỉ có thể di chuyển tháp trong thời gian chuẩn bị.' }}</p>
               <div class="is-price"><span>{{ selectedTower.level > 1 ? 'Tổng đầu tư' : 'Giá xây' }}</span><b>{{ selectedTower.invested }} vàng</b></div>
-              <div class="is-damage"><span>Sát thương</span><b>{{ Math.round(TOWER_DEFINITIONS[selectedTower.kind].damage * (1 + (selectedTower.level - 1) * 0.55)) }}</b></div>
+              <div class="is-damage"><span>{{ selectedTower.kind === 'thunder' ? 'Sát thương/giây' : 'Sát thương' }}</span><b>{{ Math.round(TOWER_DEFINITIONS[selectedTower.kind].damage * (1 + (selectedTower.level - 1) * (selectedTower.kind === 'thunder' ? 0.42 : 0.55))) }}</b></div>
               <div class="is-range"><span>{{ selectedTower.kind === 'frost' ? 'Bán kính vùng' : 'Tầm bắn' }}</span><b>{{ (selectedTower.kind === 'frost' ? TOWER_DEFINITIONS.frost.range : TOWER_DEFINITIONS[selectedTower.kind].range + (selectedTower.level - 1) * TOWER_RANGE_LEVEL_BONUS).toFixed(1) }}</b></div>
               <div class="is-rate"><span>{{ selectedTower.kind === 'thunder' ? 'Tấn công' : 'Nhịp bắn' }}</span><b>{{ selectedTower.kind === 'thunder' ? 'Liên tục' : `${(TOWER_DEFINITIONS[selectedTower.kind].fireRate / (1 + (selectedTower.level - 1) * 0.18)).toFixed(2)} giây` }}</b></div>
               <div v-if="selectedTower.kind === 'frost'" class="is-slow"><span>Đóng băng</span><b>100% · {{ FROST_SLOW_DURATION_SECONDS }} giây</b></div>
               <div v-if="selectedTower.kind === 'water'" class="is-slow"><span>Làm chậm</span><b>{{ Math.round((TOWER_DEFINITIONS.water.slow ?? 0) * 100) }}% · {{ WATER_SLOW_DURATION_SECONDS }} giây</b></div>
               <div v-if="selectedTower.kind === 'fire' || selectedTower.kind === 'cannon' || selectedTower.kind === 'water'" class="is-splash"><span>Bán kính lan</span><b>{{ TOWER_DEFINITIONS[selectedTower.kind].splashRadius }}</b></div>
               <div v-if="selectedTower.kind === 'fire'" class="is-burn"><span>Thiêu đốt</span><b>{{ ((TOWER_DEFINITIONS.fire.burnDamagePerSecond ?? 0) * (1 + (selectedTower.level - 1) * 0.55)).toFixed(1) }}/s · {{ TOWER_DEFINITIONS.fire.burnDuration }}s</b></div>
-              <button type="button" :disabled="selectedTower.level >= 3 || credits < upgradeCost" @click="upgradeSelected">{{ selectedTower.level >= 3 ? 'Đã tối đa' : `Nâng cấp · ${upgradeCost}` }}</button>
+              <button type="button" :disabled="selectedTower.level >= MAX_TOWER_LEVEL || credits < upgradeCost" @click="upgradeSelected">{{ selectedTower.level >= MAX_TOWER_LEVEL ? 'Đã tối đa' : `Nâng cấp · ${upgradeCost}` }}</button>
               <button type="button" class="is-move" :disabled="!canStartWave || selectedTower.canRelocate" @click="beginTowerRelocation"><Move />{{ selectedTower.canRelocate ? 'Đang chọn vị trí' : 'Di chuyển' }}</button>
               <button v-if="canUndoSelectedPlacement" type="button" class="is-undo" title="Gỡ tháp và nhận lại toàn bộ vàng đã đầu tư" @click="undoSelectedPlacement"><Undo2 />Hoàn tác đặt tháp · {{ selectedTower.invested }}</button>
               <button type="button" class="is-sell" @click="sellSelected">Bán · {{ Math.floor(selectedTower.invested * 0.7) }}</button>
@@ -218,12 +218,13 @@ onBeforeUnmount(() => {
             <!-- Sidebar xây tháp và điều khiển wave. -->
             <aside class="defense-sidebar">
               <section class="defense-build">
-                <header><small>THÁP PHÒNG THỦ</small><h2>Chọn công trình</h2></header>
+                <header><div><small>THÁP PHÒNG THỦ</small><strong class="defense-tower-count">{{ towers.length }}/{{ MAX_TOWER_COUNT }}</strong></div><h2>Chọn công trình</h2></header>
                 <button
                   v-for="kind in towerKinds"
                   :key="kind"
                   type="button"
                   :class="{ active: selectedKind === kind }"
+                  :disabled="towers.length >= MAX_TOWER_COUNT"
                   @click="selectedKind = kind; selectedTowerId = null"
                   @mouseenter="showTowerTooltip(kind, $event)"
                   @mousemove="showTowerTooltip(kind, $event)"
@@ -284,7 +285,7 @@ onBeforeUnmount(() => {
         <p>{{ hoveredTowerDefinition.description }}</p>
         <dl>
           <div class="is-price"><dt>Giá xây</dt><dd>{{ hoveredTowerDefinition.cost }} vàng</dd></div>
-          <div class="is-damage"><dt>Sát thương</dt><dd>{{ hoveredTowerDefinition.damage }}</dd></div>
+          <div class="is-damage"><dt>{{ hoveredTowerKind === 'thunder' ? 'Sát thương/giây' : 'Sát thương' }}</dt><dd>{{ hoveredTowerDefinition.damage }}</dd></div>
           <div class="is-range"><dt>{{ hoveredTowerKind === 'frost' ? 'Bán kính vùng' : 'Tầm bắn' }}</dt><dd>{{ hoveredTowerDefinition.range.toFixed(1) }}</dd></div>
           <div class="is-rate"><dt>{{ hoveredTowerKind === 'thunder' ? 'Tấn công' : 'Nhịp bắn' }}</dt><dd>{{ hoveredTowerKind === 'thunder' ? 'Liên tục' : `${hoveredTowerDefinition.fireRate.toFixed(2)} giây` }}</dd></div>
           <div v-if="hoveredTowerKind === 'frost'" class="is-slow"><dt>Đóng băng</dt><dd>100% · {{ FROST_SLOW_DURATION_SECONDS }} giây</dd></div>

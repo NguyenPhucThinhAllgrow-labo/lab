@@ -121,6 +121,7 @@
 .defense-build > button:hover, .defense-build > button.active { border-color: #d3ae61; background: #303225; }
 .defense-build > button > span { display: grid; width: 54px; height: 54px; place-items: center; border-radius: 10px; background: radial-gradient(circle, color-mix(in srgb, var(--tower-color) 24%, transparent), transparent 72%); color: var(--tower-color); }
 .defense-build > button > span > svg { width: 27px; height: 27px; color: var(--tower-color); stroke-width: 2.25; filter: drop-shadow(0 0 7px color-mix(in srgb, var(--tower-color) 75%, transparent)); }
+.defense-build > button:disabled { cursor: not-allowed; opacity: .42; filter: saturate(.55); }
 .defense-build button div { display: grid; gap: 3px; }
 .defense-build button strong { font-size: 12px; }
 .defense-build button small { color: #91846f; font-size: 9px; }
@@ -304,6 +305,8 @@
 }
 .defense-sidebar > section { padding: 11px; border-radius: 12px; background: #151a15e8; backdrop-filter: blur(10px); }
 .defense-build header { margin-bottom: 7px; }
+.defense-build header > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.defense-tower-count { display: inline-flex; min-width: 58px; min-height: 30px; align-items: center; justify-content: center; padding: 4px 10px; border: 1px solid #d8b96888; border-radius: 9px; background: #d8b96818; color: #f4d98b; font: 800 16px/1 Georgia, serif; letter-spacing: .04em; box-shadow: inset 0 0 12px #d8b96812, 0 3px 10px #0004; }
 .defense-build > button { grid-template-columns: 42px 1fr auto; gap: 8px; padding: 5px 7px; margin-top: 5px; }
 .defense-build > button > span { width: 40px; height: 40px; }
 .defense-build button strong { font-size: 10px; }
