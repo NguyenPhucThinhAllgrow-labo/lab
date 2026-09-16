@@ -922,6 +922,7 @@ function addEnemyFrostEffect(group: THREE.Group) {
 
 /** Clone model theo bossClass, gắn cặp vũ khí vào socket và khởi chạy Walking_A. */
 function createEnemyModel(enemy: Enemy) {
+  console.log(enemy)
   const characterTemplate = enemy.kind === 'boss' && enemy.bossClass
     ? bossEnemyTemplates.get(enemy.bossClass)
     : riggedEnemyTemplate

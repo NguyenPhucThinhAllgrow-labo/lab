@@ -293,7 +293,7 @@ export function useTowerDefense() {
     const id = nextEnemyId++
     const enemyHp = boss ? maxHp * BOSS_HEALTH_MULTIPLIER : maxHp
     const baseReward = 5 + Math.floor(wave.value * 0.65)
-    enemies.value.push({ id, kind: boss?.kind ?? 'normal', bossClass: boss?.bossClass, lane, progress: ENEMY_SPAWN_PROGRESS, hp: enemyHp, maxHp: enemyHp, speed: (0.72 + Math.min(wave.value * 0.025, 0.35)) * (boss ? .78 : 1), reward: baseReward * (boss ? BOSS_REWARD_MULTIPLIER : 1), slowUntil: 0, isSlowed: false, burnRemaining: 0, burnDamagePerSecond: 0 })
+    enemies.value.push({ id, kind: boss?.kind ?? 'normal', bossClass: boss?.bossClass, lane, progress: ENEMY_SPAWN_PROGRESS, hp: enemyHp, maxHp: enemyHp, speed: (0.72 + Math.min(wave.value * 0.025, 0.35)) * (boss ? .5 : 1), reward: baseReward * (boss ? BOSS_REWARD_MULTIPLIER : 1), slowUntil: 0, isSlowed: false, burnRemaining: 0, burnDamagePerSecond: 0 })
     if (boss) pendingBosses.splice(bossIndex, 1)
     else pendingEnemiesByLane[lane]--
     pendingEnemies.value--
