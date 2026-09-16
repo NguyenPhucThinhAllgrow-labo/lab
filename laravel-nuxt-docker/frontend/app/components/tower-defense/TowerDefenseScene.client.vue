@@ -4,15 +4,17 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { DEFENSE_GRID_COLUMNS, DEFENSE_GRID_ROWS, DEFENSE_PATH, DEFENSE_PATHS, DEFENSE_PATH_TILES, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, defensePathPosition } from '~/composables/useTowerDefense'
-import type { Enemy, GamePhase, Impact, Projectile, Tower, TowerKind } from '~/types/games/towerDefense'
+import type { BossClass, Enemy, GamePhase, Impact, Projectile, Tower, TowerKind } from '~/types/games/towerDefense'
 
-const props = defineProps<{ towers: Tower[]; enemies: Enemy[]; projectiles: Projectile[]; impacts: Impact[]; selectedTowerId: number | null; selectedKind: TowerKind | null; phase: GamePhase; isPaused: boolean; speedMultiplier: 1 | 2 }>()
+const props = defineProps<{ towers: Tower[]; enemies: Enemy[]; projectiles: Projectile[]; impacts: Impact[]; selectedTowerId: number | null; selectedKind: TowerKind | null; phase: GamePhase; isPaused: boolean; speedMultiplier: 1 | 2 | 4 }>()
 const emit = defineEmits<{
   cellSelect: [x: number, y: number]
   backgroundSelect: []
   selectedTowerPosition: [x: number, y: number, visible: boolean]
   ready: []
 }>()
+
+// ===== WebGL lifecycle và tài nguyên dùng chung =============================
 const host = ref<HTMLDivElement | null>(null)
 const renderError = ref('')
 
@@ -30,6 +32,8 @@ let fireFlameTexture: THREE.CanvasTexture | null = null
 const clock = new THREE.Clock()
 let visualElapsed = 0
 let visualNow = 0
+
+// Cache object đang hiển thị theo ID gameplay; template giữ bản gốc để clone.
 const towerModels = new Map<number, THREE.Group>()
 const towerUpgradeEffects = new Map<number, { group: THREE.Group; bornAt: number; kind: TowerKind }>()
 const enemyModels = new Map<number, THREE.Group>()
@@ -40,9 +44,13 @@ let towerPreviewModel: THREE.Group | null = null
 let towerPreviewKind: TowerKind | null = null
 let castleModel: THREE.Group | null = null
 const projectileTemplates = new Map<Projectile['kind'], THREE.Group>()
-let enemyTemplate: THREE.Group | null = null
 let riggedEnemyTemplate: THREE.Group | null = null
 let riggedEnemyAnimations: THREE.AnimationClip[] = []
+let enemySwordTemplate: THREE.Object3D | null = null
+let enemyShieldTemplate: THREE.Object3D | null = null
+// Năm class boss dùng chung rig animation nhưng có model và trang bị riêng.
+const bossEnemyTemplates = new Map<BossClass, THREE.Group>()
+const bossEquipmentTemplates = new Map<BossClass, { right: THREE.Object3D; left: THREE.Object3D }>()
 const tileMeshes: THREE.Mesh[] = []
 const raycaster = new THREE.Raycaster()
 const pointer = new THREE.Vector2()
@@ -66,11 +74,15 @@ let towerFocusMarker: THREE.Group | null = null
 let mysticParticles: THREE.Points | null = null
 let performanceMode = false
 
+// ===== Helpers tọa độ, geometry và giải phóng GPU ===========================
+/** Đặt tâm grid tại world origin và ánh xạ hàng gameplay sang trục Z của Three.js. */
 const worldPosition = (x: number, y: number) => new THREE.Vector3(x - (DEFENSE_GRID_COLUMNS - 1) / 2, 0, y - (DEFENSE_GRID_ROWS - 1) / 2)
+/** Đổi progress trên một lane gameplay thành Vector3 trong hệ tọa độ scene. */
 function pathPosition(progress: number, lane: 0 | 1 = 0) {
   const position = defensePathPosition(progress, lane)
   return worldPosition(position.x, position.y)
 }
+/** Tạo bóng tròn giả nhẹ hơn shadow map để model luôn tách khỏi mặt đất. */
 function groundShadow(radius: number) {
   const shadow = new THREE.Mesh(
     new THREE.CircleGeometry(radius, 20),
@@ -82,6 +94,7 @@ function groundShadow(radius: number) {
   return shadow
 }
 
+/** Gỡ Object3D và tùy chọn giải phóng geometry/material sở hữu riêng trên GPU. */
 const disposeObject = (object: THREE.Object3D, disposeResources = true) => {
   object.traverse((child) => {
     if (!disposeResources) return
@@ -93,6 +106,7 @@ const disposeObject = (object: THREE.Object3D, disposeResources = true) => {
   object.removeFromParent()
 }
 
+/** Factory MeshStandardMaterial thống nhất chất liệu, bump và shadow cho scene. */
 function mesh(geometry: THREE.BufferGeometry, color: number, options: { roughness?: number; metalness?: number; emissive?: number; flatShading?: boolean } = {}) {
   const roughness = options.roughness ?? .72
   const material = new THREE.MeshStandardMaterial({ color, roughness, metalness: options.metalness ?? .05, emissive: options.emissive ?? 0, emissiveIntensity: options.emissive ? 1.35 : 1, flatShading: options.flatShading ?? false, bumpMap: roughness > .5 ? surfaceDetail : null, bumpScale: roughness > .5 ? .012 : 0 })
@@ -102,6 +116,7 @@ function mesh(geometry: THREE.BufferGeometry, color: number, options: { roughnes
   return item
 }
 
+/** Sinh DataTexture nhiễu nhỏ dùng làm bump map chung cho đá và công trình. */
 function createSurfaceDetail() {
   const size = 64
   const data = new Uint8Array(size * size)
@@ -117,6 +132,7 @@ function createSurfaceDetail() {
   return texture
 }
 
+/** Tắt shadow cho chi tiết rất nhỏ để giảm draw cost khi template được clone nhiều lần. */
 function optimizeTemplateShadows(group: THREE.Group) {
   group.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return
@@ -126,6 +142,7 @@ function optimizeTemplateShadows(group: THREE.Group) {
   })
 }
 
+/** Clone và hiệu chỉnh material kim loại của tower mà không làm bẩn material template khác. */
 function applyTowerMetallicFinish(group: THREE.Group, tint: number) {
   const tintColor = new THREE.Color(tint)
   group.traverse((child) => {
@@ -140,6 +157,7 @@ function applyTowerMetallicFinish(group: THREE.Group, tint: number) {
   })
 }
 
+/** Xếp các khối crenellation quanh mép tower theo vòng tròn. */
 function addBattlements(group: THREE.Group, y: number, radius: number, color: number, count = 8) {
   for (let index = 0; index < count; index++) {
     const angle = index / count * Math.PI * 2
@@ -150,6 +168,7 @@ function addBattlements(group: THREE.Group, y: number, radius: number, color: nu
   }
 }
 
+/** Rải đá chân móng có biến thiên nhỏ để silhouette tower bớt đều. */
 function addRockFooting(group: THREE.Group, radius: number, color: number, count = 9) {
   for (let index = 0; index < count; index++) {
     const angle = index / count * Math.PI * 2
@@ -161,6 +180,7 @@ function addRockFooting(group: THREE.Group, radius: number, color: number, count
   }
 }
 
+/** Thêm các đai đá theo danh sách cao độ/bán kính cấu hình. */
 function addStoneCourses(group: THREE.Group, courses: Array<{ y: number; radius: number }>, color: number) {
   for (const course of courses) {
     const seam = mesh(new THREE.CylinderGeometry(course.radius, course.radius, .035, 16), color, { roughness: .92 })
@@ -168,6 +188,7 @@ function addStoneCourses(group: THREE.Group, courses: Array<{ y: number; radius:
   }
 }
 
+/** Bố trí khe bắn quanh thân tower và xoay từng khe hướng ra ngoài. */
 function addArrowSlits(group: THREE.Group, y: number, radius: number, count = 4) {
   for (let index = 0; index < count; index++) {
     const angle = index / count * Math.PI * 2
@@ -178,6 +199,7 @@ function addArrowSlits(group: THREE.Group, y: number, radius: number, count = 4)
   }
 }
 
+/** Tạo cờ hai màu gắn trên tower; mesh được đặt tên để animate về sau. */
 function createBanner(color: number, trim: number) {
   const shape = new THREE.Shape()
   shape.moveTo(-.11, .2); shape.lineTo(.11, .2); shape.lineTo(.11, -.14); shape.lineTo(0, -.22); shape.lineTo(-.11, -.14); shape.closePath()
@@ -188,6 +210,7 @@ function createBanner(color: number, trim: number) {
   return cloth
 }
 
+/** Tạo vòng chọn mờ ở chân tower, mặc định ẩn cho tới khi tower được chọn. */
 function createTowerAura(color: number) {
   const aura = new THREE.Group(); aura.name = 'towerAura'; aura.position.y = .105
   const ring = mesh(new THREE.TorusGeometry(.49, .018, 7, 40), color, { emissive: color, metalness: .25, roughness: .2 }); ring.rotation.x = Math.PI / 2
@@ -200,6 +223,7 @@ function createTowerAura(color: number) {
   return aura
 }
 
+/** Tạo lazy radial texture cho ánh sáng băng và cache để mọi instance dùng chung. */
 function getFrostGlowTexture() {
   if (frostGlowTexture) return frostGlowTexture
   const canvas = document.createElement('canvas')
@@ -219,6 +243,7 @@ function getFrostGlowTexture() {
   return frostGlowTexture
 }
 
+/** Tạo texture vòng sóng băng bằng Canvas, tránh phải tải thêm ảnh ngoài. */
 function getFrostWaveTexture() {
   if (frostWaveTexture) return frostWaveTexture
   const canvas = document.createElement('canvas')
@@ -240,6 +265,7 @@ function getFrostWaveTexture() {
   return frostWaveTexture
 }
 
+/** Tạo radial texture nóng cho sóng nổ của tower lửa. */
 function getFireWaveTexture() {
   if (fireWaveTexture) return fireWaveTexture
   const canvas = document.createElement('canvas')
@@ -261,6 +287,7 @@ function getFireWaveTexture() {
   return fireWaveTexture
 }
 
+/** Vẽ sprite ngọn lửa alpha bằng Canvas và tái sử dụng cho mọi enemy đang cháy. */
 function getFireFlameTexture() {
   if (fireFlameTexture) return fireFlameTexture
   const canvas = document.createElement('canvas')
@@ -287,12 +314,15 @@ function getFireFlameTexture() {
   return fireFlameTexture
 }
 
+// ===== Model tháp và hiệu ứng nâng cấp ======================================
+/** Gắn cửa và vòng tay nắm lên mặt trước của một tower procedural. */
 function addDoor(group: THREE.Group, y: number, z: number) {
   const door = mesh(new THREE.BoxGeometry(.2, .31, .035), 0x49301f); door.position.set(0, y, z)
   const ring = mesh(new THREE.TorusGeometry(.035, .009, 5, 10), 0xc18b3d, { metalness: .7, roughness: .25 }); ring.position.set(.045, y, z + .025)
   group.add(door, ring)
 }
 
+/** Dựng template tháp cung cùng turret, dây cung và điểm phóng tên. */
 function createArcherTower() {
   const group = new THREE.Group()
   group.add(createTowerAura(0x79b85a))
@@ -322,6 +352,7 @@ function createArcherTower() {
   return group
 }
 
+/** Dựng template pháo, gồm barrel rig dùng cho aim/recoil và hiệu ứng nòng. */
 function createCannonTower() {
   const group = new THREE.Group()
   group.add(createTowerAura(0xe09648))
@@ -356,6 +387,21 @@ function createCannonTower() {
     )
     spark.name = 'cannonMuzzleSpark'; spark.userData.index = index; spark.userData.angle = index / 8 * Math.PI * 2; muzzleCharge.add(spark)
   }
+  const barrelUpgradeFx = new THREE.Group(); barrelUpgradeFx.name = 'cannonBarrelUpgradeFx'; barrelUpgradeFx.visible = false
+  for (let index = 0; index < 3; index++) {
+    const energyBand = new THREE.Mesh(
+      new THREE.TorusGeometry(.125 + index * .006, .009, 6, 24),
+      new THREE.MeshBasicMaterial({ color: index % 2 ? 0xff8a2b : 0xffd878, transparent: true, opacity: .72, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    )
+    energyBand.name = 'cannonBarrelEnergyBand'; energyBand.userData.index = index; energyBand.position.z = .23 + index * .22; barrelUpgradeFx.add(energyBand)
+  }
+  for (let index = 0; index < 6; index++) {
+    const arc = new THREE.Mesh(
+      new THREE.CapsuleGeometry(.009, .07, 3, 5),
+      new THREE.MeshBasicMaterial({ color: index % 2 ? 0xffb13b : 0xfff0b0, transparent: true, opacity: .82, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    )
+    arc.name = 'cannonBarrelArc'; arc.userData.index = index; arc.userData.phase = index / 6 * Math.PI * 2; arc.rotation.x = Math.PI / 2; barrelUpgradeFx.add(arc)
+  }
   for (const z of [.16, .43, .69]) {
     const barrelBand = mesh(new THREE.TorusGeometry(.12, .018, 7, 16), 0x8d7148, { metalness: .72, roughness: .28 }); barrelBand.rotation.x = Math.PI / 2; barrelBand.position.z = z; barrelRig.add(barrelBand)
   }
@@ -364,10 +410,11 @@ function createCannonTower() {
     const hub = mesh(new THREE.CylinderGeometry(.065, .065, .1, 12), 0x846844, { metalness: .48, roughness: .35 }); hub.rotation.z = Math.PI / 2; hub.position.copy(wheel.position); turret.add(hub)
   }
   turret.name = 'towerTurret'; barrel.name = 'towerBarrel'; muzzle.name = 'towerMuzzle'
-  barrelRig.add(barrel, muzzle, muzzleFlash, muzzleCharge); turret.add(cradle, barrelRig); group.add(base, wall, lowerBand, rim, turret)
+  barrelRig.add(barrel, muzzle, muzzleFlash, muzzleCharge, barrelUpgradeFx); turret.add(cradle, barrelRig); group.add(base, wall, lowerBand, rim, turret)
   return group
 }
 
+/** Bổ sung marker, tinh thể và node hiệu ứng vào model tháp băng đã tải. */
 function decorateFrostTower(group: THREE.Group) {
   if (group.getObjectByName('frostVisualEffects')) return
   const centralY = Number(group.userData.frostEffectCenterY ?? 1.77)
@@ -407,6 +454,7 @@ function decorateFrostTower(group: THREE.Group) {
   group.add(effects)
 }
 
+/** Biến một clone tháp băng thành tháp lửa bằng material và effect node riêng. */
 function createFireTowerTemplate(frostTemplate: THREE.Group) {
   const group = frostTemplate.clone(true)
   group.name = 'FireTower3D'
@@ -449,6 +497,7 @@ function createFireTowerTemplate(frostTemplate: THREE.Group) {
   return group
 }
 
+/** Cache các node có tên vào userData để vòng render không phải traverse mỗi frame. */
 function bindTowerParts(group: THREE.Group) {
   group.userData.turret = group.getObjectByName('towerTurret')
   group.userData.flag = group.getObjectByName('towerFlag')
@@ -457,6 +506,7 @@ function bindTowerParts(group: THREE.Group) {
   group.userData.muzzle = group.getObjectByName('towerMuzzle')
   group.userData.muzzleFlash = group.getObjectByName('towerMuzzleFlash')
   group.userData.cannonMuzzleCharge = group.getObjectByName('cannonMuzzleCharge')
+  group.userData.cannonBarrelUpgradeFx = group.getObjectByName('cannonBarrelUpgradeFx')
   group.userData.aura = group.getObjectByName('towerAura')
   const glows: THREE.Object3D[] = []
   const energyRings: THREE.Mesh[] = []
@@ -471,17 +521,20 @@ function bindTowerParts(group: THREE.Group) {
   group.userData.frostParticles = particles
 }
 
+/** Trả scale ngang/dọc theo level để tower lớn lên nhưng vẫn bám đúng mặt đất. */
 function towerScaleForLevel(level: number) {
   // Khoảng cách kích thước đủ lớn để nhận ra cấp tháp ngay từ camera toàn cảnh.
   const levelScale = level === 1 ? 1 : level === 2 ? 1.13 : 1.27
   return { horizontal: levelScale * .93, vertical: levelScale * 1.24 }
 }
 
+/** Áp scale level và bù trục Y cho một model tower. */
 function setTowerScale(group: THREE.Group, level: number) {
   const scale = towerScaleForLevel(level)
   group.scale.set(scale.horizontal, scale.vertical, scale.horizontal)
 }
 
+/** Bật/tắt chi tiết nâng cấp tĩnh dựa trên kind và level hiện tại. */
 function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
   const previous = group.getObjectByName('towerLevelEffect')
   if (previous) disposeObject(previous)
@@ -592,6 +645,7 @@ function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
   group.add(effect)
 }
 
+/** Animate các chi tiết nâng cấp phát sáng mà không tạo thêm object mỗi frame. */
 function animateTowerLevelAppearance(model: THREE.Group, tower: Tower, elapsed: number) {
   const effect = model.getObjectByName('towerLevelEffect') as THREE.Group | undefined
   if (!effect) return
@@ -673,6 +727,7 @@ function animateTowerLevelAppearance(model: THREE.Group, tower: Tower, elapsed: 
   })
 }
 
+/** Clone đúng template tower, bind node điều khiển và thêm instance vào scene. */
 function createTowerModel(tower: Tower) {
   const template = towerTemplates.get(tower.kind)
   if (!template) throw new Error(`Missing tower template: ${tower.kind}`)
@@ -685,6 +740,7 @@ function createTowerModel(tower: Tower) {
   scene!.add(group); return group
 }
 
+/** Tạo burst ngắn tại tower vừa lên cấp và lưu thời điểm sinh để tự hủy. */
 function createTowerUpgradeEffect(tower: Tower, now: number) {
   const existing = towerUpgradeEffects.get(tower.id)
   if (existing) disposeObject(existing.group)
@@ -729,6 +785,7 @@ function createTowerUpgradeEffect(tower: Tower, now: number) {
   towerUpgradeEffects.set(tower.id, { group, bornAt: now, kind: tower.kind })
 }
 
+/** Cập nhật tiến trình, opacity và giải phóng các effect nâng cấp đã kết thúc. */
 function syncTowerUpgradeEffects(now: number) {
   for (const [towerId, effect] of towerUpgradeEffects) {
     const progress = (now - effect.bornAt) / 1550
@@ -765,6 +822,7 @@ function syncTowerUpgradeEffects(now: number) {
   }
 }
 
+/** Gỡ preview xây dựng và dispose material trong suốt được clone riêng. */
 function removeTowerPreview() {
   if (!towerPreviewModel) return
   towerPreviewModel.traverse((child) => {
@@ -777,6 +835,7 @@ function removeTowerPreview() {
   towerPreviewKind = null
 }
 
+/** Tạo ghost tower bán trong suốt để theo ô hover trước khi đặt công trình. */
 function createTowerPreview(kind: TowerKind) {
   removeTowerPreview()
   const template = towerTemplates.get(kind)
@@ -805,205 +864,121 @@ function createTowerPreview(kind: TowerKind) {
   towerPreviewKind = kind
 }
 
-function createGoblinLeg(x: number) {
-  const leg = new THREE.Bone(); leg.position.set(x, .56, 0)
-  const thigh = mesh(new THREE.CylinderGeometry(.075, .09, .27, 7), 0x58712f); thigh.position.y = -.13
-  const knee = new THREE.Bone(); knee.position.y = -.28; knee.name = x < 0 ? 'enemyLeftKnee' : 'enemyRightKnee'
-  const kneeJoint = mesh(new THREE.SphereGeometry(.085, 7, 5), 0x4d5f2b)
-  const shin = mesh(new THREE.CylinderGeometry(.06, .075, .25, 7), 0x66503a); shin.position.y = -.12
-  const boot = mesh(new THREE.BoxGeometry(.16, .13, .24), 0x2f251f); boot.position.set(0, -.26, .055); boot.rotation.x = -.08
-  knee.add(kneeJoint, shin, boot); leg.add(thigh, knee)
-  return leg
-}
-
-function createGoblinArm(x: number) {
-  const arm = new THREE.Bone(); arm.position.set(x, .98, 0)
-  const upper = mesh(new THREE.CylinderGeometry(.075, .09, .28, 7), 0x769640); upper.position.y = -.14
-  const elbow = new THREE.Bone(); elbow.position.y = -.3; elbow.name = x < 0 ? 'enemyLeftElbow' : 'enemyRightElbow'
-  const elbowJoint = mesh(new THREE.SphereGeometry(.082, 7, 5), 0x668438)
-  const forearm = mesh(new THREE.CylinderGeometry(.06, .075, .25, 7), 0x83a74a); forearm.position.y = -.12
-  const hand = mesh(new THREE.SphereGeometry(.075, 8, 6), 0x8eb650); hand.position.y = -.27; hand.scale.y = .8
-  elbow.add(elbowJoint, forearm, hand); arm.add(upper, elbow)
-  return arm
-}
-
-function createGoblinTemplate() {
-  const group = new THREE.Group()
-  const rig = new THREE.Bone(); rig.name = 'enemyRigRoot'
-  const torso = mesh(new THREE.CylinderGeometry(.2, .28, .5, 9), 0x647f36); torso.position.y = .78
-  const tunic = mesh(new THREE.CylinderGeometry(.25, .31, .48, 9), 0x68402d); tunic.position.y = .66
-  const chestPlate = mesh(new THREE.DodecahedronGeometry(.3, 0), 0x554a3b, { metalness: .28, roughness: .54 }); chestPlate.position.set(0, .84, .08); chestPlate.scale.set(.9, .72, .5)
-  const neck = mesh(new THREE.CylinderGeometry(.105, .13, .18, 8), 0x718f3e); neck.position.y = 1.06
-  const scarf = mesh(new THREE.TorusGeometry(.2, .045, 7, 16), 0x812f28); scarf.rotation.x = Math.PI / 2; scarf.position.y = 1.02
-  const belt = mesh(new THREE.CylinderGeometry(.27, .27, .075, 9), 0x30251f); belt.position.y = .64
-  const buckle = mesh(new THREE.BoxGeometry(.105, .09, .04), 0xb8893e, { metalness: .65, roughness: .28 }); buckle.position.set(0, .64, .274)
-
-  const head = new THREE.Bone(); head.position.y = 1.27
-  const skull = mesh(new THREE.SphereGeometry(.25, 14, 10), 0x829f45); skull.scale.set(.95, 1, .9)
-  const jaw = mesh(new THREE.SphereGeometry(.19, 10, 7), 0x77933e); jaw.position.set(0, -.11, .105); jaw.scale.set(1, .65, .75)
-  const nose = mesh(new THREE.ConeGeometry(.07, .2, 7), 0x94b552); nose.rotation.x = Math.PI / 2; nose.position.set(0, -.015, .27)
-  const mouth = mesh(new THREE.BoxGeometry(.17, .025, .018), 0x281918); mouth.position.set(0, -.145, .235)
-  const helmet = mesh(new THREE.SphereGeometry(.265, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), 0x40362e, { metalness: .22, roughness: .58 }); helmet.position.y = .015; helmet.scale.z = .94
-  const helmetBand = mesh(new THREE.TorusGeometry(.245, .028, 6, 16), 0x75634c, { metalness: .45, roughness: .38 }); helmetBand.rotation.x = Math.PI / 2; helmetBand.position.y = .015
-  const leftEar = mesh(new THREE.ConeGeometry(.09, .3, 7), 0x829f45); leftEar.rotation.z = Math.PI / 2; leftEar.position.set(-.32, .015, 0)
-  const rightEar = leftEar.clone(); rightEar.rotation.z = -Math.PI / 2; rightEar.position.x = .32
-  head.add(skull, jaw, nose, mouth, helmet, helmetBand, leftEar, rightEar)
-  for (const x of [-.085, .085]) {
-    const socket = mesh(new THREE.SphereGeometry(.058, 8, 6), 0x425127); socket.position.set(x, .055, .215); socket.scale.y = .75
-    const eye = mesh(new THREE.SphereGeometry(.035, 8, 6), 0xe6c96f, { emissive: 0x2f2508 }); eye.position.set(x, .052, .252)
-    const pupil = mesh(new THREE.SphereGeometry(.014, 6, 4), 0x17120d); pupil.position.set(x, .052, .282)
-    const brow = mesh(new THREE.BoxGeometry(.105, .025, .025), 0x354321); brow.position.set(x, .12, .242); brow.rotation.z = x < 0 ? -.22 : .22
-    head.add(socket, eye, pupil, brow)
-  }
-  for (const x of [-.07, .07]) {
-    const tusk = mesh(new THREE.ConeGeometry(.022, .1, 6), 0xead9ac); tusk.position.set(x, -.17, .255); tusk.rotation.z = x < 0 ? -.12 : .12; head.add(tusk)
-  }
-
-  const leftLeg = createGoblinLeg(-.13); const rightLeg = createGoblinLeg(.13)
-  const leftArm = createGoblinArm(-.31); leftArm.rotation.z = -.32
-  const rightArm = createGoblinArm(.31); rightArm.rotation.z = .32
-  for (const x of [-.3, .3]) {
-    const arm = x < 0 ? leftArm : rightArm
-    const shoulder = mesh(new THREE.SphereGeometry(.13, 9, 6), 0x4b4439, { metalness: .3, roughness: .5 }); shoulder.position.set(0, -.02, 0); shoulder.scale.set(1.15, .72, 1); arm.add(shoulder)
-    const shoulderRim = mesh(new THREE.TorusGeometry(.105, .018, 5, 12, Math.PI), 0x91734a, { metalness: .5, roughness: .35 }); shoulderRim.position.set(0, -.01, .07); shoulderRim.rotation.z = x < 0 ? -.25 : .25; arm.add(shoulderRim)
-  }
-
-  const weapon = new THREE.Bone(); weapon.position.set(.39, .69, .06); weapon.rotation.z = -.36
-  const handle = mesh(new THREE.CylinderGeometry(.024, .03, .62, 7), 0x4b3021); handle.position.y = .06
-  const bladeShape = new THREE.Shape(); bladeShape.moveTo(-.035, 0); bladeShape.lineTo(.18, .05); bladeShape.lineTo(.22, .25); bladeShape.lineTo(.03, .3); bladeShape.lineTo(-.045, .2); bladeShape.closePath()
-  const blade = mesh(new THREE.ExtrudeGeometry(bladeShape, { depth: .055, bevelEnabled: true, bevelSize: .012, bevelThickness: .01, bevelSegments: 1 }), 0x9da39e, { metalness: .8, roughness: .24 }); blade.position.set(.005, .31, -.027)
-  weapon.add(handle, blade)
-
-  const shield = new THREE.Bone(); shield.position.set(-.39, .75, .22); shield.rotation.z = .08
-  const shieldFace = mesh(new THREE.CylinderGeometry(.245, .245, .065, 14), 0x5a3c29); shieldFace.rotation.x = Math.PI / 2
-  const shieldRim = mesh(new THREE.TorusGeometry(.245, .028, 6, 18), 0x77736c, { metalness: .7, roughness: .28 })
-  const shieldBoss = mesh(new THREE.SphereGeometry(.07, 9, 7), 0x898781, { metalness: .75, roughness: .22 }); shieldBoss.position.z = .06
-  shield.add(shieldFace, shieldRim, shieldBoss)
-  for (let index = 0; index < 6; index++) {
-    const angle = index / 6 * Math.PI * 2
-    const rivet = mesh(new THREE.SphereGeometry(.016, 6, 4), 0xb29a69, { metalness: .65, roughness: .3 }); rivet.position.set(Math.cos(angle) * .19, Math.sin(angle) * .19, .07); shield.add(rivet)
-  }
-
-  const healthBack = mesh(new THREE.PlaneGeometry(.78, .07), 0x401b18); healthBack.position.set(0, 1.64, .05); healthBack.rotation.x = -1
-  const health = mesh(new THREE.PlaneGeometry(.74, .045), 0x78cf58, { emissive: 0x183d10 }); health.position.set(0, 1.645, .085); health.rotation.x = -1
-  leftLeg.name = 'enemyLeftLeg'; rightLeg.name = 'enemyRightLeg'; leftArm.name = 'enemyLeftArm'; rightArm.name = 'enemyRightArm'
-  weapon.name = 'enemyWeapon'; shield.name = 'enemyShield'; head.name = 'enemyHead'; health.name = 'enemyHealth'
-  rig.add(torso, tunic, chestPlate, neck, scarf, belt, buckle, head, leftLeg, rightLeg, leftArm, rightArm, weapon, shield)
-  group.add(rig, healthBack, health)
-  group.scale.setScalar(.74); return group
-}
-
+// ===== Enemy GLB, boss class và hiệu ứng trạng thái =========================
+/** Gắn sẵn pool sprite lửa vào enemy; vòng render chỉ bật và tái định vị chúng. */
 function addEnemyBurnEffect(group: THREE.Group) {
   const effect = new THREE.Group()
   effect.name = 'enemyBurnEffect'
   effect.visible = false
-  for (let index = 0; index < 7; index++) {
+  for (let index = 0; index < 10; index++) {
     const material = new THREE.SpriteMaterial({
       map: getFireFlameTexture(),
       color: index % 3 === 0 ? 0xffd36b : 0xff7a2c,
       transparent: true,
       opacity: 0,
       depthWrite: false,
-      depthTest: true,
+      depthTest: false,
       blending: THREE.AdditiveBlending,
     })
     material.toneMapped = false
     const flame = new THREE.Sprite(material)
-    const angle = index / 7 * Math.PI * 2
-    const radius = .12 + index % 3 * .055
-    flame.position.set(Math.cos(angle) * radius, .25 + index % 3 * .24, Math.sin(angle) * radius)
+    flame.renderOrder = 9
+    const angle = index / 10 * Math.PI * 2
+    const radius = .27 + index % 3 * .055
+    flame.position.set(Math.cos(angle) * radius, .2 + index % 4 * .2, Math.sin(angle) * radius)
     flame.userData.baseY = flame.position.y
     flame.userData.angle = angle
     flame.userData.radius = radius
-    flame.userData.phase = index / 7
+    flame.userData.phase = index / 10
     flame.userData.riseSpeed = .72 + index % 3 * .16
-    flame.userData.baseWidth = .18 + index % 2 * .045
-    flame.userData.baseHeight = .4 + index % 3 * .07
+    flame.userData.baseWidth = .32 + index % 2 * .065
+    flame.userData.baseHeight = .68 + index % 3 * .1
     effect.add(flame)
   }
   group.add(effect)
   group.userData.burnEffect = effect
 }
 
+/** Gắn sẵn các tinh thể quay quanh enemy khi trạng thái slow đang hoạt động. */
 function addEnemyFrostEffect(group: THREE.Group) {
   const effect = new THREE.Group()
   effect.name = 'enemyFrostEffect'
   effect.visible = false
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(.38, .025, 6, 28),
-    new THREE.MeshBasicMaterial({ color: 0x7deaff, transparent: true, opacity: .72, depthWrite: false, blending: THREE.AdditiveBlending }),
-  )
-  ring.name = 'enemyFrostRing'
-  ring.position.y = .07
-  ring.rotation.x = Math.PI / 2
-  effect.add(ring)
-  for (let index = 0; index < 7; index++) {
+  for (let index = 0; index < 9; index++) {
     const crystal = new THREE.Mesh(
-      new THREE.OctahedronGeometry(index % 2 ? .035 : .05, 0),
-      new THREE.MeshBasicMaterial({ color: index % 2 ? 0xc8f8ff : 0x56d8f4, transparent: true, opacity: .82, depthWrite: false, blending: THREE.AdditiveBlending }),
+      new THREE.OctahedronGeometry(index % 2 ? .065 : .09, 0),
+      new THREE.MeshBasicMaterial({ color: index % 2 ? 0xe3fcff : 0x56d8f4, transparent: true, opacity: .95, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false }),
     )
     crystal.name = 'enemyFrostCrystal'
-    crystal.userData.angle = index / 7 * Math.PI * 2
-    crystal.userData.radius = .28 + index % 2 * .07
-    crystal.userData.baseY = .28 + index % 3 * .25
+    crystal.renderOrder = 9
+    crystal.userData.angle = index / 9 * Math.PI * 2
+    crystal.userData.radius = .44 + index % 2 * .08
+    crystal.userData.baseY = .22 + index % 3 * .3
     effect.add(crystal)
   }
   group.add(effect)
   group.userData.frostEffect = effect
 }
 
+/** Clone model theo bossClass, gắn cặp vũ khí vào socket và khởi chạy Walking_A. */
 function createEnemyModel(enemy: Enemy) {
-  if (riggedEnemyTemplate) {
-    const group = cloneSkeleton(riggedEnemyTemplate) as THREE.Group
-    const health = group.getObjectByName('enemyHealth') as THREE.Mesh
-    if (enemy.kind === 'boss') {
-      health.material = (health.material as THREE.Material).clone()
-      if (health.material instanceof THREE.MeshStandardMaterial) { health.material.color.setHex(0xe34b38); health.material.emissive.setHex(0x54130c) }
-    }
-    const mixer = new THREE.AnimationMixer(group)
-    const walk = riggedEnemyAnimations.find(clip => clip.name === 'Walk') ?? riggedEnemyAnimations[0]
-    if (walk) mixer.clipAction(walk).play()
-    group.userData.health = health
-    group.userData.mixer = mixer
-    group.userData.isSkinnedCharacter = true
-    group.userData.isBoss = enemy.kind === 'boss'
-    addEnemyBurnEffect(group)
-    addEnemyFrostEffect(group)
-    scene!.add(group)
-    return group
+  const characterTemplate = enemy.kind === 'boss' && enemy.bossClass
+    ? bossEnemyTemplates.get(enemy.bossClass)
+    : riggedEnemyTemplate
+  if (!characterTemplate) throw new Error(`Model ${enemy.bossClass ?? 'knight'} chưa được tải`)
+  const group = cloneSkeleton(characterTemplate) as THREE.Group
+  const attachEquipment = (slotName: string, template: THREE.Object3D | null, name: string) => {
+    const slot = group.getObjectByName(slotName)
+    if (!slot || !template) return
+    const item = template.clone(true)
+    item.name = name
+    item.position.set(
+      Number(template.userData.attachPositionX) || 0,
+      Number(template.userData.attachPositionY) || 0,
+      Number(template.userData.attachPositionZ) || 0,
+    )
+    // Một số asset bất đối xứng (như rìu Barbarian) cần orientation riêng khi
+    // chuyển từ hệ trục asset sang hệ trục hand socket.
+    item.rotation.set(
+      Number(template.userData.attachRotationX) || 0,
+      Number(template.userData.attachRotationY) || 0,
+      Number(template.userData.attachRotationZ) || 0,
+    )
+    item.scale.setScalar(1)
+    slot.add(item)
   }
-  if (!enemyTemplate) throw new Error('Missing enemy template')
-  const group = enemyTemplate.clone(true)
-  group.userData.leftLeg = group.getObjectByName('enemyLeftLeg')
-  group.userData.rightLeg = group.getObjectByName('enemyRightLeg')
-  group.userData.leftKnee = group.getObjectByName('enemyLeftKnee')
-  group.userData.rightKnee = group.getObjectByName('enemyRightKnee')
-  group.userData.leftArm = group.getObjectByName('enemyLeftArm')
-  group.userData.rightArm = group.getObjectByName('enemyRightArm')
-  group.userData.leftElbow = group.getObjectByName('enemyLeftElbow')
-  group.userData.rightElbow = group.getObjectByName('enemyRightElbow')
-  group.userData.weapon = group.getObjectByName('enemyWeapon')
-  group.userData.shield = group.getObjectByName('enemyShield')
-  group.userData.head = group.getObjectByName('enemyHead')
-  group.userData.rig = group.getObjectByName('enemyRigRoot')
-  group.userData.health = group.getObjectByName('enemyHealth')
+  const bossEquipment = enemy.kind === 'boss' && enemy.bossClass
+    ? bossEquipmentTemplates.get(enemy.bossClass)
+    : null
+  // GLTFLoader loại dấu chấm trong tên bone: handslot.r/l -> handslotr/l.
+  attachEquipment('handslotr', bossEquipment?.right ?? enemySwordTemplate, 'enemyRightWeapon')
+  attachEquipment('handslotl', bossEquipment?.left ?? enemyShieldTemplate, 'enemyLeftWeapon')
+  const health = group.getObjectByName('enemyHealth') as THREE.Mesh
+  if (enemy.kind === 'boss') {
+    health.material = (health.material as THREE.Material).clone()
+    if (health.material instanceof THREE.MeshStandardMaterial) { health.material.color.setHex(0xe34b38); health.material.emissive.setHex(0x54130c) }
+  }
+  const mixer = new THREE.AnimationMixer(group)
+  const walk = riggedEnemyAnimations.find(clip => clip.name === 'Walking_A') ?? riggedEnemyAnimations[0]
+  if (walk) mixer.clipAction(walk).play()
+  group.userData.health = health
+  group.userData.mixer = mixer
+  group.userData.isSkinnedCharacter = true
   group.userData.isBoss = enemy.kind === 'boss'
   addEnemyBurnEffect(group)
   addEnemyFrostEffect(group)
-  const bones: THREE.Bone[] = []
-  group.traverse((child) => { if (child instanceof THREE.Bone) bones.push(child) })
-  group.updateMatrixWorld(true)
-  group.userData.skeleton = new THREE.Skeleton(bones)
   scene!.add(group)
   return group
 }
 
+/** Dừng mixer, dispose skeleton/effect sở hữu riêng rồi gỡ enemy khỏi scene. */
 function disposeEnemyModel(model: THREE.Group) {
   const mixer = model.userData.mixer as THREE.AnimationMixer | undefined
   if (mixer) { mixer.stopAllAction(); mixer.uncacheRoot(model) }
   const burnEffect = model.userData.burnEffect as THREE.Group | undefined
   burnEffect?.traverse((child) => {
     if (child instanceof THREE.Sprite) child.material.dispose()
+    if (child instanceof THREE.Mesh) { child.geometry.dispose(); child.material.dispose() }
   })
   const frostEffect = model.userData.frostEffect as THREE.Group | undefined
   frostEffect?.traverse((child) => {
@@ -1016,66 +991,104 @@ function disposeEnemyModel(model: THREE.Group) {
   disposeObject(model, false)
 }
 
+/** Tải toàn bộ đội hình, animation và trang bị trước khi phát sự kiện scene ready. */
 async function loadRiggedEnemy() {
   try {
-    const gltf = await new GLTFLoader().loadAsync('/models/games/tower-defense/goblin-soldier.glb')
+    const loader = new GLTFLoader()
+    const kitRoot = '/models/games/tower-defense/kit/adventure'
+    const loadKitAsset = (relativePath: string) => loader.loadAsync(`${kitRoot}/${relativePath}`)
+    const prepareEquipment = (item: THREE.Object3D) => {
+      item.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return
+        child.castShadow = true
+        child.receiveShadow = true
+      })
+      item.position.set(0, 0, 0)
+      item.rotation.set(0, 0, 0)
+      item.scale.setScalar(1)
+      return item
+    }
+    const prepareCharacter = (character: THREE.Group) => {
+      character.rotation.y = 0
+      character.scale.setScalar(.78)
+      character.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return
+        child.castShadow = true
+        child.receiveShadow = true
+        const cloneMaterial = (source: THREE.Material) => source.clone()
+        child.material = Array.isArray(child.material) ? child.material.map(cloneMaterial) : cloneMaterial(child.material)
+      })
+      const wrapper = new THREE.Group()
+      const healthBack = mesh(new THREE.PlaneGeometry(.78, .07), 0x401b18); healthBack.position.set(0, 1.9, .05); healthBack.rotation.x = -1
+      const health = mesh(new THREE.PlaneGeometry(.74, .045), 0x78cf58, { emissive: 0x183d10 }); health.position.set(0, 1.905, .085); health.rotation.x = -1; health.name = 'enemyHealth'
+      wrapper.add(character, healthBack, health)
+      return wrapper
+    }
+
+    const [knight, barbarian, mage, ranger, rogue, movement, sword, knightShield, axe, barbarianShield, staff, spellbook, bow, arrow, dagger] = await Promise.all([
+      loadKitAsset('Characters/gltf/Knight.glb'),
+      loadKitAsset('Characters/gltf/Barbarian.glb'),
+      loadKitAsset('Characters/gltf/Mage.glb'),
+      loadKitAsset('Characters/gltf/Ranger.glb'),
+      loadKitAsset('Characters/gltf/Rogue.glb'),
+      loadKitAsset('Animations/gltf/Rig_Medium/Rig_Medium_MovementBasic.glb'),
+      loadKitAsset('Assets/gltf/sword_1handed.gltf'),
+      loadKitAsset('Assets/gltf/shield_round_color.gltf'),
+      loadKitAsset('Assets/gltf/axe_1handed.gltf'),
+      loadKitAsset('Assets/gltf/shield_round_barbarian.gltf'),
+      loadKitAsset('Assets/gltf/staff.gltf'),
+      loadKitAsset('Assets/gltf/spellbook_open.gltf'),
+      loadKitAsset('Assets/gltf/bow_withString.gltf'),
+      loadKitAsset('Assets/gltf/arrow_bow.gltf'),
+      loadKitAsset('Assets/gltf/dagger.gltf'),
+    ])
     if (!scene || !host.value?.isConnected) return
-    const character = gltf.scene
-    character.rotation.y = Math.PI
-    character.scale.setScalar(.78)
-    const visorTint = new THREE.Color(0x080b10)
-    character.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return
-      child.castShadow = true; child.receiveShadow = true
-      const tint = (source: THREE.Material) => {
-        const material = source.clone()
-        if (material instanceof THREE.MeshStandardMaterial) {
-          const isVisor = material.name === 'Vanguard_VisorMat' || child.name.toLowerCase().includes('visor')
-          if (isVisor) {
-            material.color.lerp(visorTint, .82)
-            material.metalness = .9
-            material.roughness = .2
-            material.envMapIntensity = 1.35
-          } else {
-            // Da, vải và giáp dùng chung một texture. Tạo mask từ vùng màu be
-            // để lớp đen kim loại chỉ phủ lên các mảng giáp ngoài.
-            material.onBeforeCompile = (shader) => {
-              shader.fragmentShader = shader.fragmentShader
-                .replace('#include <common>', '#include <common>\nfloat armorMask;')
-                .replace('#include <map_fragment>', `#include <map_fragment>
-                  float armorRed = smoothstep(0.045, 0.16, diffuseColor.r - diffuseColor.g);
-                  float armorGold = smoothstep(0.025, 0.11, diffuseColor.g - diffuseColor.b);
-                  float armorLight = smoothstep(0.16, 0.34, diffuseColor.g);
-                  armorMask = armorRed * armorGold * armorLight;
-                  vec3 blackSteel = diffuseColor.rgb * vec3(0.18, 0.22, 0.27);
-                  diffuseColor.rgb = mix(diffuseColor.rgb, blackSteel, armorMask * 0.88);`)
-                .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-                  roughnessFactor = mix(roughnessFactor, 0.32, armorMask);`)
-                .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
-                  metalnessFactor = mix(metalnessFactor, 0.82, armorMask);`)
-            }
-            material.customProgramCacheKey = () => 'goblin-selective-black-armor-v1'
-            material.envMapIntensity = 1.1
-          }
-        }
-        return material
-      }
-      child.material = Array.isArray(child.material) ? child.material.map(tint) : tint(child.material)
-    })
-    const wrapper = new THREE.Group()
-    const healthBack = mesh(new THREE.PlaneGeometry(.78, .07), 0x401b18); healthBack.position.set(0, 1.9, .05); healthBack.rotation.x = -1
-    const health = mesh(new THREE.PlaneGeometry(.74, .045), 0x78cf58, { emissive: 0x183d10 }); health.position.set(0, 1.905, .085); health.rotation.x = -1; health.name = 'enemyHealth'
-    wrapper.add(character, healthBack, health)
-    riggedEnemyTemplate = wrapper
-    riggedEnemyAnimations = gltf.animations
-    // Thay các fallback procedural đang tồn tại bằng SkinnedMesh ở frame kế tiếp.
+
+    riggedEnemyTemplate = prepareCharacter(knight.scene)
+    bossEnemyTemplates.set('knight', riggedEnemyTemplate)
+    bossEnemyTemplates.set('barbarian', prepareCharacter(barbarian.scene))
+    bossEnemyTemplates.set('mage', prepareCharacter(mage.scene))
+    bossEnemyTemplates.set('ranger', prepareCharacter(ranger.scene))
+    bossEnemyTemplates.set('rogue', prepareCharacter(rogue.scene))
+    riggedEnemyAnimations = movement.animations
+
+    enemySwordTemplate = prepareEquipment(sword.scene)
+    enemyShieldTemplate = prepareEquipment(knightShield.scene)
+    bossEquipmentTemplates.set('knight', { right: enemySwordTemplate, left: enemyShieldTemplate })
+    const barbarianAxe = prepareEquipment(axe.scene)
+    // Walking_A đã dựng trục Y của socket thẳng đứng; chỉ lật lưỡi rìu ra ngoài.
+    barbarianAxe.userData.attachRotationY = Math.PI
+    bossEquipmentTemplates.set('barbarian', { right: barbarianAxe, left: prepareEquipment(barbarianShield.scene) })
+    const mageStaff = prepareEquipment(staff.scene)
+    const mageBook = prepareEquipment(spellbook.scene)
+    // Đưa pháp tuyến sách về trục Y và nâng tâm sách lên khỏi lòng bàn tay.
+    mageBook.userData.attachRotationX = -Math.PI / 2
+    mageBook.userData.attachPositionY = .2
+    mageBook.userData.attachPositionZ = .08
+    bossEquipmentTemplates.set('mage', { right: mageStaff, left: mageBook })
+    const rangerArrow = prepareEquipment(arrow.scene)
+    rangerArrow.userData.attachRotationX = -Math.PI / 2
+    // Origin của arrow nằm giữa thân; giữ đúng tâm để bàn tay không nắm sát đầu tên.
+    rangerArrow.userData.attachPositionY = 0
+    const rangerBow = prepareEquipment(bow.scene)
+    rangerBow.userData.attachRotationX = Math.PI / 2
+    rangerBow.userData.attachRotationZ = Math.PI
+    // Origin của bow nằm giữa thân; đặt tại socket để tay trái nắm đúng tay cầm giữa.
+    rangerBow.userData.attachPositionY = 0
+    // Ranger cầm giữa tên bằng tay phải và giữa cung bằng tay trái.
+    bossEquipmentTemplates.set('ranger', { right: rangerArrow, left: rangerBow })
+    const rogueDagger = prepareEquipment(dagger.scene)
+    bossEquipmentTemplates.set('rogue', { right: rogueDagger, left: rogueDagger })
+
     for (const model of enemyModels.values()) disposeEnemyModel(model)
     enemyModels.clear()
   } catch (error) {
-    console.warn('[Kingdom Defense] Không thể tải rigged enemy, dùng model dự phòng.', error)
+    console.error('[Kingdom Defense] Không thể tải nhân vật hoặc trang bị KayKit.', error)
   }
 }
 
+// ===== Model GLB của tháp và projectile/impact ===============================
+/** Tải GLB tháp băng, chuẩn hóa material và thay placeholder đang dùng trong scene. */
 async function loadFrostTower() {
   try {
     const gltf = await new GLTFLoader().loadAsync('/models/games/tower-defense/frost-tower-3d.glb')
@@ -1133,6 +1146,7 @@ async function loadFrostTower() {
   }
 }
 
+/** Tạo geometry dùng chung cho từng loại đạn; instance sau đó chỉ clone template. */
 function createProjectileTemplate(kind: Projectile['kind']) {
   const group = new THREE.Group()
   let shot: THREE.Mesh
@@ -1158,6 +1172,7 @@ function createProjectileTemplate(kind: Projectile['kind']) {
   return group
 }
 
+/** Sinh projectile render-side và ghi bornAt để nội suy theo duration gameplay. */
 function createProjectile(projectile: Projectile, now: number) {
   const template = projectileTemplates.get(projectile.kind)
   if (!template) throw new Error(`Missing projectile template: ${projectile.kind}`)
@@ -1175,6 +1190,7 @@ function createProjectile(projectile: Projectile, now: number) {
   return { group, bornAt: now }
 }
 
+/** Dựng hiệu ứng va chạm theo loại sát thương, bán kính và level của phát bắn. */
 function createImpact(impact: Impact, now: number) {
   const color = impact.kind === 'frost' ? 0x6ee7ff : impact.kind === 'fire' ? 0xff3b1f : impact.kind === 'cannon' ? 0xff7a2f : 0xffe2a1
   const group = new THREE.Group(); group.position.copy(worldPosition(impact.position.x, impact.position.y)); group.userData.bornAt = now; group.userData.level = impact.level; group.userData.visualDuration = (impact.kind === 'frost' ? 1050 : impact.kind === 'fire' ? 650 : 420) / props.speedMultiplier
@@ -1257,6 +1273,8 @@ function createImpact(impact: Impact, now: number) {
   scene!.add(group); return group
 }
 
+// ===== Mặt đất, đường đi, phong cảnh và lâu đài =============================
+/** Dựng nền grid, phân biệt ô đường đi và lưu tile để raycast thao tác xây tháp. */
 function createMapFoundation() {
   const terrainSize = 120
   const terrain = mesh(new THREE.PlaneGeometry(terrainSize, terrainSize), 0x31583a, { roughness: 1 })
@@ -1272,6 +1290,7 @@ function createMapFoundation() {
   scene!.add(terrain, terrainGrid)
 }
 
+/** Rải phiến đá dọc hai lane dựa trên DEFENSE_PATHS dùng chung với gameplay. */
 function createCobblestonePath() {
   const stonesPerTile = 9
   const geometry = new THREE.BoxGeometry(.27, .025, .24)
@@ -1294,6 +1313,7 @@ function createCobblestonePath() {
   stones.castShadow = true; stones.receiveShadow = true; stones.instanceMatrix.needsUpdate = true; scene!.add(stones)
 }
 
+/** Vẽ đường chỉ dẫn mảnh trên lane để người chơi đọc hướng tiến quân. */
 function createEnemyRouteLines() {
   const routeColors = [0xffc857, 0x67d5ff]
 
@@ -1330,6 +1350,7 @@ function createEnemyRouteLines() {
   }
 }
 
+/** Tạo cây thông low-poly trang trí tại tọa độ world cho trước. */
 function createPineTree(x: number, z: number, scale: number) {
   const tree = new THREE.Group()
   const trunk = mesh(new THREE.CylinderGeometry(.1, .15, .85, 10), 0x493629, { roughness: .92 }); trunk.position.y = .4
@@ -1339,6 +1360,7 @@ function createPineTree(x: number, z: number, scale: number) {
   tree.add(trunk, lower, middle, top); tree.position.set(x, -.08, z); tree.scale.setScalar(scale); scene!.add(tree)
 }
 
+/** Tạo cụm tinh thể phát sáng trang trí và gom thành một Group dễ bố trí. */
 function createCrystalCluster(x: number, z: number, color: number, scale = 1) {
   const cluster = new THREE.Group()
   const stone = mesh(new THREE.DodecahedronGeometry(.24, 0), 0x41494b, { roughness: .9, flatShading: true }); stone.position.y = .12; stone.scale.set(1.5, .55, 1.15); cluster.add(stone)
@@ -1349,6 +1371,7 @@ function createCrystalCluster(x: number, z: number, color: number, scale = 1) {
   cluster.position.set(x, -.03, z); cluster.scale.setScalar(scale); scene!.add(cluster)
 }
 
+/** Tạo bia rune cùng ký hiệu emissive, xoay theo bố cục cảnh. */
 function createRuneStone(x: number, z: number, rotation: number) {
   const stone = new THREE.Group()
   const pillar = mesh(new THREE.BoxGeometry(.28, .82, .2, 2, 4, 2), 0x575c59, { roughness: .94 }); pillar.position.y = .36; pillar.rotation.z = .035
@@ -1357,6 +1380,7 @@ function createRuneStone(x: number, z: number, rotation: number) {
   stone.add(pillar, rune, mark); stone.position.set(x, -.08, z); stone.rotation.y = rotation; scene!.add(stone)
 }
 
+/** Tạo particle field nền để tăng chiều sâu mà không tham gia raycast/gameplay. */
 function createMysticAtmosphere() {
   const count = 90
   const positions = new Float32Array(count * 3)
@@ -1376,6 +1400,7 @@ function createMysticAtmosphere() {
   mysticParticles = new THREE.Points(geometry, material); mysticParticles.userData.baseY = baseY; mysticParticles.frustumCulled = false; scene!.add(mysticParticles)
 }
 
+/** Bố trí cây, đá, crystal và rune ngoài khu vực grid có thể tương tác. */
 function createMapScenery() {
   const edgeX = DEFENSE_GRID_COLUMNS / 2 + .45
   const edgeZ = DEFENSE_GRID_ROWS / 2 - .75
@@ -1401,6 +1426,7 @@ function createMapScenery() {
   }
 }
 
+/** Tải lâu đài GLB, canh cổng với cuối hai lane và thay model cũ an toàn. */
 async function loadCastleModel() {
   try {
     const gltf = await new GLTFLoader().loadAsync('/models/games/tower-defense/castle.glb')
@@ -1437,7 +1463,15 @@ async function loadCastleModel() {
   }
 }
 
+// ===== Đồng bộ state gameplay sang Three.js mỗi frame =======================
+/**
+ * Đồng bộ snapshot gameplay sang object Three.js: tạo/xóa instance, nội suy
+ * chuyển động, animate tower/enemy/projectile/impact và cập nhật selection.
+ * Hàm không thay đổi HP, cooldown hay luật spawn.
+ */
 function syncScene(elapsed: number, frameDelta: number, now: number) {
+  // Tower: đối chiếu ID để tái sử dụng instance, cập nhật level, selection,
+  // hướng turret và các animation khai hỏa/recoil theo snapshot hiện tại.
   if (!scene) return
   const sceneLoad = props.towers.length + props.enemies.length + props.projectiles.length
   const shouldReduceEffects = performanceMode ? sceneLoad >= 22 : sceneLoad > 30
@@ -1539,6 +1573,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     const barrelRig = model.userData.barrelRig as THREE.Group | undefined
     const muzzleFlash = model.userData.muzzleFlash as THREE.Mesh | undefined
     const muzzleCharge = model.userData.cannonMuzzleCharge as THREE.Group | undefined
+    const barrelUpgradeFx = model.userData.cannonBarrelUpgradeFx as THREE.Group | undefined
     if (barrel) barrel.position.z = .38
     if (muzzle) muzzle.position.z = .82
     if (barrelRig) barrelRig.position.z = -recoil * .13
@@ -1560,6 +1595,29 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
             child.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, Math.sin(elapsed * 7 + index) * .07)
             child.scale.setScalar(.65 + flicker * .65 + recoil * .8)
             child.rotation.x = elapsed * 5 + index; child.rotation.y = elapsed * 4.2 - index
+          }
+        })
+      }
+    }
+    if (barrelUpgradeFx) {
+      barrelUpgradeFx.visible = tower.level >= 2
+      if (barrelUpgradeFx.visible) {
+        barrelUpgradeFx.children.forEach((child) => {
+          const index = Number(child.userData.index)
+          if (child.name === 'cannonBarrelEnergyBand') {
+            child.visible = index < (tower.level >= 3 ? 3 : 2)
+            child.rotation.z = elapsed * (index % 2 ? -2.4 : 2) + index
+            const bandPulse = 1 + Math.sin(elapsed * 6 + index * 1.8 + tower.id) * .09 + recoil * .18
+            child.scale.setScalar(bandPulse)
+          } else if (child.name === 'cannonBarrelArc') {
+            child.visible = index < (tower.level >= 3 ? 6 : 4)
+            const phase = Number(child.userData.phase)
+            const travel = (elapsed * (tower.level >= 3 ? .9 : .68) + index / 6) % 1
+            const angle = phase + elapsed * (tower.level >= 3 ? 3.1 : 2.35)
+            const radius = .135 + Math.sin(elapsed * 5 + index) * .012
+            child.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, .12 + travel * .68)
+            child.rotation.z = -angle
+            child.scale.setScalar(.7 + Math.sin(elapsed * 8 + index * 1.4) * .2 + recoil * .45)
           }
         })
       }
@@ -1612,6 +1670,8 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     }
   }
 
+  // Enemy: clone/xóa model theo ID, dự đoán progress giữa hai tick gameplay,
+  // nội suy góc cua và cập nhật mixer cùng hiệu ứng burn/frost.
   const enemyIds = new Set(props.enemies.map(item => item.id))
   for (const [id, model] of enemyModels) if (!enemyIds.has(id)) { disposeEnemyModel(model); enemyModels.delete(id) }
   for (const enemy of props.enemies) {
@@ -1649,23 +1709,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     }
     model.scale.setScalar(enemy.kind === 'normal' ? .494 : 1.05)
     const mixer = model.userData.mixer as THREE.AnimationMixer | undefined
-    if (mixer) {
-      mixer.timeScale = gaitSpeed * 1.25
-      mixer.update(frameDelta)
-    } else {
-      ;(model.userData.leftLeg as THREE.Bone).rotation.x = stride * .62
-      ;(model.userData.rightLeg as THREE.Bone).rotation.x = -stride * .62
-      ;(model.userData.leftKnee as THREE.Bone).rotation.x = Math.max(0, -stride) * .52
-      ;(model.userData.rightKnee as THREE.Bone).rotation.x = Math.max(0, stride) * .52
-      ;(model.userData.leftArm as THREE.Bone).rotation.x = -stride * .34
-      ;(model.userData.rightArm as THREE.Bone).rotation.x = stride * .34
-      ;(model.userData.leftElbow as THREE.Bone).rotation.x = .16 + Math.max(0, stride) * .22
-      ;(model.userData.rightElbow as THREE.Bone).rotation.x = .16 + Math.max(0, -stride) * .22
-      ;(model.userData.weapon as THREE.Bone).rotation.x = stride * .28
-      ;(model.userData.shield as THREE.Bone).rotation.z = .08 + stride * .045
-      ;(model.userData.head as THREE.Bone).rotation.x = Math.sin(elapsed * 8 + enemy.id) * .05
-      ;(model.userData.rig as THREE.Bone).rotation.z = stride * .018
-    }
+    if (mixer) { mixer.timeScale = gaitSpeed * 1.25; mixer.update(frameDelta) }
     const burnEffect = model.userData.burnEffect as THREE.Group | undefined
     if (burnEffect) {
       burnEffect.visible = enemy.burnRemaining > 0
@@ -1686,7 +1730,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
             Number(flame.userData.baseHeight) * (.72 + cycle * .62) * flicker,
             1,
           )
-          flame.material.opacity = Math.sin(cycle * Math.PI) * (.58 + index % 3 * .08)
+          flame.material.opacity = Math.sin(cycle * Math.PI) * (.76 + index % 3 * .08)
         })
       }
     }
@@ -1694,8 +1738,6 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     if (frostEffect) {
       frostEffect.visible = enemy.isSlowed
       if (frostEffect.visible) {
-        const ring = frostEffect.getObjectByName('enemyFrostRing')
-        if (ring) { ring.rotation.z = elapsed * 1.8 + enemy.id; ring.scale.setScalar(1 + Math.sin(elapsed * 7 + enemy.id) * .06) }
         frostEffect.children.forEach((crystal, index) => {
           if (crystal.name !== 'enemyFrostCrystal') return
           const angle = Number(crystal.userData.angle) + elapsed * (1.2 + index * .04)
@@ -1709,6 +1751,8 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     const health = model.userData.health as THREE.Mesh; const healthRatio = Math.max(.02, enemy.hp / enemy.maxHp); health.scale.x = healthRatio; health.position.x = -(1 - healthRatio) * .37
   }
 
+  // Projectile: nội suy theo bornAt + duration render; gameplay vẫn quyết định
+  // thời điểm trúng đích và sát thương trong composable.
   const projectileIds = new Set(props.projectiles.map(item => item.id))
   for (const [id, item] of projectileModels) if (!projectileIds.has(id)) { disposeObject(item.group, false); projectileModels.delete(id) }
   for (const projectile of props.projectiles) {
@@ -1750,6 +1794,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     }
   }
 
+  // Impact: giữ object sống đúng lifetime do gameplay cấp và animate theo tuổi.
   const impactIds = new Set(props.impacts.map(item => item.id))
   for (const [id, model] of impactModels) if (!impactIds.has(id)) { disposeObject(model); impactModels.delete(id) }
   for (const impact of props.impacts) {
@@ -1812,6 +1857,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   }
 }
 
+/** Nội suy camera về offset mặc định sau thao tác orbit để giữ góc nhìn gameplay. */
 function updateCameraReturn(frameDelta: number) {
   if (!cameraReturning || !camera || !controls) return
   const easing = 1 - Math.exp(-frameDelta * 6.5)
@@ -1831,12 +1877,18 @@ function updateCameraReturn(frameDelta: number) {
   }
 }
 
+/** Phân biệt drag với click và bắt đầu trả camera về vị trí chuẩn sau khi drag. */
 function handleCameraPointerUp(event: PointerEvent) {
   if (event.button !== 0 || pointerTravel <= 3 || !controls) return
   cameraReturning = true
   controls.enabled = false
 }
 
+// ===== Khởi tạo và hủy scene =================================================
+/**
+ * Khởi tạo renderer/camera/light/map, đăng ký input, tải GLB song song và bắt
+ * đầu animation loop. Mọi tài nguyên tạo ở đây được thu hồi trong onBeforeUnmount.
+ */
 async function createWorld() {
   const target = host.value
   if (!target) return
@@ -1847,7 +1899,6 @@ async function createWorld() {
     const cannonTemplate = createCannonTower(); cannonTemplate.add(groundShadow(.42)); applyTowerMetallicFinish(cannonTemplate, 0x776b5d); optimizeTemplateShadows(cannonTemplate); towerTemplates.set('cannon', cannonTemplate)
     const frostPlaceholder = new THREE.Group(); frostPlaceholder.userData.frostEffectCenterY = 1.77; frostPlaceholder.add(groundShadow(.42)); decorateFrostTower(frostPlaceholder); towerTemplates.set('frost', frostPlaceholder)
     towerTemplates.set('fire', createFireTowerTemplate(frostPlaceholder))
-    enemyTemplate = createGoblinTemplate(); optimizeTemplateShadows(enemyTemplate)
     projectileTemplates.set('archer', createProjectileTemplate('archer'))
     projectileTemplates.set('cannon', createProjectileTemplate('cannon'))
     projectileTemplates.set('frost', createProjectileTemplate('frost'))
@@ -1953,17 +2004,31 @@ async function createWorld() {
   }
 }
 
+// Chờ DOM có host trước khi tạo WebGL context; requestAnimationFrame giúp Nuxt
+// hoàn tất layout để camera/renderer lấy đúng kích thước ban đầu.
 onMounted(async () => {
   await nextTick()
   animationFrame = requestAnimationFrame(() => { void createWorld() })
 })
+// Thu hồi listener, animation frame, controls, skeleton, geometry, material,
+// texture và WebGL context để vào lại route không nhân đôi tài nguyên GPU.
 onBeforeUnmount(() => {
   window.removeEventListener('pointerup', handleCameraPointerUp)
   cancelAnimationFrame(animationFrame); resizeObserver?.disconnect(); controls?.dispose(); controls = null; tileMeshes.length = 0
   for (const model of enemyModels.values()) disposeEnemyModel(model)
   enemyModels.clear()
   towerUpgradeEffects.clear()
-  if (riggedEnemyTemplate) disposeObject(riggedEnemyTemplate)
+  const characterTemplates = new Set<THREE.Group>(bossEnemyTemplates.values())
+  if (riggedEnemyTemplate) characterTemplates.add(riggedEnemyTemplate)
+  characterTemplates.forEach(template => disposeObject(template))
+  bossEnemyTemplates.clear()
+  const equipmentTemplates = new Set<THREE.Object3D>()
+  if (enemySwordTemplate) equipmentTemplates.add(enemySwordTemplate)
+  if (enemyShieldTemplate) equipmentTemplates.add(enemyShieldTemplate)
+  bossEquipmentTemplates.forEach(({ right, left }) => { equipmentTemplates.add(right); equipmentTemplates.add(left) })
+  equipmentTemplates.forEach(template => disposeObject(template))
+  bossEquipmentTemplates.clear()
+  enemySwordTemplate = null; enemyShieldTemplate = null
   riggedEnemyTemplate = null; riggedEnemyAnimations = []
   scene?.traverse(child => { if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) { if (child instanceof THREE.Mesh) child.geometry.dispose(); const materials = Array.isArray(child.material) ? child.material : [child.material]; materials.forEach(material => material.dispose()) } })
   surfaceDetail?.dispose(); surfaceDetail = null; frostGlowTexture?.dispose(); frostGlowTexture = null; frostWaveTexture?.dispose(); frostWaveTexture = null; fireWaveTexture?.dispose(); fireWaveTexture = null; fireFlameTexture?.dispose(); fireFlameTexture = null; mysticParticles = null; renderer?.dispose(); renderer?.forceContextLoss(); renderer?.domElement.remove(); renderer = null; scene = null

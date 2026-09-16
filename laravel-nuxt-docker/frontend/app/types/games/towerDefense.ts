@@ -1,5 +1,6 @@
 export type TowerKind = 'archer' | 'cannon' | 'frost' | 'fire'
 export type EnemyKind = 'normal' | 'boss'
+export type BossClass = 'barbarian' | 'knight' | 'mage' | 'ranger' | 'rogue'
 
 export interface GridPoint { x: number; y: number }
 
@@ -34,6 +35,7 @@ export interface Tower extends GridPoint {
 export interface Enemy {
   id: number
   kind: EnemyKind
+  bossClass?: BossClass
   lane: 0 | 1
   progress: number
   hp: number

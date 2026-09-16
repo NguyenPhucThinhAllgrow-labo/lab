@@ -8,6 +8,7 @@ useHead({
   meta: [{ name: 'description', content: 'Xây dựng phòng tuyến và bảo vệ lâu đài trong game Tower Defense chiến thuật.' }],
 })
 
+// Composable giữ toàn bộ state và luật chơi; page chỉ điều phối HUD và thao tác UI.
 const {
   credits, castleHealth, wave, score, bestWave, phase, isPaused, speedMultiplier, selectedKind,
   selectedTowerId, selectedTower, towers, enemies, projectiles, impacts, pendingEnemies, nextWaveCountdown, message, canStartWave, canUndoSelectedPlacement,
@@ -15,6 +16,7 @@ const {
   startWave, resetGame, togglePause,
 } = useTowerDefense()
 
+// Dữ liệu trình bày của bảng chọn tháp.
 const towerKinds = Object.keys(TOWER_DEFINITIONS) as TowerKind[]
 const towerImages = {
   archer: '/images/games/tower-defense/archer-tower.png?v=20260914-2',
@@ -24,6 +26,8 @@ const towerImages = {
 }
 const phaseLabel = computed(() => isPaused.value ? 'Đã tạm dừng' : ({ ready: 'Sẵn sàng', wave: 'Đang giao chiến', between: 'Chuẩn bị đợt mới', gameover: 'Lâu đài thất thủ' })[phase.value])
 const enemiesRemaining = computed(() => enemies.value.length + pendingEnemies.value)
+
+// Trạng thái UI cục bộ không thuộc gameplay: popup, tooltip và màn hình loading.
 const selectedTowerAnchor = ref({ x: 0, y: 0, visible: false })
 const isMovePlacementMode = ref(false)
 const hoveredTowerKind = ref<TowerKind | null>(null)
@@ -33,6 +37,7 @@ const sceneReady = ref(false)
 const imagesReady = ref(false)
 const isGameReady = computed(() => sceneReady.value && imagesReady.value)
 
+/** Nạp trước ảnh thumbnail của tower để loader chỉ biến mất khi sidebar đã sẵn sàng. */
 function preloadTowerImages() {
   const sources = [...new Set(Object.values(towerImages))]
   return Promise.allSettled(sources.map(source => new Promise<void>((resolve) => {
@@ -42,6 +47,8 @@ function preloadTowerImages() {
   })))
 }
 
+// Giữ tooltip nằm trong viewport khi con trỏ ở sát cạnh màn hình.
+/** Tính vị trí tooltip theo con trỏ và ép nó nằm hoàn toàn trong viewport. */
 function positionTowerTooltip(clientX: number, clientY: number) {
   towerTooltipPosition.value = {
     x: Math.max(12, clientX - 244),
@@ -49,6 +56,7 @@ function positionTowerTooltip(clientX: number, clientY: number) {
   }
 }
 
+/** Mở tooltip cho chuột hoặc bàn phím; focus dùng bounding box thay cho tọa độ chuột. */
 function showTowerTooltip(kind: TowerKind, event: MouseEvent | FocusEvent) {
   hoveredTowerKind.value = kind
   if (event instanceof MouseEvent) {
@@ -59,14 +67,18 @@ function showTowerTooltip(kind: TowerKind, event: MouseEvent | FocusEvent) {
   positionTowerTooltip(bounds.left, bounds.top + bounds.height / 2)
 }
 
+/** Đóng tooltip khi pointer/focus rời khỏi nút tower. */
 function hideTowerTooltip() {
   hoveredTowerKind.value = null
 }
 
+/** Nhận tọa độ màn hình do scene chiếu từ vị trí 3D của tower đang chọn. */
 function updateSelectedTowerAnchor(x: number, y: number, visible: boolean) {
   selectedTowerAnchor.value = { x, y, visible }
 }
 
+// Scene phát tọa độ grid; composable quyết định chọn, đặt mới hay di chuyển tháp.
+/** Chuyển click trên grid cho gameplay và đồng bộ lại selection cục bộ của page. */
 function handleCellSelect(x: number, y: number) {
   const clickedTower = towers.value.some(tower => tower.x === x && tower.y === y)
   selectCell(x, y)
@@ -77,17 +89,20 @@ function handleCellSelect(x: number, y: number) {
   }
 }
 
+/** Hủy chế độ xây/di chuyển và đóng popup tower khi người chơi click nền. */
 function clearBoardSelection() {
   isMovePlacementMode.value = false
   selectedKind.value = null
   selectedTowerId.value = null
 }
 
+/** Cho phép tower đang chọn nhận ô đích mới trong giai đoạn chuẩn bị. */
 function beginTowerRelocation() {
   enableSelectedRelocation()
   isMovePlacementMode.value = true
 }
 
+/** Đóng popup khi click ngoài scene và ngoài chính popup, tránh chặn tương tác WebGL. */
 function closeTowerPopupOnOutsideClick(event: MouseEvent) {
   const target = event.target
   if (!(target instanceof Element)) return
@@ -96,6 +111,8 @@ function closeTowerPopupOnOutsideClick(event: MouseEvent) {
   selectedTowerId.value = null
 }
 
+// Escape và click nền dùng chung một quy tắc hủy selection ở cấp page.
+/** Cung cấp phím Escape để hủy nhanh mọi thao tác chọn đang dang dở. */
 function cancelSelectionOnEscape(event: KeyboardEvent) {
   if (event.key !== 'Escape') return
   if (selectedKind.value || selectedTowerId.value !== null) {
@@ -108,6 +125,7 @@ watch(phase, (currentPhase) => {
   if (currentPhase === 'wave' || currentPhase === 'gameover') isMovePlacementMode.value = false
 })
 
+// Chỉ bỏ loading sau khi cả WebGL scene lẫn ảnh dùng trong sidebar đã sẵn sàng.
 onMounted(async () => {
   document.addEventListener('click', closeTowerPopupOnOutsideClick)
   window.addEventListener('keydown', cancelSelectionOnEscape)
@@ -129,6 +147,7 @@ onBeforeUnmount(() => {
       <section class="defense-board-panel">
         <div class="defense-board-stage">
           <div class="defense-board has-webgl" role="grid" aria-label="Bản đồ phòng thủ 3D, 18 cột và 14 hàng">
+            <!-- Scene chỉ render; mọi state gameplay được truyền từ composable qua props. -->
             <ClientOnly>
               <TowerDefenseScene
                 :towers="towers"
@@ -148,15 +167,30 @@ onBeforeUnmount(() => {
               <template #fallback><div class="defense-scene-loading">Đang dựng chiến trường 3D…</div></template>
             </ClientOnly>
 
+            <!-- HUD trạng thái trận đấu phủ trên WebGL canvas. -->
             <header class="defense-game-hud">
               <div class="defense-game-title">
                 <span class="defense-eyebrow"><Crown /> BẢO VỆ VƯƠNG QUỐC</span>
                 <h1>Kingdom <em>Defense</em></h1>
               </div>
-              <div class="defense-status" :class="`is-${phase}`">
-                <i />
-                <span>{{ phaseLabel }}</span>
-                <b>{{ enemiesRemaining }} quân địch</b>
+              <div class="defense-status-controls">
+                <div class="defense-status" :class="`is-${phase}`">
+                  <i />
+                  <span>{{ phaseLabel }}</span>
+                  <b>{{ enemiesRemaining }} quân địch</b>
+                </div>
+                <button
+                  v-if="phase === 'wave'"
+                  type="button"
+                  class="defense-pause"
+                  :class="{ active: isPaused }"
+                  :title="isPaused ? 'Tiếp tục' : 'Tạm dừng'"
+                  @click="togglePause"
+                >
+                  <Play v-if="isPaused" />
+                  <Pause v-else />
+                  {{ isPaused ? 'Tiếp tục' : 'Tạm dừng' }}
+                </button>
               </div>
               <div class="defense-stats">
                 <article><HeartPulse /><div><small>LÂU ĐÀI</small><strong>{{ castleHealth }}<span>/20</span></strong></div></article>
@@ -198,6 +232,7 @@ onBeforeUnmount(() => {
               <button type="button" class="is-sell" @click="sellSelected">Bán · {{ Math.floor(selectedTower.invested * 0.7) }}</button>
             </section>
 
+            <!-- Sidebar xây tháp và điều khiển wave. -->
             <aside class="defense-sidebar">
               <section class="defense-build">
                 <header><small>THÁP PHÒNG THỦ</small><h2>Chọn công trình</h2></header>
@@ -230,13 +265,14 @@ onBeforeUnmount(() => {
 
             <footer class="defense-board-footer">
               <p><span>CHỈ HUY</span>{{ message }}</p>
-              <div><div class="defense-speed"><button v-if="phase === 'wave'" type="button" :class="{ active: isPaused }" :title="isPaused ? 'Tiếp tục' : 'Tạm dừng'" @click="togglePause"><Play v-if="isPaused" /><Pause v-else />{{ isPaused ? 'Tiếp tục' : 'Tạm dừng' }}</button><Gauge /><button type="button" :class="{ active: speedMultiplier === 1 }" @click="speedMultiplier = 1">1×</button><button type="button" :class="{ active: speedMultiplier === 2 }" @click="speedMultiplier = 2">2×</button></div></div>
+              <div><div class="defense-speed"><Gauge /><button type="button" :class="{ active: speedMultiplier === 1 }" @click="speedMultiplier = 1">1×</button><button type="button" :class="{ active: speedMultiplier === 2 }" @click="speedMultiplier = 2">2×</button><button type="button" :class="{ active: speedMultiplier === 4 }" @click="speedMultiplier = 4">4×</button></div></div>
             </footer>
           </div>
         </div>
       </section>
     </section>
 
+    <!-- Loading toàn màn hình tránh lộ scene đang nạp GLB/texture. -->
     <Transition name="defense-loader">
       <section v-if="!isGameReady" class="defense-loading-screen" role="status" aria-live="polite" aria-label="Đang tải trò chơi">
         <div class="defense-loading-screen__crest"><Crown /></div>

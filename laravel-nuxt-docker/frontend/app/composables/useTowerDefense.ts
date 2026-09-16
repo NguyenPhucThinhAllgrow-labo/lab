@@ -1,5 +1,6 @@
-import type { Enemy, GamePhase, GridPoint, Impact, Projectile, Tower, TowerDefinition, TowerKind } from '~/types/games/towerDefense'
+import type { BossClass, Enemy, GamePhase, GridPoint, Impact, Projectile, Tower, TowerDefinition, TowerKind } from '~/types/games/towerDefense'
 
+// ===== Cấu hình gameplay =====================================================
 const STORAGE_KEY = 'game-lab:kingdom-defense:best-wave'
 export const FROST_EFFECT_RADIUS = 2.1
 export const FROST_SLOW_DURATION_SECONDS = 1.4
@@ -14,6 +15,9 @@ const WAVE_BASE_REWARD = 35
 const WAVE_REWARD_GROWTH = 5
 const BOSS_HEALTH_MULTIPLIER = 7
 const BOSS_REWARD_MULTIPLIER = 6
+const BOSS_CLASSES: BossClass[] = ['barbarian', 'knight', 'mage', 'ranger', 'rogue']
+// Chế độ kiểm tra đội hình: wave đầu thả đủ năm class boss để duyệt model/vũ khí.
+const PREVIEW_ALL_BOSSES_ON_FIRST_WAVE = false
 const UPGRADE_COST_MULTIPLIERS = { 1: 0.85, 2: 1.25 } as const
 
 export const TOWER_DEFINITIONS: Record<TowerKind, TowerDefinition> = {
@@ -23,6 +27,10 @@ export const TOWER_DEFINITIONS: Record<TowerKind, TowerDefinition> = {
   fire: { kind: 'fire', name: 'Tháp lửa', description: 'Cầu lửa nổ lan và thiêu đốt trong 4 giây.', cost: 125, damage: 11, range: 2.65, fireRate: 1, burnDuration: 4, burnDamagePerSecond: 4.5, splashRadius: 1.15, splashDamageRatio: 0.58, color: '#dc2626' },
 }
 
+/**
+ * Chuyển các anchor vuông góc thành danh sách ô liên tiếp. Kết quả là nguồn dữ
+ * liệu chung cho di chuyển enemy, chặn ô xây dựng và dựng mặt đường Three.js.
+ */
 function expandOrthogonalPath(anchors: GridPoint[]) {
   const points: GridPoint[] = [{ ...anchors[0]! }]
   for (let anchorIndex = 0; anchorIndex < anchors.length - 1; anchorIndex++) {
@@ -54,6 +62,10 @@ export const DEFENSE_PATH_TILES: GridPoint[] = [...defensePathTileKeys].map((key
   return { x: x!, y: y! }
 })
 
+/**
+ * Nội suy vị trí logic trên lane. Đoạn thẳng dùng linear interpolation; vùng
+ * quanh góc cua dùng quadratic Bézier để model không đổi hướng đột ngột.
+ */
 export function defensePathPosition(progress: number, lane: 0 | 1 = 0): GridPoint {
   const path = DEFENSE_PATHS[lane]
   const index = progress < 0 ? 0 : Math.min(Math.floor(progress), path.length - 2)
@@ -93,7 +105,9 @@ export function defensePathPosition(progress: number, lane: 0 | 1 = 0): GridPoin
   return linearPosition
 }
 
+/** Cung cấp state, command và simulation loop độc lập với lớp render Three.js. */
 export function useTowerDefense() {
+  // ===== State công khai cho page và scene ==================================
   const credits = ref(STARTING_CREDITS)
   const castleHealth = ref(20)
   const wave = ref(0)
@@ -101,7 +115,7 @@ export function useTowerDefense() {
   const bestWave = ref(0)
   const phase = ref<GamePhase>('ready')
   const isPaused = ref(false)
-  const speedMultiplier = ref<1 | 2>(1)
+  const speedMultiplier = ref<1 | 2 | 4>(1)
   const selectedKind = ref<TowerKind | null>(null)
   const selectedTowerId = ref<number | null>(null)
   // Các object game được cập nhật liên tục. shallowRef tránh Vue tạo proxy sâu cho
@@ -120,11 +134,12 @@ export function useTowerDefense() {
   let nextImpactId = 1
   const pendingEnemiesByLane: [number, number] = [0, 0]
   const spawnCooldownByLane: [number, number] = [0, 0]
-  let pendingBoss: { lane: 0 | 1; kind: 'boss' } | null = null
+  let pendingBosses: Array<{ lane: 0 | 1; kind: 'boss'; bossClass: BossClass }> = []
   let timer: ReturnType<typeof setInterval> | null = null
   let elapsed = 0
   let lastTickAt = 0
 
+  // ===== Selection và quản lý vòng đời tháp ================================
   const pathKeys = new Set(DEFENSE_PATH_TILES.map(point => `${point.x}:${point.y}`))
   const selectedTower = computed(() => towers.value.find(tower => tower.id === selectedTowerId.value) ?? null)
   const canStartWave = computed(() => phase.value === 'ready' || phase.value === 'between')
@@ -136,9 +151,15 @@ export function useTowerDefense() {
     return Math.round(TOWER_DEFINITIONS[tower.kind].cost * multiplier / 5) * 5
   })
 
+  /** Kiểm tra ô có thuộc một trong hai lane và vì vậy bị cấm xây tower hay không. */
   function isPath(x: number, y: number) { return pathKeys.has(`${x}:${y}`) }
+  /** Tìm tower tại một ô grid, dùng cho cả selection và chống đặt chồng. */
   function towerAt(x: number, y: number) { return towers.value.find(tower => tower.x === x && tower.y === y) }
 
+  /**
+   * Xử lý click grid theo thứ tự ưu tiên: chọn tower có sẵn, đặt lại tower đang
+   * di chuyển, rồi mới xây tower mới sau khi kiểm tra path, phase và số vàng.
+   */
   function selectCell(x: number, y: number) {
     const existing = towerAt(x, y)
     if (existing) {
@@ -191,6 +212,7 @@ export function useTowerDefense() {
       : `${definition.name} đã được xây dựng và khóa vị trí vì round đang diễn ra.`
   }
 
+  /** Trừ vàng, tăng level/invested và phát tín hiệu shallowRef cho tower đã chọn. */
   function upgradeSelected() {
     const tower = selectedTower.value
     if (!tower || tower.level >= 3 || credits.value < upgradeCost.value) return
@@ -201,6 +223,7 @@ export function useTowerDefense() {
     message.value = `Đã nâng ${TOWER_DEFINITIONS[tower.kind].name} lên cấp ${tower.level}.`
   }
 
+  /** Mở khóa một lần chọn ô đích mới, chỉ cho phép giữa các wave. */
   function enableSelectedRelocation() {
     const tower = selectedTower.value
     if (!tower || !canStartWave.value) return
@@ -209,6 +232,7 @@ export function useTowerDefense() {
     message.value = `Chọn một ô trống để di chuyển ${TOWER_DEFINITIONS[tower.kind].name}.`
   }
 
+  /** Bán tower và hoàn 70% tổng vốn đầu tư, đồng thời dọn selection/undo state. */
   function sellSelected() {
     const tower = selectedTower.value
     if (!tower) return
@@ -219,6 +243,7 @@ export function useTowerDefense() {
     message.value = 'Đã bán tháp và hoàn lại 70% số vàng.'
   }
 
+  /** Hoàn tác tower vừa đặt trong phase chuẩn bị và hoàn lại toàn bộ invested. */
   function undoSelectedPlacement() {
     const tower = selectedTower.value
     if (!tower || !canUndoSelectedPlacement.value) return
@@ -229,6 +254,11 @@ export function useTowerDefense() {
     message.value = `Đã hoàn tác ${TOWER_DEFINITIONS[tower.kind].name} và hoàn lại ${tower.invested} vàng.`
   }
 
+  // ===== Wave, spawn và boss ===============================================
+  /**
+   * Khóa thao tác di chuyển, phân phối quân cho hai lane và lên lịch một boss
+   * class ngẫu nhiên ở mỗi wave chia hết cho 5.
+   */
   function startWave() {
     if (!canStartWave.value) return
     undoableTowerIds.value = []
@@ -240,8 +270,12 @@ export function useTowerDefense() {
     const waveEnemyCount = 10 + wave.value * 4
     pendingEnemiesByLane[0] = Math.ceil(waveEnemyCount / 2)
     pendingEnemiesByLane[1] = Math.floor(waveEnemyCount / 2)
-    pendingBoss = wave.value % 5 === 0 ? { lane: Math.random() < .5 ? 0 : 1, kind: 'boss' } : null
-    pendingEnemies.value = pendingEnemiesByLane[0] + pendingEnemiesByLane[1] + (pendingBoss ? 1 : 0)
+    pendingBosses = PREVIEW_ALL_BOSSES_ON_FIRST_WAVE && wave.value === 1
+      ? BOSS_CLASSES.map((bossClass, index) => ({ lane: index % 2 as 0 | 1, kind: 'boss' as const, bossClass }))
+      : wave.value % 5 === 0
+        ? [{ lane: Math.random() < .5 ? 0 : 1, kind: 'boss', bossClass: BOSS_CLASSES[Math.floor(Math.random() * BOSS_CLASSES.length)]! }]
+        : []
+    pendingEnemies.value = pendingEnemiesByLane[0] + pendingEnemiesByLane[1] + pendingBosses.length
     // Hai cổng sở hữu lịch spawn riêng; cổng dưới lệch nhịp ban đầu để hai luồng
     // không vô tình hoạt động như một hàng đợi chung được chia xen kẽ.
     spawnCooldownByLane[0] = 0
@@ -250,23 +284,30 @@ export function useTowerDefense() {
     message.value = `Đợt ${wave.value}: quân địch đang tiến vào vương quốc.`
   }
 
+  /** Tạo enemy kế tiếp của lane, ưu tiên boss đã lên lịch và áp multiplier riêng. */
   function spawnEnemy(lane: 0 | 1) {
-    const boss = pendingBoss?.lane === lane ? pendingBoss : null
+    const bossIndex = pendingBosses.findIndex(boss => boss.lane === lane)
+    const boss = bossIndex >= 0 ? pendingBosses[bossIndex]! : null
     if (!boss && pendingEnemiesByLane[lane] <= 0) return
     const maxHp = 70 + wave.value * 23 + Math.floor(wave.value * wave.value * 0.9)
     const id = nextEnemyId++
     const enemyHp = boss ? maxHp * BOSS_HEALTH_MULTIPLIER : maxHp
     const baseReward = 5 + Math.floor(wave.value * 0.65)
-    enemies.value.push({ id, kind: boss?.kind ?? 'normal', lane, progress: ENEMY_SPAWN_PROGRESS, hp: enemyHp, maxHp: enemyHp, speed: (0.72 + Math.min(wave.value * 0.025, 0.35)) * (boss ? .78 : 1), reward: baseReward * (boss ? BOSS_REWARD_MULTIPLIER : 1), slowUntil: 0, isSlowed: false, burnRemaining: 0, burnDamagePerSecond: 0 })
-    if (boss) pendingBoss = null
+    enemies.value.push({ id, kind: boss?.kind ?? 'normal', bossClass: boss?.bossClass, lane, progress: ENEMY_SPAWN_PROGRESS, hp: enemyHp, maxHp: enemyHp, speed: (0.72 + Math.min(wave.value * 0.025, 0.35)) * (boss ? .78 : 1), reward: baseReward * (boss ? BOSS_REWARD_MULTIPLIER : 1), slowUntil: 0, isSlowed: false, burnRemaining: 0, burnDamagePerSecond: 0 })
+    if (boss) pendingBosses.splice(bossIndex, 1)
     else pendingEnemiesByLane[lane]--
     pendingEnemies.value--
   }
 
+  /** Lấy tọa độ grid nội suy hiện tại của enemy từ progress và lane. */
   function positionFor(enemy: Enemy) {
     return defensePathPosition(enemy.progress, enemy.lane)
   }
 
+  // ===== Simulation chiến đấu ==============================================
+  // Một bước mô phỏng xử lý đạn đến đích, hiệu ứng trạng thái, di chuyển quái,
+  // chọn mục tiêu, tháp khai hỏa và điều kiện kết thúc wave/game.
+  /** Tiến simulation theo dt giây game-time đã bao gồm speedMultiplier. */
   function step(dt: number) {
     if (phase.value !== 'wave') return
     elapsed += dt
@@ -308,7 +349,7 @@ export function useTowerDefense() {
     const baseSpawnInterval = Math.max(0.45, 1.15 - wave.value * 0.025)
     for (const lane of [0, 1] as const) {
       spawnCooldownByLane[lane] -= dt
-      if (pendingEnemiesByLane[lane] <= 0 || spawnCooldownByLane[lane] > 0) continue
+      if ((pendingEnemiesByLane[lane] <= 0 && !pendingBosses.some(boss => boss.lane === lane)) || spawnCooldownByLane[lane] > 0) continue
       spawnEnemy(lane)
       spawnCooldownByLane[lane] = baseSpawnInterval * (lane === 0 ? .93 : 1.07)
     }
@@ -412,6 +453,9 @@ export function useTowerDefense() {
     triggerRef(impacts)
   }
 
+  // Đồng hồ thực được chia thành bước nhỏ để gameplay ổn định khi đổi tốc độ
+  // hoặc khi tab vừa quay lại sau thời gian bị trình duyệt throttle timer.
+  /** Đổi thời gian thực thành các bước simulation tối đa 100 ms để tránh tunneling. */
   function tick() {
     const now = Date.now()
     const realDelta = lastTickAt ? Math.max(0, (now - lastTickAt) / 1000) : 0
@@ -438,27 +482,34 @@ export function useTowerDefense() {
     }
   }
 
+  // ===== Lifecycle và điều khiển phiên chơi ================================
+  /** Khôi phục toàn bộ state phiên chơi nhưng giữ bestWave đã lưu ở localStorage. */
   function resetGame() {
     credits.value = STARTING_CREDITS; castleHealth.value = 20; wave.value = 0; score.value = 0
     phase.value = 'ready'; isPaused.value = false; towers.value = []; enemies.value = []; projectiles.value = []; impacts.value = []; pendingEnemies.value = 0; nextWaveCountdown.value = 0
     selectedKind.value = null; selectedTowerId.value = null; nextTowerId = 1; nextEnemyId = 1; nextProjectileId = 1; nextImpactId = 1; elapsed = 0
     undoableTowerIds.value = []
-    pendingEnemiesByLane[0] = 0; pendingEnemiesByLane[1] = 0; spawnCooldownByLane[0] = 0; spawnCooldownByLane[1] = 0; pendingBoss = null; lastTickAt = Date.now()
+    pendingEnemiesByLane[0] = 0; pendingEnemiesByLane[1] = 0; spawnCooldownByLane[0] = 0; spawnCooldownByLane[1] = 0; pendingBosses = []; lastTickAt = Date.now()
     message.value = 'Vương quốc đang chờ lệnh. Hãy xây dựng tuyến phòng thủ.'
   }
 
+  // Khởi động simulation timer ở client và chạy một tick bổ sung khi tab đổi
+  // visibility để bù chính xác khoảng thời gian trình duyệt đã throttle.
   onMounted(() => {
     bestWave.value = Number(localStorage.getItem(STORAGE_KEY) ?? 0)
     lastTickAt = Date.now()
     timer = setInterval(tick, 100)
     document.addEventListener('visibilitychange', tick)
   })
+  // Luôn dọn timer/listener để không còn simulation chạy sau khi rời route.
   onBeforeUnmount(() => {
     if (timer) clearInterval(timer)
     document.removeEventListener('visibilitychange', tick)
   })
 
+  /** Cho renderer biết tower còn nằm trong cửa sổ animation khai hỏa hay không. */
   function isTowerFiring(tower: Tower) { return tower.firingUntil > elapsed }
+  /** Tạm dừng/tiếp tục wave và reset mốc thời gian để không chạy bù lúc resume. */
   function togglePause() {
     if (phase.value !== 'wave') return
     isPaused.value = !isPaused.value
