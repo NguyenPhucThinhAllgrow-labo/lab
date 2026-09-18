@@ -2080,15 +2080,14 @@ async function loadRiggedEnemy() {
 async function loadFrostTower() {
   try {
     const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/frost-tower-3d.glb",
+      "/models/games/tower-defense/frost/level3.glb",
     );
     if (!scene || !host.value?.isConnected) return;
     const template = new THREE.Group();
     template.name = "FrostTower3D";
     template.userData.frostEffectCenterY = 1.77;
     const source = gltf.scene;
-    source.scale.set(1.5, 2.1, 1.5);
-    source.position.y = 1.053;
+    source.scale.set(2, 2, 2);
     source.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       if (!child.geometry.getAttribute("normal"))
@@ -3975,6 +3974,12 @@ async function createWorld() {
     renderer.render(scene, camera);
     emit("ready");
     animate();
+    console.table({
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      geometries: renderer.info.memory.geometries,
+      textures: renderer.info.memory.textures,
+    });
   } catch (error) {
     renderError.value =
       "Không thể khởi tạo đồ họa 3D. Hãy bật WebGL hoặc tăng tốc phần cứng trong trình duyệt.";
