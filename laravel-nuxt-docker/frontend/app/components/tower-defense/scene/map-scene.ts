@@ -1,0 +1,279 @@
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { mapPathPosition } from "~/games/tower-defense/maps";
+import type { TowerDefenseMapDefinition } from "~/types/games/towerDefense";
+
+export interface TowerDefenseMapScene {
+  tileMeshes: THREE.Mesh[];
+  particles: THREE.Points;
+}
+
+/** Đổi tọa độ grid của một map sang hệ tọa độ world có tâm tại gốc scene. */
+export function mapWorldPosition(map: TowerDefenseMapDefinition, x: number, y: number) {
+  return new THREE.Vector3(x - (map.columns - 1) / 2, 0, y - (map.rows - 1) / 2);
+}
+
+function createMapMesh(surfaceDetail: THREE.DataTexture | null, geometry: THREE.BufferGeometry, color: number, options: { roughness?: number; emissive?: number; flatShading?: boolean } = {}) {
+  const roughness = options.roughness ?? 0.8;
+  const item = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+    color,
+    roughness,
+    metalness: 0.03,
+    emissive: options.emissive ?? 0,
+    emissiveIntensity: options.emissive ? 1.35 : 1,
+    flatShading: options.flatShading ?? false,
+    bumpMap: roughness > 0.5 ? surfaceDetail : null,
+    bumpScale: roughness > 0.5 ? 0.012 : 0,
+  }));
+  item.castShadow = true;
+  item.receiveShadow = true;
+  return item;
+}
+
+function addFoundation(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null) {
+  // Nền/grid phải vượt xa vùng camera có thể pan/orbit. Kích thước 120 trước
+  // đây vẫn để lộ cạnh GridHelper như một đường chân trời ngang gần lâu đài.
+  const terrainSize = Math.max(2000, map.columns * 20, map.rows * 20);
+  const terrain = createMapMesh(surfaceDetail, new THREE.PlaneGeometry(terrainSize, terrainSize), map.theme.terrain, { roughness: 1 });
+  terrain.rotation.x = -Math.PI / 2;
+  terrain.position.y = -0.1;
+  terrain.castShadow = false;
+  const terrainGrid = new THREE.GridHelper(terrainSize, terrainSize, map.theme.gridCenter, map.theme.gridLine);
+  terrainGrid.position.y = -0.085;
+  const materials = Array.isArray(terrainGrid.material) ? terrainGrid.material : [terrainGrid.material];
+  for (const material of materials) {
+    material.transparent = true;
+    material.opacity = 0.34;
+    material.depthWrite = false;
+  }
+  scene.add(terrain, terrainGrid);
+}
+
+function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null) {
+  const pathKeys = new Set(map.pathTiles.map(point => `${point.x}:${point.y}`));
+  const tiles: THREE.Mesh[] = [];
+  for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.columns; x++) {
+    const isPath = pathKeys.has(`${x}:${y}`);
+    const tileTone = (x * 7 + y * 11) % 4 === 0 ? map.theme.tileColors[0] : (x + y) % 3 === 0 ? map.theme.tileColors[1] : map.theme.tileColors[2];
+    const tile = createMapMesh(surfaceDetail, new THREE.BoxGeometry(0.99, isPath ? 0.1 : 0.15, 0.99), isPath ? map.theme.path : tileTone, { roughness: 1 });
+    tile.position.copy(mapWorldPosition(map, x, y));
+    tile.position.y = isPath ? -0.025 : 0;
+    tile.userData.cell = { x, y };
+    tiles.push(tile);
+    scene.add(tile);
+  }
+  return tiles;
+}
+
+function addCobblestonePath(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null) {
+  const stonesPerTile = 9;
+  const geometry = new THREE.BoxGeometry(0.27, 0.025, 0.24);
+  const material = new THREE.MeshStandardMaterial({ color: map.theme.pathStone, roughness: 0.92, metalness: 0.04, bumpMap: surfaceDetail, bumpScale: 0.014 });
+  const stones = new THREE.InstancedMesh(geometry, material, map.pathTiles.length * stonesPerTile);
+  const dummy = new THREE.Object3D();
+  let instance = 0;
+  for (let pathIndex = 0; pathIndex < map.pathTiles.length; pathIndex++) {
+    const point = map.pathTiles[pathIndex]!;
+    for (let stoneIndex = 0; stoneIndex < stonesPerTile; stoneIndex++) {
+      const column = stoneIndex % 3;
+      const row = Math.floor(stoneIndex / 3);
+      const jitter = ((pathIndex * 17 + stoneIndex * 11) % 9 - 4) * 0.008;
+      dummy.position.copy(mapWorldPosition(map, point.x + (column - 1) * 0.3 + jitter, point.y + (row - 1) * 0.29 - jitter));
+      dummy.position.y = 0.0375;
+      dummy.rotation.set(0, ((pathIndex + stoneIndex) % 3 - 1) * 0.035, 0);
+      dummy.scale.set(0.96 + ((pathIndex + stoneIndex) % 3) * 0.025, 1, 0.96);
+      dummy.updateMatrix();
+      stones.setMatrixAt(instance++, dummy.matrix);
+    }
+  }
+  stones.castShadow = true;
+  stones.receiveShadow = true;
+  stones.instanceMatrix.needsUpdate = true;
+  scene.add(stones);
+}
+
+function addRouteLines(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
+  for (const lane of [0, 1] as const) {
+    const path = map.paths[lane];
+    const curve = new THREE.CurvePath<THREE.Vector3>();
+    const sampleStep = 0.08;
+    const lastProgress = path.length - 1;
+    const routeEndProgress = lastProgress + map.castle.pathEndOffset;
+    const at = (progress: number) => {
+      const position = mapPathPosition(map, progress, lane);
+      const world = mapWorldPosition(map, position.x, position.y);
+      world.y = 0.105;
+      return world;
+    };
+    let previous = at(-0.78);
+    for (let progress = -0.78 + sampleStep; progress < routeEndProgress; progress += sampleStep) {
+      const next = at(Math.min(progress, routeEndProgress));
+      curve.add(new THREE.LineCurve3(previous.clone(), next.clone()));
+      previous = next;
+    }
+    curve.add(new THREE.LineCurve3(previous.clone(), at(routeEndProgress)));
+    const segments = Math.ceil(routeEndProgress / sampleStep);
+    const glow = new THREE.Mesh(new THREE.TubeGeometry(curve, segments, 0.06, 8, false), new THREE.MeshBasicMaterial({ color: map.theme.routeColors[lane], transparent: true, opacity: 0.055, depthWrite: false, toneMapped: false }));
+    const line = new THREE.Mesh(new THREE.TubeGeometry(curve, segments, 0.018, 8, false), new THREE.MeshBasicMaterial({ color: map.theme.routeColors[lane], transparent: true, opacity: 0.28, depthWrite: false, toneMapped: false }));
+    glow.renderOrder = 3;
+    line.renderOrder = 4;
+    scene.add(glow, line);
+  }
+}
+
+function createPineTree(surfaceDetail: THREE.DataTexture | null) {
+  const tree = new THREE.Group();
+  const trunk = createMapMesh(surfaceDetail, new THREE.CylinderGeometry(0.1, 0.15, 0.85, 10), 0x493629, { roughness: 0.92 });
+  trunk.position.y = 0.4;
+  const layers = [
+    [0.58, 1.05, 0x29452f, 1.02],
+    [0.46, 0.9, 0x31563a, 1.48],
+    [0.32, 0.72, 0x3b6542, 1.87],
+  ] as const;
+  tree.add(trunk);
+  for (const [radius, height, color, y] of layers) {
+    const layer = createMapMesh(surfaceDetail, new THREE.ConeGeometry(radius, height, 12), color, { roughness: 0.9 });
+    layer.position.y = y;
+    tree.add(layer);
+  }
+  return tree;
+}
+
+function createCrystalCluster(surfaceDetail: THREE.DataTexture | null, color: number) {
+  const cluster = new THREE.Group();
+  const stone = createMapMesh(surfaceDetail, new THREE.DodecahedronGeometry(0.24, 0), 0x41494b, { roughness: 0.9, flatShading: true });
+  stone.position.y = 0.12;
+  stone.scale.set(1.5, 0.55, 1.15);
+  cluster.add(stone);
+  for (let index = 0; index < 3; index++) {
+    const crystal = createMapMesh(surfaceDetail, new THREE.OctahedronGeometry(0.15 - index * 0.025, 0), color, { emissive: color, roughness: 0.12, flatShading: true });
+    crystal.position.set((index - 1) * 0.14, 0.31 + index * 0.055, index % 2 ? -0.05 : 0.04);
+    crystal.scale.y = 1.8 - index * 0.2;
+    crystal.rotation.z = (index - 1) * -0.2;
+    cluster.add(crystal);
+  }
+  return cluster;
+}
+
+function createRuneStone(surfaceDetail: THREE.DataTexture | null) {
+  const stone = new THREE.Group();
+  const pillar = createMapMesh(surfaceDetail, new THREE.BoxGeometry(0.28, 0.82, 0.2, 2, 4, 2), 0x575c59, { roughness: 0.94 });
+  pillar.position.y = 0.36;
+  pillar.rotation.z = 0.035;
+  const rune = createMapMesh(surfaceDetail, new THREE.TorusGeometry(0.075, 0.014, 6, 16), 0x8bd8cb, { emissive: 0x397f77, roughness: 0.2 });
+  rune.position.set(0, 0.45, 0.11);
+  const mark = createMapMesh(surfaceDetail, new THREE.BoxGeometry(0.018, 0.22, 0.018), 0x8bd8cb, { emissive: 0x397f77, roughness: 0.2 });
+  mark.position.set(0, 0.45, 0.125);
+  stone.add(pillar, rune, mark);
+  return stone;
+}
+
+function addScenery(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null) {
+  const edgeX = map.columns / 2 + 0.45;
+  const edgeZ = map.rows / 2 - 0.75;
+  for (const definition of map.scenery.trees) {
+    const item = createPineTree(surfaceDetail);
+    item.position.set(definition.x * edgeX * 2, -0.08, definition.y * edgeZ * 2);
+    item.scale.setScalar(definition.scale);
+    scene.add(item);
+  }
+  for (const definition of map.scenery.crystals) {
+    const item = createCrystalCluster(surfaceDetail, definition.color);
+    item.position.set(definition.x * edgeX * 2, -0.03, definition.y * edgeZ * 2);
+    item.scale.setScalar(definition.scale ?? 1);
+    scene.add(item);
+  }
+  for (const definition of map.scenery.runes) {
+    const item = createRuneStone(surfaceDetail);
+    item.position.set(definition.x * edgeX * 2, -0.08, definition.y * edgeZ * 2);
+    item.rotation.y = definition.rotation;
+    scene.add(item);
+  }
+
+  const entry = new THREE.Group();
+  for (const z of [-0.42, 0.42]) {
+    const post = createMapMesh(surfaceDetail, new THREE.CylinderGeometry(0.11, 0.15, 0.9, 10), 0x68645b, { roughness: 0.92 });
+    post.position.set(0, 0.42, z);
+    const cap = createMapMesh(surfaceDetail, new THREE.ConeGeometry(0.18, 0.24, 10), 0x3f493d, { roughness: 0.78 });
+    cap.position.set(0, 1, z);
+    entry.add(post, cap);
+  }
+  const beam = createMapMesh(surfaceDetail, new THREE.BoxGeometry(0.16, 0.16, 1.02), 0x4a3729, { roughness: 0.82 });
+  beam.position.set(0, 0.88, 0);
+  entry.add(beam);
+  for (const path of map.paths) {
+    const routeEntry = entry.clone(true);
+    routeEntry.position.copy(mapWorldPosition(map, -0.78, path[0]!.y));
+    routeEntry.position.y = 0.02;
+    scene.add(routeEntry);
+  }
+}
+
+function addAtmosphere(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
+  const count = 90;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const baseY = new Float32Array(count);
+  let seed = 2173;
+  const gold = new THREE.Color(0xffd88a);
+  const blue = new THREE.Color(0x74dff2);
+  for (let index = 0; index < count; index++) {
+    seed = (seed * 16807) % 2147483647;
+    const x = (seed / 2147483647) * (map.columns + 0.4) - (map.columns + 0.4) / 2;
+    seed = (seed * 16807) % 2147483647;
+    const y = 0.35 + (seed / 2147483647) * 2.25;
+    seed = (seed * 16807) % 2147483647;
+    const z = (seed / 2147483647) * (map.rows + 0.1) - (map.rows + 0.1) / 2;
+    positions.set([x, y, z], index * 3);
+    baseY[index] = y;
+    const color = index % 3 === 0 ? blue : gold;
+    colors.set([color.r, color.g, color.b], index * 3);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  const particles = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.065, vertexColors: true, transparent: true, opacity: 0.72, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+  particles.userData.baseY = baseY;
+  particles.frustumCulled = false;
+  scene.add(particles);
+  return particles;
+}
+
+/** Dựng toàn bộ phần tĩnh của map và trả các object scene cần tương tác. */
+export function createTowerDefenseMapScene(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null): TowerDefenseMapScene {
+  addFoundation(scene, map, surfaceDetail);
+  const tileMeshes = addTiles(scene, map, surfaceDetail);
+  addCobblestonePath(scene, map, surfaceDetail);
+  addRouteLines(scene, map);
+  addScenery(scene, map, surfaceDetail);
+  const particles = addAtmosphere(scene, map);
+  return { tileMeshes, particles };
+}
+
+/** Tải và căn model lâu đài theo cấu hình của map, không phụ thuộc component. */
+export async function loadTowerDefenseCastle(map: TowerDefenseMapDefinition) {
+  const gltf = await new GLTFLoader().loadAsync(map.castle.modelUrl);
+  const source = gltf.scene;
+  const bounds = new THREE.Box3().setFromObject(source);
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  const largestHorizontalSide = Math.max(size.x, size.z, 0.001);
+  const modelScale = Math.min(map.castle.maxSize / Math.max(size.y, 0.001), map.castle.maxSize / largestHorizontalSide);
+  source.position.set(-center.x, -bounds.min.y, -center.z);
+  source.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+    child.geometry.computeBoundingSphere();
+    if ((child.geometry.boundingSphere?.radius ?? 0) < size.length() * 0.012) child.castShadow = false;
+  });
+  const container = new THREE.Group();
+  container.name = "castleModel";
+  container.add(source);
+  container.scale.setScalar(modelScale);
+  const castleCell = map.paths[0].at(-1)!;
+  container.position.copy(mapWorldPosition(map, map.columns + map.castle.offsetX, castleCell.y));
+  container.position.y = map.castle.offsetY;
+  container.rotation.y = map.castle.rotationY - Math.PI / 2;
+  return container;
+}

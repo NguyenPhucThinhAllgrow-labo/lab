@@ -6,218 +6,41 @@ import type {
   Impact,
   Projectile,
   Tower,
-  TowerDefinition,
   TowerKind,
 } from "~/types/games/towerDefense";
+import {
+  BETWEEN_WAVE_DELAY_SECONDS,
+  BOSS_CLASSES,
+  BOSS_HEALTH_MULTIPLIER,
+  BOSS_REWARD_MULTIPLIER,
+  ENEMY_HIT_RADIUS,
+  ENEMY_SPAWN_PROGRESS,
+  FROST_EFFECT_RADIUS,
+  FROST_SLOW_DURATION_SECONDS,
+  MAX_TOWER_COUNT,
+  MAX_TOWER_LEVEL,
+  MAX_SIMULATION_STEPS_PER_TICK,
+  MAX_TICK_BACKLOG_SECONDS,
+  PREVIEW_ALL_BOSSES_ON_FIRST_WAVE,
+  STARTING_CREDITS,
+  TOWER_DEFINITIONS,
+  TOWER_DEFENSE_STORAGE_KEY,
+  TOWER_RANGE_LEVEL_BONUS,
+  UPGRADE_COST_MULTIPLIERS,
+  WATER_SLOW_DURATION_SECONDS,
+  WAVE_BASE_REWARD,
+  WAVE_REWARD_GROWTH,
+} from "~/games/tower-defense/gameplay-config";
+import { DEFAULT_TOWER_DEFENSE_MAP_ID, getTowerDefenseMap, mapPathPosition } from "~/games/tower-defense/maps";
 
-// ===== Cấu hình gameplay =====================================================
-const STORAGE_KEY = "game-lab:kingdom-defense:best-wave";
-export const FROST_EFFECT_RADIUS = 2.1;
-export const FROST_SLOW_DURATION_SECONDS = 1.4;
-export const WATER_SLOW_DURATION_SECONDS = 2;
-export const DEFENSE_GRID_COLUMNS = 18;
-export const DEFENSE_GRID_ROWS = 14;
-export const MAX_TOWER_COUNT = 12;
-export const MAX_TOWER_LEVEL = 3;
-export const TOWER_RANGE_LEVEL_BONUS = 0.22;
-const ENEMY_HIT_RADIUS = 0.28;
-const ENEMY_SPAWN_PROGRESS = -0.85;
-const BETWEEN_WAVE_DELAY_SECONDS = 30;
-const STARTING_CREDITS = 500;
-const WAVE_BASE_REWARD = 30;
-const WAVE_REWARD_GROWTH = 4;
-const BOSS_HEALTH_MULTIPLIER = 5.5;
-const BOSS_REWARD_MULTIPLIER = 5;
-const BOSS_CLASSES: BossClass[] = [
-  "barbarian",
-  "knight",
-  "mage",
-  "ranger",
-  "rogue",
-];
-// Chế độ kiểm tra đội hình: wave đầu thả đủ năm class boss để duyệt model/vũ khí.
-const PREVIEW_ALL_BOSSES_ON_FIRST_WAVE = false;
-const UPGRADE_COST_MULTIPLIERS = { 1: 0.75, 2: 1.1 } as const;
-
-export const TOWER_DEFINITIONS: Record<TowerKind, TowerDefinition> = {
-  archer: {
-    kind: "archer",
-    name: "Tháp cung",
-    description: "Tầm xa, sát thương ổn định.",
-    cost: 90,
-    damage: 10,
-    range: 3.4,
-    fireRate: 0.75,
-    color: "#65a30d",
-  },
-  cannon: {
-    kind: "cannon",
-    name: "Tháp pháo",
-    description: "Uy lực lớn, nổ lan quanh mục tiêu.",
-    cost: 145,
-    damage: 34,
-    range: 2.7,
-    fireRate: 1.45,
-    splashRadius: 0.9,
-    splashDamageRatio: 0.45,
-    color: "#d97706",
-  },
-  frost: {
-    kind: "frost",
-    name: "Tháp băng",
-    description: "Đóng băng hoàn toàn kẻ địch trong vùng.",
-    cost: 120,
-    damage: 0,
-    range: FROST_EFFECT_RADIUS,
-    fireRate: 2.6,
-    color: "#0891b2",
-  },
-  fire: {
-    kind: "fire",
-    name: "Tháp lửa",
-    description: "Cầu lửa nổ lan và thiêu đốt trong 4 giây.",
-    cost: 150,
-    damage: 10,
-    range: 2.7,
-    fireRate: 1.1,
-    burnDuration: 4,
-    burnDamagePerSecond: 4,
-    splashRadius: 1.05,
-    splashDamageRatio: 0.55,
-    color: "#dc2626",
-  },
-  thunder: {
-    kind: "thunder",
-    name: "Tháp sét",
-    description: "Tia điện liên tục, nối chuỗi qua nhiều mục tiêu.",
-    cost: 175,
-    damage: 16,
-    range: 3.05,
-    fireRate: 0,
-    color: "#7c3aed",
-  },
-  water: {
-    kind: "water",
-    name: "Tháp nước",
-    description: "Phun dòng nước gây sát thương và làm chậm.",
-    cost: 135,
-    damage: 12,
-    range: 2.85,
-    fireRate: 0.85,
-    slow: 0.25,
-    slowDuration: WATER_SLOW_DURATION_SECONDS,
-    color: "#0284c7",
-  },
-};
-
-/**
- * Chuyển các anchor vuông góc thành danh sách ô liên tiếp. Kết quả là nguồn dữ
- * liệu chung cho di chuyển enemy, chặn ô xây dựng và dựng mặt đường Three.js.
- */
-function expandOrthogonalPath(anchors: GridPoint[]) {
-  const points: GridPoint[] = [{ ...anchors[0]! }];
-  for (let anchorIndex = 0; anchorIndex < anchors.length - 1; anchorIndex++) {
-    const from = anchors[anchorIndex]!;
-    const to = anchors[anchorIndex + 1]!;
-    const stepX = Math.sign(to.x - from.x);
-    const stepY = Math.sign(to.y - from.y);
-    const distance = Math.abs(to.x - from.x) + Math.abs(to.y - from.y);
-    for (let step = 1; step <= distance; step++)
-      points.push({ x: from.x + stepX * step, y: from.y + stepY * step });
-  }
-  return points;
-}
-
-export const DEFENSE_PATHS: [GridPoint[], GridPoint[]] = [
-  expandOrthogonalPath([
-    { x: 0, y: 2 },
-    { x: 4, y: 2 },
-    { x: 4, y: 6 },
-    { x: 10, y: 6 },
-    { x: 10, y: 3 },
-    { x: 17, y: 3 },
-  ]),
-  expandOrthogonalPath([
-    { x: 0, y: 11 },
-    { x: 6, y: 11 },
-    { x: 6, y: 8 },
-    { x: 13, y: 8 },
-    { x: 13, y: 3 },
-    { x: 17, y: 3 },
-  ]),
-];
-export const DEFENSE_PATH = DEFENSE_PATHS[0];
-// Stop at the front of the gate. The enemy model has a visible body radius, so
-// letting its centre travel farther makes its face clip through the castle wall.
-const castleGateProgress = (lane: 0 | 1) => DEFENSE_PATHS[lane].length - 1.7;
-
-const defensePathTileKeys = new Set<string>();
-for (const path of DEFENSE_PATHS) {
-  for (const point of path) defensePathTileKeys.add(`${point.x}:${point.y}`);
-}
-export const DEFENSE_PATH_TILES: GridPoint[] = [...defensePathTileKeys].map(
-  (key) => {
-    const [x, y] = key.split(":").map(Number);
-    return { x: x!, y: y! };
-  },
-);
-
-/**
- * Nội suy vị trí logic trên lane. Đoạn thẳng dùng linear interpolation; vùng
- * quanh góc cua dùng quadratic Bézier để model không đổi hướng đột ngột.
- */
-export function defensePathPosition(
-  progress: number,
-  lane: 0 | 1 = 0,
-): GridPoint {
-  const path = DEFENSE_PATHS[lane];
-  const index =
-    progress < 0 ? 0 : Math.min(Math.floor(progress), path.length - 2);
-  const ratio = progress < 0 ? progress : progress - index;
-  const from = path[index]!;
-  const to = path[index + 1]!;
-  const linearPosition = {
-    x: from.x + (to.x - from.x) * ratio,
-    y: from.y + (to.y - from.y) * ratio,
-  };
-
-  if (progress < 0) return linearPosition;
-  const cornerRadius = 0.32;
-  for (let cornerIndex = 1; cornerIndex < path.length - 1; cornerIndex++) {
-    if (Math.abs(progress - cornerIndex) > cornerRadius) continue;
-    const previous = path[cornerIndex - 1]!;
-    const corner = path[cornerIndex]!;
-    const next = path[cornerIndex + 1]!;
-    if ((previous.x === corner.x) === (corner.x === next.x)) continue;
-
-    const start = {
-      x: corner.x + (previous.x - corner.x) * cornerRadius,
-      y: corner.y + (previous.y - corner.y) * cornerRadius,
-    };
-    const end = {
-      x: corner.x + (next.x - corner.x) * cornerRadius,
-      y: corner.y + (next.y - corner.y) * cornerRadius,
-    };
-    const turnProgress =
-      (progress - (cornerIndex - cornerRadius)) / (cornerRadius * 2);
-    const inverse = 1 - turnProgress;
-    return {
-      x:
-        inverse * inverse * start.x +
-        2 * inverse * turnProgress * corner.x +
-        turnProgress * turnProgress * end.x,
-      y:
-        inverse * inverse * start.y +
-        2 * inverse * turnProgress * corner.y +
-        turnProgress * turnProgress * end.y,
-    };
-  }
-
-  return linearPosition;
-}
+export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_COUNT, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS } from "~/games/tower-defense/gameplay-config";
 
 /** Cung cấp state, command và simulation loop độc lập với lớp render Three.js. */
-export function useTowerDefense() {
+export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
+  const map = getTowerDefenseMap(mapId);
+  const storageKey = `${TOWER_DEFENSE_STORAGE_KEY}:${map.id}`;
+  const castleGateProgress = (lane: 0 | 1) =>
+    map.paths[lane].length - 1 + map.castle.pathEndOffset;
   // ===== State công khai cho page và scene ==================================
   const credits = ref(STARTING_CREDITS);
   const castleHealth = ref(20);
@@ -256,7 +79,7 @@ export function useTowerDefense() {
 
   // ===== Selection và quản lý vòng đời tháp ================================
   const pathKeys = new Set(
-    DEFENSE_PATH_TILES.map((point) => `${point.x}:${point.y}`),
+    map.pathTiles.map((point) => `${point.x}:${point.y}`),
   );
   const selectedTower = computed(
     () =>
@@ -499,7 +322,7 @@ export function useTowerDefense() {
 
   /** Lấy tọa độ grid nội suy hiện tại của enemy từ progress và lane. */
   function positionFor(enemy: Enemy) {
-    return defensePathPosition(enemy.progress, enemy.lane);
+    return mapPathPosition(map, enemy.progress, enemy.lane);
   }
 
   // ===== Simulation chiến đấu ==============================================
@@ -509,20 +332,17 @@ export function useTowerDefense() {
   function step(dt: number) {
     if (phase.value !== "wave") return;
     elapsed += dt;
+    const enemyById = new Map(enemies.value.map((enemy) => [enemy.id, enemy]));
     const arrived: Projectile[] = [];
     projectiles.value = projectiles.value.filter((projectile) => {
-      const target = enemies.value.find(
-        (enemy) => enemy.id === projectile.targetId,
-      );
+      const target = enemyById.get(projectile.targetId);
       if (target) projectile.to = positionFor(target);
       projectile.life -= dt;
       if (projectile.life <= 0) arrived.push(projectile);
       return projectile.life > 0 && Boolean(target);
     });
     for (const projectile of arrived) {
-      const target = enemies.value.find(
-        (enemy) => enemy.id === projectile.targetId,
-      );
+      const target = enemyById.get(projectile.targetId);
       if (!target) continue;
       const position = positionFor(target);
       const affectedEnemies = projectile.splashRadius
@@ -759,7 +579,7 @@ export function useTowerDefense() {
       projectiles.value = [];
       impacts.value = [];
       bestWave.value = Math.max(bestWave.value, wave.value);
-      localStorage.setItem(STORAGE_KEY, String(bestWave.value));
+      localStorage.setItem(storageKey, String(bestWave.value));
       message.value = "Lâu đài đã thất thủ. Hãy tập hợp quân đội và thử lại.";
     } else if (pendingEnemies.value === 0 && enemies.value.length === 0) {
       phase.value = "between";
@@ -776,20 +596,21 @@ export function useTowerDefense() {
     triggerRef(impacts);
   }
 
-  // Đồng hồ thực được chia thành bước nhỏ để gameplay ổn định khi đổi tốc độ
-  // hoặc khi tab vừa quay lại sau thời gian bị trình duyệt throttle timer.
-  /** Đổi thời gian thực thành các bước simulation tối đa 100 ms để tránh tunneling. */
+  // Đồng hồ thực được chia thành bước nhỏ để gameplay ổn định khi đổi tốc độ.
+  // Backlog bị giới hạn để một timer trễ không khóa main thread vì chạy bù dài.
+  /** Đổi thời gian thực thành các bước simulation tối đa 100 ms có giới hạn. */
   function tick() {
     const now = Date.now();
     const realDelta = lastTickAt ? Math.max(0, (now - lastTickAt) / 1000) : 0;
     lastTickAt = now;
-    if (isPaused.value) return;
+    if (isPaused.value || document.hidden) return;
 
-    // Trình duyệt có thể giảm tần suất timer ở tab nền. Chạy bù theo các bước nhỏ
-    // giúp mô phỏng vẫn đúng mà quái và đạn không nhảy xuyên mục tiêu. Thời gian
-    // dư tiếp tục đi qua giai đoạn chuẩn bị và các round kế tiếp.
-    let remainingRealTime = realDelta;
-    while (remainingRealTime > 0) {
+    // Chỉ bù một cửa sổ ngắn. Phần thời gian tab bị ẩn hoặc main thread bị treo
+    // lâu được bỏ qua để tránh vòng lặp hàng nghìn bước khi quay lại game.
+    let remainingRealTime = Math.min(realDelta, MAX_TICK_BACKLOG_SECONDS);
+    let simulationSteps = 0;
+    while (remainingRealTime > 0 && simulationSteps < MAX_SIMULATION_STEPS_PER_TICK) {
+      simulationSteps++;
       if (phase.value === "between") {
         const consumed = Math.min(remainingRealTime, nextWaveCountdown.value);
         nextWaveCountdown.value = Math.max(
@@ -840,19 +661,24 @@ export function useTowerDefense() {
     message.value = "Vương quốc đang chờ lệnh. Hãy xây dựng tuyến phòng thủ.";
   }
 
-  // Khởi động simulation timer ở client và chạy một tick bổ sung khi tab đổi
-  // visibility để bù chính xác khoảng thời gian trình duyệt đã throttle.
+  // Khởi động simulation timer ở client; khi visibility đổi chỉ reset đồng hồ,
+  // không chạy bù khoảng thời gian tab nằm ở nền.
   onMounted(() => {
-    bestWave.value = Number(localStorage.getItem(STORAGE_KEY) ?? 0);
+    bestWave.value = Number(localStorage.getItem(storageKey) ?? 0);
     lastTickAt = Date.now();
     timer = setInterval(tick, 100);
-    document.addEventListener("visibilitychange", tick);
+    document.addEventListener("visibilitychange", resetTickClock);
   });
   // Luôn dọn timer/listener để không còn simulation chạy sau khi rời route.
   onBeforeUnmount(() => {
     if (timer) clearInterval(timer);
-    document.removeEventListener("visibilitychange", tick);
+    document.removeEventListener("visibilitychange", resetTickClock);
   });
+
+  /** Bỏ backlog của tab nền; game tiếp tục từ thời điểm người chơi quay lại. */
+  function resetTickClock() {
+    lastTickAt = Date.now();
+  }
 
   /** Cho renderer biết tower còn nằm trong cửa sổ animation khai hỏa hay không. */
   function isTowerFiring(tower: Tower) {
@@ -869,6 +695,7 @@ export function useTowerDefense() {
   }
 
   return {
+    map,
     credits,
     castleHealth,
     wave,

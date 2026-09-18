@@ -28,6 +28,7 @@ import {
   WATER_SLOW_DURATION_SECONDS,
   useTowerDefense,
 } from "~/composables/useTowerDefense";
+import { TOWER_DEFENSE_MAPS } from "~/games/tower-defense/maps";
 import type { TowerKind } from "~/types/games/towerDefense";
 
 useHead({
@@ -41,8 +42,13 @@ useHead({
   ],
 });
 
+const route = useRoute();
+const requestedMapId = typeof route.query.map === "string" ? route.query.map : undefined;
+const availableMaps = Object.values(TOWER_DEFENSE_MAPS);
+
 // Composable giữ toàn bộ state và luật chơi; page chỉ điều phối HUD và thao tác UI.
 const {
+  map,
   credits,
   castleHealth,
   wave,
@@ -72,7 +78,15 @@ const {
   startWave,
   resetGame,
   togglePause,
-} = useTowerDefense();
+} = useTowerDefense(requestedMapId);
+
+/** Đổi map bằng URL để khởi tạo lại sạch toàn bộ simulation và WebGL resources. */
+function selectMap(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  const url = new URL(window.location.href);
+  url.searchParams.set("map", target.value);
+  window.location.assign(url);
+}
 
 // Dữ liệu trình bày của bảng chọn tháp.
 const towerKinds = Object.keys(TOWER_DEFINITIONS) as TowerKind[];
@@ -212,11 +226,12 @@ onBeforeUnmount(() => {
           <div
             class="defense-board has-webgl"
             role="grid"
-            aria-label="Bản đồ phòng thủ 3D, 18 cột và 14 hàng"
+            :aria-label="`Bản đồ ${map.name}, ${map.columns} cột và ${map.rows} hàng`"
           >
             <!-- Scene chỉ render; mọi state gameplay được truyền từ composable qua props. -->
             <ClientOnly>
               <TowerDefenseScene
+                :map="map"
                 :towers="towers"
                 :enemies="enemies"
                 :projectiles="projectiles"
@@ -453,6 +468,12 @@ onBeforeUnmount(() => {
 
             <!-- Sidebar xây tháp và điều khiển wave. -->
             <aside class="defense-sidebar">
+              <label v-if="availableMaps.length > 1" class="defense-map-picker">
+                <span>BẢN ĐỒ</span>
+                <select :value="map.id" @change="selectMap">
+                  <option v-for="item in availableMaps" :key="item.id" :value="item.id">{{ item.name }}</option>
+                </select>
+              </label>
               <section class="defense-build">
                 <header>
                   <div>

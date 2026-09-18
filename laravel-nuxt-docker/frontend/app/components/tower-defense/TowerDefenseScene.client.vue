@@ -4,15 +4,15 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import {
-  DEFENSE_GRID_COLUMNS,
-  DEFENSE_GRID_ROWS,
-  DEFENSE_PATH,
-  DEFENSE_PATHS,
-  DEFENSE_PATH_TILES,
   TOWER_DEFINITIONS,
   TOWER_RANGE_LEVEL_BONUS,
-  defensePathPosition,
 } from "~/composables/useTowerDefense";
+import { mapPathPosition } from "~/games/tower-defense/maps";
+import {
+  createTowerDefenseMapScene,
+  loadTowerDefenseCastle,
+  mapWorldPosition,
+} from "~/components/tower-defense/scene/map-scene";
 import type {
   BossClass,
   Enemy,
@@ -20,10 +20,12 @@ import type {
   Impact,
   Projectile,
   Tower,
+  TowerDefenseMapDefinition,
   TowerKind,
 } from "~/types/games/towerDefense";
 
 const props = defineProps<{
+  map: TowerDefenseMapDefinition;
   towers: Tower[];
   enemies: Enemy[];
   projectiles: Projectile[];
@@ -34,6 +36,8 @@ const props = defineProps<{
   isPaused: boolean;
   speedMultiplier: 1 | 2 | 4;
 }>();
+const DEFENSE_GRID_ROWS = props.map.rows;
+const DEFENSE_PATH_TILES = props.map.pathTiles;
 const emit = defineEmits<{
   cellSelect: [x: number, y: number];
   backgroundSelect: [];
@@ -70,6 +74,7 @@ const towerUpgradeEffects = new Map<
   { group: THREE.Group; bornAt: number; kind: TowerKind }
 >();
 const enemyModels = new Map<number, THREE.Group>();
+const enemyModelPool = new Map<string, THREE.Group[]>();
 const projectileModels = new Map<
   number,
   { group: THREE.Group; bornAt: number }
@@ -95,8 +100,8 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const pointerStart = new THREE.Vector2();
 const pointerCurrent = new THREE.Vector2();
-const defaultCameraPosition = new THREE.Vector3(5.7, 12.5, 5.6);
-const defaultCameraTarget = new THREE.Vector3(1.3, 0, 0);
+const defaultCameraPosition = new THREE.Vector3(...props.map.camera.position);
+const defaultCameraTarget = new THREE.Vector3(...props.map.camera.target);
 const towerScreenPosition = new THREE.Vector3();
 const defensePathTileSet = new Set(
   DEFENSE_PATH_TILES.map((point) => `${point.x}:${point.y}`),
@@ -116,14 +121,10 @@ let performanceMode = false;
 // ===== Helpers tọa độ, geometry và giải phóng GPU ===========================
 /** Đặt tâm grid tại world origin và ánh xạ hàng gameplay sang trục Z của Three.js. */
 const worldPosition = (x: number, y: number) =>
-  new THREE.Vector3(
-    x - (DEFENSE_GRID_COLUMNS - 1) / 2,
-    0,
-    y - (DEFENSE_GRID_ROWS - 1) / 2,
-  );
+  mapWorldPosition(props.map, x, y);
 /** Đổi progress trên một lane gameplay thành Vector3 trong hệ tọa độ scene. */
 function pathPosition(progress: number, lane: 0 | 1 = 0) {
-  const position = defensePathPosition(progress, lane);
+  const position = mapPathPosition(props.map, progress, lane);
   return worldPosition(position.x, position.y);
 }
 /** Tạo bóng tròn giả nhẹ hơn shadow map để model luôn tách khỏi mặt đất. */
@@ -857,27 +858,65 @@ function decorateElementalTowerGlow(
     thunder: 0x9b7cff,
     water: 0x38bdf8,
   } as const;
-  const heights = { fire: 1.82, thunder: 1.82, water: 1.78 } as const;
+  const heights = { fire: 1.5, thunder: 1.45, water: 1.43 } as const;
+  const glowScales = { fire: 1.5, thunder: 0.98, water: 1.02 } as const;
   const effect = new THREE.Group();
   effect.name = "elementalTowerGlow";
   effect.userData.kind = kind;
   effect.position.y = heights[kind];
-  const glowMaterial = new THREE.SpriteMaterial({
+
+  // Hai lớp sprite additive tạo quầng rộng và lõi sáng rõ kể cả trên map tối.
+  const outerMaterial = new THREE.SpriteMaterial({
     map: getFrostGlowTexture(),
     color: colors[kind],
     transparent: true,
-    opacity: 0.68,
+    opacity: kind === "fire" ? 0.58 : 0.52,
     depthWrite: false,
     depthTest: false,
     blending: THREE.AdditiveBlending,
     toneMapped: false,
   });
-  const glow = new THREE.Sprite(glowMaterial);
-  glow.name = "elementalTowerGlowSprite";
-  glow.userData.baseScale = kind === "fire" ? 0.7 : 0.62;
-  glow.scale.setScalar(Number(glow.userData.baseScale));
-  glow.renderOrder = 8;
-  effect.add(glow);
+  const outerGlow = new THREE.Sprite(outerMaterial);
+  outerGlow.name = "elementalTowerGlowOuter";
+  outerGlow.scale.setScalar(glowScales[kind]);
+  outerGlow.renderOrder = 8;
+
+  const innerGlow = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: getFrostGlowTexture(),
+      color: colors[kind],
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+  );
+  innerGlow.name = "elementalTowerGlowInner";
+  innerGlow.scale.setScalar(glowScales[kind] * 0.58);
+  innerGlow.renderOrder = 9;
+
+  effect.add(outerGlow, innerGlow);
+
+  // Tăng emissive cho phần nửa trên của model để glow không chỉ là một sprite
+  // nổi bên ngoài mà còn phản ánh trực tiếp trên lõi/chi tiết của tháp.
+  group.updateMatrixWorld(true);
+  const towerBounds = new THREE.Box3().setFromObject(group);
+  const glowFloor = towerBounds.min.y + towerBounds.getSize(new THREE.Vector3()).y * 0.52;
+  const emissiveColor = new THREE.Color(colors[kind]).multiplyScalar(0.38);
+  group.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const childCenter = new THREE.Box3().setFromObject(child).getCenter(new THREE.Vector3());
+    if (childCenter.y < glowFloor) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    for (const material of materials) {
+      if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+      material.emissive.copy(emissiveColor);
+      material.emissiveIntensity = Math.max(material.emissiveIntensity, kind === "thunder" ? 1.75 : 1.5);
+      material.needsUpdate = true;
+    }
+  });
   group.add(effect);
 }
 
@@ -1778,7 +1817,20 @@ function addEnemyStatusBadges(group: THREE.Group) {
 
 /** Clone model theo bossClass, gắn cặp vũ khí vào socket và khởi chạy Walking_A. */
 function createEnemyModel(enemy: Enemy) {
-  console.log(enemy);
+  const poolKey = enemy.kind === "boss" ? `boss:${enemy.bossClass}` : "normal";
+  const pooledModel = enemyModelPool.get(poolKey)?.pop();
+  if (pooledModel) {
+    pooledModel.visible = true;
+    pooledModel.userData.observedProgress = Number.NaN;
+    pooledModel.userData.observedAt = visualNow;
+    pooledModel.userData.progressVelocity = enemy.speed;
+    pooledModel.userData.renderProgress = enemy.progress;
+    pooledModel.userData.hasFacingDirection = false;
+    const mixer = pooledModel.userData.mixer as THREE.AnimationMixer | undefined;
+    mixer?.setTime(0);
+    scene!.add(pooledModel);
+    return pooledModel;
+  }
   const characterTemplate =
     enemy.kind === "boss" && enemy.bossClass
       ? bossEnemyTemplates.get(enemy.bossClass)
@@ -1842,9 +1894,28 @@ function createEnemyModel(enemy: Enemy) {
   group.userData.mixer = mixer;
   group.userData.isSkinnedCharacter = true;
   group.userData.isBoss = enemy.kind === "boss";
+  group.userData.poolKey = poolKey;
   addEnemyStatusBadges(group);
   scene!.add(group);
   return group;
+}
+
+/**
+ * Đưa model đã rời trận về pool theo class. Skeleton, mixer và trang bị được giữ
+ * lại để lần spawn sau không phải clone GLB và tạo hàng loạt object mới.
+ */
+function recycleEnemyModel(model: THREE.Group) {
+  model.removeFromParent();
+  model.visible = false;
+  const poolKey = String(model.userData.poolKey ?? "normal");
+  const pool = enemyModelPool.get(poolKey) ?? [];
+  const poolLimit = poolKey === "normal" ? 24 : 3;
+  if (pool.length < poolLimit) {
+    pool.push(model);
+    enemyModelPool.set(poolKey, pool);
+    return;
+  }
+  disposeEnemyModel(model);
 }
 
 /** Dừng mixer, dispose skeleton/effect sở hữu riêng rồi gỡ enemy khỏi scene. */
@@ -2069,7 +2140,7 @@ async function loadFrostTower() {
 async function loadFireTower() {
   try {
     const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/fire-tower.glb",
+      "/models/games/tower-defense/fire/level1.glb",
     );
     if (!scene || !host.value?.isConnected) return;
     const template = new THREE.Group();
@@ -2129,7 +2200,7 @@ async function loadFireTower() {
     towerTemplates.set("fire", template);
   } catch (error) {
     console.warn(
-      "[Kingdom Defense] Không thể tải fire-tower.glb, dùng placeholder dự phòng.",
+      "[Kingdom Defense] Không thể tải fire, dùng placeholder dự phòng.",
       error,
     );
   }
@@ -2139,7 +2210,7 @@ async function loadFireTower() {
 async function loadThunderTower() {
   try {
     const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/thunder-tower.glb",
+      "/models/games/tower-defense/thunder/level1.glb",
     );
     if (!scene || !host.value?.isConnected) return;
     const template = new THREE.Group();
@@ -2210,7 +2281,7 @@ async function loadThunderTower() {
 async function loadWaterTower() {
   try {
     const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/water-tower.glb",
+      "/models/games/tower-defense/water/level1.glb",
     );
     if (!scene || !host.value?.isConnected) return;
     const template = new THREE.Group();
@@ -2745,356 +2816,20 @@ function createImpact(impact: Impact, now: number) {
   return group;
 }
 
-// ===== Mặt đất, đường đi, phong cảnh và lâu đài =============================
-/** Dựng nền grid, phân biệt ô đường đi và lưu tile để raycast thao tác xây tháp. */
-function createMapFoundation() {
-  const terrainSize = 120;
-  const terrain = mesh(
-    new THREE.PlaneGeometry(terrainSize, terrainSize),
-    0x31583a,
-    { roughness: 1 },
-  );
-  terrain.rotation.x = -Math.PI / 2;
-  terrain.position.y = -0.1;
-  terrain.castShadow = false;
-  terrain.receiveShadow = true;
-
-  const terrainGrid = new THREE.GridHelper(
-    terrainSize,
-    terrainSize,
-    0x223c29,
-    0x294b31,
-  );
-  terrainGrid.position.y = -0.085;
-  const gridMaterials = Array.isArray(terrainGrid.material)
-    ? terrainGrid.material
-    : [terrainGrid.material];
-  for (const material of gridMaterials) {
-    material.transparent = true;
-    material.opacity = 0.34;
-    material.depthWrite = false;
-  }
-  scene!.add(terrain, terrainGrid);
-}
-
-/** Rải phiến đá dọc hai lane dựa trên DEFENSE_PATHS dùng chung với gameplay. */
-function createCobblestonePath() {
-  const stonesPerTile = 9;
-  const geometry = new THREE.BoxGeometry(0.27, 0.025, 0.24);
-  const material = new THREE.MeshStandardMaterial({
-    color: 0x555d60,
-    roughness: 0.92,
-    metalness: 0.04,
-    bumpMap: surfaceDetail,
-    bumpScale: 0.014,
-  });
-  const stones = new THREE.InstancedMesh(
-    geometry,
-    material,
-    DEFENSE_PATH_TILES.length * stonesPerTile,
-  );
-  const dummy = new THREE.Object3D();
-  let instance = 0;
-  for (let pathIndex = 0; pathIndex < DEFENSE_PATH_TILES.length; pathIndex++) {
-    const point = DEFENSE_PATH_TILES[pathIndex]!;
-    for (let stoneIndex = 0; stoneIndex < stonesPerTile; stoneIndex++) {
-      const column = stoneIndex % 3;
-      const row = Math.floor(stoneIndex / 3);
-      const jitter = (((pathIndex * 17 + stoneIndex * 11) % 9) - 4) * 0.008;
-      dummy.position.copy(
-        worldPosition(
-          point.x + (column - 1) * 0.3 + jitter,
-          point.y + (row - 1) * 0.29 - jitter,
-        ),
-      );
-      dummy.position.y = 0.0375;
-      dummy.rotation.set(0, (((pathIndex + stoneIndex) % 3) - 1) * 0.035, 0);
-      dummy.scale.set(0.96 + ((pathIndex + stoneIndex) % 3) * 0.025, 1, 0.96);
-      dummy.updateMatrix();
-      stones.setMatrixAt(instance++, dummy.matrix);
-    }
-  }
-  stones.castShadow = true;
-  stones.receiveShadow = true;
-  stones.instanceMatrix.needsUpdate = true;
-  scene!.add(stones);
-}
-
-/** Vẽ đường chỉ dẫn mảnh trên lane để người chơi đọc hướng tiến quân. */
-function createEnemyRouteLines() {
-  const routeColors = [0xffc857, 0x67d5ff];
-
-  for (const lane of [0, 1] as const) {
-    const path = DEFENSE_PATHS[lane];
-    const curve = new THREE.CurvePath<THREE.Vector3>();
-    const sampleStep = 0.08;
-    const lastProgress = path.length - 1;
-    let previous = pathPosition(-0.78, lane);
-    previous.y = 0.105;
-
-    for (
-      let progress = -0.78 + sampleStep;
-      progress < lastProgress;
-      progress += sampleStep
-    ) {
-      const next = pathPosition(Math.min(progress, lastProgress), lane);
-      next.y = 0.105;
-      curve.add(new THREE.LineCurve3(previous.clone(), next.clone()));
-      previous = next;
-    }
-
-    const end = pathPosition(lastProgress, lane);
-    end.y = 0.105;
-    curve.add(new THREE.LineCurve3(previous.clone(), end));
-
-    const glow = new THREE.Mesh(
-      new THREE.TubeGeometry(
-        curve,
-        Math.ceil(lastProgress / sampleStep),
-        0.06,
-        8,
-        false,
-      ),
-      new THREE.MeshBasicMaterial({
-        color: routeColors[lane],
-        transparent: true,
-        opacity: 0.055,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    );
-    const line = new THREE.Mesh(
-      new THREE.TubeGeometry(
-        curve,
-        Math.ceil(lastProgress / sampleStep),
-        0.018,
-        8,
-        false,
-      ),
-      new THREE.MeshBasicMaterial({
-        color: routeColors[lane],
-        transparent: true,
-        opacity: 0.28,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    );
-    glow.renderOrder = 3;
-    line.renderOrder = 4;
-    scene!.add(glow, line);
-  }
-}
-
-/** Tạo cây thông low-poly trang trí tại tọa độ world cho trước. */
-function createPineTree(x: number, z: number, scale: number) {
-  const tree = new THREE.Group();
-  const trunk = mesh(
-    new THREE.CylinderGeometry(0.1, 0.15, 0.85, 10),
-    0x493629,
-    { roughness: 0.92 },
-  );
-  trunk.position.y = 0.4;
-  const lower = mesh(new THREE.ConeGeometry(0.58, 1.05, 12), 0x29452f, {
-    roughness: 0.9,
-  });
-  lower.position.y = 1.02;
-  const middle = mesh(new THREE.ConeGeometry(0.46, 0.9, 12), 0x31563a, {
-    roughness: 0.9,
-  });
-  middle.position.y = 1.48;
-  const top = mesh(new THREE.ConeGeometry(0.32, 0.72, 12), 0x3b6542, {
-    roughness: 0.9,
-  });
-  top.position.y = 1.87;
-  tree.add(trunk, lower, middle, top);
-  tree.position.set(x, -0.08, z);
-  tree.scale.setScalar(scale);
-  scene!.add(tree);
-}
-
-/** Tạo cụm tinh thể phát sáng trang trí và gom thành một Group dễ bố trí. */
-function createCrystalCluster(x: number, z: number, color: number, scale = 1) {
-  const cluster = new THREE.Group();
-  const stone = mesh(new THREE.DodecahedronGeometry(0.24, 0), 0x41494b, {
-    roughness: 0.9,
-    flatShading: true,
-  });
-  stone.position.y = 0.12;
-  stone.scale.set(1.5, 0.55, 1.15);
-  cluster.add(stone);
-  for (let index = 0; index < 3; index++) {
-    const crystal = mesh(
-      new THREE.OctahedronGeometry(0.15 - index * 0.025, 0),
-      color,
-      { emissive: color, roughness: 0.12, flatShading: true },
-    );
-    crystal.position.set(
-      (index - 1) * 0.14,
-      0.31 + index * 0.055,
-      index % 2 ? -0.05 : 0.04,
-    );
-    crystal.scale.y = 1.8 - index * 0.2;
-    crystal.rotation.z = (index - 1) * -0.2;
-    cluster.add(crystal);
-  }
-  cluster.position.set(x, -0.03, z);
-  cluster.scale.setScalar(scale);
-  scene!.add(cluster);
-}
-
-/** Tạo bia rune cùng ký hiệu emissive, xoay theo bố cục cảnh. */
-function createRuneStone(x: number, z: number, rotation: number) {
-  const stone = new THREE.Group();
-  const pillar = mesh(
-    new THREE.BoxGeometry(0.28, 0.82, 0.2, 2, 4, 2),
-    0x575c59,
-    { roughness: 0.94 },
-  );
-  pillar.position.y = 0.36;
-  pillar.rotation.z = 0.035;
-  const rune = mesh(new THREE.TorusGeometry(0.075, 0.014, 6, 16), 0x8bd8cb, {
-    emissive: 0x397f77,
-    roughness: 0.2,
-  });
-  rune.position.set(0, 0.45, 0.11);
-  const mark = mesh(new THREE.BoxGeometry(0.018, 0.22, 0.018), 0x8bd8cb, {
-    emissive: 0x397f77,
-    roughness: 0.2,
-  });
-  mark.position.set(0, 0.45, 0.125);
-  stone.add(pillar, rune, mark);
-  stone.position.set(x, -0.08, z);
-  stone.rotation.y = rotation;
-  scene!.add(stone);
-}
-
-/** Tạo particle field nền để tăng chiều sâu mà không tham gia raycast/gameplay. */
-function createMysticAtmosphere() {
-  const count = 90;
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const baseY = new Float32Array(count);
-  let seed = 2173;
-  const gold = new THREE.Color(0xffd88a);
-  const blue = new THREE.Color(0x74dff2);
-  for (let index = 0; index < count; index++) {
-    seed = (seed * 16807) % 2147483647;
-    const x =
-      (seed / 2147483647) * (DEFENSE_GRID_COLUMNS + 0.4) -
-      (DEFENSE_GRID_COLUMNS + 0.4) / 2;
-    seed = (seed * 16807) % 2147483647;
-    const y = 0.35 + (seed / 2147483647) * 2.25;
-    seed = (seed * 16807) % 2147483647;
-    const z =
-      (seed / 2147483647) * (DEFENSE_GRID_ROWS + 0.1) -
-      (DEFENSE_GRID_ROWS + 0.1) / 2;
-    positions.set([x, y, z], index * 3);
-    baseY[index] = y;
-    const color = index % 3 === 0 ? blue : gold;
-    colors.set([color.r, color.g, color.b], index * 3);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  const material = new THREE.PointsMaterial({
-    size: 0.065,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.72,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    sizeAttenuation: true,
-  });
-  mysticParticles = new THREE.Points(geometry, material);
-  mysticParticles.userData.baseY = baseY;
-  mysticParticles.frustumCulled = false;
-  scene!.add(mysticParticles);
-}
-
-/** Bố trí cây, đá, crystal và rune ngoài khu vực grid có thể tương tác. */
-function createMapScenery() {
-  const edgeX = DEFENSE_GRID_COLUMNS / 2 + 0.45;
-  const edgeZ = DEFENSE_GRID_ROWS / 2 - 0.75;
-  createPineTree(-edgeX, -edgeZ, 0.72);
-  createPineTree(-edgeX, edgeZ, 0.62);
-  createPineTree(edgeX, -edgeZ, 0.68);
-  createPineTree(edgeX, edgeZ, 0.76);
-  createCrystalCluster(-edgeX + 0.3, 0.55, 0x6ddbea, 0.85);
-  createCrystalCluster(edgeX - 0.3, -0.55, 0xa58be8, 0.9);
-  createRuneStone(-edgeX + 0.4, -2.55, 0.22);
-  createRuneStone(edgeX - 0.4, 2.55, Math.PI + 0.18);
-  const entry = new THREE.Group();
-  for (const z of [-0.42, 0.42]) {
-    const post = mesh(
-      new THREE.CylinderGeometry(0.11, 0.15, 0.9, 10),
-      0x68645b,
-      { roughness: 0.92 },
-    );
-    post.position.set(0, 0.42, z);
-    const cap = mesh(new THREE.ConeGeometry(0.18, 0.24, 10), 0x3f493d, {
-      roughness: 0.78,
-    });
-    cap.position.set(0, 1, z);
-    entry.add(post, cap);
-  }
-  const beam = mesh(new THREE.BoxGeometry(0.16, 0.16, 1.02), 0x4a3729, {
-    roughness: 0.82,
-  });
-  beam.position.set(0, 0.88, 0);
-  entry.add(beam);
-  for (const path of DEFENSE_PATHS) {
-    const routeEntry = entry.clone(true);
-    routeEntry.position.copy(worldPosition(-0.78, path[0]!.y));
-    routeEntry.position.y = 0.02;
-    scene!.add(routeEntry);
-  }
-}
-
-/** Tải lâu đài GLB, canh cổng với cuối hai lane và thay model cũ an toàn. */
+// ===== Map và lâu đài ========================================================
+/** Tải lâu đài theo map hiện tại rồi gắn vào scene nếu component còn tồn tại. */
 async function loadCastleModel() {
   try {
-    const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/castle.glb",
-    );
+    const container = await loadTowerDefenseCastle(props.map);
     if (!scene) {
-      disposeObject(gltf.scene);
+      disposeObject(container);
       return;
     }
-    const source = gltf.scene;
-    const bounds = new THREE.Box3().setFromObject(source);
-    const size = bounds.getSize(new THREE.Vector3());
-    const center = bounds.getCenter(new THREE.Vector3());
-    const largestHorizontalSide = Math.max(size.x, size.z, 0.001);
-    const modelScale = Math.min(
-      8.5 / Math.max(size.y, 0.001),
-      8.5 / largestHorizontalSide,
-    );
-    source.position.set(-center.x + 0.3, -bounds.min.y, -center.z);
-    source.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      child.castShadow = true;
-      child.receiveShadow = true;
-      child.geometry.computeBoundingSphere();
-      if ((child.geometry.boundingSphere?.radius ?? 0) < size.length() * 0.012)
-        child.castShadow = false;
-    });
-    const container = new THREE.Group();
-    container.name = "castleModel";
-    container.add(source);
-    container.scale.setScalar(modelScale);
-    const castleCell = DEFENSE_PATH.at(-1)!;
-    // Tâm model nằm ngoài vùng xây dựng, nhưng phần cổng/cầu thang được kéo sát
-    // điểm cuối con đường và hạ nhẹ để móng lâu đài bám vào mặt đất.
-    container.position.copy(
-      worldPosition(DEFENSE_GRID_COLUMNS + 1.5, castleCell.y),
-    );
-    container.position.y = -0.22;
-    container.rotation.y = 0;
     if (castleModel) disposeObject(castleModel);
     castleModel = container;
     scene.add(container);
   } catch (error) {
-    console.warn("[Kingdom Defense] Không thể tải castle.glb.", error);
+    console.warn(`[Kingdom Defense] Không thể tải lâu đài của map ${props.map.id}.`, error);
   }
 }
 
@@ -3110,15 +2845,14 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   if (!scene) return;
   const sceneLoad =
     props.towers.length + props.enemies.length + props.projectiles.length;
+  // Khi đã hạ chất lượng trong một wave thì giữ nguyên đến giờ nghỉ. Việc đổi
+  // shadow/pixel buffer qua lại lúc quân số dao động gây khựng GPU rõ rệt.
   const shouldReduceEffects = performanceMode
-    ? sceneLoad >= 22
+    ? props.phase === "wave" || sceneLoad >= 22
     : sceneLoad > 30;
   if (renderer && shouldReduceEffects !== performanceMode) {
     performanceMode = shouldReduceEffects;
     renderer.shadowMap.enabled = !performanceMode;
-    renderer.setPixelRatio(
-      Math.min(devicePixelRatio, performanceMode ? 1 : 1.5),
-    );
   }
   if (mysticParticles) {
     mysticParticles.visible = !performanceMode;
@@ -3400,17 +3134,21 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       tower.kind === "water"
     ) {
       const elementalGlow = model.getObjectByName(
-        "elementalTowerGlowSprite",
-      ) as THREE.Sprite | undefined;
+        "elementalTowerGlow",
+      ) as THREE.Group | undefined;
       if (elementalGlow) {
-        const baseScale = Number(elementalGlow.userData.baseScale);
         const pulse =
           1 +
           Math.sin(
             elapsed * (tower.kind === "thunder" ? 8.5 : 5.2) + tower.id,
           ) *
             0.12;
-        elementalGlow.scale.set(baseScale * pulse, baseScale * pulse, 1);
+        elementalGlow.scale.setScalar(pulse);
+        const ring = elementalGlow.getObjectByName("elementalTowerGlowRing");
+        if (ring) {
+          const direction = tower.kind === "water" ? -1 : 1;
+          ring.rotation.z = elapsed * (tower.kind === "thunder" ? 2.8 : 1.25) * direction;
+        }
       }
     }
     if (tower.kind === "thunder") {
@@ -3585,7 +3323,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   const enemyIds = new Set(props.enemies.map((item) => item.id));
   for (const [id, model] of enemyModels)
     if (!enemyIds.has(id)) {
-      disposeEnemyModel(model);
+      recycleEnemyModel(model);
       enemyModels.delete(id);
     }
   for (const enemy of props.enemies) {
@@ -3996,7 +3734,7 @@ async function createWorld() {
   try {
     surfaceDetail = createSurfaceDetail();
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x1c3627, 20, 42);
+    scene.fog = new THREE.Fog(props.map.theme.background, props.map.theme.fogNear, props.map.theme.fogFar);
     const archerTemplate = createArcherTower();
     archerTemplate.add(groundShadow(0.42));
     applyTowerMetallicFinish(archerTemplate, 0x8a7658);
@@ -4029,10 +3767,12 @@ async function createWorld() {
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = 1.12;
     target.appendChild(renderer.domElement);
-    renderer.setClearColor(0x1c3627, 1);
-    camera = new THREE.OrthographicCamera(-7, 7, 5, -5, 0.1, 50);
+    renderer.setClearColor(props.map.theme.background, 1);
+    // Bao trọn nền mở rộng để cả far plane lẫn mép GridHelper không lọt vào hình.
+    const cameraFar = Math.max(800, props.map.columns * 30, props.map.rows * 30);
+    camera = new THREE.OrthographicCamera(-7, 7, 5, -5, 0.1, cameraFar);
     camera.position.copy(defaultCameraPosition);
-    camera.zoom = 0.92;
+    camera.zoom = props.map.camera.zoom;
     camera.lookAt(defaultCameraTarget);
     camera.updateProjectionMatrix();
     controls = new OrbitControls(camera, renderer.domElement);
@@ -4067,34 +3807,9 @@ async function createWorld() {
     const fill = new THREE.DirectionalLight(0xdbeafe, 0.58);
     fill.position.set(7, 6, -8);
     scene.add(fill);
-    createMapFoundation();
-    const pathSet = new Set(
-      DEFENSE_PATH_TILES.map((point) => `${point.x}:${point.y}`),
-    );
-    for (let y = 0; y < DEFENSE_GRID_ROWS; y++)
-      for (let x = 0; x < DEFENSE_GRID_COLUMNS; x++) {
-        const isPath = pathSet.has(`${x}:${y}`);
-        const grassTone =
-          (x * 7 + y * 11) % 4 === 0
-            ? 0x426b48
-            : (x + y) % 3 === 0
-              ? 0x4d7650
-              : 0x386342;
-        const tile = mesh(
-          new THREE.BoxGeometry(0.99, isPath ? 0.1 : 0.15, 0.99),
-          isPath ? 0x343b3d : grassTone,
-          { roughness: 1 },
-        );
-        tile.position.copy(worldPosition(x, y));
-        tile.position.y = isPath ? -0.025 : 0;
-        tile.userData.cell = { x, y };
-        tileMeshes.push(tile);
-        scene.add(tile);
-      }
-    createCobblestonePath();
-    createEnemyRouteLines();
-    createMapScenery();
-    createMysticAtmosphere();
+    const mapScene = createTowerDefenseMapScene(scene, props.map, surfaceDetail);
+    tileMeshes.push(...mapScene.tileMeshes);
+    mysticParticles = mapScene.particles;
     hoverMarker = new THREE.Mesh(
       new THREE.PlaneGeometry(0.88, 0.88),
       new THREE.MeshBasicMaterial({
@@ -4221,8 +3936,10 @@ async function createWorld() {
     renderer.domElement.addEventListener("click", (event) => {
       if (pointerTravel > 5) return;
       const cell = cellAtPointer(event);
-      if (cell) emit("cellSelect", cell.x, cell.y);
-      else emit("backgroundSelect");
+      if (cell) {
+        console.log("[Tower Defense] Clicked cell", { x: cell.x, y: cell.y });
+        emit("cellSelect", cell.x, cell.y);
+      } else emit("backgroundSelect");
     });
     renderer.domElement.addEventListener("contextmenu", (event) =>
       event.preventDefault(),
@@ -4285,6 +4002,9 @@ onBeforeUnmount(() => {
   tileMeshes.length = 0;
   for (const model of enemyModels.values()) disposeEnemyModel(model);
   enemyModels.clear();
+  for (const pool of enemyModelPool.values())
+    for (const model of pool) disposeEnemyModel(model);
+  enemyModelPool.clear();
   towerUpgradeEffects.clear();
   const characterTemplates = new Set<THREE.Group>(bossEnemyTemplates.values());
   if (riggedEnemyTemplate) characterTemplates.add(riggedEnemyTemplate);

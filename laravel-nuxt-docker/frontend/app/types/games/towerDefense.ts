@@ -8,6 +8,57 @@ export interface GridPoint {
   y: number;
 }
 
+export type TowerDefenseLane = 0 | 1;
+
+export interface TowerDefenseMapTheme {
+  background: number;
+  fogNear: number;
+  fogFar: number;
+  terrain: number;
+  gridCenter: number;
+  gridLine: number;
+  path: number;
+  pathStone: number;
+  routeColors: [number, number];
+  tileColors: [number, number, number];
+}
+
+export interface TowerDefenseMapScenery {
+  trees: Array<{ x: number; y: number; scale: number }>;
+  crystals: Array<{ x: number; y: number; color: number; scale?: number }>;
+  runes: Array<{ x: number; y: number; rotation: number }>;
+}
+
+/**
+ * Toàn bộ dữ liệu cần để gameplay và Three.js cùng chạy một map. Muốn thêm map
+ * mới chỉ cần tạo một object đúng interface này và đăng ký trong maps/index.ts.
+ */
+export interface TowerDefenseMapDefinition {
+  id: string;
+  name: string;
+  columns: number;
+  rows: number;
+  paths: [GridPoint[], GridPoint[]];
+  pathTiles: GridPoint[];
+  cornerRadius: number;
+  castle: {
+    modelUrl: string;
+    offsetX: number;
+    offsetY: number;
+    rotationY: number;
+    maxSize: number;
+    /** Số ô đi tiếp sau tâm ô path cuối để chạm đúng cổng lâu đài. */
+    pathEndOffset: number;
+  };
+  camera: {
+    position: [number, number, number];
+    target: [number, number, number];
+    zoom: number;
+  };
+  theme: TowerDefenseMapTheme;
+  scenery: TowerDefenseMapScenery;
+}
+
 export interface TowerDefinition {
   kind: TowerKind;
   name: string;
