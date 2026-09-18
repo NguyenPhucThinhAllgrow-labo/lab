@@ -1944,7 +1944,7 @@ async function loadRiggedEnemy() {
     const loader = new GLTFLoader();
     const kitRoot = "/models/games/tower-defense/kit/adventure";
     const loadKitAsset = (relativePath: string) =>
-      loader.loadAsync(`${kitRoot}/${relativePath}`);
+    loader.loadAsync(`${kitRoot}/${relativePath}`);
     const prepareEquipment = (item: THREE.Object3D) => {
       item.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
@@ -2087,6 +2087,8 @@ async function loadFrostTower() {
     template.name = "FrostTower3D";
     template.userData.frostEffectCenterY = 1.77;
     const source = gltf.scene;
+    console.log("frost")
+    console.table(getModelStats(source))
     source.scale.set(2, 2, 2);
     source.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
@@ -2145,6 +2147,8 @@ async function loadFireTower() {
     const template = new THREE.Group();
     template.name = "FireTower3D";
     const source = gltf.scene;
+    console.log("fire")
+    console.table(getModelStats(source))
     source.updateMatrixWorld(true);
     const sourceBounds = new THREE.Box3().setFromObject(source);
     const sourceSize = sourceBounds.getSize(new THREE.Vector3());
@@ -2215,6 +2219,8 @@ async function loadThunderTower() {
     const template = new THREE.Group();
     template.name = "ThunderTower3D";
     const source = gltf.scene;
+    console.log("thunder")
+    console.table(getModelStats(source))
     source.updateMatrixWorld(true);
     const sourceBounds = new THREE.Box3().setFromObject(source);
     const sourceSize = sourceBounds.getSize(new THREE.Vector3());
@@ -2286,6 +2292,8 @@ async function loadWaterTower() {
     const template = new THREE.Group();
     template.name = "WaterTower3D";
     const source = gltf.scene;
+    console.log("water")
+    console.table(getModelStats(source))
     source.updateMatrixWorld(true);
     const sourceBounds = new THREE.Box3().setFromObject(source);
     const sourceSize = sourceBounds.getSize(new THREE.Vector3());
@@ -2344,6 +2352,43 @@ async function loadWaterTower() {
       "[Kingdom Defense] Không thể tải water-tower.glb, dùng placeholder dự phòng.",
       error,
     );
+  }
+}
+
+function getModelStats(object: THREE.Object3D) {
+  let meshes = 0
+  let triangles = 0
+  let vertices = 0
+  let materials = 0
+
+  object.traverse((child) => {
+    if (!(child instanceof THREE.Mesh))
+      return
+
+    meshes++
+
+    const geometry = child.geometry
+    const position = geometry.getAttribute('position')
+
+    vertices += position?.count ?? 0
+
+    if (geometry.index) {
+      triangles += geometry.index.count / 3
+    }
+    else if (position) {
+      triangles += position.count / 3
+    }
+
+    materials += Array.isArray(child.material)
+      ? child.material.length
+      : 1
+  })
+
+  return {
+    meshes,
+    triangles: Math.round(triangles),
+    vertices,
+    materials,
   }
 }
 
