@@ -858,7 +858,7 @@ function decorateElementalTowerGlow(
     thunder: 0x9b7cff,
     water: 0x38bdf8,
   } as const;
-  const heights = { fire: 1.5, thunder: 1.45, water: 1.43 } as const;
+  const heights = { fire: 1.8, thunder: 1.7, water: 1.6 } as const;
   const glowScales = { fire: 1.5, thunder: 0.98, water: 1.02 } as const;
   const effect = new THREE.Group();
   effect.name = "elementalTowerGlow";
@@ -957,9 +957,16 @@ function towerScaleForLevel(level: number) {
 }
 
 /** Áp scale level và bù trục Y cho một model tower. */
-function setTowerScale(group: THREE.Group, level: number) {
-  const scale = towerScaleForLevel(level);
-  group.scale.set(scale.horizontal, scale.vertical, scale.horizontal);
+function setTowerScale(
+  group: THREE.Group,
+  level: number,
+) {
+  const scale =
+    level === 1 ? 1 :
+    level === 2 ? 1.13 :
+    1.27;
+
+  group.scale.setScalar(scale);
 }
 
 /** Bật/tắt chi tiết nâng cấp tĩnh dựa trên kind và level hiện tại. */
@@ -2080,7 +2087,7 @@ async function loadRiggedEnemy() {
 async function loadFrostTower() {
   try {
     const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/frost/level3.glb",
+      "/models/games/tower-defense/frost/enemy/level1.glb",
     );
     if (!scene || !host.value?.isConnected) return;
     const template = new THREE.Group();
@@ -2131,7 +2138,7 @@ async function loadFrostTower() {
     towerTemplates.set("frost", template);
   } catch (error) {
     console.warn(
-      "[Kingdom Defense] Không thể tải frost-tower-3d.glb, dùng placeholder dự phòng.",
+      "[Kingdom Defense] Không thể tải model, dùng placeholder dự phòng.",
       error,
     );
   }
@@ -2141,7 +2148,7 @@ async function loadFrostTower() {
 async function loadFireTower() {
   try {
     const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/fire/level1.glb",
+      "/models/games/tower-defense/fire/enemy/level1.glb",
     );
     if (!scene || !host.value?.isConnected) return;
     const template = new THREE.Group();
@@ -2213,7 +2220,7 @@ async function loadFireTower() {
 async function loadThunderTower() {
   try {
     const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/thunder/level1.glb",
+      "/models/games/tower-defense/thunder/enemy/level1.glb",
     );
     if (!scene || !host.value?.isConnected) return;
     const template = new THREE.Group();
@@ -2286,7 +2293,7 @@ async function loadThunderTower() {
 async function loadWaterTower() {
   try {
     const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/water/level1.glb",
+      "/models/games/tower-defense/water/enemy/level1.glb",
     );
     if (!scene || !host.value?.isConnected) return;
     const template = new THREE.Group();
@@ -2299,7 +2306,7 @@ async function loadWaterTower() {
     const sourceSize = sourceBounds.getSize(new THREE.Vector3());
     if (!Number.isFinite(sourceSize.y) || sourceSize.y <= 0)
       throw new Error("Model tháp nước không có kích thước hợp lệ.");
-    source.scale.multiplyScalar(2.1 / sourceSize.y);
+    source.scale.multiplyScalar(2 / sourceSize.y);
     source.updateMatrixWorld(true);
     const fittedBounds = new THREE.Box3().setFromObject(source);
     const fittedCenter = fittedBounds.getCenter(new THREE.Vector3());

@@ -55,7 +55,7 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
   for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.columns; x++) {
     const isPath = pathKeys.has(`${x}:${y}`);
     const tileTone = (x * 7 + y * 11) % 4 === 0 ? map.theme.tileColors[0] : (x + y) % 3 === 0 ? map.theme.tileColors[1] : map.theme.tileColors[2];
-    const tile = createMapMesh(surfaceDetail, new THREE.BoxGeometry(0.99, isPath ? 0.1 : 0.15, 0.99), isPath ? map.theme.path : tileTone, { roughness: 1 });
+    const tile = createMapMesh(surfaceDetail, new THREE.BoxGeometry(1, isPath ? 0.1 : 0.15, 1), isPath ? map.theme.path : tileTone, { roughness: 1 });
     tile.position.copy(mapWorldPosition(map, x, y));
     tile.position.y = isPath ? -0.025 : 0;
     tile.userData.cell = { x, y };
