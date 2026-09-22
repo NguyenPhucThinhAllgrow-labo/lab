@@ -9,6 +9,7 @@ import type {
 export interface TowerDefenseMapScene {
   tileMeshes: THREE.Mesh[];
   particles: THREE.Points;
+  updatePortal: (elapsed: number) => void;
 }
 
 export interface TowerDefenseBackgroundLayer {
@@ -202,23 +203,84 @@ function addScenery(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceD
     scene.add(item);
   }
 
-  const entry = new THREE.Group();
-  for (const z of [-0.42, 0.42]) {
-    const post = createMapMesh(surfaceDetail, new THREE.CylinderGeometry(0.11, 0.15, 0.9, 10), 0x68645b, { roughness: 0.92 });
-    post.position.set(0, 0.42, z);
-    const cap = createMapMesh(surfaceDetail, new THREE.ConeGeometry(0.18, 0.24, 10), 0x3f493d, { roughness: 0.78 });
-    cap.position.set(0, 1, z);
-    entry.add(post, cap);
+}
+
+function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
+  const isLavaPortal = map.bossCombatProfileKey === "lava-boss";
+  const portalColor = new THREE.Color(isLavaPortal ? 0xd93612 : 0x7040b8);
+  const highlightColor = new THREE.Color(isLavaPortal ? 0xffa02c : 0x63b8e8);
+  const portals: Array<{
+    vortexMaterial: THREE.ShaderMaterial;
+    light: THREE.PointLight;
+  }> = [];
+
+  for (const [lane, path] of map.paths.entries()) {
+    const portal = new THREE.Group();
+    portal.name = `enemySpawnPortal-${lane}`;
+    const vortexMaterial = new THREE.ShaderMaterial({
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+      transparent: true,
+      uniforms: {
+        uTime: { value: 0 },
+        uOuterColor: { value: portalColor },
+        uInnerColor: { value: highlightColor },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        uniform vec3 uOuterColor;
+        uniform vec3 uInnerColor;
+        varying vec2 vUv;
+
+        void main() {
+          vec2 point = vUv - vec2(0.5);
+          float radius = length(point) * 2.0;
+          if (radius > 1.0) discard;
+          float angle = atan(point.y, point.x);
+          float edgeFade = 1.0 - smoothstep(0.84, 1.0, radius);
+          float spiral = 0.5 + 0.5 * sin(angle * 5.0 - radius * 18.0 + uTime * 3.0);
+          float inwardFlow = 0.5 + 0.5 * sin(radius * 25.0 + uTime * 4.2);
+          float filament = pow(spiral, 5.0) * (0.55 + inwardFlow * 0.45);
+          vec3 magicColor = mix(uInnerColor, uOuterColor, smoothstep(0.15, 0.92, radius));
+          vec3 color = mix(vec3(0.006, 0.004, 0.01), magicColor, filament * 0.9);
+          float alpha = edgeFade * (0.88 + filament * 0.1);
+          gl_FragColor = vec4(color, alpha);
+        }
+      `,
+    });
+    const vortex = new THREE.Mesh(
+      new THREE.CircleGeometry(0.61, 64),
+      vortexMaterial,
+    );
+    vortex.name = "spawnPortalVortex";
+    portal.rotation.y = Math.PI / 2;
+    portal.position.copy(mapWorldPosition(map, -0.78, path[0]!.y));
+    portal.position.y = 0.9;
+    portal.scale.setScalar(2);
+    vortex.position.z = 0.012;
+    portal.add(vortex);
+    const light = new THREE.PointLight(portalColor, 1.35, 4.8, 2);
+    light.position.set(0, 0, 0.35);
+    portal.add(light);
+    scene.add(portal);
+    portals.push({ vortexMaterial, light });
   }
-  const beam = createMapMesh(surfaceDetail, new THREE.BoxGeometry(0.16, 0.16, 1.02), 0x4a3729, { roughness: 0.82 });
-  beam.position.set(0, 0.88, 0);
-  entry.add(beam);
-  for (const path of map.paths) {
-    const routeEntry = entry.clone(true);
-    routeEntry.position.copy(mapWorldPosition(map, -0.78, path[0]!.y));
-    routeEntry.position.y = 0.02;
-    scene.add(routeEntry);
-  }
+
+  return (elapsed: number) => {
+    portals.forEach(({ vortexMaterial, light }, index) => {
+      const phase = elapsed + index * 0.65;
+      vortexMaterial.uniforms.uTime!.value = phase;
+      light.intensity = 1.2 + Math.sin(phase * 3.2) * 0.22;
+    });
+  };
 }
 
 function addAtmosphere(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
@@ -258,8 +320,9 @@ export function createTowerDefenseMapScene(scene: THREE.Scene, map: TowerDefense
   addCobblestonePath(scene, map, surfaceDetail);
   addRouteLines(scene, map);
   addScenery(scene, map, surfaceDetail);
+  const updatePortal = addSpawnPortal(scene, map);
   const particles = addAtmosphere(scene, map);
-  return { tileMeshes, particles };
+  return { tileMeshes, particles, updatePortal };
 }
 
 /**

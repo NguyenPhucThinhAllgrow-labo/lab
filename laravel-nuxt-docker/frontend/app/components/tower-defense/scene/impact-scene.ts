@@ -203,6 +203,31 @@ export function createTowerDefenseImpactScene(
     } else if (impact.kind === "water") {
       group.position.y = 0.1;
       const radius = (impact.radius ?? 0.7) * cellSize;
+      const up = new THREE.Vector3(0, 1, 0);
+      for (let index = 0; index < 8; index++) {
+        const angle = (index / 8) * Math.PI * 2;
+        const jet = new THREE.Mesh(
+          new THREE.ConeGeometry(0.035, 0.34 + (index % 3) * 0.06, 7),
+          new THREE.MeshBasicMaterial({
+            color: index % 2 ? 0xbae6fd : 0x38bdf8,
+            transparent: true,
+            opacity: 0.74,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            toneMapped: false,
+          }),
+        );
+        const direction = new THREE.Vector3(
+          Math.cos(angle) * 0.72,
+          0.86,
+          Math.sin(angle) * 0.72,
+        ).normalize();
+        jet.name = "waterHitJet";
+        jet.userData.angle = angle;
+        jet.userData.index = index;
+        jet.quaternion.setFromUnitVectors(up, direction);
+        group.add(jet);
+      }
       for (let index = 0; index < 3; index++) {
         const ripple = new THREE.Mesh(
           new THREE.RingGeometry(0.12 + index * 0.07, 0.17 + index * 0.08, 40),
@@ -459,6 +484,15 @@ export function createTowerDefenseImpactScene(
               Math.sin(progress * Math.PI) * (0.42 + impact.level * 0.08),
               Math.sin(angle) * distance,
             );
+          } else if (child.name === "waterHitJet") {
+            const angle = Number(child.userData.angle);
+            const burst = Math.sin(progress * Math.PI);
+            child.position.set(
+              Math.cos(angle) * progress * 0.24,
+              0.06 + burst * 0.13,
+              Math.sin(angle) * progress * 0.24,
+            );
+            child.scale.set(1 - progress * 0.35, 0.35 + burst * 1.5, 1 - progress * 0.35);
           }
         });
       } else if (impact.kind === "thunder") {

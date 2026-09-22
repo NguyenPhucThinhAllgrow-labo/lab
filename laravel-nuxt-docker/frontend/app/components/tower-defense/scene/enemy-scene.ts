@@ -34,8 +34,10 @@ export interface EnemySceneSyncOptions {
 
 // Tốc độ world mà clip walk 1× khớp tương đối với độ dài một bước chân.
 // Mixer sẽ nhân theo vận tốc model thực tế để chân không chạy tại chỗ hoặc lướt.
-const WALK_WORLD_SPEED_AT_NORMAL_PLAYBACK = 0.6;
+const WALK_WORLD_SPEED_AT_NORMAL_PLAYBACK = 0.54;
 const DEFAULT_WALK_CLIP_DURATION = 2.3333333333333335;
+const WALK_SPEED_RESPONSE = 20;
+const FACING_RESPONSE = 19;
 
 export interface TowerDefenseEnemyScene {
   readonly models: Map<number, THREE.Group>;
@@ -183,6 +185,7 @@ export function createTowerDefenseEnemyScene(
   const enemyTemplates = new Map<string, THREE.Group>();
   const enemyAnimations = new Map<string, THREE.AnimationClip[]>();
   let lavaBossGlowMaterial: THREE.ShaderMaterial | null = null;
+  let lavaFlameTexture: THREE.CanvasTexture | null = null;
   let customBossTemplate: THREE.Group | null = null;
   let customBossAnimations: THREE.AnimationClip[] = [];
   let bossAnimations: THREE.AnimationClip[] = [];
@@ -218,22 +221,74 @@ export function createTowerDefenseEnemyScene(
         void main() {
           float radius = length(vUv - vec2(0.5)) * 2.0;
           float edgeFade = 1.0 - smoothstep(0.72, 1.0, radius);
-          float core = (1.0 - smoothstep(0.0, 0.58, radius)) * 0.3;
+          float core = (1.0 - smoothstep(0.0, 0.62, radius)) * 0.46;
           float phaseA = fract(uTime * 0.38);
           float phaseB = fract(uTime * 0.38 + 0.5);
-          float waves = expandingRing(radius, phaseA, 0.075) * 0.82
-            + expandingRing(radius, phaseB, 0.09) * 0.58;
-          float shimmer = 0.88 + sin(uTime * 3.4 + radius * 15.0) * 0.12;
-          float alpha = (core + waves) * edgeFade * shimmer;
+          float waves = expandingRing(radius, phaseA, 0.075)
+            + expandingRing(radius, phaseB, 0.09) * 0.74;
+          float shimmer = 0.9 + sin(uTime * 3.4 + radius * 15.0) * 0.1;
+          float alpha = min((core + waves) * edgeFade * shimmer * 1.32, 1.0);
           if (alpha < 0.012) discard;
-          vec3 innerColor = vec3(1.0, 0.72, 0.18);
-          vec3 outerColor = vec3(0.92, 0.08, 0.015);
+          vec3 innerColor = vec3(1.0, 0.52, 0.055);
+          vec3 outerColor = vec3(1.0, 0.035, 0.006);
           vec3 color = mix(innerColor, outerColor, smoothstep(0.12, 0.92, radius));
           gl_FragColor = vec4(color, alpha);
         }
       `,
     });
     return lavaBossGlowMaterial;
+  }
+
+  function getLavaFlameTexture() {
+    if (lavaFlameTexture) return lavaFlameTexture;
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 96;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Không thể tạo texture lửa cho lava boss.");
+    const gradient = context.createRadialGradient(32, 68, 2, 32, 54, 43);
+    gradient.addColorStop(0, "#fff7ad");
+    gradient.addColorStop(0.2, "#ffd129");
+    gradient.addColorStop(0.48, "#ff5a12");
+    gradient.addColorStop(0.75, "#d20e05");
+    gradient.addColorStop(1, "#50000000");
+    context.fillStyle = gradient;
+    context.beginPath();
+    context.moveTo(32, 4);
+    context.bezierCurveTo(24, 24, 7, 37, 14, 67);
+    context.bezierCurveTo(20, 92, 47, 94, 54, 68);
+    context.bezierCurveTo(60, 43, 43, 28, 32, 4);
+    context.fill();
+    lavaFlameTexture = new THREE.CanvasTexture(canvas);
+    lavaFlameTexture.colorSpace = THREE.SRGBColorSpace;
+    return lavaFlameTexture;
+  }
+
+  function addLavaBossFlames(group: THREE.Group, sceneScale: number) {
+    const flames = new THREE.Group();
+    flames.name = "lavaBossFlames";
+    for (let index = 0; index < 12; index++) {
+      const angle = (index / 12) * Math.PI * 2;
+      const flame = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: getLavaFlameTexture(),
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          opacity: 0.82,
+          toneMapped: false,
+          transparent: true,
+        }),
+      );
+      const radius = (0.12 + (index % 3) * 0.035) / sceneScale;
+      flame.name = "lavaBossFlame";
+      flame.userData.angle = angle;
+      flame.userData.phase = index / 12;
+      flame.userData.radius = radius;
+      flame.userData.speed = 0.72 + (index % 4) * 0.09;
+      flame.renderOrder = 4;
+      flames.add(flame);
+    }
+    group.add(flames);
   }
 
   function getStatusBadgeTexture(kind: EnemyStatusKind) {
@@ -248,11 +303,15 @@ export function createTowerDefenseEnemyScene(
       kind === "fire" ? "#7f1d1d" : kind === "water" ? "#0c4a6e" : "#075985";
     context.strokeStyle =
       kind === "fire" ? "#fdba74" : kind === "water" ? "#7dd3fc" : "#bae6fd";
-    context.lineWidth = 6;
+    context.shadowColor =
+      kind === "fire" ? "#ff4d16" : kind === "water" ? "#22bdf2" : "#7ddfff";
+    context.shadowBlur = 14;
+    context.lineWidth = 8;
     context.beginPath();
     context.arc(48, 48, 40, 0, Math.PI * 2);
     context.fill();
     context.stroke();
+    context.shadowBlur = 0;
     context.strokeStyle = "#fff";
     context.fillStyle = "#fff";
     context.lineWidth = 7;
@@ -308,7 +367,7 @@ export function createTowerDefenseEnemyScene(
     const badges = new THREE.Group();
     badges.name = "enemyStatusBadges";
     const healthBars = group.getObjectByName("enemyHealthBars");
-    badges.position.set(0, (healthBars?.position.y ?? 1.9) + 0.18, 0);
+    badges.position.set(0, (healthBars?.position.y ?? 1.9) + 0.27, 0);
     for (const [index, kind] of (["fire", "frost", "water"] as const).entries()) {
       const badge = new THREE.Sprite(
         new THREE.SpriteMaterial({
@@ -320,10 +379,10 @@ export function createTowerDefenseEnemyScene(
         }),
       );
       badge.name = `enemyStatusBadge-${kind}`;
-      badge.position.set(-0.13 + index * 0.26, 0, 0.01);
-      badge.scale.set(0.2, 0.2, 1);
+      badge.position.set(-0.17 + index * 0.34, 0, 0.01);
+      badge.scale.set(0.28, 0.28, 1);
       badge.visible = false;
-      badge.renderOrder = 12;
+      badge.renderOrder = 20;
       badges.add(badge);
     }
     group.add(badges);
@@ -466,6 +525,7 @@ export function createTowerDefenseEnemyScene(
       lavaGlow.receiveShadow = false;
       lavaGlow.renderOrder = 3;
       group.add(lavaGlow);
+      addLavaBossFlames(group, sceneScale);
     }
     addStatusBadges(group);
     scene.add(group);
@@ -667,8 +727,8 @@ export function createTowerDefenseEnemyScene(
           );
       model.userData.renderProgress = renderProgress;
       const position = pathPosition(renderProgress, enemy.lane);
-      const facingFrom = pathPosition(renderProgress - 0.08, enemy.lane);
-      const facingTo = pathPosition(renderProgress + 0.12, enemy.lane);
+      const facingFrom = pathPosition(renderProgress - 0.045, enemy.lane);
+      const facingTo = pathPosition(renderProgress + 0.065, enemy.lane);
       const lastWorldPosition = model.userData
         .lastWorldPosition as THREE.Vector3;
       const hasWorldPosition = Boolean(model.userData.hasWorldPosition);
@@ -679,14 +739,14 @@ export function createTowerDefenseEnemyScene(
       lastWorldPosition.copy(position);
       model.userData.hasWorldPosition = true;
 
-      // Làm mượt vận tốc đo từ chuyển động render để mixer không giật theo tick
-      // gameplay 100 ms, nhưng vẫn phản ứng ngay khi slow/freeze thay đổi.
+      // Bám vận tốc render đủ nhanh để nhịp chân không trễ phía sau thân model,
+      // đồng thời vẫn lọc dao động nhỏ sinh ra từ tick gameplay 100 ms.
       const animationWorldSpeed = frozen
         ? 0
         : THREE.MathUtils.damp(
             Number(model.userData.animationWorldSpeed) || measuredWorldSpeed,
             measuredWorldSpeed,
-            12,
+            WALK_SPEED_RESPONSE,
             frameDelta,
           );
       model.userData.animationWorldSpeed = animationWorldSpeed;
@@ -714,13 +774,37 @@ export function createTowerDefenseEnemyScene(
           Math.sin(targetRotation - model.rotation.y),
           Math.cos(targetRotation - model.rotation.y),
         );
-        model.rotation.y += rotationDelta * (1 - Math.exp(-12 * frameDelta));
+        model.rotation.y +=
+          rotationDelta * (1 - Math.exp(-FACING_RESPONSE * frameDelta));
       }
       model.scale.setScalar(Number(model.userData.sceneScale));
       const mixer = model.userData.mixer as THREE.AnimationMixer | undefined;
       if (mixer) {
         mixer.timeScale = frozen ? 0 : animationTimeScale;
         mixer.update(frameDelta);
+      }
+      const lavaFlames = model.getObjectByName("lavaBossFlames");
+      if (lavaFlames) {
+        const sceneScale = Number(model.userData.sceneScale) || 1;
+        for (const child of lavaFlames.children) {
+          const flame = child as THREE.Sprite;
+          const phase = Number(flame.userData.phase);
+          const speed = Number(flame.userData.speed);
+          const rise = (elapsed * speed + phase) % 1;
+          const angle = Number(flame.userData.angle);
+          const radius = Number(flame.userData.radius);
+          const flicker = 0.88 + Math.sin(elapsed * 11 + phase * 19) * 0.12;
+          flame.position.set(
+            Math.cos(angle) * radius + Math.sin(elapsed * 4.2 + angle) * 0.015,
+            (0.16 + rise * 1.65) / sceneScale,
+            Math.sin(angle) * radius,
+          );
+          const width = (0.13 + (1 - rise) * 0.075) * flicker / sceneScale;
+          const height = (0.4 + (1 - rise) * 0.27) * flicker / sceneScale;
+          flame.scale.set(width, height, 1);
+          (flame.material as THREE.SpriteMaterial).opacity =
+            Math.sin(rise * Math.PI) * 0.88;
+        }
       }
       const badges = model.userData.statusBadges as THREE.Group | undefined;
       const healthBars = model.userData.healthBars as THREE.Group | undefined;
@@ -743,9 +827,10 @@ export function createTowerDefenseEnemyScene(
         if (waterBadge?.visible) activeStatusBadges.push(waterBadge);
         activeStatusBadges.forEach((badge, index) => {
           badge.position.x =
-            (index - (activeStatusBadges.length - 1) / 2) * 0.24;
-          const pulse = 1 + Math.sin(elapsed * 5 + enemy.id + index) * 0.06;
-          badge.scale.set(0.2 * pulse, 0.2 * pulse, 1);
+            (index - (activeStatusBadges.length - 1) / 2) * 0.34;
+          badge.position.y = Math.sin(elapsed * 4.5 + index * 1.7) * 0.025;
+          const pulse = 1 + Math.sin(elapsed * 6 + enemy.id + index) * 0.1;
+          badge.scale.set(0.28 * pulse, 0.28 * pulse, 1);
         });
       }
       healthBars?.quaternion.copy(billboardQuaternion);
@@ -784,6 +869,8 @@ export function createTowerDefenseEnemyScene(
     statusBadgeTextures.clear();
     lavaBossGlowMaterial?.dispose();
     lavaBossGlowMaterial = null;
+    lavaFlameTexture?.dispose();
+    lavaFlameTexture = null;
     lavaBossGlowGeometry.dispose();
     groundShadowGeometry.dispose();
     groundShadowMaterial.dispose();

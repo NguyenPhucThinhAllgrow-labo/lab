@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   TOWER_DEFINITIONS,
   TOWER_RANGE_LEVEL_BONUS,
+  isSupportTowerKind,
 } from "~/composables/useTowerDefense";
 import { mapPathPosition } from "~/games/tower-defense/maps";
 import {
@@ -50,7 +51,7 @@ const props = defineProps<{
   selectedKind: TowerKind | null;
   phase: GamePhase;
   isPaused: boolean;
-  speedMultiplier: 1 | 2 | 4;
+  speedMultiplier: 0.5 | 1 | 2 | 4;
   showBrickBackground: boolean;
 }>();
 const DEFENSE_GRID_ROWS = props.map.rows;
@@ -77,6 +78,7 @@ let resizeObserver: ResizeObserver | null = null;
 let surfaceDetail: THREE.DataTexture | null = null;
 let frostGlowTexture: THREE.CanvasTexture | null = null;
 const towerLevelLabelTextures = new Map<number, THREE.CanvasTexture>();
+const towerBuffBadgeTextures = new Map<"damage" | "speed", THREE.CanvasTexture>();
 const clock = new THREE.Clock();
 let visualElapsed = 0;
 let visualNow = 0;
@@ -120,6 +122,7 @@ let hoverMarker: THREE.Mesh | null = null;
 let attackRangeMarker: THREE.Group | null = null;
 let towerFocusMarker: THREE.Group | null = null;
 let mysticParticles: THREE.Points | null = null;
+let updateSpawnPortal: ((elapsed: number) => void) | null = null;
 let performanceMode = false;
 
 watch(
@@ -913,7 +916,8 @@ function decorateLoadedTowerModel(
   level: 1 | 2 | 3,
 ) {
   if (kind === "frost") decorateFrostTower(template);
-  else decorateElementalTowerGlow(template, kind, level);
+  else if (kind !== "speed" && kind !== "damage")
+    decorateElementalTowerGlow(template, kind, level);
   template.add(groundShadow(0.42));
   optimizeTemplateShadows(template);
 }
@@ -932,6 +936,8 @@ function bindTowerParts(group: THREE.Group) {
     "cannonBarrelUpgradeFx",
   );
   group.userData.aura = group.getObjectByName("towerAura");
+  // Giữ model gọn: bỏ vòng aura trang trí quanh chân tower.
+  if (group.userData.aura) group.userData.aura.visible = false;
   const glows: THREE.Object3D[] = [];
   const energyRings: THREE.Mesh[] = [];
   const particles: THREE.Mesh[] = [];
@@ -945,6 +951,9 @@ function bindTowerParts(group: THREE.Group) {
   group.userData.frostGlows = glows;
   group.userData.frostEnergyRings = energyRings;
   group.userData.frostParticles = particles;
+  // Không hiển thị vòng năng lượng và các hạt bay quanh tower.
+  energyRings.forEach((ring) => (ring.visible = false));
+  particles.forEach((particle) => (particle.visible = false));
 }
 
 /** Tạo và cache texture chữ level để mọi tower cùng cấp dùng chung tài nguyên. */
@@ -983,6 +992,125 @@ function getTowerLevelLabelTexture(level: number) {
 
 function towerLevelScale(level: number) {
   return level === 1 ? 1 : level === 2 ? 1.13 : 1.27;
+}
+
+/** Tạo icon Gauge/Swords đồng bộ với avatar của hai trụ hỗ trợ trong sidebar. */
+function getTowerBuffBadgeTexture(kind: "damage" | "speed") {
+  const cached = towerBuffBadgeTextures.get(kind);
+  if (cached) return cached;
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Không thể tạo icon buff cho tower.");
+
+  const color = kind === "damage" ? "#ef4444" : "#22c55e";
+  const glow = context.createRadialGradient(64, 64, 7, 64, 64, 61);
+  glow.addColorStop(0, `${color}66`);
+  glow.addColorStop(0.58, `${color}28`);
+  glow.addColorStop(1, `${color}00`);
+  context.fillStyle = glow;
+  context.fillRect(0, 0, 128, 128);
+  context.lineWidth = 8;
+  context.strokeStyle = color;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+
+  if (kind === "speed") {
+    // Gauge: cùng hình bán nguyệt và kim chỉ như icon avatar của Trụ tốc độ.
+    context.beginPath();
+    context.arc(64, 70, 38, Math.PI * 0.88, Math.PI * 2.12);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(64, 70);
+    context.lineTo(88, 46);
+    context.stroke();
+    context.fillStyle = color;
+    context.beginPath();
+    context.arc(64, 70, 7, 0, Math.PI * 2);
+    context.fill();
+  } else {
+    // Swords: hai thanh kiếm bắt chéo giống icon avatar của Trụ sát thương.
+    for (const mirrored of [false, true]) {
+      context.save();
+      if (mirrored) {
+        context.translate(128, 0);
+        context.scale(-1, 1);
+      }
+      context.beginPath();
+      context.moveTo(35, 96);
+      context.lineTo(91, 40);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(84, 31);
+      context.lineTo(101, 24);
+      context.lineTo(94, 41);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(28, 79);
+      context.lineTo(47, 98);
+      context.stroke();
+      context.restore();
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  towerBuffBadgeTextures.set(kind, texture);
+  return texture;
+}
+
+/** Đồng bộ các icon buff nhận được, đặt thành một hàng ngay dưới nhãn level. */
+function syncTowerBuffBadges(group: THREE.Group, tower: Tower) {
+  const buffs: Array<"damage" | "speed"> = [];
+  if (!isSupportTowerKind(tower.kind)) {
+    for (const kind of ["damage", "speed"] as const) {
+      const receivesBuff = props.towers.some((support) => {
+        if (support.kind !== kind || support.id === tower.id) return false;
+        return (
+          Math.hypot(support.x - tower.x, support.y - tower.y) <=
+          TOWER_DEFINITIONS[kind].range
+        );
+      });
+      if (receivesBuff) buffs.push(kind);
+    }
+  }
+
+  let badges = group.getObjectByName("towerBuffBadges") as
+    | THREE.Group
+    | undefined;
+  const buffKey = buffs.join(":");
+  if (badges?.userData.buffKey !== buffKey) {
+    if (badges) disposeObject(badges);
+    badges = new THREE.Group();
+    badges.name = "towerBuffBadges";
+    badges.userData.buffKey = buffKey;
+    buffs.forEach((kind, index) => {
+      const badge = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: getTowerBuffBadgeTexture(kind),
+          transparent: true,
+          depthTest: false,
+          depthWrite: false,
+          toneMapped: false,
+        }),
+      );
+      badge.position.x = (index - (buffs.length - 1) / 2) * 0.2;
+      badge.scale.setScalar(0.18);
+      badge.renderOrder = 15;
+      badges!.add(badge);
+    });
+    group.add(badges);
+  }
+
+  const scale = towerLevelScale(tower.level);
+  const localTop = Number(group.userData.towerLocalTop) || 2.1;
+  badges.visible = buffs.length > 0;
+  badges.position.set(0, localTop + 0.035 / scale, 0);
+  badges.scale.setScalar(1 / scale);
 }
 
 /** Gắn/cập nhật nhãn level trên đỉnh model và giữ kích thước world ổn định. */
@@ -1041,6 +1169,9 @@ function setTowerScale(
 function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
   const previous = group.getObjectByName("towerLevelEffect");
   if (previous) disposeObject(previous);
+  // Level đã được thể hiện bằng model và nhãn LV; không thêm vòng quay,
+  // tinh thể hoặc hạt bay trang trí quanh tower nữa.
+  return;
   const effect = new THREE.Group();
   effect.name = "towerLevelEffect";
   effect.userData.kind = tower.kind;
@@ -1055,6 +1186,8 @@ function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
     fire: 0xff5438,
     thunder: 0x9b7cff,
     water: 0x38bdf8,
+    speed: 0x22c55e,
+    damage: 0xef4444,
   };
   const accentColors: Record<TowerKind, number> = {
     archer: 0xeaffb8,
@@ -1063,6 +1196,8 @@ function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
     fire: 0xffd45c,
     thunder: 0xe9ddff,
     water: 0xe0f7ff,
+    speed: 0xbbf7d0,
+    damage: 0xfecaca,
   };
   const effectMaterial = (opacity: number) =>
     new THREE.MeshBasicMaterial({
@@ -1596,6 +1731,7 @@ function createTowerModel(tower: Tower) {
   setTowerScale(group, tower.level);
   applyTowerLevelAppearance(group, tower);
   syncTowerLevelLabel(group, tower.level);
+  syncTowerBuffBadges(group, tower);
   if (tower.kind === "thunder")
     group.add(createThunderBeamEffect(tower.level));
   group.position.copy(worldPosition(tower.x, tower.y));
@@ -1613,6 +1749,7 @@ function disposeTowerModel(model: THREE.Group) {
     "towerLevelEffect",
     "thunderBeamEffect",
     "towerLevelLabel",
+    "towerBuffBadges",
   ]) {
     const ownedEffect = model.getObjectByName(name);
     if (ownedEffect) disposeObject(ownedEffect);
@@ -1634,6 +1771,8 @@ function createTowerUpgradeEffect(tower: Tower, now: number) {
     fire: 0xff593d,
     thunder: 0xa78bfa,
     water: 0x38bdf8,
+    speed: 0x22c55e,
+    damage: 0xef4444,
   };
   const material = (opacity = 0.9) =>
     new THREE.MeshBasicMaterial({
@@ -1708,6 +1847,18 @@ function createTowerUpgradeEffect(tower: Tower, now: number) {
         Math.sin(angle) * 0.28,
       );
       group.add(crystal);
+    }
+  } else if (tower.kind === "speed" || tower.kind === "damage") {
+    for (let index = 0; index < 3; index++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.3 + index * 0.11, 0.016, 6, 40),
+        material(0.76 - index * 0.14),
+      );
+      ring.name = "upgradeRing";
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.18 + index * 0.2;
+      ring.userData.delay = index * 0.08;
+      group.add(ring);
     }
   } else {
     for (let index = 0; index < 7; index++) {
@@ -1900,6 +2051,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       positions.needsUpdate = true;
     }
   }
+  updateSpawnPortal?.(elapsed);
   const selectedTower = props.towers.find(
     (tower) => tower.id === props.selectedTowerId,
   );
@@ -1954,7 +2106,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     if (previewCell && previewKind) {
       const definition = TOWER_DEFINITIONS[previewKind];
       const radius =
-        previewKind === "frost"
+        previewKind === "frost" || isSupportTowerKind(previewKind)
           ? definition.range
           : definition.range +
             ((selectedTower?.level ?? 1) - 1) * TOWER_RANGE_LEVEL_BONUS;
@@ -2044,6 +2196,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     model.position.set(towerPosition.x, 0.05, towerPosition.z);
     setTowerScale(model, tower.level);
     syncTowerLevelLabel(model, tower.level);
+    syncTowerBuffBadges(model, tower);
     animateTowerLevelAppearance(model, tower, elapsed);
     const aura = model.userData.aura as THREE.Group | undefined;
     if (aura) {
@@ -2503,6 +2656,8 @@ async function createWorld() {
     towerTemplates.set("fire", createFireTowerTemplate(frostPlaceholder));
     towerTemplates.set("thunder", createFireTowerTemplate(frostPlaceholder));
     towerTemplates.set("water", createFireTowerTemplate(frostPlaceholder));
+    towerTemplates.set("speed", createFireTowerTemplate(frostPlaceholder));
+    towerTemplates.set("damage", createFireTowerTemplate(frostPlaceholder));
     projectileScene = createTowerDefenseProjectileScene(scene, {
       surfaceDetail,
       worldPosition,
@@ -2570,6 +2725,7 @@ async function createWorld() {
     const mapScene = createTowerDefenseMapScene(scene, props.map, surfaceDetail);
     tileMeshes.push(...mapScene.tileMeshes);
     mysticParticles = mapScene.particles;
+    updateSpawnPortal = mapScene.updatePortal;
     hoverMarker = new THREE.Mesh(
       new THREE.PlaneGeometry(0.88, 0.88),
       new THREE.MeshBasicMaterial({
@@ -2802,7 +2958,10 @@ onBeforeUnmount(() => {
   frostGlowTexture = null;
   towerLevelLabelTextures.forEach((texture) => texture.dispose());
   towerLevelLabelTextures.clear();
+  towerBuffBadgeTextures.forEach((texture) => texture.dispose());
+  towerBuffBadgeTextures.clear();
   mysticParticles = null;
+  updateSpawnPortal = null;
   renderer?.dispose();
   renderer?.forceContextLoss();
   renderer?.domElement.remove();

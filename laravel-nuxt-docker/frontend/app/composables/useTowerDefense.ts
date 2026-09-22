@@ -30,6 +30,9 @@ import {
   WATER_SLOW_DURATION_SECONDS,
   WAVE_BASE_REWARD,
   WAVE_REWARD_GROWTH,
+  isSupportTowerKind,
+  towerFireInterval,
+  towerSupportBonus,
 } from "~/games/tower-defense/gameplay-config";
 import { DEFAULT_TOWER_DEFENSE_MAP_ID, getTowerDefenseMap, mapPathPosition } from "~/games/tower-defense/maps";
 import {
@@ -37,7 +40,7 @@ import {
   enemyEffectDuration,
 } from "~/games/tower-defense/enemy-combat";
 
-export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS } from "~/games/tower-defense/gameplay-config";
+export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS, isSupportTowerKind, towerFireInterval, towerSupportBonus } from "~/games/tower-defense/gameplay-config";
 
 /** Cung cấp state, command và simulation loop độc lập với lớp render Three.js. */
 export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
@@ -53,7 +56,7 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
   const bestWave = ref(0);
   const phase = ref<GamePhase>("ready");
   const isPaused = ref(false);
-  const speedMultiplier = ref<1 | 2 | 4>(1);
+  const speedMultiplier = ref<0.5 | 1 | 2 | 4>(1);
   const selectedKind = ref<TowerKind | null>(null);
   const selectedTowerId = ref<number | null>(null);
   // Các object game được cập nhật liên tục. shallowRef tránh Vue tạo proxy sâu cho
@@ -98,6 +101,12 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
       selectedTower.value !== null &&
       undoableTowerIds.value.includes(selectedTower.value.id),
   );
+  const canRelocateSelectedTower = computed(
+    () =>
+      canStartWave.value &&
+      selectedTower.value !== null &&
+      undoableTowerIds.value.includes(selectedTower.value.id),
+  );
   const upgradeCost = computed(() => {
     const tower = selectedTower.value;
     if (!tower || tower.level >= MAX_TOWER_LEVEL) return 0;
@@ -115,6 +124,30 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
   function towerAt(x: number, y: number) {
     return towers.value.find((tower) => tower.x === x && tower.y === y);
   }
+
+  /** Buff cùng loại không cộng dồn; tower nhận mức mạnh nhất đang phủ lên nó. */
+  function supportBonusFor(tower: Tower, supportKind: "speed" | "damage") {
+    return towers.value.reduce((strongest, support) => {
+      if (support.kind !== supportKind || support.id === tower.id)
+        return strongest;
+      const range = TOWER_DEFINITIONS[support.kind].range;
+      if (Math.hypot(support.x - tower.x, support.y - tower.y) > range)
+        return strongest;
+      return Math.max(strongest, towerSupportBonus(support.level));
+    }, 0);
+  }
+
+  /** Các buff hỗ trợ thực tế mà tower đang chọn nhận tại vị trí hiện tại. */
+  const selectedTowerSupportBonuses = computed(() => {
+    const tower = selectedTower.value;
+    if (!tower || isSupportTowerKind(tower.kind)) {
+      return { damage: 0, speed: 0 };
+    }
+    return {
+      damage: supportBonusFor(tower, "damage"),
+      speed: supportBonusFor(tower, "speed"),
+    };
+  });
 
   /**
    * Xử lý click grid theo thứ tự ưu tiên: chọn tower có sẵn, đặt lại tower đang
@@ -134,18 +167,22 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
       }
 
       selectedTowerId.value = existing.id;
-      message.value = canStartWave.value
-        ? `Đã chọn ${TOWER_DEFINITIONS[existing.kind].name}. Nhấn Di chuyển nếu muốn đổi vị trí.`
-        : `Đã chọn ${TOWER_DEFINITIONS[existing.kind].name}. Chỉ có thể di chuyển khi round kết thúc.`;
+      message.value = !canStartWave.value
+        ? `Đã chọn ${TOWER_DEFINITIONS[existing.kind].name}. Không thể di chuyển khi round đang diễn ra.`
+        : undoableTowerIds.value.includes(existing.id)
+          ? `Đã chọn ${TOWER_DEFINITIONS[existing.kind].name}. Nhấn Di chuyển nếu muốn đổi vị trí.`
+          : `Đã chọn ${TOWER_DEFINITIONS[existing.kind].name}. Vị trí đã khóa từ round trước.`;
       return;
     }
 
     const towerToMove = selectedTower.value;
     if (towerToMove) {
-      if (!canStartWave.value || !towerToMove.canRelocate) {
-        message.value = canStartWave.value
-          ? "Hãy nhấn nút Di chuyển trước khi chọn ô mới."
-          : "Chỉ có thể di chuyển tháp trong thời gian chuẩn bị.";
+      if (!canRelocateSelectedTower.value || !towerToMove.canRelocate) {
+        message.value = !canStartWave.value
+          ? "Không thể di chuyển tháp khi round đang diễn ra."
+          : !undoableTowerIds.value.includes(towerToMove.id)
+            ? "Tháp từ round trước đã bị khóa vị trí."
+            : "Hãy nhấn nút Di chuyển trước khi chọn ô mới.";
         return;
       }
       if (phase.value === "gameover") return;
@@ -218,13 +255,19 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
     message.value = `Đã nâng ${TOWER_DEFINITIONS[tower.kind].name} lên cấp ${tower.level}.`;
   }
 
-  /** Mở khóa một lần chọn ô đích mới, chỉ cho phép giữa các wave. */
+  /** Chỉ tower vừa đặt trong giai đoạn chuẩn bị hiện tại mới được đổi vị trí. */
   function enableSelectedRelocation() {
     const tower = selectedTower.value;
-    if (!tower || !canStartWave.value) return;
+    if (!tower || !canRelocateSelectedTower.value) {
+      message.value = canStartWave.value
+        ? "Tháp từ round trước đã bị khóa vị trí."
+        : "Không thể di chuyển tháp khi round đang diễn ra.";
+      return false;
+    }
     tower.canRelocate = true;
     triggerRef(towers);
     message.value = `Chọn một ô trống để di chuyển ${TOWER_DEFINITIONS[tower.kind].name}.`;
+    return true;
   }
 
   /** Bán tower và hoàn 70% tổng vốn đầu tư, đồng thời dọn selection/undo state. */
@@ -493,6 +536,13 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
 
     for (const tower of towers.value) {
       const definition = TOWER_DEFINITIONS[tower.kind];
+      if (isSupportTowerKind(tower.kind)) {
+        tower.beamTargetIds = [];
+        tower.cooldown = 0;
+        continue;
+      }
+      const damageMultiplier = 1 + supportBonusFor(tower, "damage");
+      const attackSpeedMultiplier = 1 + supportBonusFor(tower, "speed");
       const effectiveRange =
         tower.kind === "frost"
           ? definition.range
@@ -537,7 +587,12 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
           damageEnemy(
             enemy,
             "thunder",
-            definition.damage * levelMultiplier * Math.pow(0.72, index) * dt,
+            definition.damage *
+              levelMultiplier *
+              damageMultiplier *
+              attackSpeedMultiplier *
+              Math.pow(0.72, index) *
+              dt,
           );
         });
         tower.beamTargetIds = chainTargets.map((enemy) => enemy.id);
@@ -589,7 +644,8 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
           radius: frostRadius,
           level: tower.level,
         });
-        tower.cooldown = definition.fireRate / (1 + (tower.level - 1) * 0.18);
+        tower.cooldown =
+          towerFireInterval(tower.kind, tower.level) / attackSpeedMultiplier;
         continue;
       }
       const shotDuration =
@@ -618,19 +674,20 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
           life: shotDuration,
           duration: shotDuration / speedMultiplier.value,
           targetId: shotTarget.id,
-          damage: definition.damage * levelMultiplier,
+          damage: definition.damage * levelMultiplier * damageMultiplier,
           level: tower.level,
           slow: definition.slow,
           slowDuration: definition.slowDuration,
           burnDuration: definition.burnDuration,
           burnDamagePerSecond: definition.burnDamagePerSecond
-            ? definition.burnDamagePerSecond * levelMultiplier
+            ? definition.burnDamagePerSecond * levelMultiplier * damageMultiplier
             : undefined,
           splashRadius: definition.splashRadius,
           splashDamageRatio: definition.splashDamageRatio,
         });
       }
-      tower.cooldown = definition.fireRate / (1 + (tower.level - 1) * 0.18);
+      tower.cooldown =
+        towerFireInterval(tower.kind, tower.level) / attackSpeedMultiplier;
     }
 
     const defeated = enemies.value.filter((enemy) => enemy.hp <= 0);
@@ -778,6 +835,7 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
     selectedKind,
     selectedTowerId,
     selectedTower,
+    selectedTowerSupportBonuses,
     towers,
     enemies,
     projectiles,
@@ -787,6 +845,7 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
     message,
     canStartWave,
     canUndoSelectedPlacement,
+    canRelocateSelectedTower,
     upgradeCost,
     isPath,
     towerAt,

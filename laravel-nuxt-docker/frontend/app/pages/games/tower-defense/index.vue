@@ -9,6 +9,8 @@ import {
   Grid2X2,
   HeartPulse,
   Info,
+  Maximize2,
+  Minimize2,
   Move,
   Pause,
   Play,
@@ -28,6 +30,9 @@ import {
   TOWER_DEFINITIONS,
   TOWER_RANGE_LEVEL_BONUS,
   WATER_SLOW_DURATION_SECONDS,
+  isSupportTowerKind,
+  towerFireInterval,
+  towerSupportBonus,
   useTowerDefense,
 } from "~/composables/useTowerDefense";
 import { TOWER_DEFENSE_MAPS } from "~/games/tower-defense/maps";
@@ -62,6 +67,7 @@ const {
   selectedKind,
   selectedTowerId,
   selectedTower,
+  selectedTowerSupportBonuses,
   towers,
   enemies,
   projectiles,
@@ -71,6 +77,7 @@ const {
   message,
   canStartWave,
   canUndoSelectedPlacement,
+  canRelocateSelectedTower,
   upgradeCost,
   selectCell,
   upgradeSelected,
@@ -81,6 +88,32 @@ const {
   resetGame,
   setPaused,
 } = useTowerDefense(requestedMapId);
+
+/** Chỉ số chiến đấu đã bao gồm buff để popup phản ánh đúng sức mạnh hiện tại. */
+const selectedTowerEffectiveDamage = computed(() => {
+  const tower = selectedTower.value;
+  if (!tower || isSupportTowerKind(tower.kind)) return 0;
+  const baseDamage =
+    TOWER_DEFINITIONS[tower.kind].damage *
+    (1 + (tower.level - 1) * (tower.kind === "thunder" ? 0.42 : 0.55));
+  const speedMultiplier =
+    tower.kind === "thunder" ? 1 + selectedTowerSupportBonuses.value.speed : 1;
+  return Math.round(
+    baseDamage *
+      (1 + selectedTowerSupportBonuses.value.damage) *
+      speedMultiplier,
+  );
+});
+
+const selectedTowerEffectiveFireInterval = computed(() => {
+  const tower = selectedTower.value;
+  if (!tower || isSupportTowerKind(tower.kind) || tower.kind === "thunder")
+    return 0;
+  return (
+    towerFireInterval(tower.kind, tower.level) /
+    (1 + selectedTowerSupportBonuses.value.speed)
+  );
+});
 
 /** Đổi map bằng URL để khởi tạo lại sạch toàn bộ simulation và WebGL resources. */
 function selectMap(event: Event) {
@@ -176,6 +209,7 @@ const hoveredTowerDefinition = computed(() =>
 const sceneReady = ref(false);
 const imagesReady = ref(true);
 const showBrickBackground = ref(false);
+const isBuildPanelExpanded = ref(false);
 const isGameReady = computed(() => sceneReady.value && imagesReady.value);
 
 function togglePauseFromHud() {
@@ -250,8 +284,7 @@ function toggleTowerKind(kind: TowerKind) {
 
 /** Cho phép tower đang chọn nhận ô đích mới trong giai đoạn chuẩn bị. */
 function beginTowerRelocation() {
-  enableSelectedRelocation();
-  isMovePlacementMode.value = true;
+  isMovePlacementMode.value = enableSelectedRelocation();
 }
 
 /** Đóng popup khi click ngoài scene và ngoài chính popup, tránh chặn tương tác WebGL. */
@@ -432,10 +465,17 @@ onBeforeUnmount(() => {
               class="defense-enemy-intel"
               aria-label="Thông tin quân địch trong đợt hiện tại"
             >
-              <article v-for="enemyIntel in enemyIntelCards" :key="enemyIntel.id">
+              <article
+                v-for="enemyIntel in enemyIntelCards"
+                :key="enemyIntel.id"
+                :class="{ 'is-boss': enemyIntel.id === 'boss' }"
+              >
                 <img :src="enemyIntel.avatar" :alt="enemyIntel.name" />
                 <div class="defense-enemy-intel__identity">
-                  <small>ĐỢT {{ enemyIntelWave }}</small>
+                  <small>
+                    {{ enemyIntel.id === "boss" ? "BOSS" : "ĐỢT" }}
+                    {{ enemyIntelWave }}
+                  </small>
                   <strong>{{ enemyIntel.name }}</strong>
                 </div>
                 <div class="defense-enemy-intel__actions">
@@ -508,9 +548,11 @@ onBeforeUnmount(() => {
                 {{
                   selectedTower.canRelocate && canStartWave
                     ? "Chọn một ô trống trên bản đồ để đặt lại tháp."
-                    : canStartWave
+                    : canRelocateSelectedTower
                       ? "Nhấn Di chuyển để chọn vị trí mới cho tháp."
-                      : "Chỉ có thể di chuyển tháp trong thời gian chuẩn bị."
+                      : canStartWave
+                        ? "Vị trí đã khóa vì tháp thuộc round trước."
+                        : "Không thể di chuyển tháp khi round đang diễn ra."
                 }}
               </p>
               <div class="is-price">
@@ -519,42 +561,61 @@ onBeforeUnmount(() => {
                 }}</span
                 ><b>{{ selectedTower.invested }} vàng</b>
               </div>
-              <div class="is-damage">
+              <div v-if="isSupportTowerKind(selectedTower.kind)" class="is-damage">
+                <span>{{ selectedTower.kind === "speed" ? "Tốc độ" : "Sát thương" }}</span
+                ><b>+{{ Math.round(towerSupportBonus(selectedTower.level) * 100) }}%</b>
+              </div>
+              <div v-else class="is-damage">
                 <span>{{
                   selectedTower.kind === "thunder"
-                    ? "Sát thương/giây"
-                    : "Sát thương"
+                    ? "Sát thương/giây hiện tại"
+                    : "Sát thương hiện tại"
                 }}</span
-                ><b>{{
-                  Math.round(
-                    TOWER_DEFINITIONS[selectedTower.kind].damage *
-                      (1 +
-                        (selectedTower.level - 1) *
-                          (selectedTower.kind === "thunder" ? 0.42 : 0.55)),
-                  )
-                }}</b>
+                ><b>{{ selectedTowerEffectiveDamage }}</b>
               </div>
               <div class="is-range">
                 <span>{{
-                  selectedTower.kind === "frost" ? "Bán kính vùng" : "Tầm bắn"
+                  isSupportTowerKind(selectedTower.kind)
+                    ? "Phạm vi buff"
+                    : selectedTower.kind === "frost"
+                      ? "Bán kính vùng"
+                      : "Tầm bắn"
                 }}</span
                 ><b>{{
-                  (selectedTower.kind === "frost"
-                    ? TOWER_DEFINITIONS.frost.range
+                  (selectedTower.kind === "frost" || isSupportTowerKind(selectedTower.kind)
+                    ? TOWER_DEFINITIONS[selectedTower.kind].range
                     : TOWER_DEFINITIONS[selectedTower.kind].range +
                       (selectedTower.level - 1) * TOWER_RANGE_LEVEL_BONUS
                   ).toFixed(1)
                 }}</b>
               </div>
-              <div class="is-rate">
+              <div v-if="!isSupportTowerKind(selectedTower.kind)" class="is-rate">
                 <span>{{
-                  selectedTower.kind === "thunder" ? "Tấn công" : "Nhịp bắn"
+                  selectedTower.kind === "thunder"
+                    ? "Tấn công"
+                    : "Tốc độ hiện tại"
                 }}</span
                 ><b>{{
                   selectedTower.kind === "thunder"
                     ? "Liên tục"
-                    : `${(TOWER_DEFINITIONS[selectedTower.kind].fireRate / (1 + (selectedTower.level - 1) * 0.18)).toFixed(2)} giây`
+                    : `${selectedTowerEffectiveFireInterval.toFixed(2)} giây`
                 }}</b>
+              </div>
+              <div
+                v-if="!isSupportTowerKind(selectedTower.kind)"
+                class="is-buff-damage"
+                :class="{ 'is-active': selectedTowerSupportBonuses.damage > 0 }"
+              >
+                <span>Buff sát thương</span
+                ><b>+{{ Math.round(selectedTowerSupportBonuses.damage * 100) }}%</b>
+              </div>
+              <div
+                v-if="!isSupportTowerKind(selectedTower.kind)"
+                class="is-buff-speed"
+                :class="{ 'is-active': selectedTowerSupportBonuses.speed > 0 }"
+              >
+                <span>Buff tốc độ</span
+                ><b>+{{ Math.round(selectedTowerSupportBonuses.speed * 100) }}%</b>
               </div>
               <div v-if="selectedTower.kind === 'frost'" class="is-slow">
                 <span>Đóng băng</span
@@ -606,7 +667,9 @@ onBeforeUnmount(() => {
               <button
                 type="button"
                 class="is-move"
-                :disabled="!canStartWave || selectedTower.canRelocate"
+                :disabled="
+                  !canRelocateSelectedTower || selectedTower.canRelocate
+                "
                 @click="beginTowerRelocation"
               >
                 <Move />{{
@@ -628,15 +691,35 @@ onBeforeUnmount(() => {
             </section>
 
             <!-- Sidebar xây tháp và điều khiển wave. -->
-            <aside class="defense-sidebar">
+            <aside
+              class="defense-sidebar"
+              :class="{ 'is-build-expanded': isBuildPanelExpanded }"
+            >
               <label v-if="availableMaps.length > 1" class="defense-map-picker">
                 <span>BẢN ĐỒ</span>
                 <select :value="map.id" @change="selectMap">
                   <option v-for="item in availableMaps" :key="item.id" :value="item.id">{{ item.name }}</option>
                 </select>
               </label>
-              <section class="defense-build">
+              <section
+                class="defense-build"
+                :class="{ 'is-expanded': isBuildPanelExpanded }"
+              >
                 <header>
+                  <button
+                    type="button"
+                    class="defense-build__expand"
+                    :aria-expanded="isBuildPanelExpanded"
+                    :title="
+                      isBuildPanelExpanded
+                        ? 'Thu gọn danh sách công trình'
+                        : 'Mở rộng danh sách công trình'
+                    "
+                    @click="isBuildPanelExpanded = !isBuildPanelExpanded"
+                  >
+                    <Minimize2 v-if="isBuildPanelExpanded" />
+                    <Maximize2 v-else />
+                  </button>
                   <div>
                     <small>THÁP PHÒNG THỦ</small
                     ><strong class="defense-tower-count"
@@ -645,41 +728,48 @@ onBeforeUnmount(() => {
                   </div>
                   <h2>Chọn công trình</h2>
                 </header>
-                <button
-                  v-for="kind in towerKinds"
-                  :key="kind"
-                  type="button"
-                  :class="{ active: selectedKind === kind }"
-                  :disabled="towers.length >= map.maxTowerCount"
-                  @click="toggleTowerKind(kind)"
-                  @mouseenter="showTowerTooltip(kind, $event)"
-                  @mousemove="showTowerTooltip(kind, $event)"
-                  @mouseleave="hideTowerTooltip"
-                  @focus="showTowerTooltip(kind, $event)"
-                  @blur="hideTowerTooltip"
-                >
-                  <span
-                    :style="{ '--tower-color': TOWER_DEFINITIONS[kind].color }"
-                    aria-hidden="true"
+                <div class="defense-build__list">
+                  <button
+                    v-for="kind in towerKinds"
+                    :key="kind"
+                    type="button"
+                    :class="{ active: selectedKind === kind }"
+                    :disabled="towers.length >= map.maxTowerCount"
+                    @click="toggleTowerKind(kind)"
+                    @mouseenter="showTowerTooltip(kind, $event)"
+                    @mousemove="showTowerTooltip(kind, $event)"
+                    @mouseleave="hideTowerTooltip"
+                    @focus="showTowerTooltip(kind, $event)"
+                    @blur="hideTowerTooltip"
                   >
-                    <Crosshair v-if="kind === 'archer'" />
-                    <Bomb v-else-if="kind === 'cannon'" />
-                    <Snowflake v-else-if="kind === 'frost'" />
-                    <Flame v-else-if="kind === 'fire'" />
-                    <Zap v-else-if="kind === 'thunder'" />
-                    <Waves v-else />
-                  </span>
-                  <div>
-                    <strong>{{ TOWER_DEFINITIONS[kind].name }}</strong
-                    ><small>{{ TOWER_DEFINITIONS[kind].description }}</small>
-                  </div>
-                  <b>{{ TOWER_DEFINITIONS[kind].cost }}</b>
-                </button>
+                    <span
+                      :style="{
+                        '--tower-color': TOWER_DEFINITIONS[kind].color,
+                      }"
+                      aria-hidden="true"
+                    >
+                      <Crosshair v-if="kind === 'archer'" />
+                      <Bomb v-else-if="kind === 'cannon'" />
+                      <Snowflake v-else-if="kind === 'frost'" />
+                      <Flame v-else-if="kind === 'fire'" />
+                      <Zap v-else-if="kind === 'thunder'" />
+                      <Waves v-else-if="kind === 'water'" />
+                      <Gauge v-else-if="kind === 'speed'" />
+                      <Swords v-else />
+                    </span>
+                    <div>
+                      <strong>{{ TOWER_DEFINITIONS[kind].name }}</strong
+                      ><small>{{ TOWER_DEFINITIONS[kind].description }}</small>
+                    </div>
+                    <b>{{ TOWER_DEFINITIONS[kind].cost }}</b>
+                  </button>
+                </div>
               </section>
 
               <section class="defense-wave-control">
-                <div>
-                  <span>Đợt tiếp theo</span><strong>{{ wave + 1 }}</strong>
+                <div class="is-current-wave">
+                  <span>Đợt hiện tại</span
+                  ><strong>{{ wave > 0 ? wave : "—" }}</strong>
                 </div>
                 <p v-if="phase === 'between'">
                   Tự động bắt đầu sau {{ Math.ceil(nextWaveCountdown) }} giây.
@@ -729,6 +819,12 @@ onBeforeUnmount(() => {
                 >
                 <div class="defense-speed">
                   <Gauge /><button
+                    type="button"
+                    :class="{ active: speedMultiplier === 0.5 }"
+                    @click="speedMultiplier = 0.5"
+                  >
+                    0.5×</button
+                  ><button
                     type="button"
                     :class="{ active: speedMultiplier === 1 }"
                     @click="speedMultiplier = 1"
@@ -790,7 +886,11 @@ onBeforeUnmount(() => {
             <dt>Giá xây</dt>
             <dd>{{ hoveredTowerDefinition.cost }} vàng</dd>
           </div>
-          <div class="is-damage">
+          <div v-if="isSupportTowerKind(hoveredTowerKind)" class="is-damage">
+            <dt>Buff theo cấp</dt>
+            <dd>10% · 30% · 50%</dd>
+          </div>
+          <div v-else class="is-damage">
             <dt>
               {{
                 hoveredTowerKind === "thunder"
@@ -802,13 +902,13 @@ onBeforeUnmount(() => {
           </div>
           <div class="is-range">
             <dt>
-              {{ hoveredTowerKind === "frost" ? "Bán kính vùng" : "Tầm bắn" }}
+              {{ isSupportTowerKind(hoveredTowerKind) ? "Phạm vi buff" : hoveredTowerKind === "frost" ? "Bán kính vùng" : "Tầm bắn" }}
             </dt>
             <dd>{{ hoveredTowerDefinition.range.toFixed(1) }}</dd>
           </div>
-          <div class="is-rate">
+          <div v-if="!isSupportTowerKind(hoveredTowerKind)" class="is-rate">
             <dt>
-              {{ hoveredTowerKind === "thunder" ? "Tấn công" : "Nhịp bắn" }}
+              {{ hoveredTowerKind === "thunder" ? "Tấn công" : "Tốc độ" }}
             </dt>
             <dd>
               {{

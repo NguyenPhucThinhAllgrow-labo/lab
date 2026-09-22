@@ -4,7 +4,7 @@ import type { TowerKind } from "~/types/games/towerDefense";
 
 export type LevelledTowerKind = Extract<
   TowerKind,
-  "frost" | "fire" | "thunder" | "water"
+  "frost" | "fire" | "thunder" | "water" | "speed" | "damage"
 >;
 
 interface TowerModelDefinition {
@@ -20,9 +20,9 @@ const LEVELLED_TOWER_MODELS: TowerModelDefinition[] = [
     modelName: "FrostTower3D",
     targetHeight: 2.1,
     urls: {
-      1: "/models/games/tower-defense/frost/enemy/level1.glb",
-      2: "/models/games/tower-defense/frost/enemy/level2.glb",
-      3: "/models/games/tower-defense/frost/enemy/level3.glb",
+      1: "/models/games/tower-defense/towers/frost/enemy/level1.glb",
+      2: "/models/games/tower-defense/towers/frost/enemy/level2.glb",
+      3: "/models/games/tower-defense/towers/frost/enemy/level3.glb",
     },
   },
   {
@@ -30,9 +30,9 @@ const LEVELLED_TOWER_MODELS: TowerModelDefinition[] = [
     modelName: "FireTower3D",
     targetHeight: 2.1,
     urls: {
-      1: "/models/games/tower-defense/fire/enemy/level1.glb",
-      2: "/models/games/tower-defense/fire/enemy/level2.glb",
-      3: "/models/games/tower-defense/fire/enemy/level3.glb",
+      1: "/models/games/tower-defense/towers/fire/enemy/level1.glb",
+      2: "/models/games/tower-defense/towers/fire/enemy/level2.glb",
+      3: "/models/games/tower-defense/towers/fire/enemy/level3.glb",
     },
   },
   {
@@ -40,9 +40,9 @@ const LEVELLED_TOWER_MODELS: TowerModelDefinition[] = [
     modelName: "ThunderTower3D",
     targetHeight: 2.1,
     urls: {
-      1: "/models/games/tower-defense/thunder/enemy/level1.glb",
-      2: "/models/games/tower-defense/thunder/enemy/level2.glb",
-      3: "/models/games/tower-defense/thunder/enemy/level3.glb",
+      1: "/models/games/tower-defense/towers/thunder/enemy/level1.glb",
+      2: "/models/games/tower-defense/towers/thunder/enemy/level2.glb",
+      3: "/models/games/tower-defense/towers/thunder/enemy/level3.glb",
     },
   },
   {
@@ -50,9 +50,29 @@ const LEVELLED_TOWER_MODELS: TowerModelDefinition[] = [
     modelName: "WaterTower3D",
     targetHeight: 2,
     urls: {
-      1: "/models/games/tower-defense/water/enemy/level1.glb",
-      2: "/models/games/tower-defense/water/enemy/level2.glb",
-      3: "/models/games/tower-defense/water/enemy/level3.glb",
+      1: "/models/games/tower-defense/towers/water/enemy/level1.glb",
+      2: "/models/games/tower-defense/towers/water/enemy/level2.glb",
+      3: "/models/games/tower-defense/towers/water/enemy/level3.glb",
+    },
+  },
+  {
+    kind: "speed",
+    modelName: "SpeedSupportTower3D",
+    targetHeight: 2,
+    urls: {
+      1: "/models/games/tower-defense/towers/supports/enemy/speed.glb",
+      2: "/models/games/tower-defense/towers/supports/enemy/speed.glb",
+      3: "/models/games/tower-defense/towers/supports/enemy/speed.glb",
+    },
+  },
+  {
+    kind: "damage",
+    modelName: "DamageSupportTower3D",
+    targetHeight: 2,
+    urls: {
+      1: "/models/games/tower-defense/towers/supports/enemy/damage/level1.glb",
+      2: "/models/games/tower-defense/towers/supports/enemy/damage/level2.glb",
+      3: "/models/games/tower-defense/towers/supports/enemy/damage/level3.glb",
     },
   },
 ];

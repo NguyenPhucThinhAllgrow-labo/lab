@@ -27,6 +27,8 @@ export function createTowerDefenseProjectileScene(
 ): TowerDefenseProjectileScene {
   const templates = new Map<Projectile["kind"], THREE.Group>();
   const models = new Map<number, { group: THREE.Group; bornAt: number }>();
+  const projectileDirection = new THREE.Vector3();
+  const projectileLookTarget = new THREE.Vector3();
 
   /** Tạo material đồng nhất với các model procedural còn lại trong scene. */
   function mesh(
@@ -312,7 +314,33 @@ export function createTowerDefenseProjectileScene(
       let startHeight = 0.72;
       let arcHeight = 1.15;
 
-      if (projectile.kind === "cannon") {
+      if (projectile.kind === "archer") {
+        const sourceTower = towers.find(
+          (tower) =>
+            tower.x === projectile.from.x &&
+            tower.y === projectile.from.y &&
+            tower.kind === "archer",
+        );
+        const towerScale = towerScaleForLevel(sourceTower?.level ?? 1);
+        const directionX = to.x - from.x;
+        const directionZ = to.z - from.z;
+        const horizontalDistance = Math.max(
+          Math.hypot(directionX, directionZ),
+          0.001,
+        );
+
+        // Mũi tên rời mép tháp thay vì xuất hiện từ tâm chân tháp. Độ vồng
+        // tăng theo khoảng cách bắn để các phát xa trông tự nhiên hơn.
+        const launchOffset = 0.34 * towerScale.horizontal;
+        from.x += (directionX / horizontalDistance) * launchOffset;
+        from.z += (directionZ / horizontalDistance) * launchOffset;
+        startHeight = 1.24 * towerScale.vertical;
+        arcHeight = THREE.MathUtils.clamp(
+          horizontalDistance * 0.28,
+          0.55,
+          1.45,
+        );
+      } else if (projectile.kind === "cannon") {
         const sourceTower = towers.find(
           (tower) =>
             tower.x === projectile.from.x &&
@@ -364,12 +392,35 @@ export function createTowerDefenseProjectileScene(
       }
 
       const fallProgress =
-        projectile.kind === "fire" ? Math.pow(ratio, 1.55) : ratio;
-      item.group.position.lerpVectors(from, to, ratio);
-      item.group.position.y =
-        THREE.MathUtils.lerp(startHeight, targetHeight, fallProgress) +
-        Math.sin(ratio * Math.PI) * arcHeight;
-      item.group.lookAt(to.x, targetHeight, to.z);
+        projectile.kind === "fire"
+          ? Math.pow(ratio, 1.55)
+          : projectile.kind === "water"
+            ? THREE.MathUtils.smoothstep(ratio, 0, 1)
+            : ratio;
+      const movementProgress =
+        projectile.kind === "water" ? fallProgress : ratio;
+      item.group.position.lerpVectors(from, to, movementProgress);
+      if (projectile.kind === "archer") {
+        // Quỹ đạo parabol và đạo hàm của nó. Hướng mũi tên theo tiếp tuyến
+        // khiến nó ngóc lên khi rời cung và chúi đầu xuống trước khi trúng đích.
+        item.group.position.y =
+          THREE.MathUtils.lerp(startHeight, targetHeight, ratio) +
+          4 * arcHeight * ratio * (1 - ratio);
+        projectileDirection.set(
+          to.x - from.x,
+          targetHeight - startHeight + 4 * arcHeight * (1 - 2 * ratio),
+          to.z - from.z,
+        );
+        projectileLookTarget
+          .copy(item.group.position)
+          .add(projectileDirection);
+        item.group.lookAt(projectileLookTarget);
+      } else {
+        item.group.position.y =
+          THREE.MathUtils.lerp(startHeight, targetHeight, fallProgress) +
+          Math.sin(movementProgress * Math.PI) * arcHeight;
+        item.group.lookAt(to.x, targetHeight, to.z);
+      }
 
       if (projectile.kind === "fire") {
         const fireball = item.group.getObjectByName("fireballCore");
@@ -390,23 +441,26 @@ export function createTowerDefenseProjectileScene(
       } else if (projectile.kind === "water") {
         const drop = item.group.getObjectByName("waterShotCore");
         if (drop) {
-          const pulse = 1 + Math.sin(elapsed * 17 + projectile.id) * 0.09;
-          drop.scale.set(pulse, pulse * 0.88, pulse);
+          const pulse = 1 + Math.sin(elapsed * 10 + projectile.id) * 0.055;
+          drop.scale.set(pulse * 0.94, pulse * 0.94, pulse * 1.24);
         }
+        item.group.rotateZ(
+          Math.sin(elapsed * 5.5 + projectile.id * 0.7) * 0.055,
+        );
         item.group.children.forEach((child) => {
           if (child.name !== "waterShotDroplet") return;
           const index = Number(child.userData.index);
           const angle =
             Number(child.userData.angle) +
-            elapsed * (4.2 + (index % 2) * 0.7) +
+            elapsed * (2.7 + (index % 2) * 0.45) +
             projectile.id;
-          const radius = 0.15 + (index % 3) * 0.025;
+          const radius = 0.12 + (index % 3) * 0.02;
           child.position.set(
             Math.cos(angle) * radius,
-            Math.sin(angle * 1.3) * 0.12,
+            Math.sin(angle * 1.2) * 0.085,
             Math.sin(angle) * radius,
           );
-          child.scale.setScalar(0.75 + Math.sin(elapsed * 9 + index) * 0.2);
+          child.scale.setScalar(0.82 + Math.sin(elapsed * 6 + index) * 0.13);
         });
       }
     }
