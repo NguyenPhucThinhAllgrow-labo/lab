@@ -100,6 +100,10 @@ const pointerCurrent = new THREE.Vector2();
 const defaultCameraPosition = new THREE.Vector3(...props.map.camera.position);
 const defaultCameraTarget = new THREE.Vector3(...props.map.camera.target);
 const towerScreenPosition = new THREE.Vector3();
+const thunderStartWorld = new THREE.Vector3();
+const thunderEndWorld = new THREE.Vector3();
+const thunderBranchStart = new THREE.Vector3();
+const thunderBranchEnd = new THREE.Vector3();
 const defensePathTileSet = new Set(
   DEFENSE_PATH_TILES.map((point) => `${point.x}:${point.y}`),
 );
@@ -863,7 +867,7 @@ function decorateElementalTowerGlow(
   } as const;
   const heightRatios = {
     fire: { 1: 0.82, 2: 0.84, 3: 0.86 },
-    thunder: { 1: 0.82, 2: 0.73, 3: 0.8 },
+    thunder: { 1: 0.82, 2: 0.73, 3: 0.79 },
     water: { 1: 0.76, 2: 0.73, 3: 0.68 },
   } as const;
   const glowScales = { fire: 1.5, thunder: 1, water: 1.02 } as const;
@@ -1479,13 +1483,24 @@ function animateTowerLevelAppearance(
   });
 }
 
-/** Tạo sẵn tia điện ba lớp cho mỗi đoạn chuỗi để có lõi dày và quầng sáng. */
-function createThunderBeamEffect() {
+/** Tạo tia điện nhiều lớp; level cao có thêm lớp để tia dày rõ trên WebGL. */
+function createThunderBeamEffect(level: number) {
   const effect = new THREE.Group();
   effect.name = "thunderBeamEffect";
   effect.visible = false;
+  effect.userData.targets = [] as THREE.Group[];
+  effect.userData.segmentStarts = Array.from(
+    { length: 5 },
+    () => new THREE.Vector3(),
+  );
+  effect.userData.segmentEnds = Array.from(
+    { length: 5 },
+    () => new THREE.Vector3(),
+  );
+  const layerRadius = THREE.MathUtils.clamp(Math.round(level) + 1, 2, 4);
+  const layerSpacing = level === 1 ? 0.019 : level === 2 ? 0.021 : 0.023;
   for (let segmentIndex = 0; segmentIndex < 5; segmentIndex++) {
-    for (const lane of [-2, -1, 0, 1, 2]) {
+    for (let lane = -layerRadius; lane <= layerRadius; lane++) {
       const positions = new Float32Array(10 * 3);
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute(
@@ -1506,11 +1521,16 @@ function createThunderBeamEffect() {
       beam.name = "thunderChainBeam";
       beam.userData.segmentIndex = segmentIndex;
       beam.userData.lane = lane;
+      beam.userData.layerSpacing = layerSpacing;
       beam.frustumCulled = false;
       beam.renderOrder = core ? 11 : 10;
       effect.add(beam);
     }
-    for (let branchIndex = 0; branchIndex < 2; branchIndex++) {
+    for (
+      let branchIndex = 0;
+      branchIndex < Math.min(4, level + 1);
+      branchIndex++
+    ) {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute(
         "position",
@@ -1546,7 +1566,8 @@ function createTowerModel(tower: Tower) {
   bindTowerParts(group);
   setTowerScale(group, tower.level);
   applyTowerLevelAppearance(group, tower);
-  if (tower.kind === "thunder") group.add(createThunderBeamEffect());
+  if (tower.kind === "thunder")
+    group.add(createThunderBeamEffect(tower.level));
   group.position.copy(worldPosition(tower.x, tower.y));
   group.position.y = 0.05;
   group.userData.shotSequence = tower.shotSequence;
@@ -1776,7 +1797,11 @@ function createTowerPreview(kind: TowerKind) {
 }
 
 // ===== Model projectile/impact ==============================================
-/** Tạo geometry dùng chung cho từng loại đạn; instance sau đó chỉ clone template. */
+/**
+ * Tạo hình dạng 3D dùng chung cho từng loại đạn.
+ * Hàm này chỉ dựng mesh/material, chưa quyết định đạn xuất hiện ở vị trí nào.
+ * Mỗi phát bắn sẽ clone template này trong `createProjectile` để giảm chi phí.
+ */
 function createProjectileTemplate(kind: Projectile["kind"]) {
   const group = new THREE.Group();
   let shot: THREE.Mesh;
@@ -1901,7 +1926,11 @@ function createProjectileTemplate(kind: Projectile["kind"]) {
   return group;
 }
 
-/** Sinh projectile render-side và ghi bornAt để nội suy theo duration gameplay. */
+/**
+ * Clone một projectile sang scene render và lưu thời điểm nó được tạo.
+ * Tọa độ ban đầu chưa được gán ở đây; `syncScene` sẽ đặt nó tại điểm bắn
+ * của tháp trong frame kế tiếp dựa trên `bornAt` và `duration`.
+ */
 function createProjectile(projectile: Projectile, now: number) {
   const template = projectileTemplates.get(projectile.kind);
   if (!template)
@@ -2289,11 +2318,15 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   // Khi đã hạ chất lượng trong một wave thì giữ nguyên đến giờ nghỉ. Việc đổi
   // shadow/pixel buffer qua lại lúc quân số dao động gây khựng GPU rõ rệt.
   const shouldReduceEffects = performanceMode
-    ? props.phase === "wave" || sceneLoad >= 22
-    : sceneLoad > 30;
+    ? props.phase === "wave" || sceneLoad >= 16
+    : sceneLoad > 22;
   if (renderer && shouldReduceEffects !== performanceMode) {
     performanceMode = shouldReduceEffects;
     renderer.shadowMap.enabled = !performanceMode;
+    renderer.shadowMap.needsUpdate = !performanceMode;
+    renderer.setPixelRatio(
+      Math.min(devicePixelRatio, performanceMode ? 1 : 1.5),
+    );
   }
   if (mysticParticles) {
     mysticParticles.visible = !performanceMode;
@@ -2604,87 +2637,116 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       const beamEffect = model.getObjectByName("thunderBeamEffect") as
         THREE.Group | undefined;
       if (beamEffect) {
-        const targets = tower.beamTargetIds
-          .map((id) => enemyScene?.models.get(id))
-          .filter((item): item is THREE.Group => Boolean(item));
+        const targets = beamEffect.userData.targets as THREE.Group[];
+        targets.length = 0;
+        for (const id of tower.beamTargetIds) {
+          const targetModel = enemyScene?.models.get(id);
+          if (targetModel) targets.push(targetModel);
+        }
         beamEffect.visible = targets.length > 0;
+        if (!targets.length) continue;
         model.updateMatrixWorld(true);
+        const segmentStarts = beamEffect.userData
+          .segmentStarts as THREE.Vector3[];
+        const segmentEnds = beamEffect.userData.segmentEnds as THREE.Vector3[];
+        const crystalAnchor =
+          tower.level === 2
+            ? model.getObjectByName("elementalTowerGlow")
+            : undefined;
+        for (let segmentIndex = 0; segmentIndex < targets.length; segmentIndex++) {
+          if (segmentIndex === 0) {
+            if (crystalAnchor)
+              crystalAnchor.getWorldPosition(thunderStartWorld);
+            else {
+              thunderStartWorld.set(0, 1.72, 0);
+              model.localToWorld(thunderStartWorld);
+            }
+          } else {
+            targets[segmentIndex - 1]!.getWorldPosition(thunderStartWorld);
+            thunderStartWorld.y += 0.62;
+          }
+          targets[segmentIndex]!.getWorldPosition(thunderEndWorld);
+          thunderEndWorld.y += 0.62;
+          segmentStarts[segmentIndex]!.copy(thunderStartWorld);
+          segmentEnds[segmentIndex]!.copy(thunderEndWorld);
+          model.worldToLocal(segmentStarts[segmentIndex]!);
+          model.worldToLocal(segmentEnds[segmentIndex]!);
+        }
+        const flickerFrame = Math.floor(elapsed * 26);
+        const random = (
+          segmentIndex: number,
+          pointIndex: number,
+          salt: number,
+        ) => {
+          const value =
+            Math.sin(
+              (flickerFrame * 17.17 +
+                tower.id * 13.13 +
+                segmentIndex * 31.7 +
+                pointIndex * 7.91 +
+                salt) *
+                12.9898,
+            ) * 43758.5453;
+          return (value - Math.floor(value)) * 2 - 1;
+        };
         beamEffect.children.forEach((child) => {
           const beam = child as THREE.Line;
           const segmentIndex = Number(beam.userData.segmentIndex);
           const lane = Number(beam.userData.lane);
+          const layerSpacing = Number(beam.userData.layerSpacing) || 0.019;
           const branchIndex = Number(beam.userData.branchIndex);
           const targetModel = targets[segmentIndex];
           beam.visible = Boolean(targetModel);
           if (!targetModel) return;
-          const startWorld = new THREE.Vector3();
-          if (segmentIndex === 0) {
-            const crystalAnchor =
-              tower.level === 2
-                ? model.getObjectByName("elementalTowerGlow")
-                : undefined;
-            if (crystalAnchor) crystalAnchor.getWorldPosition(startWorld);
-            else model.localToWorld(startWorld.set(0, 1.72, 0));
-          } else
-            targets[segmentIndex - 1]!.getWorldPosition(startWorld).add(
-              new THREE.Vector3(0, 0.62, 0),
-            );
-          const endWorld = targetModel
-            .getWorldPosition(new THREE.Vector3())
-            .add(new THREE.Vector3(0, 0.62, 0));
-          const start = model.worldToLocal(startWorld.clone());
-          const end = model.worldToLocal(endWorld.clone());
+          const start = segmentStarts[segmentIndex]!;
+          const end = segmentEnds[segmentIndex]!;
           const position = beam.geometry.getAttribute(
             "position",
           ) as THREE.BufferAttribute;
-          const flickerFrame = Math.floor(elapsed * 26);
-          const random = (pointIndex: number, salt: number) => {
-            const value =
-              Math.sin(
-                (flickerFrame * 17.17 +
-                  tower.id * 13.13 +
-                  segmentIndex * 31.7 +
-                  pointIndex * 7.91 +
-                  salt) *
-                  12.9898,
-              ) * 43758.5453;
-            return (value - Math.floor(value)) * 2 - 1;
-          };
           if (child.name === "thunderBranchBeam") {
             const branchStartRatio = branchIndex ? 0.62 : 0.36;
-            const branchStart = new THREE.Vector3().lerpVectors(
+            thunderBranchStart.lerpVectors(
               start,
               end,
               branchStartRatio,
             );
             const branchLength =
-              0.28 + Math.abs(random(branchIndex, 19)) * 0.22;
-            const branchEnd = branchStart
-              .clone()
-              .add(
-                new THREE.Vector3(
-                  random(1, 23) * branchLength,
-                  0.08 + random(2, 29) * 0.18,
-                  random(3, 37) * branchLength,
-                ),
-              );
+              0.28 + Math.abs(random(segmentIndex, branchIndex, 19)) * 0.22;
+            thunderBranchEnd.set(
+              thunderBranchStart.x +
+                random(segmentIndex, 1, 23) * branchLength,
+              thunderBranchStart.y +
+                0.08 +
+                random(segmentIndex, 2, 29) * 0.18,
+              thunderBranchStart.z +
+                random(segmentIndex, 3, 37) * branchLength,
+            );
             for (let pointIndex = 0; pointIndex < 5; pointIndex++) {
               const ratio = pointIndex / 4;
               const edge = Math.sin(ratio * Math.PI);
               position.setXYZ(
                 pointIndex,
-                THREE.MathUtils.lerp(branchStart.x, branchEnd.x, ratio) +
-                  random(pointIndex, 41) * 0.045 * edge,
-                THREE.MathUtils.lerp(branchStart.y, branchEnd.y, ratio) +
-                  random(pointIndex, 47) * 0.04 * edge,
-                THREE.MathUtils.lerp(branchStart.z, branchEnd.z, ratio) +
-                  random(pointIndex, 53) * 0.045 * edge,
+                THREE.MathUtils.lerp(
+                  thunderBranchStart.x,
+                  thunderBranchEnd.x,
+                  ratio,
+                ) + random(segmentIndex, pointIndex, 41) * 0.045 * edge,
+                THREE.MathUtils.lerp(
+                  thunderBranchStart.y,
+                  thunderBranchEnd.y,
+                  ratio,
+                ) + random(segmentIndex, pointIndex, 47) * 0.04 * edge,
+                THREE.MathUtils.lerp(
+                  thunderBranchStart.z,
+                  thunderBranchEnd.z,
+                  ratio,
+                ) + random(segmentIndex, pointIndex, 53) * 0.045 * edge,
               );
             }
             position.needsUpdate = true;
             (beam.material as THREE.LineBasicMaterial).opacity = Math.max(
               0,
-              0.25 + random(branchIndex, 61) * 0.22,
+              0.25 + random(segmentIndex, branchIndex, 61) * 0.22,
             );
             return;
           }
@@ -2692,30 +2754,36 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
             const ratio = pointIndex / 9;
             const edge = Math.sin(ratio * Math.PI);
             const zigzag =
-              random(pointIndex, 3) *
-              (0.065 + Math.abs(random(pointIndex, 11)) * 0.065) *
+              random(segmentIndex, pointIndex, 3) *
+              (0.065 +
+                Math.abs(random(segmentIndex, pointIndex, 11)) * 0.065) *
               edge;
-            const layerOffset = lane * 0.019 * edge;
+            const layerOffset = lane * layerSpacing * edge;
             position.setXYZ(
               pointIndex,
               THREE.MathUtils.lerp(start.x, end.x, ratio) +
                 zigzag +
                 layerOffset,
               THREE.MathUtils.lerp(start.y, end.y, ratio) +
-                random(pointIndex, 71) * 0.075 * edge +
+                random(segmentIndex, pointIndex, 71) * 0.075 * edge +
                 layerOffset,
               THREE.MathUtils.lerp(start.z, end.z, ratio) +
-                random(pointIndex, 83) * 0.11 * edge +
+                random(segmentIndex, pointIndex, 83) * 0.11 * edge +
                 layerOffset,
             );
           }
           position.needsUpdate = true;
           const core = lane === 0;
           const innerGlow = Math.abs(lane) === 1;
+          const levelOpacityBoost = (tower.level - 1) * 0.06;
           (beam.material as THREE.LineBasicMaterial).opacity =
             THREE.MathUtils.clamp(
-              (core ? 0.92 : innerGlow ? 0.5 : 0.26) +
-                random(lane, 97) * (core ? 0.08 : 0.12),
+              (core
+                ? 0.92
+                : innerGlow
+                  ? 0.5 + levelOpacityBoost
+                  : 0.26 + levelOpacityBoost) +
+                random(segmentIndex, lane, 97) * (core ? 0.08 : 0.12),
               0.1,
               1,
             );
@@ -2798,9 +2866,12 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     );
     item.group.visible = ratio < 1;
     if (ratio >= 1) continue;
+    // `from`/`to` ban đầu là tâm hai ô grid đã được đổi sang tọa độ world.
+    // Các nhánh bên dưới sẽ hiệu chỉnh `from` thành đầu nòng hoặc tâm glow.
     const from = worldPosition(projectile.from.x, projectile.from.y);
     const to = worldPosition(projectile.to.x, projectile.to.y);
     const targetHeight = 0.45;
+    // Cao độ mặc định dành cho cung; từng loại đạn có thể ghi đè giá trị này.
     let startHeight = 0.72;
     let arcHeight = 1.15;
     if (projectile.kind === "cannon") {
@@ -2817,6 +2888,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
         Math.hypot(directionX, directionZ),
         0.001,
       );
+      // Đẩy điểm xuất phát từ tâm ô về phía mục tiêu để khớp đầu nòng pháo.
       const muzzleDistance = Math.cos(0.2) * 0.9 * towerScale.horizontal;
       from.x += (directionX / directionLength) * muzzleDistance;
       from.z += (directionZ / directionLength) * muzzleDistance;
@@ -2835,11 +2907,29 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
           tower.kind === projectile.kind,
       );
       const towerScale = towerScaleForLevel(sourceTower?.level ?? 1);
-      startHeight = 0.05 + 1.72 * towerScale.vertical;
+      const elementalGlow = sourceTower
+        ? towerModels
+            .get(sourceTower.id)
+            ?.getObjectByName("elementalTowerGlow")
+        : undefined;
+
+      if (
+        elementalGlow &&
+        (projectile.kind === "fire" || projectile.kind === "water")
+      ) {
+        // Chuyển tâm glow từ local space của model sang world space. Kết quả đã
+        // bao gồm position/rotation/scale của model và khác nhau theo từng level.
+        elementalGlow.getWorldPosition(from);
+        startHeight = from.y;
+      } else {
+        // Fallback dùng trong lúc GLB/glow chưa tải xong để đạn vẫn được hiển thị.
+        startHeight = 0.05 + 1.72 * towerScale.vertical;
+      }
       arcHeight = projectile.kind === "water" ? 0.24 : 0;
     }
     const fallProgress =
       projectile.kind === "fire" ? Math.pow(ratio, 1.55) : ratio;
+    // Khi ratio = 0, đạn nằm đúng tại `from`; ratio = 1 là vị trí mục tiêu.
     item.group.position.lerpVectors(from, to, ratio);
     item.group.position.y =
       THREE.MathUtils.lerp(startHeight, targetHeight, fallProgress) +
@@ -3299,11 +3389,13 @@ async function createWorld() {
           pointerTravel,
           pointerStart.distanceTo(pointerCurrent),
         );
+        if (hoverMarker) hoverMarker.userData.hoveredCell = undefined;
+        renderer!.domElement.style.cursor = "grabbing";
+        return;
       }
       const cell = cellAtPointer(event);
       if (hoverMarker) hoverMarker.userData.hoveredCell = cell;
-      renderer!.domElement.style.cursor =
-        event.buttons & 1 ? "grabbing" : cell ? "pointer" : "grab";
+      renderer!.domElement.style.cursor = cell ? "pointer" : "grab";
     });
     renderer.domElement.addEventListener("pointerleave", () => {
       if (hoverMarker) hoverMarker.userData.hoveredCell = undefined;
@@ -3314,10 +3406,10 @@ async function createWorld() {
       if (cell) {
         console.log("[Tower Defense] Clicked cell", { x: cell.x, y: cell.y });
         console.table({
-          calls: renderer.info.render.calls,
-          triangles: renderer.info.render.triangles,
-          geometries: renderer.info.memory.geometries,
-          textures: renderer.info.memory.textures,
+          calls: renderer!.info.render.calls,
+          triangles: renderer!.info.render.triangles,
+          geometries: renderer!.info.memory.geometries,
+          textures: renderer!.info.memory.textures,
         });
         emit("cellSelect", cell.x, cell.y);
       } else emit("backgroundSelect");

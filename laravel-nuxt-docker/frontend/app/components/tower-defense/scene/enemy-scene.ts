@@ -165,6 +165,7 @@ export function createTowerDefenseEnemyScene(
   >();
   const worldQuaternion = new THREE.Quaternion();
   const billboardQuaternion = new THREE.Quaternion();
+  const activeStatusBadges: THREE.Object3D[] = [];
   const groundShadowGeometry = new THREE.CircleGeometry(1, 24);
   const groundShadowMaterial = new THREE.MeshBasicMaterial({
     color: 0x070a08,
@@ -172,12 +173,62 @@ export function createTowerDefenseEnemyScene(
     opacity: 0.26,
     transparent: true,
   });
+  const lavaBossGlowGeometry = new THREE.CircleGeometry(1, 48);
   const enemyTemplates = new Map<string, THREE.Group>();
   const enemyAnimations = new Map<string, THREE.AnimationClip[]>();
+  let lavaBossGlowMaterial: THREE.ShaderMaterial | null = null;
   let customBossTemplate: THREE.Group | null = null;
   let customBossAnimations: THREE.AnimationClip[] = [];
   let bossAnimations: THREE.AnimationClip[] = [];
   let disposed = false;
+
+  function getLavaBossGlowMaterial() {
+    if (lavaBossGlowMaterial) return lavaBossGlowMaterial;
+    lavaBossGlowMaterial = new THREE.ShaderMaterial({
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+      transparent: true,
+      uniforms: {
+        uTime: { value: 0 },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        varying vec2 vUv;
+
+        float expandingRing(float radius, float phase, float width) {
+          float ring = 1.0 - smoothstep(0.0, width, abs(radius - phase));
+          return ring * (1.0 - phase);
+        }
+
+        void main() {
+          float radius = length(vUv - vec2(0.5)) * 2.0;
+          float edgeFade = 1.0 - smoothstep(0.72, 1.0, radius);
+          float core = (1.0 - smoothstep(0.0, 0.58, radius)) * 0.3;
+          float phaseA = fract(uTime * 0.38);
+          float phaseB = fract(uTime * 0.38 + 0.5);
+          float waves = expandingRing(radius, phaseA, 0.075) * 0.82
+            + expandingRing(radius, phaseB, 0.09) * 0.58;
+          float shimmer = 0.88 + sin(uTime * 3.4 + radius * 15.0) * 0.12;
+          float alpha = (core + waves) * edgeFade * shimmer;
+          if (alpha < 0.012) discard;
+          vec3 innerColor = vec3(1.0, 0.72, 0.18);
+          vec3 outerColor = vec3(0.92, 0.08, 0.015);
+          vec3 color = mix(innerColor, outerColor, smoothstep(0.12, 0.92, radius));
+          gl_FragColor = vec4(color, alpha);
+        }
+      `,
+    });
+    return lavaBossGlowMaterial;
+  }
 
   function getStatusBadgeTexture(kind: EnemyStatusKind) {
     const cached = statusBadgeTextures.get(kind);
@@ -250,6 +301,8 @@ export function createTowerDefenseEnemyScene(
   function addStatusBadges(group: THREE.Group) {
     const badges = new THREE.Group();
     badges.name = "enemyStatusBadges";
+    const healthBars = group.getObjectByName("enemyHealthBars");
+    badges.position.set(0, (healthBars?.position.y ?? 1.9) + 0.18, 0);
     for (const [index, kind] of (["fire", "frost", "water"] as const).entries()) {
       const badge = new THREE.Sprite(
         new THREE.SpriteMaterial({
@@ -261,7 +314,7 @@ export function createTowerDefenseEnemyScene(
         }),
       );
       badge.name = `enemyStatusBadge-${kind}`;
-      badge.position.set(-0.13 + index * 0.26, 2.08, 0.1);
+      badge.position.set(-0.13 + index * 0.26, 0, 0.01);
       badge.scale.set(0.2, 0.2, 1);
       badge.visible = false;
       badge.renderOrder = 12;
@@ -385,6 +438,21 @@ export function createTowerDefenseEnemyScene(
     groundShadow.receiveShadow = false;
     groundShadow.renderOrder = 2;
     group.add(groundShadow);
+    if (enemy.combatProfileKey === "lava-boss") {
+      const lavaGlow = new THREE.Mesh(
+        lavaBossGlowGeometry,
+        getLavaBossGlowMaterial(),
+      );
+      const glowScale = 0.9 / sceneScale;
+      lavaGlow.name = "lavaBossGroundGlow";
+      lavaGlow.rotation.x = -Math.PI / 2;
+      lavaGlow.position.y = -0.012 / sceneScale;
+      lavaGlow.scale.set(glowScale, glowScale, 1);
+      lavaGlow.castShadow = false;
+      lavaGlow.receiveShadow = false;
+      lavaGlow.renderOrder = 3;
+      group.add(lavaGlow);
+    }
     addStatusBadges(group);
     scene.add(group);
     return group;
@@ -527,6 +595,8 @@ export function createTowerDefenseEnemyScene(
     worldUnitsPerCell,
     pathPosition,
   }: EnemySceneSyncOptions) {
+    if (lavaBossGlowMaterial)
+      lavaBossGlowMaterial.uniforms.uTime!.value = elapsed;
     const enemyIds = new Set(enemies.map((enemy) => enemy.id));
     for (const [id, model] of models)
       if (!enemyIds.has(id)) {
@@ -611,7 +681,6 @@ export function createTowerDefenseEnemyScene(
         mixer.timeScale = frozen ? 0 : gaitSpeed * 1.25 * worldUnitsPerCell;
         mixer.update(frameDelta);
       }
-
       const badges = model.userData.statusBadges as THREE.Group | undefined;
       const healthBars = model.userData.healthBars as THREE.Group | undefined;
       model.getWorldQuaternion(worldQuaternion);
@@ -620,7 +689,6 @@ export function createTowerDefenseEnemyScene(
         .invert()
         .multiply(camera.quaternion);
       if (badges) {
-        console.log()
         badges.quaternion.copy(billboardQuaternion);
         const fireBadge = badges.getObjectByName("enemyStatusBadge-fire");
         const frostBadge = badges.getObjectByName("enemyStatusBadge-frost");
@@ -628,11 +696,13 @@ export function createTowerDefenseEnemyScene(
         if (fireBadge) fireBadge.visible = enemy.burnRemaining > 0;
         if (frostBadge) frostBadge.visible = enemy.isFrozen;
         if (waterBadge) waterBadge.visible = enemy.isSlowed;
-        const activeBadges = [fireBadge, frostBadge, waterBadge].filter(
-          (badge): badge is THREE.Object3D => Boolean(badge?.visible),
-        );
-        activeBadges.forEach((badge, index) => {
-          badge.position.x = (index - (activeBadges.length - 1) / 2) * 0.24;
+        activeStatusBadges.length = 0;
+        if (fireBadge?.visible) activeStatusBadges.push(fireBadge);
+        if (frostBadge?.visible) activeStatusBadges.push(frostBadge);
+        if (waterBadge?.visible) activeStatusBadges.push(waterBadge);
+        activeStatusBadges.forEach((badge, index) => {
+          badge.position.x =
+            (index - (activeStatusBadges.length - 1) / 2) * 0.24;
           const pulse = 1 + Math.sin(elapsed * 5 + enemy.id + index) * 0.06;
           badge.scale.set(0.2 * pulse, 0.2 * pulse, 1);
         });
@@ -671,6 +741,9 @@ export function createTowerDefenseEnemyScene(
     bossAnimations = [];
     statusBadgeTextures.forEach((texture) => texture.dispose());
     statusBadgeTextures.clear();
+    lavaBossGlowMaterial?.dispose();
+    lavaBossGlowMaterial = null;
+    lavaBossGlowGeometry.dispose();
     groundShadowGeometry.dispose();
     groundShadowMaterial.dispose();
   }

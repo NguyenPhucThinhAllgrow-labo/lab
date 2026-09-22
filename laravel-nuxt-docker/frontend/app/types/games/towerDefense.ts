@@ -2,6 +2,13 @@ export type TowerKind =
   "archer" | "cannon" | "frost" | "fire" | "thunder" | "water";
 export type EnemyKind = "normal" | "boss";
 export type BossClass = "barbarian" | "knight" | "mage" | "ranger" | "rogue";
+export type EnemyCombatProfileKey = "normal" | "lava-boss";
+export type EnemyStatusEffect = "burn" | "slow" | "freeze";
+
+export interface EnemyCombatProfile {
+  damageMultipliers: Partial<Record<TowerKind, number>>;
+  effectDurationMultipliers: Partial<Record<EnemyStatusEffect, number>>;
+}
 
 export interface GridPoint {
   x: number;
@@ -49,6 +56,8 @@ export interface TowerDefenseMapDefinition {
     url: string;
     offsetY?: number;
   };
+  /** Profile kháng/điểm yếu áp dụng cho boss riêng của map. */
+  bossCombatProfileKey?: EnemyCombatProfileKey;
   bossModel?: TowerDefenseCharacterModelDefinition;
   castle: {
     modelUrl: string;
@@ -110,6 +119,7 @@ export interface Tower extends GridPoint {
 export interface Enemy {
   id: number;
   kind: EnemyKind;
+  combatProfileKey: EnemyCombatProfileKey;
   /** Khóa model trong ENEMY_MODEL_DEFINITIONS; mặc định là "normal". */
   modelKey?: string;
   bossClass?: BossClass;

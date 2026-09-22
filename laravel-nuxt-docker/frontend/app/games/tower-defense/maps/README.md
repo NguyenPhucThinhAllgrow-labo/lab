@@ -13,3 +13,7 @@ Mỗi map là một `TowerDefenseMapDefinition` độc lập. Gameplay và Three
 3. Import map mới vào `index.ts` và thêm nó vào `TOWER_DEFENSE_MAPS`.
 4. Mở `/games/tower-defense?map=<id>`. Khi registry có hơn một map, bộ chọn map
    trên giao diện sẽ tự xuất hiện.
+
+Boss riêng của map có thể dùng `bossCombatProfileKey` để chọn hồ sơ kháng và
+điểm yếu trong `../enemy-combat.ts`. Nếu bỏ trống, boss nhận sát thương và hiệu
+ứng bình thường như quái `normal`.

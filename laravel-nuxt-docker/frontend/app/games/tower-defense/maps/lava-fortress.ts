@@ -40,6 +40,7 @@ export const lavaFortressMap: TowerDefenseMapDefinition = {
     offsetY: 0.055,
   },
 
+  bossCombatProfileKey: "lava-boss",
   bossModel: {
     url: "/models/games/tower-defense/character/boss/map/lava/boss.glb",
     characterScale: 2,

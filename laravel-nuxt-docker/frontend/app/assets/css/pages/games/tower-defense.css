@@ -1247,14 +1247,29 @@
   pointer-events: auto;
 }
 .defense-game-hud .defense-status {
+  box-sizing: border-box;
+  width: 308px;
+  justify-content: flex-start;
   padding: 8px 11px;
   background: #151a15e8;
   backdrop-filter: blur(9px);
 }
+.defense-game-hud .defense-status span {
+  flex: 1;
+  white-space: nowrap;
+}
+.defense-game-hud .defense-status b {
+  min-width: 92px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 .defense-pause {
   display: inline-flex;
+  box-sizing: border-box;
+  width: 112px;
   min-height: 34px;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   padding: 7px 10px;
   border: 1px solid #665b43;
@@ -1271,6 +1286,193 @@
   border-color: var(--gold);
   background: #61471fdd;
   color: #ffe5a6;
+}
+.defense-enemy-intel {
+  position: absolute;
+  z-index: 14;
+  top: 116px;
+  left: 10px;
+  display: grid;
+  width: 205px;
+  gap: 8px;
+  pointer-events: none;
+}
+.defense-enemy-intel > article {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  padding: 7px 38px 7px 7px;
+  border: 1px solid #665b43;
+  border-radius: 13px;
+  background: #111711e8;
+  box-shadow: 0 10px 28px #0008;
+  backdrop-filter: blur(9px);
+  pointer-events: auto;
+}
+.defense-enemy-intel > article > img {
+  width: 58px;
+  height: 58px;
+  border: 1px solid #8f7948;
+  border-radius: 11px;
+  background: #29291f;
+  object-fit: cover;
+}
+.defense-enemy-intel__identity {
+  min-width: 0;
+}
+.defense-enemy-intel__identity small {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--gold);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.defense-enemy-intel__identity strong {
+  display: block;
+  overflow: hidden;
+  color: #f3e5c9;
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+.defense-enemy-intel__actions {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  bottom: 7px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.defense-enemy-intel__actions button {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border: 1px solid #5f5948;
+  border-radius: 7px;
+  background: #25271f;
+  color: #cabd9f;
+  cursor: pointer;
+}
+.defense-enemy-intel__actions button:hover,
+.defense-enemy-intel__actions button:focus-visible {
+  border-color: var(--gold);
+  color: #ffe39c;
+  outline: none;
+}
+.defense-enemy-intel__actions svg {
+  width: 13px;
+}
+.defense-enemy-intel__actions > span {
+  position: relative;
+}
+.defense-enemy-intel__actions section {
+  position: absolute;
+  z-index: 30;
+  top: -35px;
+  bottom: auto;
+  left: 31px;
+  display: none;
+  width: 292px;
+  padding: 14px;
+  border: 1px solid #88764d;
+  border-radius: 11px;
+  background: #111711f5;
+  box-shadow: 0 14px 38px #000b;
+}
+.defense-enemy-intel__actions > span:hover section,
+.defense-enemy-intel__actions > span:focus-within section {
+  display: block;
+}
+.defense-enemy-intel__actions section small {
+  color: var(--gold);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+}
+.defense-enemy-intel__actions section h3 {
+  margin: 5px 0 7px;
+  color: #fff0cf;
+  font-size: 16px;
+  line-height: 1.25;
+}
+.defense-enemy-intel__actions section p {
+  margin: 0 0 12px;
+  color: #d2c6af;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.defense-enemy-intel__actions section dl {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+.defense-enemy-intel__actions section dl div {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 9px;
+  padding-top: 6px;
+  border-top: 1px solid #5d55452e;
+}
+.defense-enemy-intel__actions section dt {
+  color: #a79b83;
+  font-size: 11px;
+  font-weight: 700;
+}
+.defense-enemy-intel__actions section dd {
+  margin: 0;
+  color: #f0dfbf;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.defense-enemy-intel__actions section dl .is-strength,
+.defense-enemy-intel__actions section dl .is-weakness {
+  grid-template-columns: 86px minmax(0, 1fr);
+  align-items: start;
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.defense-enemy-intel__actions section dl .is-strength {
+  border-color: #d96e4c66;
+  background: linear-gradient(135deg, #6d281f66, #2919168f);
+  box-shadow: inset 3px 0 #df7654;
+}
+.defense-enemy-intel__actions section dl .is-weakness {
+  border-color: #4aa9cb66;
+  background: linear-gradient(135deg, #153f506b, #1323298f);
+  box-shadow: inset 3px 0 #65c9ec;
+}
+.defense-enemy-intel__actions section dl .is-strength dt,
+.defense-enemy-intel__actions section dl .is-weakness dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+.defense-enemy-intel__actions section dl .is-strength dt,
+.defense-enemy-intel__actions section dl .is-strength dd {
+  color: #ffad91;
+}
+.defense-enemy-intel__actions section dl .is-weakness dt,
+.defense-enemy-intel__actions section dl .is-weakness dd {
+  color: #91e5ff;
+}
+.defense-enemy-intel__actions section dl .is-strength dd,
+.defense-enemy-intel__actions section dl .is-weakness dd {
+  font-weight: 750;
+}
+.defense-enemy-intel__actions section dl .is-strength svg,
+.defense-enemy-intel__actions section dl .is-weakness svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
 }
 .defense-pause svg {
   width: 14px;
@@ -1376,10 +1578,13 @@
   transform: translateY(8px) scale(0.98);
 }
 .defense-game-hud .defense-stats {
-  width: 100%;
+  width: auto;
+  grid-template-columns: repeat(5, 112px);
   margin: 0;
 }
 .defense-game-hud .defense-stats article {
+  box-sizing: border-box;
+  width: 112px;
   min-width: 0;
   padding: 6px 9px;
   background: #151a15dc;
@@ -1392,7 +1597,10 @@
   font-size: 7px;
 }
 .defense-game-hud .defense-stats strong {
+  display: block;
+  min-width: 6ch;
   font-size: 15px;
+  font-variant-numeric: tabular-nums;
 }
 .defense-game-hud .defense-stats article:nth-child(1) {
   border-color: #a95d55;
@@ -1433,6 +1641,46 @@
 .defense-game-hud .defense-stats article:nth-child(5) svg,
 .defense-game-hud .defense-stats article:nth-child(5) small {
   color: #bc91ea;
+}
+
+@media (max-width: 1600px) {
+  .defense-game-title {
+    padding: 7px 9px;
+  }
+  .defense-game-title .defense-eyebrow {
+    display: none;
+  }
+  .defense-game-title h1 {
+    margin-top: 0;
+    font-size: 17px;
+  }
+  .defense-game-hud .defense-status {
+    width: 280px;
+  }
+  .defense-game-hud .defense-status b {
+    min-width: 85px;
+  }
+  .defense-pause {
+    width: 100px;
+  }
+  .defense-game-hud .defense-stats {
+    grid-template-columns: repeat(5, 100px);
+    gap: 6px;
+  }
+  .defense-game-hud .defense-stats article {
+    width: 100px;
+    gap: 6px;
+    padding-inline: 7px;
+  }
+}
+
+@media (max-width: 1300px) {
+  .defense-game-hud {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .defense-game-title {
+    display: none;
+  }
 }
 .defense-sidebar {
   position: absolute;
@@ -1678,10 +1926,22 @@
     display: none;
   }
   .defense-game-hud .defense-status {
+    width: auto;
     padding: 7px 9px;
     font-size: 9px;
   }
+  .defense-game-hud .defense-status b {
+    min-width: 76px;
+  }
+  .defense-pause {
+    width: auto;
+  }
+  .defense-game-hud .defense-stats {
+    width: 100%;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
   .defense-game-hud .defense-stats article {
+    width: auto;
     gap: 4px;
     padding: 5px;
   }
@@ -1736,6 +1996,26 @@
     right: 8px;
     bottom: auto;
     width: 210px;
+  }
+  .defense-enemy-intel {
+    top: 142px;
+    left: 8px;
+    width: 96px;
+  }
+  .defense-enemy-intel > article {
+    grid-template-columns: 52px;
+    padding: 6px 36px 6px 6px;
+  }
+  .defense-enemy-intel > article > img {
+    width: 52px;
+    height: 52px;
+  }
+  .defense-enemy-intel__identity {
+    display: none;
+  }
+  .defense-enemy-intel__actions section {
+    top: -29px;
+    width: min(276px, calc(100vw - 116px));
   }
   .defense-board-footer {
     right: 8px;

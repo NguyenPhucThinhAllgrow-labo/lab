@@ -8,6 +8,7 @@ import {
   Gauge,
   Grid2X2,
   HeartPulse,
+  Info,
   Move,
   Pause,
   Play,
@@ -18,6 +19,7 @@ import {
   Swords,
   Undo2,
   Waves,
+  X,
   Zap,
 } from "lucide-vue-next";
 import {
@@ -104,6 +106,65 @@ const enemiesRemaining = computed(
   () => enemies.value.length + pendingEnemies.value,
 );
 
+interface EnemyIntelCard {
+  id: "normal" | "boss";
+  name: string;
+  avatar: string;
+  summary: string;
+  health: string;
+  resistance: string;
+  weakness: string;
+}
+
+const dismissedEnemyIntelIds = ref<EnemyIntelCard["id"][]>([]);
+const enemyIntelWave = computed(() =>
+  phase.value === "ready" || phase.value === "between"
+    ? wave.value + 1
+    : wave.value,
+);
+const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
+  if (enemyIntelWave.value <= 0 || phase.value === "gameover") return [];
+  const normalHp =
+    60 +
+    enemyIntelWave.value * 18 +
+    Math.floor(enemyIntelWave.value * enemyIntelWave.value * 1.15);
+  const cards: EnemyIntelCard[] = [
+    {
+      id: "normal",
+      name: "Hắc binh",
+      avatar: "/image/games/tower-defense/military/dark/normal.png",
+      summary: "Lính tiền tuyến cân bằng, không có kháng hay điểm yếu đặc biệt.",
+      health: `${normalHp} HP`,
+      resistance: "Không",
+      weakness: "Không",
+    },
+  ];
+  if (enemyIntelWave.value % 5 === 0) {
+    const isLavaBoss = map.bossCombatProfileKey === "lava-boss";
+    cards.push({
+      id: "boss",
+      name: isLavaBoss ? "Chúa tể Dung nham" : "Thủ lĩnh Hắc quân",
+      avatar: "/image/games/tower-defense/military/dark/lava/boss.png",
+      summary: isLavaBoss
+        ? "Boss của Pháo đài Dung nham, sở hữu lớp giáp hấp thụ nhiệt cực mạnh."
+        : "Kẻ địch tinh nhuệ có lượng máu cao và tốc độ di chuyển chậm.",
+      health: `${Math.round(normalHp * 5.5)} HP`,
+      resistance: isLavaBoss
+        ? "Miễn nhiễm thiêu đốt · giảm 90% sát thương lửa"
+        : "Không",
+      weakness: isLavaBoss ? "Nhận thêm 25% sát thương nước" : "Không",
+    });
+  }
+  return cards.filter(
+    (card) => !dismissedEnemyIntelIds.value.includes(card.id),
+  );
+});
+
+function dismissEnemyIntel(id: EnemyIntelCard["id"]) {
+  if (!dismissedEnemyIntelIds.value.includes(id))
+    dismissedEnemyIntelIds.value = [...dismissedEnemyIntelIds.value, id];
+}
+
 // Trạng thái UI cục bộ không thuộc gameplay: popup, tooltip và màn hình loading.
 const selectedTowerAnchor = ref({ x: 0, y: 0, visible: false });
 const isMovePlacementMode = ref(false);
@@ -115,36 +176,18 @@ const hoveredTowerDefinition = computed(() =>
 const sceneReady = ref(false);
 const imagesReady = ref(true);
 const showBrickBackground = ref(true);
-const pauseReason = ref<"manual" | "inactive" | null>(null);
 const isGameReady = computed(() => sceneReady.value && imagesReady.value);
 
 function togglePauseFromHud() {
   if (isPaused.value) {
     setPaused(false);
-    pauseReason.value = null;
   } else {
-    pauseReason.value = "manual";
     setPaused(true);
   }
 }
 
-function pauseWhenInactive() {
-  if (
-    (phase.value !== "wave" && phase.value !== "between") ||
-    isPaused.value
-  )
-    return;
-  pauseReason.value = "inactive";
-  setPaused(true);
-}
-
-function handleVisibilityChange() {
-  if (document.hidden) pauseWhenInactive();
-}
-
 function resumeGame() {
   setPaused(false);
-  pauseReason.value = null;
 }
 
 // Giữ tooltip nằm trong viewport khi con trỏ ở sát cạnh màn hình.
@@ -198,6 +241,13 @@ function clearBoardSelection() {
   selectedTowerId.value = null;
 }
 
+/** Chọn lại cùng một loại tháp trong sidebar để hủy chế độ xây. */
+function toggleTowerKind(kind: TowerKind) {
+  selectedKind.value = selectedKind.value === kind ? null : kind;
+  selectedTowerId.value = null;
+  isMovePlacementMode.value = false;
+}
+
 /** Cho phép tower đang chọn nhận ô đích mới trong giai đoạn chuẩn bị. */
 function beginTowerRelocation() {
   enableSelectedRelocation();
@@ -217,14 +267,20 @@ function closeTowerPopupOnOutsideClick(event: MouseEvent) {
   selectedTowerId.value = null;
 }
 
-// Escape và click nền dùng chung một quy tắc hủy selection ở cấp page.
-/** Cung cấp phím Escape để hủy nhanh mọi thao tác chọn đang dang dở. */
-function cancelSelectionOnEscape(event: KeyboardEvent) {
-  if (event.key !== "Escape") return;
-  if (selectedKind.value || selectedTowerId.value !== null) {
-    clearBoardSelection();
-    message.value = "Đã hủy lựa chọn.";
+/** Escape bật/tắt pause khi trận đang chạy; ngoài trận chỉ dùng để hủy chọn. */
+function handleEscapeKey(event: KeyboardEvent) {
+  if (event.key !== "Escape" || event.repeat) return;
+  event.preventDefault();
+
+  if (phase.value === "wave" || phase.value === "between") {
+    if (!isPaused.value) clearBoardSelection();
+    togglePauseFromHud();
+    return;
   }
+
+  if (!selectedKind.value && selectedTowerId.value === null) return;
+  clearBoardSelection();
+  message.value = "Đã hủy lựa chọn.";
 }
 
 watch(phase, (currentPhase) => {
@@ -232,18 +288,18 @@ watch(phase, (currentPhase) => {
     isMovePlacementMode.value = false;
 });
 
+watch(enemyIntelWave, () => {
+  dismissedEnemyIntelIds.value = [];
+});
+
 // Chỉ bỏ loading sau khi cả WebGL scene lẫn ảnh dùng trong sidebar đã sẵn sàng.
 onMounted(() => {
   document.addEventListener("click", closeTowerPopupOnOutsideClick);
-  document.addEventListener("visibilitychange", handleVisibilityChange);
-  window.addEventListener("keydown", cancelSelectionOnEscape);
-  window.addEventListener("blur", pauseWhenInactive);
+  window.addEventListener("keydown", handleEscapeKey);
 });
 onBeforeUnmount(() => {
   document.removeEventListener("click", closeTowerPopupOnOutsideClick);
-  document.removeEventListener("visibilitychange", handleVisibilityChange);
-  window.removeEventListener("keydown", cancelSelectionOnEscape);
-  window.removeEventListener("blur", pauseWhenInactive);
+  window.removeEventListener("keydown", handleEscapeKey);
 });
 </script>
 
@@ -302,11 +358,7 @@ onBeforeUnmount(() => {
                   <small>TRẬN ĐẤU ĐÃ TẠM DỪNG</small>
                   <h2 id="defense-pause-title">Tạm ngừng chiến đấu</h2>
                   <p>
-                    {{
-                      pauseReason === "inactive"
-                        ? "Game đã tự động tạm dừng vì cửa sổ không còn hoạt động."
-                        : "Mọi chuyển động và thời gian trong trận đấu đang tạm dừng."
-                    }}
+                    Mọi chuyển động và thời gian trong trận đấu đang tạm dừng.
                   </p>
                   <button type="button" autofocus @click="resumeGame">
                     <Play /> Tiếp tục
@@ -374,6 +426,53 @@ onBeforeUnmount(() => {
                 </article>
               </div>
             </header>
+
+            <aside
+              v-if="enemyIntelCards.length"
+              class="defense-enemy-intel"
+              aria-label="Thông tin quân địch trong đợt hiện tại"
+            >
+              <article v-for="enemyIntel in enemyIntelCards" :key="enemyIntel.id">
+                <img :src="enemyIntel.avatar" :alt="enemyIntel.name" />
+                <div class="defense-enemy-intel__identity">
+                  <small>ĐỢT {{ enemyIntelWave }}</small>
+                  <strong>{{ enemyIntel.name }}</strong>
+                </div>
+                <div class="defense-enemy-intel__actions">
+                  <button
+                    type="button"
+                    :aria-label="`Đóng thông tin ${enemyIntel.name}`"
+                    @click="dismissEnemyIntel(enemyIntel.id)"
+                  >
+                    <X />
+                  </button>
+                  <span>
+                    <button
+                      type="button"
+                      :aria-label="`Xem thông tin ${enemyIntel.name}`"
+                    >
+                      <Info />
+                    </button>
+                    <section role="tooltip">
+                      <small>HỒ SƠ KẺ ĐỊCH</small>
+                      <h3>{{ enemyIntel.name }}</h3>
+                      <p>{{ enemyIntel.summary }}</p>
+                      <dl>
+                        <div><dt>Sinh lực</dt><dd>{{ enemyIntel.health }}</dd></div>
+                        <div class="is-strength">
+                          <dt><ShieldCheck />Điểm mạnh</dt>
+                          <dd>{{ enemyIntel.resistance }}</dd>
+                        </div>
+                        <div class="is-weakness">
+                          <dt><Crosshair />Điểm yếu</dt>
+                          <dd>{{ enemyIntel.weakness }}</dd>
+                        </div>
+                      </dl>
+                    </section>
+                  </span>
+                </div>
+              </article>
+            </aside>
 
             <section
               v-if="
@@ -552,10 +651,7 @@ onBeforeUnmount(() => {
                   type="button"
                   :class="{ active: selectedKind === kind }"
                   :disabled="towers.length >= map.maxTowerCount"
-                  @click="
-                    selectedKind = kind;
-                    selectedTowerId = null;
-                  "
+                  @click="toggleTowerKind(kind)"
                   @mouseenter="showTowerTooltip(kind, $event)"
                   @mousemove="showTowerTooltip(kind, $event)"
                   @mouseleave="hideTowerTooltip"
