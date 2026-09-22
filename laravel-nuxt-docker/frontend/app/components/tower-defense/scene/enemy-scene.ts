@@ -27,9 +27,15 @@ export interface EnemySceneSyncOptions {
   elapsed: number;
   frameDelta: number;
   now: number;
+  speedMultiplier: number;
   worldUnitsPerCell: number;
   pathPosition: (progress: number, lane: 0 | 1) => THREE.Vector3;
 }
+
+// Tốc độ world mà clip walk 1× khớp tương đối với độ dài một bước chân.
+// Mixer sẽ nhân theo vận tốc model thực tế để chân không chạy tại chỗ hoặc lướt.
+const WALK_WORLD_SPEED_AT_NORMAL_PLAYBACK = 0.6;
+const DEFAULT_WALK_CLIP_DURATION = 2.3333333333333335;
 
 export interface TowerDefenseEnemyScene {
   readonly models: Map<number, THREE.Group>;
@@ -360,6 +366,9 @@ export function createTowerDefenseEnemyScene(
       pooledModel.userData.progressVelocity = enemy.speed;
       pooledModel.userData.renderProgress = enemy.progress;
       pooledModel.userData.hasFacingDirection = false;
+      pooledModel.userData.hasWorldPosition = false;
+      pooledModel.userData.animationWorldSpeed = 0;
+      pooledModel.userData.walkPhase = 0;
       (pooledModel.userData.mixer as THREE.AnimationMixer | undefined)?.setTime(0);
       scene.add(pooledModel);
       return pooledModel;
@@ -415,6 +424,11 @@ export function createTowerDefenseEnemyScene(
     if (walk) mixer.clipAction(walk).play();
     group.userData.health = health;
     group.userData.mixer = mixer;
+    group.userData.walkClipDuration = walk?.duration ?? DEFAULT_WALK_CLIP_DURATION;
+    group.userData.lastWorldPosition = new THREE.Vector3();
+    group.userData.hasWorldPosition = false;
+    group.userData.animationWorldSpeed = 0;
+    group.userData.walkPhase = 0;
     group.userData.poolKey = poolKey;
     group.userData.sceneScale =
       enemy.kind === "normal"
@@ -592,6 +606,7 @@ export function createTowerDefenseEnemyScene(
     elapsed,
     frameDelta,
     now,
+    speedMultiplier,
     worldUnitsPerCell,
     pathPosition,
   }: EnemySceneSyncOptions) {
@@ -612,7 +627,9 @@ export function createTowerDefenseEnemyScene(
       if (!Number.isFinite(previousObserved)) {
         model.userData.observedProgress = enemy.progress;
         model.userData.observedAt = now;
-        model.userData.progressVelocity = frozen ? 0 : enemy.speed;
+        model.userData.progressVelocity = frozen
+          ? 0
+          : enemy.speed * speedMultiplier;
         model.userData.renderProgress = enemy.progress;
       } else if (enemy.progress !== previousObserved) {
         const observationTime = Math.max(
@@ -622,7 +639,7 @@ export function createTowerDefenseEnemyScene(
         model.userData.progressVelocity = THREE.MathUtils.clamp(
           (enemy.progress - previousObserved) / observationTime,
           0,
-          enemy.speed * 2.2,
+          enemy.speed * speedMultiplier * 1.35,
         );
         model.userData.observedProgress = enemy.progress;
         model.userData.observedAt = now;
@@ -652,15 +669,39 @@ export function createTowerDefenseEnemyScene(
       const position = pathPosition(renderProgress, enemy.lane);
       const facingFrom = pathPosition(renderProgress - 0.08, enemy.lane);
       const facingTo = pathPosition(renderProgress + 0.12, enemy.lane);
-      const observedVelocity =
-        Number(model.userData.progressVelocity) || enemy.speed;
-      const gaitSpeed = THREE.MathUtils.clamp(
-        observedVelocity / 0.745,
-        0.65,
-        1.6,
+      const lastWorldPosition = model.userData
+        .lastWorldPosition as THREE.Vector3;
+      const hasWorldPosition = Boolean(model.userData.hasWorldPosition);
+      const measuredWorldSpeed =
+        hasWorldPosition && frameDelta > 0
+          ? lastWorldPosition.distanceTo(position) / frameDelta
+          : enemy.speed * speedMultiplier * worldUnitsPerCell;
+      lastWorldPosition.copy(position);
+      model.userData.hasWorldPosition = true;
+
+      // Làm mượt vận tốc đo từ chuyển động render để mixer không giật theo tick
+      // gameplay 100 ms, nhưng vẫn phản ứng ngay khi slow/freeze thay đổi.
+      const animationWorldSpeed = frozen
+        ? 0
+        : THREE.MathUtils.damp(
+            Number(model.userData.animationWorldSpeed) || measuredWorldSpeed,
+            measuredWorldSpeed,
+            12,
+            frameDelta,
+          );
+      model.userData.animationWorldSpeed = animationWorldSpeed;
+      const animationTimeScale = THREE.MathUtils.clamp(
+        animationWorldSpeed / WALK_WORLD_SPEED_AT_NORMAL_PLAYBACK,
+        0,
+        4.5,
       );
-      const stride = frozen ? 0 : Math.sin(elapsed * 8 * gaitSpeed + enemy.id);
-      model.position.copy(position.setY(0.08 + Math.abs(stride) * 0.008));
+      const walkClipDuration =
+        Number(model.userData.walkClipDuration) || DEFAULT_WALK_CLIP_DURATION;
+      model.userData.walkPhase =
+        Number(model.userData.walkPhase) +
+        (frameDelta * animationTimeScale * Math.PI * 2) / walkClipDuration;
+      const stride = frozen ? 0 : Math.sin(Number(model.userData.walkPhase));
+      model.position.copy(position.setY(0.08 + Math.abs(stride) * 0.014));
       const targetRotation = Math.atan2(
         facingTo.x - facingFrom.x,
         facingTo.z - facingFrom.z,
@@ -678,7 +719,7 @@ export function createTowerDefenseEnemyScene(
       model.scale.setScalar(Number(model.userData.sceneScale));
       const mixer = model.userData.mixer as THREE.AnimationMixer | undefined;
       if (mixer) {
-        mixer.timeScale = frozen ? 0 : gaitSpeed * 1.25 * worldUnitsPerCell;
+        mixer.timeScale = frozen ? 0 : animationTimeScale;
         mixer.update(frameDelta);
       }
       const badges = model.userData.statusBadges as THREE.Group | undefined;

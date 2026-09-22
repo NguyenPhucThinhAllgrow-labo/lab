@@ -18,6 +18,14 @@ import {
   type TowerDefenseEnemyScene,
 } from "~/components/tower-defense/scene/enemy-scene";
 import {
+  createTowerDefenseProjectileScene,
+  type TowerDefenseProjectileScene,
+} from "~/components/tower-defense/scene/projectile-scene";
+import {
+  createTowerDefenseImpactScene,
+  type TowerDefenseImpactScene,
+} from "~/components/tower-defense/scene/impact-scene";
+import {
   createTowerModelLibrary,
   type LevelledTowerKind,
   type TowerModelLibrary,
@@ -68,8 +76,7 @@ let animationFrame = 0;
 let resizeObserver: ResizeObserver | null = null;
 let surfaceDetail: THREE.DataTexture | null = null;
 let frostGlowTexture: THREE.CanvasTexture | null = null;
-let frostWaveTexture: THREE.CanvasTexture | null = null;
-let fireWaveTexture: THREE.CanvasTexture | null = null;
+const towerLevelLabelTextures = new Map<number, THREE.CanvasTexture>();
 const clock = new THREE.Clock();
 let visualElapsed = 0;
 let visualNow = 0;
@@ -81,17 +88,13 @@ const towerUpgradeEffects = new Map<
   { group: THREE.Group; bornAt: number; kind: TowerKind }
 >();
 let enemyScene: TowerDefenseEnemyScene | null = null;
-const projectileModels = new Map<
-  number,
-  { group: THREE.Group; bornAt: number }
->();
-const impactModels = new Map<number, THREE.Group>();
+let projectileScene: TowerDefenseProjectileScene | null = null;
+let impactScene: TowerDefenseImpactScene | null = null;
 const towerTemplates = new Map<Tower["kind"], THREE.Group>();
 let towerModelLibrary: TowerModelLibrary | null = null;
 let towerPreviewModel: THREE.Group | null = null;
 let towerPreviewKind: TowerKind | null = null;
 let castleModel: THREE.Group | null = null;
-const projectileTemplates = new Map<Projectile["kind"], THREE.Group>();
 const tileMeshes: THREE.Mesh[] = [];
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -410,50 +413,6 @@ function getFrostGlowTexture() {
   frostGlowTexture = new THREE.CanvasTexture(canvas);
   frostGlowTexture.colorSpace = THREE.SRGBColorSpace;
   return frostGlowTexture;
-}
-
-/** Tạo texture vòng sóng băng bằng Canvas, tránh phải tải thêm ảnh ngoài. */
-function getFrostWaveTexture() {
-  if (frostWaveTexture) return frostWaveTexture;
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Không thể tạo gradient cho sóng băng.");
-  const gradient = context.createRadialGradient(128, 128, 4, 128, 128, 126);
-  gradient.addColorStop(0, "rgba(43, 135, 194, .05)");
-  gradient.addColorStop(0.48, "rgba(35, 151, 207, .1)");
-  gradient.addColorStop(0.72, "rgba(47, 185, 226, .24)");
-  gradient.addColorStop(0.86, "rgba(106, 226, 246, .5)");
-  gradient.addColorStop(0.94, "rgba(190, 249, 255, .4)");
-  gradient.addColorStop(1, "rgba(54, 157, 211, 0)");
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, 256, 256);
-  frostWaveTexture = new THREE.CanvasTexture(canvas);
-  frostWaveTexture.colorSpace = THREE.SRGBColorSpace;
-  return frostWaveTexture;
-}
-
-/** Tạo radial texture nóng cho sóng nổ của tower lửa. */
-function getFireWaveTexture() {
-  if (fireWaveTexture) return fireWaveTexture;
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Không thể tạo gradient cho sóng lửa.");
-  const gradient = context.createRadialGradient(128, 128, 3, 128, 128, 126);
-  gradient.addColorStop(0, "rgba(255, 205, 76, .12)");
-  gradient.addColorStop(0.46, "rgba(255, 105, 30, .16)");
-  gradient.addColorStop(0.72, "rgba(239, 55, 20, .3)");
-  gradient.addColorStop(0.87, "rgba(255, 145, 38, .58)");
-  gradient.addColorStop(0.95, "rgba(255, 218, 112, .42)");
-  gradient.addColorStop(1, "rgba(180, 25, 8, 0)");
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, 256, 256);
-  fireWaveTexture = new THREE.CanvasTexture(canvas);
-  fireWaveTexture.colorSpace = THREE.SRGBColorSpace;
-  return fireWaveTexture;
 }
 
 // ===== Model tháp và hiệu ứng nâng cấp ======================================
@@ -988,11 +947,86 @@ function bindTowerParts(group: THREE.Group) {
   group.userData.frostParticles = particles;
 }
 
-/** Trả scale ngang/dọc theo level để tower lớn lên nhưng vẫn bám đúng mặt đất. */
-function towerScaleForLevel(level: number) {
-  // Khoảng cách kích thước đủ lớn để nhận ra cấp tháp ngay từ camera toàn cảnh.
-  const levelScale = level === 1 ? 1 : level === 2 ? 1.13 : 1.27;
-  return { horizontal: levelScale * 0.93, vertical: levelScale * 1.24 };
+/** Tạo và cache texture chữ level để mọi tower cùng cấp dùng chung tài nguyên. */
+function getTowerLevelLabelTexture(level: number) {
+  const normalizedLevel = THREE.MathUtils.clamp(Math.round(level), 1, 3);
+  const cached = towerLevelLabelTextures.get(normalizedLevel);
+  if (cached) return cached;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 96;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Không thể tạo nhãn level cho tower.");
+
+  context.beginPath();
+  context.roundRect(7, 7, 242, 82, 22);
+  context.fillStyle = "rgba(12, 17, 14, 0.9)";
+  context.fill();
+  context.lineWidth = 5;
+  context.strokeStyle = "rgba(231, 190, 92, 0.95)";
+  context.stroke();
+  context.fillStyle = "#fff0bd";
+  context.font = "900 47px Arial, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(`LV.${normalizedLevel}`, 128, 50);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  towerLevelLabelTextures.set(normalizedLevel, texture);
+  return texture;
+}
+
+function towerLevelScale(level: number) {
+  return level === 1 ? 1 : level === 2 ? 1.13 : 1.27;
+}
+
+/** Gắn/cập nhật nhãn level trên đỉnh model và giữ kích thước world ổn định. */
+function syncTowerLevelLabel(group: THREE.Group, level: number) {
+  let label = group.getObjectByName("towerLevelLabel") as
+    | THREE.Sprite
+    | undefined;
+  if (!label) {
+    const previousScale = group.scale.x || 1;
+    group.scale.setScalar(1);
+    group.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(group);
+    group.scale.setScalar(previousScale);
+    group.userData.towerLocalTop = Number.isFinite(bounds.max.y)
+      ? bounds.max.y - group.position.y
+      : 2.1;
+
+    label = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: getTowerLevelLabelTexture(level),
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    );
+    label.name = "towerLevelLabel";
+    label.center.set(0.5, 0);
+    label.renderOrder = 14;
+    group.add(label);
+  }
+
+  const normalizedLevel = THREE.MathUtils.clamp(Math.round(level), 1, 3);
+  if (label.userData.level !== normalizedLevel) {
+    (label.material as THREE.SpriteMaterial).map =
+      getTowerLevelLabelTexture(normalizedLevel);
+    (label.material as THREE.SpriteMaterial).needsUpdate = true;
+    label.userData.level = normalizedLevel;
+  }
+
+  const scale = towerLevelScale(normalizedLevel);
+  const localTop = Number(group.userData.towerLocalTop) || 2.1;
+  label.position.set(0, localTop + 0.13 / scale, 0);
+  label.scale.set(0.62 / scale, 0.23 / scale, 1 / scale);
 }
 
 /** Áp scale level và bù trục Y cho một model tower. */
@@ -1000,12 +1034,7 @@ function setTowerScale(
   group: THREE.Group,
   level: number,
 ) {
-  const scale =
-    level === 1 ? 1 :
-    level === 2 ? 1.13 :
-    1.27;
-
-  group.scale.setScalar(scale);
+  group.scale.setScalar(towerLevelScale(level));
 }
 
 /** Bật/tắt chi tiết nâng cấp tĩnh dựa trên kind và level hiện tại. */
@@ -1566,6 +1595,7 @@ function createTowerModel(tower: Tower) {
   bindTowerParts(group);
   setTowerScale(group, tower.level);
   applyTowerLevelAppearance(group, tower);
+  syncTowerLevelLabel(group, tower.level);
   if (tower.kind === "thunder")
     group.add(createThunderBeamEffect(tower.level));
   group.position.copy(worldPosition(tower.x, tower.y));
@@ -1579,7 +1609,11 @@ function createTowerModel(tower: Tower) {
 
 /** Dispose effect sở hữu riêng nhưng giữ geometry/material dùng chung từ template. */
 function disposeTowerModel(model: THREE.Group) {
-  for (const name of ["towerLevelEffect", "thunderBeamEffect"]) {
+  for (const name of [
+    "towerLevelEffect",
+    "thunderBeamEffect",
+    "towerLevelLabel",
+  ]) {
     const ownedEffect = model.getObjectByName(name);
     if (ownedEffect) disposeObject(ownedEffect);
   }
@@ -1796,483 +1830,6 @@ function createTowerPreview(kind: TowerKind) {
   towerPreviewKind = kind;
 }
 
-// ===== Model projectile/impact ==============================================
-/**
- * Tạo hình dạng 3D dùng chung cho từng loại đạn.
- * Hàm này chỉ dựng mesh/material, chưa quyết định đạn xuất hiện ở vị trí nào.
- * Mỗi phát bắn sẽ clone template này trong `createProjectile` để giảm chi phí.
- */
-function createProjectileTemplate(kind: Projectile["kind"]) {
-  const group = new THREE.Group();
-  let shot: THREE.Mesh;
-  if (kind === "archer") {
-    shot = mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.42, 7), 0xc99a58);
-    shot.rotation.x = Math.PI / 2;
-    const arrowHead = mesh(new THREE.ConeGeometry(0.055, 0.13, 6), 0xd8dde0, {
-      metalness: 0.7,
-      roughness: 0.28,
-    });
-    arrowHead.rotation.x = Math.PI / 2;
-    arrowHead.position.z = 0.265;
-    group.add(arrowHead);
-    for (const rotation of [0, Math.PI / 2]) {
-      const feather = mesh(
-        new THREE.BoxGeometry(0.055, 0.012, 0.11),
-        0x7d342f,
-        { roughness: 0.85 },
-      );
-      feather.position.z = -0.19;
-      feather.rotation.z = rotation;
-      group.add(feather);
-    }
-  } else if (kind === "cannon") {
-    shot = mesh(new THREE.SphereGeometry(0.11, 9, 7), 0x332b25, {
-      metalness: 0.7,
-    });
-  } else if (kind === "fire") {
-    shot = mesh(new THREE.SphereGeometry(0.105, 14, 10), 0xffd052, {
-      emissive: 0xe8380b,
-      roughness: 0.18,
-    });
-    shot.name = "fireballCore";
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.185, 14, 10),
-      new THREE.MeshBasicMaterial({
-        color: 0xff4a18,
-        transparent: true,
-        opacity: 0.34,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
-    );
-    shot.add(glow);
-  } else if (kind === "thunder") {
-    shot = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.11, 1),
-      new THREE.MeshBasicMaterial({
-        color: 0xe9ddff,
-        transparent: true,
-        opacity: 0.96,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        toneMapped: false,
-      }),
-    );
-    shot.name = "thunderBoltCore";
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.2, 12, 8),
-      new THREE.MeshBasicMaterial({
-        color: 0x7c3aed,
-        transparent: true,
-        opacity: 0.38,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        toneMapped: false,
-      }),
-    );
-    shot.add(glow);
-  } else if (kind === "water") {
-    shot = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 18, 12),
-      new THREE.MeshPhysicalMaterial({
-        color: 0x7dd3fc,
-        emissive: 0x075985,
-        emissiveIntensity: 0.75,
-        roughness: 0.08,
-        metalness: 0,
-        transmission: 0.5,
-        transparent: true,
-        opacity: 0.88,
-      }),
-    );
-    shot.name = "waterShotCore";
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.2, 14, 10),
-      new THREE.MeshBasicMaterial({
-        color: 0x38bdf8,
-        transparent: true,
-        opacity: 0.24,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        toneMapped: false,
-      }),
-    );
-    shot.add(glow);
-    for (let index = 0; index < 7; index++) {
-      const droplet = new THREE.Mesh(
-        new THREE.SphereGeometry(0.038 + (index % 3) * 0.007, 9, 7),
-        new THREE.MeshBasicMaterial({
-          color: index % 2 ? 0xbae6fd : 0x38bdf8,
-          transparent: true,
-          opacity: 0.72,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending,
-          toneMapped: false,
-        }),
-      );
-      const angle = (index / 7) * Math.PI * 2;
-      droplet.name = "waterShotDroplet";
-      droplet.userData.index = index;
-      droplet.userData.angle = angle;
-      droplet.position.set(Math.cos(angle) * 0.17, Math.sin(angle) * 0.12, 0);
-      group.add(droplet);
-    }
-  } else {
-    shot = mesh(new THREE.OctahedronGeometry(0.12), 0x74e8ff, {
-      emissive: 0x2389a0,
-    });
-  }
-  group.add(shot);
-  return group;
-}
-
-/**
- * Clone một projectile sang scene render và lưu thời điểm nó được tạo.
- * Tọa độ ban đầu chưa được gán ở đây; `syncScene` sẽ đặt nó tại điểm bắn
- * của tháp trong frame kế tiếp dựa trên `bornAt` và `duration`.
- */
-function createProjectile(projectile: Projectile, now: number) {
-  const template = projectileTemplates.get(projectile.kind);
-  if (!template)
-    throw new Error(`Missing projectile template: ${projectile.kind}`);
-  const group = template.clone(true);
-  const levelScale = 1 + (projectile.level - 1) * 0.2;
-  group.scale.setScalar(levelScale);
-  group.userData.levelScale = levelScale;
-  if (projectile.kind === "archer" && projectile.level >= 2) {
-    const trail = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        0.008,
-        0.018,
-        0.2 + projectile.level * 0.035,
-        6,
-      ),
-      new THREE.MeshBasicMaterial({
-        color: projectile.level >= 3 ? 0xa8e878 : 0xffdfa0,
-        transparent: true,
-        opacity: projectile.level >= 3 ? 0.34 : 0.22,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    );
-    trail.name = "arrowTrail";
-    trail.rotation.x = Math.PI / 2;
-    trail.position.z = -0.34;
-    group.add(trail);
-  } else if (projectile.kind === "cannon" && projectile.level >= 2) {
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.15 + projectile.level * 0.025, 10, 8),
-      new THREE.MeshBasicMaterial({
-        color: projectile.level >= 3 ? 0xff5a24 : 0xffa43d,
-        transparent: true,
-        opacity: 0.22 + projectile.level * 0.06,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    );
-    glow.name = "cannonShotGlow";
-    group.add(glow);
-  }
-  scene!.add(group);
-  return { group, bornAt: now };
-}
-
-/** Dựng hiệu ứng va chạm theo loại sát thương, bán kính và level của phát bắn. */
-function createImpact(impact: Impact, now: number) {
-  const color =
-    impact.kind === "frost"
-      ? 0x6ee7ff
-      : impact.kind === "fire"
-        ? 0xff3b1f
-        : impact.kind === "thunder"
-          ? 0xa78bfa
-          : impact.kind === "water"
-            ? 0x38bdf8
-            : impact.kind === "cannon"
-              ? 0xff7a2f
-              : 0xffe2a1;
-  const group = new THREE.Group();
-  group.position.copy(worldPosition(impact.position.x, impact.position.y));
-  group.userData.bornAt = now;
-  group.userData.level = impact.level;
-  group.userData.visualDuration =
-    (impact.kind === "frost"
-      ? 1050
-      : impact.kind === "fire"
-        ? 650
-        : impact.kind === "water"
-          ? 580
-          : impact.kind === "thunder"
-            ? 520
-            : 420) / props.speedMultiplier;
-  if (impact.kind === "frost") {
-    group.position.y = 0.08;
-    const radius = (impact.radius ?? 1) * DEFENSE_CELL_SIZE;
-
-    // Sóng gradient lan trực tiếp từ chân tháp ra toàn bộ vùng sát thương.
-    const waveMaterial = (opacity: number) => {
-      const material = new THREE.MeshBasicMaterial({
-        map: getFrostWaveTexture(),
-        color:
-          impact.level >= 3
-            ? 0xe4fbff
-            : impact.level === 2
-              ? 0x8feeff
-              : 0x68d9ef,
-        transparent: true,
-        opacity: opacity * (0.78 + impact.level * 0.11),
-        depthWrite: false,
-        blending: THREE.NormalBlending,
-        toneMapped: false,
-      });
-      return material;
-    };
-    const disc = new THREE.Mesh(
-      new THREE.PlaneGeometry(radius * 2, radius * 2),
-      waveMaterial(0.66),
-    );
-    disc.name = "frostCascadeWave";
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.y = 0.025;
-    disc.scale.set(0.01, 0.01, 0.01);
-    disc.userData.baseOpacity = 0.66;
-    const innerWave = new THREE.Mesh(
-      new THREE.PlaneGeometry(radius * 1.45, radius * 1.45),
-      waveMaterial(0.34),
-    );
-    innerWave.name = "frostCascadeWave";
-    innerWave.rotation.x = -Math.PI / 2;
-    innerWave.position.y = 0.035;
-    innerWave.scale.set(0.01, 0.01, 0.01);
-    innerWave.userData.baseOpacity = 0.34;
-
-    group.userData.frostCascadeWave = [disc, innerWave];
-    group.add(disc, innerWave);
-  } else if (impact.kind === "fire") {
-    group.position.y = 0.08;
-    const radius = (impact.radius ?? 1) * DEFENSE_CELL_SIZE;
-    const waveMaterial = (opacity: number) =>
-      new THREE.MeshBasicMaterial({
-        map: getFireWaveTexture(),
-        color:
-          impact.level >= 3
-            ? 0xffe06a
-            : impact.level === 2
-              ? 0xff8b38
-              : 0xff5a28,
-        transparent: true,
-        opacity: opacity * (0.78 + impact.level * 0.11),
-        depthWrite: false,
-        blending: THREE.NormalBlending,
-        toneMapped: false,
-      });
-    const outerWave = new THREE.Mesh(
-      new THREE.PlaneGeometry(radius * 2, radius * 2),
-      waveMaterial(0.68),
-    );
-    outerWave.rotation.x = -Math.PI / 2;
-    outerWave.position.y = 0.025;
-    outerWave.scale.set(0.01, 0.01, 0.01);
-    outerWave.userData.baseOpacity = 0.68;
-    const innerWave = new THREE.Mesh(
-      new THREE.PlaneGeometry(radius * 1.45, radius * 1.45),
-      waveMaterial(0.4),
-    );
-    innerWave.rotation.x = -Math.PI / 2;
-    innerWave.position.y = 0.035;
-    innerWave.scale.set(0.01, 0.01, 0.01);
-    innerWave.userData.baseOpacity = 0.4;
-    for (const wave of [outerWave, innerWave]) {
-      wave.name = "fireBlastWave";
-      wave.renderOrder = 5;
-    }
-    group.userData.fireBlastWaves = [outerWave, innerWave];
-    group.add(outerWave, innerWave);
-  } else if (impact.kind === "water") {
-    group.position.y = 0.1;
-    const radius = (impact.radius ?? 0.7) * DEFENSE_CELL_SIZE;
-    for (let index = 0; index < 3; index++) {
-      const ripple = new THREE.Mesh(
-        new THREE.RingGeometry(0.12 + index * 0.07, 0.17 + index * 0.08, 40),
-        new THREE.MeshBasicMaterial({
-          color: index === 1 ? 0x7dd3fc : color,
-          transparent: true,
-          opacity: 0.78 - index * 0.14,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending,
-          toneMapped: false,
-        }),
-      );
-      ripple.name = "waterHitRipple";
-      ripple.userData.index = index;
-      ripple.userData.radius = radius;
-      ripple.rotation.x = -Math.PI / 2;
-      ripple.position.y = index * 0.018;
-      group.add(ripple);
-    }
-    const dropletCount = 7 + impact.level * 2;
-    for (let index = 0; index < dropletCount; index++) {
-      const droplet = new THREE.Mesh(
-        new THREE.SphereGeometry(0.022 + (index % 3) * 0.006, 7, 5),
-        new THREE.MeshBasicMaterial({
-          color: index % 2 ? 0xbae6fd : 0x38bdf8,
-          transparent: true,
-          opacity: 0.9,
-          depthWrite: false,
-          toneMapped: false,
-        }),
-      );
-      droplet.name = "waterHitDroplet";
-      droplet.userData.angle = (index / dropletCount) * Math.PI * 2;
-      droplet.userData.index = index;
-      group.add(droplet);
-    }
-  } else if (impact.kind === "thunder") {
-    group.position.y = 0.36;
-    const flash = new THREE.Mesh(
-      new THREE.SphereGeometry(0.18 + impact.level * 0.035, 12, 8),
-      new THREE.MeshBasicMaterial({
-        color: 0xe9ddff,
-        transparent: true,
-        opacity: 0.95,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        toneMapped: false,
-      }),
-    );
-    flash.name = "thunderHitFlash";
-    group.add(flash);
-    const arcCount = 5 + impact.level * 2;
-    for (let index = 0; index < arcCount; index++) {
-      const arc = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.012, 0.2 + (index % 3) * 0.055, 3, 5),
-        new THREE.MeshBasicMaterial({
-          color: index % 2 ? 0x8b5cf6 : 0xd8c8ff,
-          transparent: true,
-          opacity: 0.92,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending,
-          toneMapped: false,
-        }),
-      );
-      const angle = (index / arcCount) * Math.PI * 2;
-      arc.name = "thunderHitArc";
-      arc.userData.angle = angle;
-      arc.userData.index = index;
-      arc.rotation.z = -angle;
-      group.add(arc);
-    }
-  } else if (impact.kind === "archer") {
-    group.position.y = 0.42;
-    const slashCount = impact.level >= 3 ? 3 : impact.level === 2 ? 2 : 1;
-    for (let index = 0; index < slashCount; index++) {
-      const slash = new THREE.Mesh(
-        new THREE.BoxGeometry(0.018, 0.24 + index * 0.035, 0.018),
-        new THREE.MeshBasicMaterial({
-          color: impact.level >= 3 ? 0xb5ef86 : 0xffe5a6,
-          transparent: true,
-          opacity: 0.88 - index * 0.13,
-          depthWrite: false,
-          toneMapped: false,
-        }),
-      );
-      slash.name = "archerHitSlash";
-      slash.userData.index = index;
-      slash.rotation.z = -0.62 + index * 0.62;
-      slash.rotation.y = index * 0.8;
-      group.add(slash);
-    }
-    const sparkCount = impact.level === 1 ? 3 : impact.level === 2 ? 6 : 10;
-    for (let index = 0; index < sparkCount; index++) {
-      const spark = new THREE.Mesh(
-        new THREE.ConeGeometry(0.018, 0.13 + impact.level * 0.025, 5),
-        new THREE.MeshBasicMaterial({
-          color: impact.level >= 3 ? 0xb5ff82 : 0xffe2a1,
-          transparent: true,
-          opacity: 0.9,
-          depthWrite: false,
-          toneMapped: false,
-        }),
-      );
-      const angle = (index / sparkCount) * Math.PI * 2;
-      spark.name = "archerHitSpark";
-      spark.userData.angle = angle;
-      spark.userData.index = index;
-      spark.rotation.z = -angle;
-      group.add(spark);
-    }
-  } else {
-    group.position.y = 0.08;
-    const flash = new THREE.Mesh(
-      new THREE.SphereGeometry(0.16 + impact.level * 0.035, 12, 8),
-      new THREE.MeshBasicMaterial({
-        color: impact.level >= 3 ? 0xffdd72 : 0xff8b38,
-        transparent: true,
-        opacity: 0.82,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    );
-    flash.name = "cannonHitFlash";
-    flash.position.y = 0.22;
-    group.add(flash);
-    const waveCount = impact.level >= 3 ? 2 : 1;
-    for (let index = 0; index < waveCount; index++) {
-      const wave = new THREE.Mesh(
-        new THREE.RingGeometry(0.12 + index * 0.06, 0.19 + index * 0.07, 32),
-        new THREE.MeshBasicMaterial({
-          color: impact.level >= 3 ? 0xff5728 : color,
-          transparent: true,
-          opacity: 0.78 - index * 0.18,
-          depthWrite: false,
-          toneMapped: false,
-        }),
-      );
-      wave.name = "cannonHitWave";
-      wave.userData.index = index;
-      wave.rotation.x = -Math.PI / 2;
-      group.add(wave);
-    }
-    const debrisCount = impact.level === 1 ? 4 : impact.level === 2 ? 7 : 12;
-    for (let index = 0; index < debrisCount; index++) {
-      const debris = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(0.025 + impact.level * 0.006, 0),
-        new THREE.MeshBasicMaterial({
-          color: index % 2 ? 0x3d332b : 0xff8a35,
-          transparent: true,
-          opacity: 0.9,
-          depthWrite: false,
-        }),
-      );
-      const angle = (index / debrisCount) * Math.PI * 2;
-      debris.name = "cannonHitDebris";
-      debris.userData.angle = angle;
-      debris.userData.index = index;
-      group.add(debris);
-    }
-    const smokeCount = impact.level === 1 ? 2 : impact.level === 2 ? 4 : 6;
-    for (let index = 0; index < smokeCount; index++) {
-      const smoke = new THREE.Mesh(
-        new THREE.SphereGeometry(0.09 + (index % 2) * 0.025, 8, 6),
-        new THREE.MeshBasicMaterial({
-          color: 0x292824,
-          transparent: true,
-          opacity: 0.5,
-          depthWrite: false,
-        }),
-      );
-      const angle = (index / smokeCount) * Math.PI * 2;
-      smoke.name = "cannonHitSmoke";
-      smoke.userData.angle = angle;
-      smoke.userData.index = index;
-      smoke.position.y = 0.18;
-      group.add(smoke);
-    }
-  }
-  scene!.add(group);
-  return group;
-}
-
 // ===== Map và lâu đài ========================================================
 /** Tải lâu đài theo map hiện tại rồi gắn vào scene nếu component còn tồn tại. */
 async function loadCastleModel() {
@@ -2486,6 +2043,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     const towerPosition = worldPosition(tower.x, tower.y);
     model.position.set(towerPosition.x, 0.05, towerPosition.z);
     setTowerScale(model, tower.level);
+    syncTowerLevelLabel(model, tower.level);
     animateTowerLevelAppearance(model, tower, elapsed);
     const aura = model.userData.aura as THREE.Group | undefined;
     if (aura) {
@@ -2845,290 +2403,24 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     elapsed,
     frameDelta,
     now,
+    speedMultiplier: props.speedMultiplier,
     worldUnitsPerCell: DEFENSE_CELL_SIZE,
     pathPosition,
   });
-  // Projectile: nội suy theo bornAt + duration render; gameplay vẫn quyết định
-  // thời điểm trúng đích và sát thương trong composable.
-  const projectileIds = new Set(props.projectiles.map((item) => item.id));
-  for (const [id, item] of projectileModels)
-    if (!projectileIds.has(id)) {
-      disposeObject(item.group, false);
-      projectileModels.delete(id);
-    }
-  for (const projectile of props.projectiles) {
-    const item =
-      projectileModels.get(projectile.id) ?? createProjectile(projectile, now);
-    projectileModels.set(projectile.id, item);
-    const ratio = Math.min(
-      1,
-      (now - item.bornAt) / (projectile.duration * 1000),
-    );
-    item.group.visible = ratio < 1;
-    if (ratio >= 1) continue;
-    // `from`/`to` ban đầu là tâm hai ô grid đã được đổi sang tọa độ world.
-    // Các nhánh bên dưới sẽ hiệu chỉnh `from` thành đầu nòng hoặc tâm glow.
-    const from = worldPosition(projectile.from.x, projectile.from.y);
-    const to = worldPosition(projectile.to.x, projectile.to.y);
-    const targetHeight = 0.45;
-    // Cao độ mặc định dành cho cung; từng loại đạn có thể ghi đè giá trị này.
-    let startHeight = 0.72;
-    let arcHeight = 1.15;
-    if (projectile.kind === "cannon") {
-      const sourceTower = props.towers.find(
-        (tower) =>
-          tower.x === projectile.from.x &&
-          tower.y === projectile.from.y &&
-          tower.kind === "cannon",
-      );
-      const towerScale = towerScaleForLevel(sourceTower?.level ?? 1);
-      const directionX = to.x - from.x;
-      const directionZ = to.z - from.z;
-      const directionLength = Math.max(
-        Math.hypot(directionX, directionZ),
-        0.001,
-      );
-      // Đẩy điểm xuất phát từ tâm ô về phía mục tiêu để khớp đầu nòng pháo.
-      const muzzleDistance = Math.cos(0.2) * 0.9 * towerScale.horizontal;
-      from.x += (directionX / directionLength) * muzzleDistance;
-      from.z += (directionZ / directionLength) * muzzleDistance;
-      startHeight =
-        0.05 + (1.08 + 0.13 + Math.sin(0.2) * 0.9) * towerScale.vertical;
-      arcHeight = 0.42;
-    } else if (
-      projectile.kind === "fire" ||
-      projectile.kind === "thunder" ||
-      projectile.kind === "water"
-    ) {
-      const sourceTower = props.towers.find(
-        (tower) =>
-          tower.x === projectile.from.x &&
-          tower.y === projectile.from.y &&
-          tower.kind === projectile.kind,
-      );
-      const towerScale = towerScaleForLevel(sourceTower?.level ?? 1);
-      const elementalGlow = sourceTower
-        ? towerModels
-            .get(sourceTower.id)
-            ?.getObjectByName("elementalTowerGlow")
-        : undefined;
+  projectileScene?.sync({
+    projectiles: props.projectiles,
+    towers: props.towers,
+    elapsed,
+    frameDelta,
+    now,
+  });
 
-      if (
-        elementalGlow &&
-        (projectile.kind === "fire" || projectile.kind === "water")
-      ) {
-        // Chuyển tâm glow từ local space của model sang world space. Kết quả đã
-        // bao gồm position/rotation/scale của model và khác nhau theo từng level.
-        elementalGlow.getWorldPosition(from);
-        startHeight = from.y;
-      } else {
-        // Fallback dùng trong lúc GLB/glow chưa tải xong để đạn vẫn được hiển thị.
-        startHeight = 0.05 + 1.72 * towerScale.vertical;
-      }
-      arcHeight = projectile.kind === "water" ? 0.24 : 0;
-    }
-    const fallProgress =
-      projectile.kind === "fire" ? Math.pow(ratio, 1.55) : ratio;
-    // Khi ratio = 0, đạn nằm đúng tại `from`; ratio = 1 là vị trí mục tiêu.
-    item.group.position.lerpVectors(from, to, ratio);
-    item.group.position.y =
-      THREE.MathUtils.lerp(startHeight, targetHeight, fallProgress) +
-      Math.sin(ratio * Math.PI) * arcHeight;
-    item.group.lookAt(to.x, targetHeight, to.z);
-    if (projectile.kind === "fire") {
-      const fireball = item.group.getObjectByName("fireballCore");
-      if (fireball) {
-        fireball.rotateZ(frameDelta * 9);
-        const pulse = 1 + Math.sin(elapsed * 18 + projectile.id) * 0.1;
-        fireball.scale.setScalar(pulse);
-      }
-    } else if (projectile.kind === "thunder") {
-      const bolt = item.group.getObjectByName("thunderBoltCore");
-      if (bolt) {
-        bolt.rotateZ(frameDelta * 18);
-        bolt.scale.setScalar(1 + Math.sin(elapsed * 28 + projectile.id) * 0.18);
-      }
-    } else if (projectile.kind === "water") {
-      const drop = item.group.getObjectByName("waterShotCore");
-      if (drop) {
-        const pulse = 1 + Math.sin(elapsed * 17 + projectile.id) * 0.09;
-        drop.scale.set(pulse, pulse * 0.88, pulse);
-      }
-      item.group.children.forEach((child) => {
-        if (child.name !== "waterShotDroplet") return;
-        const index = Number(child.userData.index);
-        const angle =
-          Number(child.userData.angle) +
-          elapsed * (4.2 + (index % 2) * 0.7) +
-          projectile.id;
-        const radius = 0.15 + (index % 3) * 0.025;
-        child.position.set(
-          Math.cos(angle) * radius,
-          Math.sin(angle * 1.3) * 0.12,
-          Math.sin(angle) * radius,
-        );
-        child.scale.setScalar(0.75 + Math.sin(elapsed * 9 + index) * 0.2);
-      });
-    }
-  }
-
-  // Impact: giữ object sống đúng lifetime do gameplay cấp và animate theo tuổi.
-  const impactIds = new Set(props.impacts.map((item) => item.id));
-  for (const [id, model] of impactModels)
-    if (!impactIds.has(id)) {
-      disposeObject(model);
-      impactModels.delete(id);
-    }
-  for (const impact of props.impacts) {
-    const model = impactModels.get(impact.id) ?? createImpact(impact, now);
-    impactModels.set(impact.id, model);
-    const progress = THREE.MathUtils.clamp(
-      (now - Number(model.userData.bornAt)) /
-        Number(model.userData.visualDuration),
-      0,
-      1,
-    );
-    model.visible = progress < 1;
-    if (impact.kind === "frost") {
-      const waveProgress = THREE.MathUtils.smoothstep(progress, 0, 0.92);
-      const fade = 1 - THREE.MathUtils.smoothstep(progress, 0.76, 1);
-      const waves = model.userData.frostCascadeWave as THREE.Mesh[];
-      waves.forEach((wave, index) => {
-        const delayedProgress =
-          index === 0
-            ? waveProgress
-            : THREE.MathUtils.smoothstep(progress, 0.28, 1);
-        const scale = Math.max(0.01, delayedProgress);
-        wave.scale.set(scale, scale, scale);
-        (wave.material as THREE.MeshBasicMaterial).opacity =
-          Number(wave.userData.baseOpacity) * fade * delayedProgress;
-        wave.rotation.z = (index % 2 ? -1 : 1) * elapsed * 0.18;
-      });
-    } else if (impact.kind === "fire") {
-      const waveProgress = THREE.MathUtils.smoothstep(progress, 0, 0.9);
-      const fade = 1 - THREE.MathUtils.smoothstep(progress, 0.68, 1);
-      const waves = model.userData.fireBlastWaves as THREE.Mesh[];
-      waves.forEach((wave, index) => {
-        const delayedProgress =
-          index === 0
-            ? waveProgress
-            : THREE.MathUtils.smoothstep(progress, 0.2, 1);
-        const scale = Math.max(0.01, delayedProgress);
-        wave.scale.set(scale, scale, scale);
-        (wave.material as THREE.MeshBasicMaterial).opacity =
-          Number(wave.userData.baseOpacity) * fade * delayedProgress;
-        wave.rotation.z = (index % 2 ? -1 : 1) * elapsed * 0.22;
-      });
-    } else if (impact.kind === "water") {
-      const fade = 1 - THREE.MathUtils.smoothstep(progress, 0.5, 1);
-      model.children.forEach((child) => {
-        const material = (child as THREE.Mesh)
-          .material as THREE.MeshBasicMaterial;
-        material.opacity =
-          fade * (child.name === "waterHitRipple" ? 0.72 : 0.9);
-        if (child.name === "waterHitRipple") {
-          const index = Number(child.userData.index);
-          const delayed = Math.max(0, progress - index * 0.1);
-          child.scale.setScalar(
-            0.25 + delayed * (3.2 + Number(child.userData.radius)),
-          );
-        } else if (child.name === "waterHitDroplet") {
-          const angle = Number(child.userData.angle);
-          const distance = progress * (0.38 + impact.level * 0.08);
-          child.position.set(
-            Math.cos(angle) * distance,
-            Math.sin(progress * Math.PI) * (0.42 + impact.level * 0.08),
-            Math.sin(angle) * distance,
-          );
-        }
-      });
-    } else if (impact.kind === "thunder") {
-      const fade = 1 - THREE.MathUtils.smoothstep(progress, 0.32, 1);
-      model.children.forEach((child) => {
-        const material = (child as THREE.Mesh)
-          .material as THREE.MeshBasicMaterial;
-        material.opacity =
-          fade * (child.name === "thunderHitFlash" ? 0.85 : 0.95);
-        if (child.name === "thunderHitFlash")
-          child.scale.setScalar(0.45 + Math.sin(progress * Math.PI) * 2.1);
-        else if (child.name === "thunderHitArc") {
-          const angle = Number(child.userData.angle);
-          const distance = progress * (0.42 + impact.level * 0.09);
-          child.position.set(
-            Math.cos(angle) * distance,
-            Math.sin(progress * Math.PI) * 0.35,
-            Math.sin(angle) * distance,
-          );
-          child.scale.y =
-            0.7 + Math.sin(elapsed * 35 + Number(child.userData.index)) * 0.3;
-        }
-      });
-    } else if (impact.kind === "archer") {
-      const fade = 1 - THREE.MathUtils.smoothstep(progress, 0.45, 1);
-      model.children.forEach((child) => {
-        const material = (child as THREE.Mesh)
-          .material as THREE.MeshBasicMaterial;
-        material.opacity =
-          fade * (child.name === "archerHitSlash" ? 0.92 : 0.95);
-        if (child.name === "archerHitSlash") {
-          const index = Number(child.userData.index);
-          child.scale.set(
-            0.7 + progress * 0.7,
-            1 + progress * (1.1 + impact.level * 0.2),
-            1,
-          );
-          child.rotation.z += index % 2 ? -0.07 : 0.07;
-        } else if (child.name === "archerHitSpark") {
-          const angle = Number(child.userData.angle);
-          const distance = progress * (0.35 + impact.level * 0.12);
-          child.position.set(
-            Math.cos(angle) * distance,
-            Math.sin(progress * Math.PI) * (0.24 + impact.level * 0.07),
-            Math.sin(angle) * distance,
-          );
-        }
-      });
-    } else {
-      const fade = 1 - THREE.MathUtils.smoothstep(progress, 0.5, 1);
-      model.children.forEach((child) => {
-        const material = (child as THREE.Mesh)
-          .material as THREE.MeshBasicMaterial;
-        material.opacity = fade * (child.name === "cannonHitWave" ? 0.72 : 0.9);
-        if (child.name === "cannonHitFlash") {
-          child.scale.setScalar(
-            0.7 + Math.sin(progress * Math.PI) * (1.5 + impact.level * 0.25),
-          );
-          material.opacity = fade * 0.72;
-        } else if (child.name === "cannonHitWave") {
-          const index = Number(child.userData.index);
-          const delayed = Math.max(0, progress - index * 0.12);
-          child.scale.setScalar(1 + delayed * (3.2 + impact.level * 0.7));
-          child.rotation.z += index ? -0.08 : 0.1;
-        } else if (child.name === "cannonHitDebris") {
-          const angle = Number(child.userData.angle);
-          const distance = progress * (0.42 + impact.level * 0.15);
-          child.position.set(
-            Math.cos(angle) * distance,
-            Math.sin(progress * Math.PI) * (0.3 + impact.level * 0.1),
-            Math.sin(angle) * distance,
-          );
-          child.rotation.x += 0.14;
-          child.rotation.y += 0.1;
-        } else if (child.name === "cannonHitSmoke") {
-          const index = Number(child.userData.index);
-          const angle = Number(child.userData.angle);
-          const spread = 0.08 + progress * (0.16 + impact.level * 0.035);
-          child.position.set(
-            Math.cos(angle) * spread,
-            0.18 + progress * (0.48 + (index % 2) * 0.12),
-            Math.sin(angle) * spread,
-          );
-          child.scale.setScalar(0.65 + progress * (1.25 + impact.level * 0.12));
-          material.opacity = fade * 0.42;
-        }
-      });
-    }
-  }
+  impactScene?.sync({
+    impacts: props.impacts,
+    elapsed,
+    now,
+    speedMultiplier: props.speedMultiplier,
+  });
 }
 
 /** Nội suy toàn bộ camera về góc nhìn mặc định khi người chơi yêu cầu. */
@@ -3211,12 +2503,15 @@ async function createWorld() {
     towerTemplates.set("fire", createFireTowerTemplate(frostPlaceholder));
     towerTemplates.set("thunder", createFireTowerTemplate(frostPlaceholder));
     towerTemplates.set("water", createFireTowerTemplate(frostPlaceholder));
-    projectileTemplates.set("archer", createProjectileTemplate("archer"));
-    projectileTemplates.set("cannon", createProjectileTemplate("cannon"));
-    projectileTemplates.set("frost", createProjectileTemplate("frost"));
-    projectileTemplates.set("fire", createProjectileTemplate("fire"));
-    projectileTemplates.set("thunder", createProjectileTemplate("thunder"));
-    projectileTemplates.set("water", createProjectileTemplate("water"));
+    projectileScene = createTowerDefenseProjectileScene(scene, {
+      surfaceDetail,
+      worldPosition,
+      towerModels,
+    });
+    impactScene = createTowerDefenseImpactScene(scene, {
+      cellSize: DEFENSE_CELL_SIZE,
+      worldPosition,
+    });
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
@@ -3477,6 +2772,10 @@ onBeforeUnmount(() => {
   controls?.dispose();
   controls = null;
   tileMeshes.length = 0;
+  projectileScene?.dispose();
+  projectileScene = null;
+  impactScene?.dispose();
+  impactScene = null;
   enemyScene?.dispose();
   enemyScene = null;
   mapBackgroundLayer = null;
@@ -3501,10 +2800,8 @@ onBeforeUnmount(() => {
   surfaceDetail = null;
   frostGlowTexture?.dispose();
   frostGlowTexture = null;
-  frostWaveTexture?.dispose();
-  frostWaveTexture = null;
-  fireWaveTexture?.dispose();
-  fireWaveTexture = null;
+  towerLevelLabelTextures.forEach((texture) => texture.dispose());
+  towerLevelLabelTextures.clear();
   mysticParticles = null;
   renderer?.dispose();
   renderer?.forceContextLoss();

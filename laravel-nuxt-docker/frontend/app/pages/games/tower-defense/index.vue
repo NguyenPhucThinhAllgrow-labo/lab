@@ -175,7 +175,7 @@ const hoveredTowerDefinition = computed(() =>
 );
 const sceneReady = ref(false);
 const imagesReady = ref(true);
-const showBrickBackground = ref(true);
+const showBrickBackground = ref(false);
 const isGameReady = computed(() => sceneReady.value && imagesReady.value);
 
 function togglePauseFromHud() {
