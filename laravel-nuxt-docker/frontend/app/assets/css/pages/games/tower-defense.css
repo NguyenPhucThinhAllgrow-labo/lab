@@ -2021,9 +2021,9 @@
 .defense-board-footer {
   position: absolute;
   z-index: 12;
-  right: 280px;
+  right: auto;
   bottom: 10px;
-  left: auto;
+  left: 10px;
   display: flex;
   width: min(480px, calc(100% - 300px));
   padding: 6px 8px;
@@ -2201,7 +2201,8 @@
     grid-template-columns: 1fr;
   }
   .defense-board-footer {
-    right: 246px;
+    right: auto;
+    left: 10px;
     width: min(440px, calc(100% - 266px));
   }
 }
