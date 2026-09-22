@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import {
   TOWER_DEFINITIONS,
   TOWER_RANGE_LEVEL_BONUS,
@@ -16,6 +15,11 @@ import {
   createTowerDefenseEnemyScene,
   type TowerDefenseEnemyScene,
 } from "~/components/tower-defense/scene/enemy-scene";
+import {
+  createTowerModelLibrary,
+  type LevelledTowerKind,
+  type TowerModelLibrary,
+} from "~/components/tower-defense/scene/tower-models";
 import type {
   Enemy,
   GamePhase,
@@ -78,6 +82,7 @@ const projectileModels = new Map<
 >();
 const impactModels = new Map<number, THREE.Group>();
 const towerTemplates = new Map<Tower["kind"], THREE.Group>();
+let towerModelLibrary: TowerModelLibrary | null = null;
 let towerPreviewModel: THREE.Group | null = null;
 let towerPreviewKind: TowerKind | null = null;
 let castleModel: THREE.Group | null = null;
@@ -907,6 +912,18 @@ function decorateElementalTowerGlow(
   group.add(effect);
 }
 
+/** Hoàn thiện template GLB sau khi thư viện model đã chuẩn hóa kích thước. */
+function decorateLoadedTowerModel(
+  template: THREE.Group,
+  kind: LevelledTowerKind,
+  _level: 1 | 2 | 3,
+) {
+  if (kind === "frost") decorateFrostTower(template);
+  else decorateElementalTowerGlow(template, kind);
+  template.add(groundShadow(0.42));
+  optimizeTemplateShadows(template);
+}
+
 /** Cache các node có tên vào userData để vòng render không phải traverse mỗi frame. */
 function bindTowerParts(group: THREE.Group) {
   group.userData.turret = group.getObjectByName("towerTurret");
@@ -1490,7 +1507,9 @@ function createThunderBeamEffect() {
 
 /** Clone đúng template tower, bind node điều khiển và thêm instance vào scene. */
 function createTowerModel(tower: Tower) {
-  const template = towerTemplates.get(tower.kind);
+  const template =
+    towerModelLibrary?.get(tower.kind, tower.level) ??
+    towerTemplates.get(tower.kind);
   if (!template) throw new Error(`Missing tower template: ${tower.kind}`);
   const group = template.clone(true);
   bindTowerParts(group);
@@ -1504,6 +1523,15 @@ function createTowerModel(tower: Tower) {
   group.userData.level = tower.level;
   scene!.add(group);
   return group;
+}
+
+/** Dispose effect sở hữu riêng nhưng giữ geometry/material dùng chung từ template. */
+function disposeTowerModel(model: THREE.Group) {
+  for (const name of ["towerLevelEffect", "thunderBeamEffect"]) {
+    const ownedEffect = model.getObjectByName(name);
+    if (ownedEffect) disposeObject(ownedEffect);
+  }
+  disposeObject(model, false);
 }
 
 /** Tạo burst ngắn tại tower vừa lên cấp và lưu thời điểm sinh để tự hủy. */
@@ -1687,7 +1715,8 @@ function removeTowerPreview() {
 /** Tạo ghost tower bán trong suốt để theo ô hover trước khi đặt công trình. */
 function createTowerPreview(kind: TowerKind) {
   removeTowerPreview();
-  const template = towerTemplates.get(kind);
+  const template =
+    towerModelLibrary?.get(kind, 1) ?? towerTemplates.get(kind);
   if (!template || !scene) return;
   const preview = template.clone(true);
   preview.traverse((child) => {
@@ -1715,323 +1744,7 @@ function createTowerPreview(kind: TowerKind) {
   towerPreviewKind = kind;
 }
 
-// ===== Model GLB của tháp và projectile/impact ===============================
-/** Tải GLB tháp băng, chuẩn hóa material và thay placeholder đang dùng trong scene. */
-async function loadFrostTower() {
-  try {
-    const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/frost/enemy/level1.glb",
-    );
-    if (!scene || !host.value?.isConnected) return;
-    const template = new THREE.Group();
-    template.name = "FrostTower3D";
-    template.userData.frostEffectCenterY = 1.77;
-    const source = gltf.scene;
-    console.log("frost")
-    console.table(getModelStats(source))
-    source.scale.set(2, 2, 2);
-    source.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      if (!child.geometry.getAttribute("normal"))
-        child.geometry.computeVertexNormals();
-      child.castShadow = true;
-      child.receiveShadow = true;
-      const tuneMaterial = (original: THREE.Material) => {
-        const material = original.clone();
-        if (material instanceof THREE.MeshStandardMaterial) {
-          if (material.map) {
-            material.map.anisotropy = Math.min(
-              8,
-              renderer?.capabilities.getMaxAnisotropy() ?? 8,
-            );
-            material.map.needsUpdate = true;
-          }
-          material.needsUpdate = true;
-        }
-        return material;
-      };
-      child.material = Array.isArray(child.material)
-        ? child.material.map(tuneMaterial)
-        : tuneMaterial(child.material);
-    });
-    template.add(source);
-    decorateFrostTower(template);
-    template.add(groundShadow(0.42));
-    optimizeTemplateShadows(template);
-
-    const previousTemplate = towerTemplates.get("frost");
-    if (towerPreviewKind === "frost") removeTowerPreview();
-    for (const [id, model] of towerModels) {
-      const kind = props.towers.find((tower) => tower.id === id)?.kind;
-      if (kind !== "frost") continue;
-      disposeObject(model, false);
-      towerModels.delete(id);
-    }
-    if (previousTemplate) disposeObject(previousTemplate);
-    towerTemplates.set("frost", template);
-  } catch (error) {
-    console.warn(
-      "[Kingdom Defense] Không thể tải model, dùng placeholder dự phòng.",
-      error,
-    );
-  }
-}
-
-/** Tải model tháp lửa riêng, căn giữa chân model và thay placeholder đang hiển thị. */
-async function loadFireTower() {
-  try {
-    const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/fire/enemy/level1.glb",
-    );
-    if (!scene || !host.value?.isConnected) return;
-    const template = new THREE.Group();
-    template.name = "FireTower3D";
-    const source = gltf.scene;
-    console.log("fire")
-    console.table(getModelStats(source))
-    source.updateMatrixWorld(true);
-    const sourceBounds = new THREE.Box3().setFromObject(source);
-    const sourceSize = sourceBounds.getSize(new THREE.Vector3());
-    if (!Number.isFinite(sourceSize.y) || sourceSize.y <= 0)
-      throw new Error("Model tháp lửa không có kích thước hợp lệ.");
-    // Tháp băng cao xấp xỉ 2.1 đơn vị sau transform; chuẩn hóa tháp lửa cùng cỡ.
-    source.scale.multiplyScalar(2.1 / sourceSize.y);
-    source.updateMatrixWorld(true);
-    const fittedBounds = new THREE.Box3().setFromObject(source);
-    const fittedCenter = fittedBounds.getCenter(new THREE.Vector3());
-    source.position.x -= fittedCenter.x;
-    source.position.z -= fittedCenter.z;
-    source.position.y -= fittedBounds.min.y;
-    source.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      if (!child.geometry.getAttribute("normal"))
-        child.geometry.computeVertexNormals();
-      child.castShadow = true;
-      child.receiveShadow = true;
-      const tuneMaterial = (original: THREE.Material) => {
-        const material = original.clone();
-        if (material instanceof THREE.MeshStandardMaterial) {
-          if (material.map) {
-            material.map.anisotropy = Math.min(
-              8,
-              renderer?.capabilities.getMaxAnisotropy() ?? 8,
-            );
-            material.map.needsUpdate = true;
-          }
-          material.needsUpdate = true;
-        }
-        return material;
-      };
-      child.material = Array.isArray(child.material)
-        ? child.material.map(tuneMaterial)
-        : tuneMaterial(child.material);
-    });
-    template.add(source);
-    decorateElementalTowerGlow(template, "fire");
-    template.add(groundShadow(0.42));
-    optimizeTemplateShadows(template);
-
-    const previousTemplate = towerTemplates.get("fire");
-    if (towerPreviewKind === "fire") removeTowerPreview();
-    for (const [id, model] of towerModels) {
-      if (props.towers.find((tower) => tower.id === id)?.kind !== "fire")
-        continue;
-      disposeObject(model, false);
-      towerModels.delete(id);
-    }
-    if (previousTemplate) disposeObject(previousTemplate);
-    towerTemplates.set("fire", template);
-  } catch (error) {
-    console.warn(
-      "[Kingdom Defense] Không thể tải fire, dùng placeholder dự phòng.",
-      error,
-    );
-  }
-}
-
-/** Tải model tháp sét, chuẩn hóa kích thước và thay model dự phòng. */
-async function loadThunderTower() {
-  try {
-    const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/thunder/enemy/level1.glb",
-    );
-    if (!scene || !host.value?.isConnected) return;
-    const template = new THREE.Group();
-    template.name = "ThunderTower3D";
-    const source = gltf.scene;
-    console.log("thunder")
-    console.table(getModelStats(source))
-    source.updateMatrixWorld(true);
-    const sourceBounds = new THREE.Box3().setFromObject(source);
-    const sourceSize = sourceBounds.getSize(new THREE.Vector3());
-    if (!Number.isFinite(sourceSize.y) || sourceSize.y <= 0)
-      throw new Error("Model tháp sét không có kích thước hợp lệ.");
-    source.scale.multiplyScalar(2.1 / sourceSize.y);
-    source.updateMatrixWorld(true);
-    const fittedBounds = new THREE.Box3().setFromObject(source);
-    const fittedCenter = fittedBounds.getCenter(new THREE.Vector3());
-    source.position.set(
-      source.position.x - fittedCenter.x,
-      source.position.y - fittedBounds.min.y,
-      source.position.z - fittedCenter.z,
-    );
-    source.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      if (!child.geometry.getAttribute("normal"))
-        child.geometry.computeVertexNormals();
-      child.castShadow = true;
-      child.receiveShadow = true;
-      const tuneMaterial = (original: THREE.Material) => {
-        const material = original.clone();
-        if (material instanceof THREE.MeshStandardMaterial) {
-          if (material.map) {
-            material.map.anisotropy = Math.min(
-              8,
-              renderer?.capabilities.getMaxAnisotropy() ?? 8,
-            );
-            material.map.needsUpdate = true;
-          }
-          material.needsUpdate = true;
-        }
-        return material;
-      };
-      child.material = Array.isArray(child.material)
-        ? child.material.map(tuneMaterial)
-        : tuneMaterial(child.material);
-    });
-    template.add(source);
-    decorateElementalTowerGlow(template, "thunder");
-    template.add(groundShadow(0.42));
-    optimizeTemplateShadows(template);
-
-    const previousTemplate = towerTemplates.get("thunder");
-    if (towerPreviewKind === "thunder") removeTowerPreview();
-    for (const [id, model] of towerModels) {
-      if (props.towers.find((tower) => tower.id === id)?.kind !== "thunder")
-        continue;
-      disposeObject(model, false);
-      towerModels.delete(id);
-    }
-    if (previousTemplate) disposeObject(previousTemplate);
-    towerTemplates.set("thunder", template);
-  } catch (error) {
-    console.warn(
-      "[Kingdom Defense] Không thể tải thunder-tower.glb, dùng placeholder dự phòng.",
-      error,
-    );
-  }
-}
-
-/** Tải model tháp nước, chuẩn hóa về cùng tỷ lệ với các tháp nguyên tố khác. */
-async function loadWaterTower() {
-  try {
-    const gltf = await new GLTFLoader().loadAsync(
-      "/models/games/tower-defense/water/enemy/level1.glb",
-    );
-    if (!scene || !host.value?.isConnected) return;
-    const template = new THREE.Group();
-    template.name = "WaterTower3D";
-    const source = gltf.scene;
-    console.log("water")
-    console.table(getModelStats(source))
-    source.updateMatrixWorld(true);
-    const sourceBounds = new THREE.Box3().setFromObject(source);
-    const sourceSize = sourceBounds.getSize(new THREE.Vector3());
-    if (!Number.isFinite(sourceSize.y) || sourceSize.y <= 0)
-      throw new Error("Model tháp nước không có kích thước hợp lệ.");
-    source.scale.multiplyScalar(2 / sourceSize.y);
-    source.updateMatrixWorld(true);
-    const fittedBounds = new THREE.Box3().setFromObject(source);
-    const fittedCenter = fittedBounds.getCenter(new THREE.Vector3());
-    source.position.set(
-      source.position.x - fittedCenter.x,
-      source.position.y - fittedBounds.min.y,
-      source.position.z - fittedCenter.z,
-    );
-    source.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      if (!child.geometry.getAttribute("normal"))
-        child.geometry.computeVertexNormals();
-      child.castShadow = true;
-      child.receiveShadow = true;
-      const tuneMaterial = (original: THREE.Material) => {
-        const material = original.clone();
-        if (material instanceof THREE.MeshStandardMaterial) {
-          if (material.map) {
-            material.map.anisotropy = Math.min(
-              8,
-              renderer?.capabilities.getMaxAnisotropy() ?? 8,
-            );
-            material.map.needsUpdate = true;
-          }
-          material.needsUpdate = true;
-        }
-        return material;
-      };
-      child.material = Array.isArray(child.material)
-        ? child.material.map(tuneMaterial)
-        : tuneMaterial(child.material);
-    });
-    template.add(source);
-    decorateElementalTowerGlow(template, "water");
-    template.add(groundShadow(0.42));
-    optimizeTemplateShadows(template);
-
-    const previousTemplate = towerTemplates.get("water");
-    if (towerPreviewKind === "water") removeTowerPreview();
-    for (const [id, model] of towerModels) {
-      if (props.towers.find((tower) => tower.id === id)?.kind !== "water")
-        continue;
-      disposeObject(model, false);
-      towerModels.delete(id);
-    }
-    if (previousTemplate) disposeObject(previousTemplate);
-    towerTemplates.set("water", template);
-  } catch (error) {
-    console.warn(
-      "[Kingdom Defense] Không thể tải water-tower.glb, dùng placeholder dự phòng.",
-      error,
-    );
-  }
-}
-
-function getModelStats(object: THREE.Object3D) {
-  let meshes = 0
-  let triangles = 0
-  let vertices = 0
-  let materials = 0
-
-  object.traverse((child) => {
-    if (!(child instanceof THREE.Mesh))
-      return
-
-    meshes++
-
-    const geometry = child.geometry
-    const position = geometry.getAttribute('position')
-
-    vertices += position?.count ?? 0
-
-    if (geometry.index) {
-      triangles += geometry.index.count / 3
-    }
-    else if (position) {
-      triangles += position.count / 3
-    }
-
-    materials += Array.isArray(child.material)
-      ? child.material.length
-      : 1
-  })
-
-  return {
-    meshes,
-    triangles: Math.round(triangles),
-    vertices,
-    materials,
-  }
-}
-
+// ===== Model projectile/impact ==============================================
 /** Tạo geometry dùng chung cho từng loại đạn; instance sau đó chỉ clone template. */
 function createProjectileTemplate(kind: Projectile["kind"]) {
   const group = new THREE.Group();
@@ -2658,16 +2371,20 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   const towerIds = new Set(props.towers.map((item) => item.id));
   for (const [id, model] of towerModels)
     if (!towerIds.has(id)) {
-      disposeObject(model, false);
+      disposeTowerModel(model);
       towerModels.delete(id);
     }
   for (const tower of props.towers) {
-    const model = towerModels.get(tower.id) ?? createTowerModel(tower);
+    let model = towerModels.get(tower.id) ?? createTowerModel(tower);
     towerModels.set(tower.id, model);
     const renderedLevel = Number(model.userData.level);
-    if (renderedLevel < tower.level) {
-      createTowerUpgradeEffect(tower, now);
-      applyTowerLevelAppearance(model, tower);
+    if (renderedLevel !== tower.level) {
+      if (renderedLevel < tower.level) createTowerUpgradeEffect(tower, now);
+      if (towerModelLibrary?.has(tower.kind, tower.level)) {
+        disposeTowerModel(model);
+        model = createTowerModel(tower);
+        towerModels.set(tower.id, model);
+      } else applyTowerLevelAppearance(model, tower);
     }
     model.userData.level = tower.level;
     const turret = model.userData.turret as THREE.Group | undefined;
@@ -3359,6 +3076,10 @@ async function createWorld() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = 1.12;
+    towerModelLibrary = createTowerModelLibrary({
+      renderer,
+      decorate: decorateLoadedTowerModel,
+    });
     target.appendChild(renderer.domElement);
     renderer.setClearColor(props.map.theme.background, 1);
     // Bao trọn nền mở rộng để cả far plane lẫn mép GridHelper không lọt vào hình.
@@ -3557,10 +3278,7 @@ async function createWorld() {
     };
     window.addEventListener("keydown", handleCameraResetShortcut);
     await Promise.allSettled([
-      loadFrostTower(),
-      loadFireTower(),
-      loadThunderTower(),
-      loadWaterTower(),
+      towerModelLibrary.load(),
       enemyScene.load(),
       loadCastleModel(),
     ]);
@@ -3602,6 +3320,8 @@ onBeforeUnmount(() => {
   tileMeshes.length = 0;
   enemyScene?.dispose();
   enemyScene = null;
+  towerModelLibrary?.dispose();
+  towerModelLibrary = null;
   towerUpgradeEffects.clear();
   scene?.traverse((child) => {
     if (
