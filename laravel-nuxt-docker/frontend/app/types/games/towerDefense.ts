@@ -92,6 +92,8 @@ export interface Tower extends GridPoint {
 export interface Enemy {
   id: number;
   kind: EnemyKind;
+  /** Khóa model trong ENEMY_MODEL_DEFINITIONS; mặc định là "normal". */
+  modelKey?: string;
   bossClass?: BossClass;
   lane: 0 | 1;
   progress: number;

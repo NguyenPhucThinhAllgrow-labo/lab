@@ -2,7 +2,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import {
   TOWER_DEFINITIONS,
   TOWER_RANGE_LEVEL_BONUS,
@@ -13,8 +12,11 @@ import {
   loadTowerDefenseCastle,
   mapWorldPosition,
 } from "~/components/tower-defense/scene/map-scene";
+import {
+  createTowerDefenseEnemyScene,
+  type TowerDefenseEnemyScene,
+} from "~/components/tower-defense/scene/enemy-scene";
 import type {
-  BossClass,
   Enemy,
   GamePhase,
   Impact,
@@ -59,10 +61,6 @@ let surfaceDetail: THREE.DataTexture | null = null;
 let frostGlowTexture: THREE.CanvasTexture | null = null;
 let frostWaveTexture: THREE.CanvasTexture | null = null;
 let fireWaveTexture: THREE.CanvasTexture | null = null;
-const enemyStatusBadgeTextures = new Map<
-  "fire" | "frost" | "water",
-  THREE.CanvasTexture
->();
 const clock = new THREE.Clock();
 let visualElapsed = 0;
 let visualNow = 0;
@@ -73,8 +71,7 @@ const towerUpgradeEffects = new Map<
   number,
   { group: THREE.Group; bornAt: number; kind: TowerKind }
 >();
-const enemyModels = new Map<number, THREE.Group>();
-const enemyModelPool = new Map<string, THREE.Group[]>();
+let enemyScene: TowerDefenseEnemyScene | null = null;
 const projectileModels = new Map<
   number,
   { group: THREE.Group; bornAt: number }
@@ -85,16 +82,6 @@ let towerPreviewModel: THREE.Group | null = null;
 let towerPreviewKind: TowerKind | null = null;
 let castleModel: THREE.Group | null = null;
 const projectileTemplates = new Map<Projectile["kind"], THREE.Group>();
-let riggedEnemyTemplate: THREE.Group | null = null;
-let riggedEnemyAnimations: THREE.AnimationClip[] = [];
-let enemySwordTemplate: THREE.Object3D | null = null;
-let enemyShieldTemplate: THREE.Object3D | null = null;
-// Năm class boss dùng chung rig animation nhưng có model và trang bị riêng.
-const bossEnemyTemplates = new Map<BossClass, THREE.Group>();
-const bossEquipmentTemplates = new Map<
-  BossClass,
-  { right: THREE.Object3D; left: THREE.Object3D }
->();
 const tileMeshes: THREE.Mesh[] = [];
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -1728,360 +1715,6 @@ function createTowerPreview(kind: TowerKind) {
   towerPreviewKind = kind;
 }
 
-// ===== Enemy GLB, boss class và hiệu ứng trạng thái =========================
-/** Vẽ badge trạng thái mang biểu tượng của tháp gây hiệu ứng. */
-function getEnemyStatusBadgeTexture(kind: "fire" | "frost" | "water") {
-  const cached = enemyStatusBadgeTextures.get(kind);
-  if (cached) return cached;
-  const canvas = document.createElement("canvas");
-  canvas.width = 96;
-  canvas.height = 96;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Không thể tạo badge trạng thái enemy.");
-  context.fillStyle =
-    kind === "fire" ? "#7f1d1d" : kind === "water" ? "#0c4a6e" : "#075985";
-  context.strokeStyle =
-    kind === "fire" ? "#fdba74" : kind === "water" ? "#7dd3fc" : "#bae6fd";
-  context.lineWidth = 6;
-  context.beginPath();
-  context.arc(48, 48, 40, 0, Math.PI * 2);
-  context.fill();
-  context.stroke();
-  context.strokeStyle = "#fff";
-  context.fillStyle = "#fff";
-  context.lineWidth = 7;
-  context.lineCap = "round";
-  context.lineJoin = "round";
-  if (kind === "fire") {
-    context.beginPath();
-    context.moveTo(49, 18);
-    context.bezierCurveTo(44, 34, 27, 39, 31, 58);
-    context.bezierCurveTo(34, 74, 61, 79, 68, 58);
-    context.bezierCurveTo(72, 43, 58, 33, 49, 18);
-    context.fill();
-    context.fillStyle = "#fbbf24";
-    context.beginPath();
-    context.moveTo(49, 42);
-    context.bezierCurveTo(42, 51, 40, 61, 49, 68);
-    context.bezierCurveTo(60, 61, 58, 51, 49, 42);
-    context.fill();
-  } else if (kind === "frost") {
-    for (let index = 0; index < 3; index++) {
-      context.save();
-      context.translate(48, 48);
-      context.rotate((index * Math.PI) / 3);
-      context.beginPath();
-      context.moveTo(-25, 0);
-      context.lineTo(25, 0);
-      context.moveTo(16, -8);
-      context.lineTo(25, 0);
-      context.lineTo(16, 8);
-      context.moveTo(-16, -8);
-      context.lineTo(-25, 0);
-      context.lineTo(-16, 8);
-      context.stroke();
-      context.restore();
-    }
-  } else {
-    for (let index = 0; index < 3; index++) {
-      const y = 34 + index * 13;
-      context.beginPath();
-      context.moveTo(20, y);
-      context.bezierCurveTo(30, y - 9, 39, y + 9, 49, y);
-      context.bezierCurveTo(59, y - 9, 67, y + 9, 76, y);
-      context.stroke();
-    }
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  enemyStatusBadgeTextures.set(kind, texture);
-  return texture;
-}
-
-/** Đặt badge lửa/băng ngay phía trên thanh máu của enemy. */
-function addEnemyStatusBadges(group: THREE.Group) {
-  const badges = new THREE.Group();
-  badges.name = "enemyStatusBadges";
-  for (const [index, kind] of (["fire", "frost", "water"] as const).entries()) {
-    const material = new THREE.SpriteMaterial({
-      map: getEnemyStatusBadgeTexture(kind),
-      transparent: true,
-      depthWrite: false,
-      depthTest: false,
-      toneMapped: false,
-    });
-    const badge = new THREE.Sprite(material);
-    badge.name = `enemyStatusBadge-${kind}`;
-    badge.position.set(-0.13 + index * 0.26, 2.08, 0.1);
-    badge.scale.set(0.2, 0.2, 1);
-    badge.visible = false;
-    badge.renderOrder = 12;
-    badges.add(badge);
-  }
-  group.add(badges);
-  group.userData.statusBadges = badges;
-}
-
-/** Clone model theo bossClass, gắn cặp vũ khí vào socket và khởi chạy Walking_A. */
-function createEnemyModel(enemy: Enemy) {
-  const poolKey = enemy.kind === "boss" ? `boss:${enemy.bossClass}` : "normal";
-  const pooledModel = enemyModelPool.get(poolKey)?.pop();
-  if (pooledModel) {
-    pooledModel.visible = true;
-    pooledModel.userData.observedProgress = Number.NaN;
-    pooledModel.userData.observedAt = visualNow;
-    pooledModel.userData.progressVelocity = enemy.speed;
-    pooledModel.userData.renderProgress = enemy.progress;
-    pooledModel.userData.hasFacingDirection = false;
-    const mixer = pooledModel.userData.mixer as THREE.AnimationMixer | undefined;
-    mixer?.setTime(0);
-    scene!.add(pooledModel);
-    return pooledModel;
-  }
-  const characterTemplate =
-    enemy.kind === "boss" && enemy.bossClass
-      ? bossEnemyTemplates.get(enemy.bossClass)
-      : riggedEnemyTemplate;
-  if (!characterTemplate)
-    throw new Error(`Model ${enemy.bossClass ?? "knight"} chưa được tải`);
-  const group = cloneSkeleton(characterTemplate) as THREE.Group;
-  const attachEquipment = (
-    slotName: string,
-    template: THREE.Object3D | null,
-    name: string,
-  ) => {
-    const slot = group.getObjectByName(slotName);
-    if (!slot || !template) return;
-    const item = template.clone(true);
-    item.name = name;
-    item.position.set(
-      Number(template.userData.attachPositionX) || 0,
-      Number(template.userData.attachPositionY) || 0,
-      Number(template.userData.attachPositionZ) || 0,
-    );
-    // Một số asset bất đối xứng (như rìu Barbarian) cần orientation riêng khi
-    // chuyển từ hệ trục asset sang hệ trục hand socket.
-    item.rotation.set(
-      Number(template.userData.attachRotationX) || 0,
-      Number(template.userData.attachRotationY) || 0,
-      Number(template.userData.attachRotationZ) || 0,
-    );
-    item.scale.setScalar(1);
-    slot.add(item);
-  };
-  const bossEquipment =
-    enemy.kind === "boss" && enemy.bossClass
-      ? bossEquipmentTemplates.get(enemy.bossClass)
-      : null;
-  // GLTFLoader loại dấu chấm trong tên bone: handslot.r/l -> handslotr/l.
-  attachEquipment(
-    "handslotr",
-    bossEquipment?.right ?? enemySwordTemplate,
-    "enemyRightWeapon",
-  );
-  attachEquipment(
-    "handslotl",
-    bossEquipment?.left ?? enemyShieldTemplate,
-    "enemyLeftWeapon",
-  );
-  const health = group.getObjectByName("enemyHealth") as THREE.Mesh;
-  if (enemy.kind === "boss") {
-    health.material = (health.material as THREE.Material).clone();
-    if (health.material instanceof THREE.MeshStandardMaterial) {
-      health.material.color.setHex(0xe34b38);
-      health.material.emissive.setHex(0x54130c);
-    }
-  }
-  const mixer = new THREE.AnimationMixer(group);
-  const walk =
-    riggedEnemyAnimations.find((clip) => clip.name === "Walking_A") ??
-    riggedEnemyAnimations[0];
-  if (walk) mixer.clipAction(walk).play();
-  group.userData.health = health;
-  group.userData.mixer = mixer;
-  group.userData.isSkinnedCharacter = true;
-  group.userData.isBoss = enemy.kind === "boss";
-  group.userData.poolKey = poolKey;
-  addEnemyStatusBadges(group);
-  scene!.add(group);
-  return group;
-}
-
-/**
- * Đưa model đã rời trận về pool theo class. Skeleton, mixer và trang bị được giữ
- * lại để lần spawn sau không phải clone GLB và tạo hàng loạt object mới.
- */
-function recycleEnemyModel(model: THREE.Group) {
-  model.removeFromParent();
-  model.visible = false;
-  const poolKey = String(model.userData.poolKey ?? "normal");
-  const pool = enemyModelPool.get(poolKey) ?? [];
-  const poolLimit = poolKey === "normal" ? 24 : 3;
-  if (pool.length < poolLimit) {
-    pool.push(model);
-    enemyModelPool.set(poolKey, pool);
-    return;
-  }
-  disposeEnemyModel(model);
-}
-
-/** Dừng mixer, dispose skeleton/effect sở hữu riêng rồi gỡ enemy khỏi scene. */
-function disposeEnemyModel(model: THREE.Group) {
-  const mixer = model.userData.mixer as THREE.AnimationMixer | undefined;
-  if (mixer) {
-    mixer.stopAllAction();
-    mixer.uncacheRoot(model);
-  }
-  const statusBadges = model.userData.statusBadges as THREE.Group | undefined;
-  statusBadges?.traverse((child) => {
-    if (child instanceof THREE.Sprite) child.material.dispose();
-  });
-  const skeletons = new Set<THREE.Skeleton>();
-  model.traverse((child) => {
-    if (child instanceof THREE.SkinnedMesh) skeletons.add(child.skeleton);
-  });
-  skeletons.forEach((skeleton) => skeleton.dispose());
-  (model.userData.skeleton as THREE.Skeleton | undefined)?.dispose();
-  disposeObject(model, false);
-}
-
-/** Tải toàn bộ đội hình, animation và trang bị trước khi phát sự kiện scene ready. */
-async function loadRiggedEnemy() {
-  try {
-    const loader = new GLTFLoader();
-    const kitRoot = "/models/games/tower-defense/kit/adventure";
-    const loadKitAsset = (relativePath: string) =>
-    loader.loadAsync(`${kitRoot}/${relativePath}`);
-    const prepareEquipment = (item: THREE.Object3D) => {
-      item.traverse((child) => {
-        if (!(child instanceof THREE.Mesh)) return;
-        child.castShadow = true;
-        child.receiveShadow = true;
-      });
-      item.position.set(0, 0, 0);
-      item.rotation.set(0, 0, 0);
-      item.scale.setScalar(1);
-      return item;
-    };
-    const prepareCharacter = (character: THREE.Group) => {
-      character.rotation.y = 0;
-      character.scale.setScalar(0.78);
-      character.traverse((child) => {
-        if (!(child instanceof THREE.Mesh)) return;
-        child.castShadow = true;
-        child.receiveShadow = true;
-        const cloneMaterial = (source: THREE.Material) => source.clone();
-        child.material = Array.isArray(child.material)
-          ? child.material.map(cloneMaterial)
-          : cloneMaterial(child.material);
-      });
-      const wrapper = new THREE.Group();
-      const healthBack = mesh(new THREE.PlaneGeometry(0.78, 0.07), 0x401b18);
-      healthBack.position.set(0, 1.9, 0.05);
-      healthBack.rotation.x = -1;
-      const health = mesh(new THREE.PlaneGeometry(0.74, 0.045), 0x78cf58, {
-        emissive: 0x183d10,
-      });
-      health.position.set(0, 1.905, 0.085);
-      health.rotation.x = -1;
-      health.name = "enemyHealth";
-      wrapper.add(character, healthBack, health);
-      return wrapper;
-    };
-
-    const [
-      knight,
-      barbarian,
-      mage,
-      ranger,
-      rogue,
-      movement,
-      sword,
-      knightShield,
-      axe,
-      barbarianShield,
-      staff,
-      spellbook,
-      bow,
-      arrow,
-      dagger,
-    ] = await Promise.all([
-      loadKitAsset("Characters/gltf/Knight.glb"),
-      loadKitAsset("Characters/gltf/Barbarian.glb"),
-      loadKitAsset("Characters/gltf/Mage.glb"),
-      loadKitAsset("Characters/gltf/Ranger.glb"),
-      loadKitAsset("Characters/gltf/Rogue.glb"),
-      loadKitAsset("Animations/gltf/Rig_Medium/Rig_Medium_MovementBasic.glb"),
-      loadKitAsset("Assets/gltf/sword_1handed.gltf"),
-      loadKitAsset("Assets/gltf/shield_round_color.gltf"),
-      loadKitAsset("Assets/gltf/axe_1handed.gltf"),
-      loadKitAsset("Assets/gltf/shield_round_barbarian.gltf"),
-      loadKitAsset("Assets/gltf/staff.gltf"),
-      loadKitAsset("Assets/gltf/spellbook_open.gltf"),
-      loadKitAsset("Assets/gltf/bow_withString.gltf"),
-      loadKitAsset("Assets/gltf/arrow_bow.gltf"),
-      loadKitAsset("Assets/gltf/dagger.gltf"),
-    ]);
-    if (!scene || !host.value?.isConnected) return;
-
-    riggedEnemyTemplate = prepareCharacter(knight.scene);
-    bossEnemyTemplates.set("knight", riggedEnemyTemplate);
-    bossEnemyTemplates.set("barbarian", prepareCharacter(barbarian.scene));
-    bossEnemyTemplates.set("mage", prepareCharacter(mage.scene));
-    bossEnemyTemplates.set("ranger", prepareCharacter(ranger.scene));
-    bossEnemyTemplates.set("rogue", prepareCharacter(rogue.scene));
-    riggedEnemyAnimations = movement.animations;
-
-    enemySwordTemplate = prepareEquipment(sword.scene);
-    enemyShieldTemplate = prepareEquipment(knightShield.scene);
-    bossEquipmentTemplates.set("knight", {
-      right: enemySwordTemplate,
-      left: enemyShieldTemplate,
-    });
-    const barbarianAxe = prepareEquipment(axe.scene);
-    // Walking_A đã dựng trục Y của socket thẳng đứng; chỉ lật lưỡi rìu ra ngoài.
-    barbarianAxe.userData.attachRotationY = Math.PI;
-    bossEquipmentTemplates.set("barbarian", {
-      right: barbarianAxe,
-      left: prepareEquipment(barbarianShield.scene),
-    });
-    const mageStaff = prepareEquipment(staff.scene);
-    const mageBook = prepareEquipment(spellbook.scene);
-    // Đưa pháp tuyến sách về trục Y và nâng tâm sách lên khỏi lòng bàn tay.
-    mageBook.userData.attachRotationX = -Math.PI / 2;
-    mageBook.userData.attachPositionY = 0.2;
-    mageBook.userData.attachPositionZ = 0.08;
-    bossEquipmentTemplates.set("mage", { right: mageStaff, left: mageBook });
-    const rangerArrow = prepareEquipment(arrow.scene);
-    rangerArrow.userData.attachRotationX = -Math.PI / 2;
-    // Origin của arrow nằm giữa thân; giữ đúng tâm để bàn tay không nắm sát đầu tên.
-    rangerArrow.userData.attachPositionY = 0;
-    const rangerBow = prepareEquipment(bow.scene);
-    rangerBow.userData.attachRotationX = Math.PI / 2;
-    rangerBow.userData.attachRotationZ = Math.PI;
-    // Origin của bow nằm giữa thân; đặt tại socket để tay trái nắm đúng tay cầm giữa.
-    rangerBow.userData.attachPositionY = 0;
-    // Ranger cầm giữa tên bằng tay phải và giữa cung bằng tay trái.
-    bossEquipmentTemplates.set("ranger", {
-      right: rangerArrow,
-      left: rangerBow,
-    });
-    const rogueDagger = prepareEquipment(dagger.scene);
-    bossEquipmentTemplates.set("rogue", {
-      right: rogueDagger,
-      left: rogueDagger,
-    });
-
-    for (const model of enemyModels.values()) disposeEnemyModel(model);
-    enemyModels.clear();
-  } catch (error) {
-    console.error(
-      "[Kingdom Defense] Không thể tải nhân vật hoặc trang bị KayKit.",
-      error,
-    );
-  }
-}
-
 // ===== Model GLB của tháp và projectile/impact ===============================
 /** Tải GLB tháp băng, chuẩn hóa material và thay placeholder đang dùng trong scene. */
 async function loadFrostTower() {
@@ -3207,7 +2840,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
         THREE.Group | undefined;
       if (beamEffect) {
         const targets = tower.beamTargetIds
-          .map((id) => enemyModels.get(id))
+          .map((id) => enemyScene?.models.get(id))
           .filter((item): item is THREE.Group => Boolean(item));
         beamEffect.visible = targets.length > 0;
         model.updateMatrixWorld(true);
@@ -3369,104 +3002,13 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     }
   }
 
-  // Enemy: clone/xóa model theo ID, dự đoán progress giữa hai tick gameplay,
-  // nội suy góc cua và cập nhật mixer cùng hiệu ứng burn/frost.
-  const enemyIds = new Set(props.enemies.map((item) => item.id));
-  for (const [id, model] of enemyModels)
-    if (!enemyIds.has(id)) {
-      recycleEnemyModel(model);
-      enemyModels.delete(id);
-    }
-  for (const enemy of props.enemies) {
-    const model = enemyModels.get(enemy.id) ?? createEnemyModel(enemy);
-    enemyModels.set(enemy.id, model);
-    const previousObserved = Number(model.userData.observedProgress);
-    if (!Number.isFinite(previousObserved)) {
-      model.userData.observedProgress = enemy.progress;
-      model.userData.observedAt = now;
-      model.userData.progressVelocity = enemy.speed;
-      model.userData.renderProgress = enemy.progress;
-    } else if (enemy.progress !== previousObserved) {
-      const observationTime = Math.max(
-        (now - Number(model.userData.observedAt)) / 1000,
-        0.001,
-      );
-      model.userData.progressVelocity = THREE.MathUtils.clamp(
-        (enemy.progress - previousObserved) / observationTime,
-        0,
-        enemy.speed * 2.2,
-      );
-      model.userData.observedProgress = enemy.progress;
-      model.userData.observedAt = now;
-    }
-    const predictionAge = Math.min(
-      (now - Number(model.userData.observedAt)) / 1000,
-      0.12,
-    );
-    const predictedProgress =
-      enemy.progress + Number(model.userData.progressVelocity) * predictionAge;
-    const renderProgress = THREE.MathUtils.damp(
-      Number(model.userData.renderProgress),
-      predictedProgress,
-      24,
-      frameDelta,
-    );
-    model.userData.renderProgress = renderProgress;
-    const position = pathPosition(renderProgress, enemy.lane);
-    const facingFrom = pathPosition(renderProgress - 0.08, enemy.lane);
-    const facingTo = pathPosition(renderProgress + 0.12, enemy.lane);
-    const observedVelocity =
-      Number(model.userData.progressVelocity) || enemy.speed;
-    const gaitSpeed = THREE.MathUtils.clamp(
-      observedVelocity / 0.745,
-      0.65,
-      1.6,
-    );
-    const stride = Math.sin(elapsed * 8 * gaitSpeed + enemy.id);
-    model.position.copy(position.setY(0.08 + Math.abs(stride) * 0.008));
-    const targetRotation = Math.atan2(
-      facingTo.x - facingFrom.x,
-      facingTo.z - facingFrom.z,
-    );
-    if (!model.userData.hasFacingDirection) {
-      model.rotation.y = targetRotation;
-      model.userData.hasFacingDirection = true;
-    } else {
-      const rotationDelta = Math.atan2(
-        Math.sin(targetRotation - model.rotation.y),
-        Math.cos(targetRotation - model.rotation.y),
-      );
-      model.rotation.y += rotationDelta * (1 - Math.exp(-12 * frameDelta));
-    }
-    model.scale.setScalar(enemy.kind === "normal" ? 0.494 : 1.05);
-    const mixer = model.userData.mixer as THREE.AnimationMixer | undefined;
-    if (mixer) {
-      mixer.timeScale = gaitSpeed * 1.25;
-      mixer.update(frameDelta);
-    }
-    const statusBadges = model.userData.statusBadges as THREE.Group | undefined;
-    if (statusBadges) {
-      const fireBadge = statusBadges.getObjectByName("enemyStatusBadge-fire");
-      const frostBadge = statusBadges.getObjectByName("enemyStatusBadge-frost");
-      const waterBadge = statusBadges.getObjectByName("enemyStatusBadge-water");
-      if (fireBadge) fireBadge.visible = enemy.burnRemaining > 0;
-      if (frostBadge) frostBadge.visible = enemy.isFrozen;
-      if (waterBadge) waterBadge.visible = enemy.isSlowed;
-      const activeBadges = [fireBadge, frostBadge, waterBadge].filter(
-        (badge): badge is THREE.Object3D => Boolean(badge?.visible),
-      );
-      activeBadges.forEach((badge, index) => {
-        badge.position.x = (index - (activeBadges.length - 1) / 2) * 0.24;
-        const pulse = 1 + Math.sin(elapsed * 5 + enemy.id + index) * 0.06;
-        badge.scale.set(0.2 * pulse, 0.2 * pulse, 1);
-      });
-    }
-    const health = model.userData.health as THREE.Mesh;
-    const healthRatio = Math.max(0.02, enemy.hp / enemy.maxHp);
-    health.scale.x = healthRatio;
-    health.position.x = -(1 - healthRatio) * 0.37;
-  }
-
+  enemyScene?.sync({
+    enemies: props.enemies,
+    elapsed,
+    frameDelta,
+    now,
+    pathPosition,
+  });
   // Projectile: nội suy theo bornAt + duration render; gameplay vẫn quyết định
   // thời điểm trúng đích và sát thương trong composable.
   const projectileIds = new Set(props.projectiles.map((item) => item.id));
@@ -3826,6 +3368,7 @@ async function createWorld() {
     camera.zoom = props.map.camera.zoom;
     camera.lookAt(defaultCameraTarget);
     camera.updateProjectionMatrix();
+    enemyScene = createTowerDefenseEnemyScene(scene, camera);
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.copy(defaultCameraTarget);
     controls.enableDamping = true;
@@ -4018,7 +3561,7 @@ async function createWorld() {
       loadFireTower(),
       loadThunderTower(),
       loadWaterTower(),
-      loadRiggedEnemy(),
+      enemyScene.load(),
       loadCastleModel(),
     ]);
     if (!renderer || !scene || !camera || !host.value?.isConnected) return;
@@ -4057,29 +3600,9 @@ onBeforeUnmount(() => {
   controls?.dispose();
   controls = null;
   tileMeshes.length = 0;
-  for (const model of enemyModels.values()) disposeEnemyModel(model);
-  enemyModels.clear();
-  for (const pool of enemyModelPool.values())
-    for (const model of pool) disposeEnemyModel(model);
-  enemyModelPool.clear();
+  enemyScene?.dispose();
+  enemyScene = null;
   towerUpgradeEffects.clear();
-  const characterTemplates = new Set<THREE.Group>(bossEnemyTemplates.values());
-  if (riggedEnemyTemplate) characterTemplates.add(riggedEnemyTemplate);
-  characterTemplates.forEach((template) => disposeObject(template));
-  bossEnemyTemplates.clear();
-  const equipmentTemplates = new Set<THREE.Object3D>();
-  if (enemySwordTemplate) equipmentTemplates.add(enemySwordTemplate);
-  if (enemyShieldTemplate) equipmentTemplates.add(enemyShieldTemplate);
-  bossEquipmentTemplates.forEach(({ right, left }) => {
-    equipmentTemplates.add(right);
-    equipmentTemplates.add(left);
-  });
-  equipmentTemplates.forEach((template) => disposeObject(template));
-  bossEquipmentTemplates.clear();
-  enemySwordTemplate = null;
-  enemyShieldTemplate = null;
-  riggedEnemyTemplate = null;
-  riggedEnemyAnimations = [];
   scene?.traverse((child) => {
     if (
       child instanceof THREE.Mesh ||
@@ -4102,8 +3625,6 @@ onBeforeUnmount(() => {
   frostWaveTexture = null;
   fireWaveTexture?.dispose();
   fireWaveTexture = null;
-  enemyStatusBadgeTextures.forEach((texture) => texture.dispose());
-  enemyStatusBadgeTextures.clear();
   mysticParticles = null;
   renderer?.dispose();
   renderer?.forceContextLoss();
