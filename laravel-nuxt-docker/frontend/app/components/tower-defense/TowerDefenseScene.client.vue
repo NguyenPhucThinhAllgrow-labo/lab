@@ -29,6 +29,7 @@ import {
 import {
   createTowerModelLibrary,
   type LevelledTowerKind,
+  type TowerFaction,
   type TowerModelLibrary,
 } from "~/components/tower-defense/scene/tower-models";
 import type {
@@ -53,6 +54,7 @@ const props = defineProps<{
   isPaused: boolean;
   speedMultiplier: 0.5 | 1 | 2 | 4;
   showBrickBackground: boolean;
+  faction: TowerFaction;
 }>();
 const DEFENSE_GRID_ROWS = props.map.rows;
 const DEFENSE_PATH_TILES = props.map.pathTiles;
@@ -238,6 +240,24 @@ function optimizeTemplateShadows(group: THREE.Group) {
     // Chi tiết nhỏ vẫn nhận ánh sáng nhưng không tạo thêm một shadow draw-call.
     if ((child.geometry.boundingSphere?.radius ?? 0) < 0.22)
       child.castShadow = false;
+  });
+}
+
+/** Phân biệt hai phe cho các tower dựng bằng geometry nội bộ. */
+function applyProceduralTowerFaction(group: THREE.Group) {
+  if (props.faction === "human") return;
+  group.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+    materials.forEach((material) => {
+      if (!(material instanceof THREE.MeshStandardMaterial)) return;
+      material.color.multiply(new THREE.Color(0x755f78));
+      material.emissive.lerp(new THREE.Color(0x4b102d), 0.16);
+      material.roughness = Math.min(1, material.roughness + 0.08);
+      material.needsUpdate = true;
+    });
   });
 }
 
@@ -2641,11 +2661,13 @@ async function createWorld() {
     const archerTemplate = createArcherTower();
     archerTemplate.add(groundShadow(0.42));
     applyTowerMetallicFinish(archerTemplate, 0x8a7658);
+    applyProceduralTowerFaction(archerTemplate);
     optimizeTemplateShadows(archerTemplate);
     towerTemplates.set("archer", archerTemplate);
     const cannonTemplate = createCannonTower();
     cannonTemplate.add(groundShadow(0.42));
     applyTowerMetallicFinish(cannonTemplate, 0x776b5d);
+    applyProceduralTowerFaction(cannonTemplate);
     optimizeTemplateShadows(cannonTemplate);
     towerTemplates.set("cannon", cannonTemplate);
     const frostPlaceholder = new THREE.Group();
@@ -2676,6 +2698,7 @@ async function createWorld() {
     renderer.toneMappingExposure = 1.12;
     towerModelLibrary = createTowerModelLibrary({
       renderer,
+      faction: props.faction,
       decorate: decorateLoadedTowerModel,
     });
     target.appendChild(renderer.domElement);

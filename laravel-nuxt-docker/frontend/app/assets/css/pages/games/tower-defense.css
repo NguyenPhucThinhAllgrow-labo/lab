@@ -26,6 +26,87 @@
     #d9c28f0b 35px 36px
   );
 }
+.defense-faction-select {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: min(760px, 100%);
+  min-height: calc(100vh - 34px);
+  align-content: center;
+  justify-items: center;
+  margin: auto;
+  text-align: center;
+}
+.defense-faction-select > small {
+  color: var(--gold);
+  font: 800 10px Georgia, serif;
+  letter-spacing: 0.2em;
+}
+.defense-faction-select > h1 {
+  margin: 9px 0 7px;
+  font: 900 clamp(30px, 5vw, 48px)/1 Georgia, serif;
+}
+.defense-faction-select > p {
+  color: #afa58f;
+  font-size: 12px;
+}
+.defense-faction-select > div {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+.defense-faction-select button {
+  display: grid;
+  min-height: 230px;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 26px;
+  border: 1px solid #685f4a;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #292b22ee, #151a15f5);
+  color: #f5ead6;
+  box-shadow: 0 22px 60px #0006;
+  cursor: pointer;
+  transition: 180ms ease;
+}
+.defense-faction-select button:hover {
+  border-color: currentColor;
+  transform: translateY(-5px);
+}
+.defense-faction-select button > span {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: #ffffff0a;
+  box-shadow: 0 0 34px currentColor;
+}
+.defense-faction-select button svg {
+  width: 36px;
+  height: 36px;
+}
+.defense-faction-select button strong {
+  font: 900 22px Georgia, serif;
+  letter-spacing: 0.12em;
+}
+.defense-faction-select button small {
+  max-width: 240px;
+  color: #b8ad98;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.defense-faction-select .is-human {
+  color: #f2c46d;
+}
+.defense-faction-select .is-dark {
+  color: #c084fc;
+  background: linear-gradient(145deg, #2b1c31ee, #140f18f5);
+}
 .defense-shell {
   position: relative;
   width: min(1380px, 100%);
@@ -2205,6 +2286,12 @@
 @media (max-width: 680px) {
   .defense-page {
     padding: 8px;
+  }
+  .defense-faction-select > div {
+    grid-template-columns: 1fr;
+  }
+  .defense-faction-select button {
+    min-height: 180px;
   }
   .defense-board-stage {
     padding: 0;

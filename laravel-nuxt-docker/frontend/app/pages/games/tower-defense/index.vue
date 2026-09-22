@@ -36,6 +36,7 @@ import {
   useTowerDefense,
 } from "~/composables/useTowerDefense";
 import { TOWER_DEFENSE_MAPS } from "~/games/tower-defense/maps";
+import type { TowerFaction } from "~/components/tower-defense/scene/tower-models";
 import type { TowerKind } from "~/types/games/towerDefense";
 
 useHead({
@@ -210,7 +211,11 @@ const sceneReady = ref(false);
 const imagesReady = ref(true);
 const showBrickBackground = ref(false);
 const isBuildPanelExpanded = ref(false);
-const isGameReady = computed(() => sceneReady.value && imagesReady.value);
+const selectedFaction = ref<TowerFaction | null>(null);
+const isGameReady = computed(
+  () =>
+    selectedFaction.value !== null && sceneReady.value && imagesReady.value,
+);
 
 function togglePauseFromHud() {
   if (isPaused.value) {
@@ -341,6 +346,29 @@ onBeforeUnmount(() => {
     <div class="defense-page__grid" aria-hidden="true" />
 
     <section
+      v-if="!selectedFaction"
+      class="defense-faction-select"
+      aria-labelledby="defense-faction-title"
+    >
+      <small>CHỌN PHE PHÒNG THỦ</small>
+      <h1 id="defense-faction-title">Tuyên thệ với vương quốc</h1>
+      <p>Phe được chọn sẽ quyết định diện mạo của toàn bộ công trình.</p>
+      <div>
+        <button type="button" class="is-human" @click="selectedFaction = 'human'">
+          <span><ShieldCheck /></span>
+          <strong>HUMAN</strong>
+          <small>Thành lũy sáng, kim loại và sắc vàng của vương quốc.</small>
+        </button>
+        <button type="button" class="is-dark" @click="selectedFaction = 'dark'">
+          <span><Swords /></span>
+          <strong>DARK</strong>
+          <small>Pháo đài hắc ám với giáp tối và năng lượng ma thuật.</small>
+        </button>
+      </div>
+    </section>
+
+    <section
+      v-if="selectedFaction"
       class="defense-shell"
       :class="{ 'is-loading': !isGameReady }"
       :aria-hidden="!isGameReady"
@@ -355,6 +383,7 @@ onBeforeUnmount(() => {
             <!-- Scene chỉ render; mọi state gameplay được truyền từ composable qua props. -->
             <ClientOnly>
               <TowerDefenseScene
+                :faction="selectedFaction ?? 'human'"
                 :map="map"
                 :towers="towers"
                 :enemies="enemies"
@@ -854,7 +883,7 @@ onBeforeUnmount(() => {
     <!-- Loading toàn màn hình tránh lộ scene đang nạp GLB/texture. -->
     <Transition name="defense-loader">
       <section
-        v-if="!isGameReady"
+        v-if="selectedFaction && !isGameReady"
         class="defense-loading-screen"
         role="status"
         aria-live="polite"
