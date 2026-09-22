@@ -1058,7 +1058,7 @@
 }
 .defense-upgrade--floating > div.is-buff-damage,
 .defense-upgrade--floating > div.is-buff-speed {
-  border: 1px dashed #b9c3bc;
+  border: 0;
   background: #f2f5f3;
   color: #68736b;
 }
@@ -1067,19 +1067,15 @@
   color: #7c8880;
 }
 .defense-upgrade--floating > div.is-buff-damage.is-active {
-  border-color: #e79b7d;
   background: #ffe8df;
   color: #873f28;
-  box-shadow: inset 3px 0 #dc5d32;
 }
 .defense-upgrade--floating > div.is-buff-damage.is-active b {
   color: #c63e1c;
 }
 .defense-upgrade--floating > div.is-buff-speed.is-active {
-  border-color: #75c69c;
   background: #e1f8ea;
   color: #276a45;
-  box-shadow: inset 3px 0 #2ba765;
 }
 .defense-upgrade--floating > div.is-buff-speed.is-active b {
   color: #14864a;
