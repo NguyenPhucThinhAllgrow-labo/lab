@@ -38,9 +38,18 @@ export interface TowerDefenseMapDefinition {
   name: string;
   columns: number;
   rows: number;
+  /** Số tháp tối đa người chơi được xây trên map. */
+  maxTowerCount: number;
+  /** Khoảng cách world-space giữa tâm hai ô kề nhau. */
+  cellSize: number;
   paths: [GridPoint[], GridPoint[]];
   pathTiles: GridPoint[];
   cornerRadius: number;
+  backgroundModel?: {
+    url: string;
+    offsetY?: number;
+  };
+  bossModel?: TowerDefenseCharacterModelDefinition;
   castle: {
     modelUrl: string;
     offsetX: number;
@@ -57,6 +66,15 @@ export interface TowerDefenseMapDefinition {
   };
   theme: TowerDefenseMapTheme;
   scenery: TowerDefenseMapScenery;
+}
+
+export interface TowerDefenseCharacterModelDefinition {
+  url: string;
+  characterScale: number;
+  sceneScale: number;
+  healthBarY: number;
+  animationNames: string[];
+  removeRootMotion?: boolean;
 }
 
 export interface TowerDefinition {

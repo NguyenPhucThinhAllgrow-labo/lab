@@ -6,6 +6,7 @@ import {
   Crown,
   Flame,
   Gauge,
+  Grid2X2,
   HeartPulse,
   Move,
   Pause,
@@ -21,7 +22,6 @@ import {
 } from "lucide-vue-next";
 import {
   FROST_SLOW_DURATION_SECONDS,
-  MAX_TOWER_COUNT,
   MAX_TOWER_LEVEL,
   TOWER_DEFINITIONS,
   TOWER_RANGE_LEVEL_BONUS,
@@ -77,7 +77,7 @@ const {
   undoSelectedPlacement,
   startWave,
   resetGame,
-  togglePause,
+  setPaused,
 } = useTowerDefense(requestedMapId);
 
 /** Đổi map bằng URL để khởi tạo lại sạch toàn bộ simulation và WebGL resources. */
@@ -114,7 +114,38 @@ const hoveredTowerDefinition = computed(() =>
 );
 const sceneReady = ref(false);
 const imagesReady = ref(true);
+const showBrickBackground = ref(true);
+const pauseReason = ref<"manual" | "inactive" | null>(null);
 const isGameReady = computed(() => sceneReady.value && imagesReady.value);
+
+function togglePauseFromHud() {
+  if (isPaused.value) {
+    setPaused(false);
+    pauseReason.value = null;
+  } else {
+    pauseReason.value = "manual";
+    setPaused(true);
+  }
+}
+
+function pauseWhenInactive() {
+  if (
+    (phase.value !== "wave" && phase.value !== "between") ||
+    isPaused.value
+  )
+    return;
+  pauseReason.value = "inactive";
+  setPaused(true);
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) pauseWhenInactive();
+}
+
+function resumeGame() {
+  setPaused(false);
+  pauseReason.value = null;
+}
 
 // Giữ tooltip nằm trong viewport khi con trỏ ở sát cạnh màn hình.
 /** Tính vị trí tooltip theo con trỏ và ép nó nằm hoàn toàn trong viewport. */
@@ -204,11 +235,15 @@ watch(phase, (currentPhase) => {
 // Chỉ bỏ loading sau khi cả WebGL scene lẫn ảnh dùng trong sidebar đã sẵn sàng.
 onMounted(() => {
   document.addEventListener("click", closeTowerPopupOnOutsideClick);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
   window.addEventListener("keydown", cancelSelectionOnEscape);
+  window.addEventListener("blur", pauseWhenInactive);
 });
 onBeforeUnmount(() => {
   document.removeEventListener("click", closeTowerPopupOnOutsideClick);
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
   window.removeEventListener("keydown", cancelSelectionOnEscape);
+  window.removeEventListener("blur", pauseWhenInactive);
 });
 </script>
 
@@ -241,6 +276,7 @@ onBeforeUnmount(() => {
                 :phase="phase"
                 :is-paused="isPaused"
                 :speed-multiplier="speedMultiplier"
+                :show-brick-background="showBrickBackground"
                 @cell-select="handleCellSelect"
                 @background-select="clearBoardSelection"
                 @selected-tower-position="updateSelectedTowerAnchor"
@@ -252,6 +288,32 @@ onBeforeUnmount(() => {
                 </div></template
               >
             </ClientOnly>
+
+            <Transition name="defense-pause-overlay">
+              <section
+                v-if="isPaused && (phase === 'wave' || phase === 'between')"
+                class="defense-pause-overlay"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="defense-pause-title"
+              >
+                <div class="defense-pause-dialog">
+                  <span><Pause /></span>
+                  <small>TRẬN ĐẤU ĐÃ TẠM DỪNG</small>
+                  <h2 id="defense-pause-title">Tạm ngừng chiến đấu</h2>
+                  <p>
+                    {{
+                      pauseReason === "inactive"
+                        ? "Game đã tự động tạm dừng vì cửa sổ không còn hoạt động."
+                        : "Mọi chuyển động và thời gian trong trận đấu đang tạm dừng."
+                    }}
+                  </p>
+                  <button type="button" autofocus @click="resumeGame">
+                    <Play /> Tiếp tục
+                  </button>
+                </div>
+              </section>
+            </Transition>
 
             <!-- HUD trạng thái trận đấu phủ trên WebGL canvas. -->
             <header class="defense-game-hud">
@@ -271,7 +333,7 @@ onBeforeUnmount(() => {
                   class="defense-pause"
                   :class="{ active: isPaused }"
                   :title="isPaused ? 'Tiếp tục' : 'Tạm dừng'"
-                  @click="togglePause"
+                  @click="togglePauseFromHud"
                 >
                   <Play v-if="isPaused" />
                   <Pause v-else />
@@ -479,7 +541,7 @@ onBeforeUnmount(() => {
                   <div>
                     <small>THÁP PHÒNG THỦ</small
                     ><strong class="defense-tower-count"
-                      >{{ towers.length }}/{{ MAX_TOWER_COUNT }}</strong
+                      >{{ towers.length }}/{{ map.maxTowerCount }}</strong
                     >
                   </div>
                   <h2>Chọn công trình</h2>
@@ -489,7 +551,7 @@ onBeforeUnmount(() => {
                   :key="kind"
                   type="button"
                   :class="{ active: selectedKind === kind }"
-                  :disabled="towers.length >= MAX_TOWER_COUNT"
+                  :disabled="towers.length >= map.maxTowerCount"
                   @click="
                     selectedKind = kind;
                     selectedTowerId = null;
@@ -553,6 +615,19 @@ onBeforeUnmount(() => {
             <footer class="defense-board-footer">
               <p><span>CHỈ HUY</span>{{ message }}</p>
               <div>
+                <button
+                  v-if="map.backgroundModel"
+                  type="button"
+                  class="defense-background-toggle"
+                  :class="{ active: showBrickBackground }"
+                  :aria-pressed="showBrickBackground"
+                  :title="
+                    showBrickBackground ? 'Ẩn nền gạch' : 'Hiện nền gạch'
+                  "
+                  @click="showBrickBackground = !showBrickBackground"
+                >
+                  <Grid2X2 /> Nền gạch
+                </button>
                 <span class="defense-camera-hint"
                   ><kbd>R</kbd> Đặt lại camera</span
                 >

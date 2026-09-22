@@ -5,8 +5,9 @@ Mỗi map là một `TowerDefenseMapDefinition` độc lập. Gameplay và Three
 
 Để thêm map:
 
-1. Sao chép `kingdom-crossroads.ts` và đổi `id`, kích thước, các anchor của hai
-   lane, camera, theme, scenery và cấu hình lâu đài.
+1. Sao chép `kingdom-crossroads.ts` và đổi `id`, kích thước, `maxTowerCount`,
+   các anchor của hai lane, `cellSize`, camera, theme, scenery và cấu hình lâu
+   đài.
 2. Dùng `expandOrthogonalPath()` cho từng lane và `collectPathTiles()` để tạo
    các ô cấm xây.
 3. Import map mới vào `index.ts` và thêm nó vào `TOWER_DEFENSE_MAPS`.

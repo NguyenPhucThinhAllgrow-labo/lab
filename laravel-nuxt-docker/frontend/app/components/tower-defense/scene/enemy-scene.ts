@@ -1,7 +1,11 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
-import type { BossClass, Enemy } from "~/types/games/towerDefense";
+import type {
+  BossClass,
+  Enemy,
+  TowerDefenseCharacterModelDefinition,
+} from "~/types/games/towerDefense";
 import {
   ADVENTURE_KIT_ROOT,
   BOSS_CHARACTER_PATHS,
@@ -23,6 +27,7 @@ export interface EnemySceneSyncOptions {
   elapsed: number;
   frameDelta: number;
   now: number;
+  worldUnitsPerCell: number;
   pathPosition: (progress: number, lane: 0 | 1) => THREE.Vector3;
 }
 
@@ -31,6 +36,10 @@ export interface TowerDefenseEnemyScene {
   load: () => Promise<void>;
   sync: (options: EnemySceneSyncOptions) => void;
   dispose: () => void;
+}
+
+export interface TowerDefenseEnemySceneOptions {
+  bossModel?: TowerDefenseCharacterModelDefinition;
 }
 
 function disposeObject(object: THREE.Object3D, disposeResources = true) {
@@ -144,6 +153,7 @@ function prepareEquipment(
 export function createTowerDefenseEnemyScene(
   scene: THREE.Scene,
   camera: THREE.Camera,
+  options: TowerDefenseEnemySceneOptions = {},
 ): TowerDefenseEnemyScene {
   const models = new Map<number, THREE.Group>();
   const modelPool = new Map<string, THREE.Group[]>();
@@ -155,8 +165,17 @@ export function createTowerDefenseEnemyScene(
   >();
   const worldQuaternion = new THREE.Quaternion();
   const billboardQuaternion = new THREE.Quaternion();
+  const groundShadowGeometry = new THREE.CircleGeometry(1, 24);
+  const groundShadowMaterial = new THREE.MeshBasicMaterial({
+    color: 0x070a08,
+    depthWrite: false,
+    opacity: 0.26,
+    transparent: true,
+  });
   const enemyTemplates = new Map<string, THREE.Group>();
   const enemyAnimations = new Map<string, THREE.AnimationClip[]>();
+  let customBossTemplate: THREE.Group | null = null;
+  let customBossAnimations: THREE.AnimationClip[] = [];
   let bossAnimations: THREE.AnimationClip[] = [];
   let disposed = false;
 
@@ -297,14 +316,14 @@ export function createTowerDefenseEnemyScene(
     const template =
       enemy.kind === "normal"
         ? enemyTemplates.get(modelKey)
-        : bossTemplates.get(bossClass);
+        : (customBossTemplate ?? bossTemplates.get(bossClass));
     if (!template)
       throw new Error(
         `Model ${enemy.kind === "normal" ? modelKey : bossClass} chưa được tải`,
       );
     const group = cloneSkeleton(template) as THREE.Group;
 
-    if (enemy.kind === "boss") {
+    if (enemy.kind === "boss" && !customBossTemplate) {
       const equipment = bossEquipment.get(bossClass);
       if (equipment) {
         // GLTFLoader loại dấu chấm trong handslot.r/l thành handslotr/l.
@@ -326,11 +345,13 @@ export function createTowerDefenseEnemyScene(
     const animations =
       enemy.kind === "normal"
         ? (enemyAnimations.get(modelKey) ?? [])
-        : bossAnimations;
+        : customBossTemplate
+          ? customBossAnimations
+          : bossAnimations;
     const animationNames =
       enemy.kind === "normal"
         ? (definition?.animationNames ?? [])
-        : BOSS_WALK_ANIMATION_NAMES;
+        : (options.bossModel?.animationNames ?? BOSS_WALK_ANIMATION_NAMES);
     const walk =
       animations.find((clip) =>
         animationNames.some((name) =>
@@ -343,7 +364,27 @@ export function createTowerDefenseEnemyScene(
     group.userData.mixer = mixer;
     group.userData.poolKey = poolKey;
     group.userData.sceneScale =
-      enemy.kind === "normal" ? definition?.sceneScale : BOSS_MODEL_SCALE;
+      enemy.kind === "normal"
+        ? definition?.sceneScale
+        : (options.bossModel?.sceneScale ?? BOSS_MODEL_SCALE);
+    const sceneScale = Number(group.userData.sceneScale) || 1;
+    const shadowRadius = enemy.kind === "boss" ? 0.42 : 0.24;
+    const groundShadow = new THREE.Mesh(
+      groundShadowGeometry,
+      groundShadowMaterial,
+    );
+    groundShadow.name = "enemyGroundShadow";
+    groundShadow.rotation.x = -Math.PI / 2;
+    groundShadow.position.y = -0.02 / sceneScale;
+    groundShadow.scale.set(
+      shadowRadius / sceneScale,
+      (shadowRadius * 0.72) / sceneScale,
+      1,
+    );
+    groundShadow.castShadow = false;
+    groundShadow.receiveShadow = false;
+    groundShadow.renderOrder = 2;
+    group.add(groundShadow);
     addStatusBadges(group);
     scene.add(group);
     return group;
@@ -414,6 +455,19 @@ export function createTowerDefenseEnemyScene(
 
   async function loadBossModels() {
     const loader = new GLTFLoader();
+    if (options.bossModel) {
+      const gltf = await loader.loadAsync(options.bossModel.url);
+      if (disposed) return;
+      customBossTemplate = prepareCharacter(
+        gltf.scene,
+        options.bossModel.characterScale,
+        options.bossModel.healthBarY,
+      );
+      customBossAnimations = options.bossModel.removeRootMotion
+        ? gltf.animations.map(removeRootMotion)
+        : gltf.animations;
+      return;
+    }
     const loadAsset = (path: string) =>
       loader.loadAsync(`${ADVENTURE_KIT_ROOT}/${path}`);
     const bossClasses = Object.keys(BOSS_CHARACTER_PATHS) as BossClass[];
@@ -470,6 +524,7 @@ export function createTowerDefenseEnemyScene(
     elapsed,
     frameDelta,
     now,
+    worldUnitsPerCell,
     pathPosition,
   }: EnemySceneSyncOptions) {
     const enemyIds = new Set(enemies.map((enemy) => enemy.id));
@@ -482,11 +537,12 @@ export function createTowerDefenseEnemyScene(
     for (const enemy of enemies) {
       const model = models.get(enemy.id) ?? createModel(enemy);
       models.set(enemy.id, model);
+      const frozen = enemy.isFrozen;
       const previousObserved = Number(model.userData.observedProgress);
       if (!Number.isFinite(previousObserved)) {
         model.userData.observedProgress = enemy.progress;
         model.userData.observedAt = now;
-        model.userData.progressVelocity = enemy.speed;
+        model.userData.progressVelocity = frozen ? 0 : enemy.speed;
         model.userData.renderProgress = enemy.progress;
       } else if (enemy.progress !== previousObserved) {
         const observationTime = Math.max(
@@ -502,18 +558,26 @@ export function createTowerDefenseEnemyScene(
         model.userData.observedAt = now;
       }
 
+      if (frozen) {
+        model.userData.progressVelocity = 0;
+        model.userData.observedProgress = enemy.progress;
+        model.userData.observedAt = now;
+      }
+
       const predictionAge = Math.min(
         (now - Number(model.userData.observedAt)) / 1000,
         0.12,
       );
       const predictedProgress =
         enemy.progress + Number(model.userData.progressVelocity) * predictionAge;
-      const renderProgress = THREE.MathUtils.damp(
-        Number(model.userData.renderProgress),
-        predictedProgress,
-        24,
-        frameDelta,
-      );
+      const renderProgress = frozen
+        ? Number(model.userData.renderProgress)
+        : THREE.MathUtils.damp(
+            Number(model.userData.renderProgress),
+            predictedProgress,
+            24,
+            frameDelta,
+          );
       model.userData.renderProgress = renderProgress;
       const position = pathPosition(renderProgress, enemy.lane);
       const facingFrom = pathPosition(renderProgress - 0.08, enemy.lane);
@@ -525,7 +589,7 @@ export function createTowerDefenseEnemyScene(
         0.65,
         1.6,
       );
-      const stride = Math.sin(elapsed * 8 * gaitSpeed + enemy.id);
+      const stride = frozen ? 0 : Math.sin(elapsed * 8 * gaitSpeed + enemy.id);
       model.position.copy(position.setY(0.08 + Math.abs(stride) * 0.008));
       const targetRotation = Math.atan2(
         facingTo.x - facingFrom.x,
@@ -534,7 +598,7 @@ export function createTowerDefenseEnemyScene(
       if (!model.userData.hasFacingDirection) {
         model.rotation.y = targetRotation;
         model.userData.hasFacingDirection = true;
-      } else {
+      } else if (!frozen) {
         const rotationDelta = Math.atan2(
           Math.sin(targetRotation - model.rotation.y),
           Math.cos(targetRotation - model.rotation.y),
@@ -544,7 +608,7 @@ export function createTowerDefenseEnemyScene(
       model.scale.setScalar(Number(model.userData.sceneScale));
       const mixer = model.userData.mixer as THREE.AnimationMixer | undefined;
       if (mixer) {
-        mixer.timeScale = gaitSpeed * 1.25;
+        mixer.timeScale = frozen ? 0 : gaitSpeed * 1.25 * worldUnitsPerCell;
         mixer.update(frameDelta);
       }
 
@@ -556,6 +620,7 @@ export function createTowerDefenseEnemyScene(
         .invert()
         .multiply(camera.quaternion);
       if (badges) {
+        console.log()
         badges.quaternion.copy(billboardQuaternion);
         const fireBadge = badges.getObjectByName("enemyStatusBadge-fire");
         const frostBadge = badges.getObjectByName("enemyStatusBadge-frost");
@@ -590,6 +655,9 @@ export function createTowerDefenseEnemyScene(
     enemyTemplates.forEach((template) => disposeObject(template));
     enemyTemplates.clear();
     enemyAnimations.clear();
+    if (customBossTemplate) disposeObject(customBossTemplate);
+    customBossTemplate = null;
+    customBossAnimations = [];
     const characterTemplates = new Set(bossTemplates.values());
     characterTemplates.forEach((template) => disposeObject(template));
     bossTemplates.clear();
@@ -603,6 +671,8 @@ export function createTowerDefenseEnemyScene(
     bossAnimations = [];
     statusBadgeTextures.forEach((texture) => texture.dispose());
     statusBadgeTextures.clear();
+    groundShadowGeometry.dispose();
+    groundShadowMaterial.dispose();
   }
 
   return { models, load, sync, dispose };

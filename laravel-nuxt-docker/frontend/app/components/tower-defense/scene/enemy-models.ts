@@ -1,13 +1,7 @@
-import type { BossClass } from "~/types/games/towerDefense";
-
-export interface EnemyModelDefinition {
-  url: string;
-  characterScale: number;
-  sceneScale: number;
-  healthBarY: number;
-  animationNames: string[];
-  removeRootMotion?: boolean;
-}
+import type {
+  BossClass,
+  TowerDefenseCharacterModelDefinition,
+} from "~/types/games/towerDefense";
 
 /**
  * Model của quái thường. Khi thêm loại quái mới, khai báo thêm một definition
@@ -15,7 +9,10 @@ export interface EnemyModelDefinition {
  */
 export const DEFAULT_ENEMY_MODEL_KEY = "normal";
 
-export const ENEMY_MODEL_DEFINITIONS: Record<string, EnemyModelDefinition> = {
+export const ENEMY_MODEL_DEFINITIONS: Record<
+  string,
+  TowerDefenseCharacterModelDefinition
+> = {
   normal: {
     url: "/models/games/tower-defense/character/normal.glb",
     characterScale: 2,

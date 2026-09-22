@@ -1275,6 +1275,106 @@
 .defense-pause svg {
   width: 14px;
 }
+.defense-pause-overlay {
+  position: absolute;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #050805a8;
+  backdrop-filter: blur(5px);
+}
+.defense-pause-dialog {
+  display: grid;
+  width: min(390px, calc(100% - 24px));
+  justify-items: center;
+  padding: 28px;
+  border: 1px solid #927944;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #24251deb, #11150feb);
+  color: #eadfc9;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-align: center;
+  box-shadow: 0 24px 70px #000a;
+}
+.defense-pause-dialog > span {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  margin-bottom: 14px;
+  border: 1px solid #a88948;
+  border-radius: 50%;
+  background: #58431f;
+  color: #ffe29a;
+}
+.defense-pause-dialog > span svg {
+  width: 23px;
+}
+.defense-pause-dialog small {
+  color: #c5a968;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+.defense-pause-dialog h2 {
+  margin: 6px 0 8px;
+  color: #fff4d5;
+  font-family: inherit;
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.defense-pause-dialog p {
+  max-width: 310px;
+  margin: 0;
+  color: #bfb49f;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.defense-pause-dialog button {
+  display: inline-flex;
+  min-width: 150px;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 20px;
+  border: 1px solid #e1bd61;
+  border-radius: 10px;
+  background: linear-gradient(#806025, #574018);
+  color: #fff1bd;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.defense-pause-dialog button:hover,
+.defense-pause-dialog button:focus-visible {
+  background: linear-gradient(#98742e, #684e1e);
+  box-shadow: 0 0 0 3px #d9b75c38;
+  outline: none;
+}
+.defense-pause-dialog button svg {
+  width: 16px;
+}
+.defense-pause-overlay-enter-active,
+.defense-pause-overlay-leave-active {
+  transition: opacity 160ms ease;
+}
+.defense-pause-overlay-enter-active .defense-pause-dialog,
+.defense-pause-overlay-leave-active .defense-pause-dialog {
+  transition: transform 160ms ease;
+}
+.defense-pause-overlay-enter-from,
+.defense-pause-overlay-leave-to {
+  opacity: 0;
+}
+.defense-pause-overlay-enter-from .defense-pause-dialog,
+.defense-pause-overlay-leave-to .defense-pause-dialog {
+  transform: translateY(8px) scale(0.98);
+}
 .defense-game-hud .defense-stats {
   width: 100%;
   margin: 0;
@@ -1460,6 +1560,28 @@
   align-items: center;
   gap: 5px;
   white-space: nowrap;
+}
+.defense-background-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border: 1px solid #665b43;
+  border-radius: 6px;
+  background: #25251d;
+  color: #bdb096;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.defense-background-toggle svg {
+  width: 13px;
+  height: 13px;
+}
+.defense-background-toggle.active {
+  border-color: #d7b85d;
+  background: #44391f;
+  color: #ffe29a;
 }
 .defense-camera-hint kbd {
   display: inline-grid;

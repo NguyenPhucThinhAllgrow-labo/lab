@@ -11,6 +11,8 @@ export const kingdomCrossroadsMap: TowerDefenseMapDefinition = {
   name: "Ngã tư Vương quốc",
   columns: 18,
   rows: 14,
+  maxTowerCount: 12,
+  cellSize: 1.5,
   paths,
   pathTiles: collectPathTiles(paths),
   cornerRadius: 0.32,
@@ -23,9 +25,9 @@ export const kingdomCrossroadsMap: TowerDefenseMapDefinition = {
     pathEndOffset: 0.48,
   },
   camera: {
-    position: [5.7, 12.5, 5.6],
-    target: [1.3, 0, 0],
-    zoom: 0.92,
+    position: [7.41, 16.25, 7.28],
+    target: [1.69, 0, 0],
+    zoom: 0.71,
   },
   theme: {
     background: 0x1c3627,

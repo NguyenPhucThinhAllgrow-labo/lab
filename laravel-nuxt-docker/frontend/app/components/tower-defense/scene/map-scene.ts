@@ -1,16 +1,28 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { mapPathPosition } from "~/games/tower-defense/maps";
-import type { TowerDefenseMapDefinition } from "~/types/games/towerDefense";
+import type {
+  GridPoint,
+  TowerDefenseMapDefinition,
+} from "~/types/games/towerDefense";
 
 export interface TowerDefenseMapScene {
   tileMeshes: THREE.Mesh[];
   particles: THREE.Points;
 }
 
+export interface TowerDefenseBackgroundLayer {
+  group: THREE.Group;
+  setVisible: (visible: boolean) => void;
+}
+
 /** Đổi tọa độ grid của một map sang hệ tọa độ world có tâm tại gốc scene. */
 export function mapWorldPosition(map: TowerDefenseMapDefinition, x: number, y: number) {
-  return new THREE.Vector3(x - (map.columns - 1) / 2, 0, y - (map.rows - 1) / 2);
+  return new THREE.Vector3(
+    (x - (map.columns - 1) / 2) * map.cellSize,
+    0,
+    (y - (map.rows - 1) / 2) * map.cellSize,
+  );
 }
 
 function createMapMesh(surfaceDetail: THREE.DataTexture | null, geometry: THREE.BufferGeometry, color: number, options: { roughness?: number; emissive?: number; flatShading?: boolean } = {}) {
@@ -55,7 +67,7 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
   for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.columns; x++) {
     const isPath = pathKeys.has(`${x}:${y}`);
     const tileTone = (x * 7 + y * 11) % 4 === 0 ? map.theme.tileColors[0] : (x + y) % 3 === 0 ? map.theme.tileColors[1] : map.theme.tileColors[2];
-    const tile = createMapMesh(surfaceDetail, new THREE.BoxGeometry(1, isPath ? 0.1 : 0.15, 1), isPath ? map.theme.path : tileTone, { roughness: 1 });
+    const tile = createMapMesh(surfaceDetail, new THREE.BoxGeometry(map.cellSize, isPath ? 0.1 : 0.15, map.cellSize), isPath ? map.theme.path : tileTone, { roughness: 1 });
     tile.position.copy(mapWorldPosition(map, x, y));
     tile.position.y = isPath ? -0.025 : 0;
     tile.userData.cell = { x, y };
@@ -67,7 +79,7 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
 
 function addCobblestonePath(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null) {
   const stonesPerTile = 9;
-  const geometry = new THREE.BoxGeometry(0.27, 0.025, 0.24);
+  const geometry = new THREE.BoxGeometry(0.27 * map.cellSize, 0.025, 0.24 * map.cellSize);
   const material = new THREE.MeshStandardMaterial({ color: map.theme.pathStone, roughness: 0.92, metalness: 0.04, bumpMap: surfaceDetail, bumpScale: 0.014 });
   const stones = new THREE.InstancedMesh(geometry, material, map.pathTiles.length * stonesPerTile);
   const dummy = new THREE.Object3D();
@@ -113,8 +125,8 @@ function addRouteLines(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
     }
     curve.add(new THREE.LineCurve3(previous.clone(), at(routeEndProgress)));
     const segments = Math.ceil(routeEndProgress / sampleStep);
-    const glow = new THREE.Mesh(new THREE.TubeGeometry(curve, segments, 0.06, 8, false), new THREE.MeshBasicMaterial({ color: map.theme.routeColors[lane], transparent: true, opacity: 0.055, depthWrite: false, toneMapped: false }));
-    const line = new THREE.Mesh(new THREE.TubeGeometry(curve, segments, 0.018, 8, false), new THREE.MeshBasicMaterial({ color: map.theme.routeColors[lane], transparent: true, opacity: 0.28, depthWrite: false, toneMapped: false }));
+    const glow = new THREE.Mesh(new THREE.TubeGeometry(curve, segments, 0.06 * map.cellSize, 8, false), new THREE.MeshBasicMaterial({ color: map.theme.routeColors[lane], transparent: true, opacity: 0.055, depthWrite: false, toneMapped: false }));
+    const line = new THREE.Mesh(new THREE.TubeGeometry(curve, segments, 0.018 * map.cellSize, 8, false), new THREE.MeshBasicMaterial({ color: map.theme.routeColors[lane], transparent: true, opacity: 0.28, depthWrite: false, toneMapped: false }));
     glow.renderOrder = 3;
     line.renderOrder = 4;
     scene.add(glow, line);
@@ -173,19 +185,19 @@ function addScenery(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceD
   const edgeZ = map.rows / 2 - 0.75;
   for (const definition of map.scenery.trees) {
     const item = createPineTree(surfaceDetail);
-    item.position.set(definition.x * edgeX * 2, -0.08, definition.y * edgeZ * 2);
+    item.position.set(definition.x * edgeX * 2 * map.cellSize, -0.08, definition.y * edgeZ * 2 * map.cellSize);
     item.scale.setScalar(definition.scale);
     scene.add(item);
   }
   for (const definition of map.scenery.crystals) {
     const item = createCrystalCluster(surfaceDetail, definition.color);
-    item.position.set(definition.x * edgeX * 2, -0.03, definition.y * edgeZ * 2);
+    item.position.set(definition.x * edgeX * 2 * map.cellSize, -0.03, definition.y * edgeZ * 2 * map.cellSize);
     item.scale.setScalar(definition.scale ?? 1);
     scene.add(item);
   }
   for (const definition of map.scenery.runes) {
     const item = createRuneStone(surfaceDetail);
-    item.position.set(definition.x * edgeX * 2, -0.08, definition.y * edgeZ * 2);
+    item.position.set(definition.x * edgeX * 2 * map.cellSize, -0.08, definition.y * edgeZ * 2 * map.cellSize);
     item.rotation.y = definition.rotation;
     scene.add(item);
   }
@@ -219,11 +231,11 @@ function addAtmosphere(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   const blue = new THREE.Color(0x74dff2);
   for (let index = 0; index < count; index++) {
     seed = (seed * 16807) % 2147483647;
-    const x = (seed / 2147483647) * (map.columns + 0.4) - (map.columns + 0.4) / 2;
+    const x = ((seed / 2147483647) * (map.columns + 0.4) - (map.columns + 0.4) / 2) * map.cellSize;
     seed = (seed * 16807) % 2147483647;
     const y = 0.35 + (seed / 2147483647) * 2.25;
     seed = (seed * 16807) % 2147483647;
-    const z = (seed / 2147483647) * (map.rows + 0.1) - (map.rows + 0.1) / 2;
+    const z = ((seed / 2147483647) * (map.rows + 0.1) - (map.rows + 0.1) / 2) * map.cellSize;
     positions.set([x, y, z], index * 3);
     baseY[index] = y;
     const color = index % 3 === 0 ? blue : gold;
@@ -248,6 +260,89 @@ export function createTowerDefenseMapScene(scene: THREE.Scene, map: TowerDefense
   addScenery(scene, map, surfaceDetail);
   const particles = addAtmosphere(scene, map);
   return { tileMeshes, particles };
+}
+
+/**
+ * Lặp model nền bằng InstancedMesh trên các ô có thể xây. Tile trong suốt bên
+ * dưới vẫn đảm nhiệm raycast nên model trang trí không can thiệp thao tác chọn ô.
+ */
+export async function loadTowerDefenseBackgroundModel(
+  scene: THREE.Scene,
+  map: TowerDefenseMapDefinition,
+  tileMeshes: THREE.Mesh[],
+) {
+  if (!map.backgroundModel) return null;
+  const gltf = await new GLTFLoader().loadAsync(map.backgroundModel.url);
+  const source = gltf.scene;
+  source.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(source);
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  const horizontalSize = Math.max(size.x, size.z);
+  if (!Number.isFinite(horizontalSize) || horizontalSize <= 0)
+    throw new Error("Model background không có kích thước hợp lệ.");
+
+  const scale = (map.cellSize * 1.01) / horizontalSize;
+  const surfaceY = 0.07 + (map.backgroundModel.offsetY ?? 0);
+  const pathKeys = new Set(map.pathTiles.map((point) => `${point.x}:${point.y}`));
+  const cells: GridPoint[] = [];
+  for (let y = 0; y < map.rows; y++)
+    for (let x = 0; x < map.columns; x++)
+      if (!pathKeys.has(`${x}:${y}`)) cells.push({ x, y });
+
+  const background = new THREE.Group();
+  background.name = "towerDefenseBackgroundModel";
+  const fitMatrix = new THREE.Matrix4();
+  const instanceMatrix = new THREE.Matrix4();
+  const fitPosition = new THREE.Vector3();
+  const fitScale = new THREE.Vector3(scale, scale, scale);
+  const fitRotation = new THREE.Quaternion();
+
+  source.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const instances = new THREE.InstancedMesh(
+      child.geometry,
+      child.material,
+      cells.length,
+    );
+    instances.name = "lavaBackgroundInstances";
+    cells.forEach((cell, index) => {
+      const position = mapWorldPosition(map, cell.x, cell.y);
+      fitPosition.set(
+        position.x - center.x * scale,
+        surfaceY - bounds.max.y * scale,
+        position.z - center.z * scale,
+      );
+      fitMatrix.compose(fitPosition, fitRotation, fitScale);
+      instanceMatrix.multiplyMatrices(fitMatrix, child.matrixWorld);
+      instances.setMatrixAt(index, instanceMatrix);
+    });
+    instances.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    instances.instanceMatrix.needsUpdate = true;
+    instances.castShadow = false;
+    instances.receiveShadow = true;
+    background.add(instances);
+  });
+  scene.add(background);
+  const setVisible = (visible: boolean) => {
+    background.visible = visible;
+    for (const tile of tileMeshes) {
+      const cell = tile.userData.cell as GridPoint | undefined;
+      if (!cell || pathKeys.has(`${cell.x}:${cell.y}`)) continue;
+      const materials = Array.isArray(tile.material)
+        ? tile.material
+        : [tile.material];
+      for (const material of materials) {
+        material.transparent = visible;
+        material.opacity = visible ? 0 : 1;
+        material.depthWrite = !visible;
+        material.colorWrite = !visible;
+        material.needsUpdate = true;
+      }
+    }
+  };
+  setVisible(true);
+  return { group: background, setVisible } satisfies TowerDefenseBackgroundLayer;
 }
 
 /** Tải và căn model lâu đài theo cấu hình của map, không phụ thuộc component. */

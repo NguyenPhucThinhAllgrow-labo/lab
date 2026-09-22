@@ -26,12 +26,28 @@ export const lavaFortressMap: TowerDefenseMapDefinition = {
 
   columns: 18,
   rows: 14,
+  maxTowerCount: 16,
+  cellSize: 1.5,
 
   paths,
   pathTiles: collectPathTiles(paths),
 
   // Độ tròn khi enemy rẽ; khoảng 0.25–0.45.
   cornerRadius: 0.35,
+
+  backgroundModel: {
+    url: "/models/games/tower-defense/tile/lava.glb",
+    offsetY: 0.055,
+  },
+
+  bossModel: {
+    url: "/models/games/tower-defense/character/boss/map/lava/boss.glb",
+    characterScale: 2,
+    sceneScale: 1,
+    healthBarY: 2.15,
+    animationNames: ["walk"],
+    removeRootMotion: true,
+  },
 
   castle: {
     modelUrl: "/models/games/tower-defense/castle.glb",
@@ -45,9 +61,9 @@ export const lavaFortressMap: TowerDefenseMapDefinition = {
   },
 
   camera: {
-    position: [5.7, 12.5, 5.6],
-    target: [1.3, 0, 0],
-    zoom: 0.92,
+    position: [7.41, 16.25, 7.28],
+    target: [1.69, 0, 0],
+    zoom: 0.71,
   },
 
   theme: {

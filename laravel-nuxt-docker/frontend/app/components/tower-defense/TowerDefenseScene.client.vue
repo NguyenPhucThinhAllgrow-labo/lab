@@ -8,8 +8,10 @@ import {
 import { mapPathPosition } from "~/games/tower-defense/maps";
 import {
   createTowerDefenseMapScene,
+  loadTowerDefenseBackgroundModel,
   loadTowerDefenseCastle,
   mapWorldPosition,
+  type TowerDefenseBackgroundLayer,
 } from "~/components/tower-defense/scene/map-scene";
 import {
   createTowerDefenseEnemyScene,
@@ -41,9 +43,11 @@ const props = defineProps<{
   phase: GamePhase;
   isPaused: boolean;
   speedMultiplier: 1 | 2 | 4;
+  showBrickBackground: boolean;
 }>();
 const DEFENSE_GRID_ROWS = props.map.rows;
 const DEFENSE_PATH_TILES = props.map.pathTiles;
+const DEFENSE_CELL_SIZE = props.map.cellSize;
 const emit = defineEmits<{
   cellSelect: [x: number, y: number];
   backgroundSelect: [];
@@ -59,6 +63,7 @@ let renderer: THREE.WebGLRenderer | null = null;
 let scene: THREE.Scene | null = null;
 let camera: THREE.OrthographicCamera | null = null;
 let controls: OrbitControls | null = null;
+let mapBackgroundLayer: TowerDefenseBackgroundLayer | null = null;
 let animationFrame = 0;
 let resizeObserver: ResizeObserver | null = null;
 let surfaceDetail: THREE.DataTexture | null = null;
@@ -109,6 +114,11 @@ let attackRangeMarker: THREE.Group | null = null;
 let towerFocusMarker: THREE.Group | null = null;
 let mysticParticles: THREE.Points | null = null;
 let performanceMode = false;
+
+watch(
+  () => props.showBrickBackground,
+  (visible) => mapBackgroundLayer?.setVisible(visible),
+);
 
 // ===== Helpers tọa độ, geometry và giải phóng GPU ===========================
 /** Đặt tâm grid tại world origin và ánh xạ hàng gameplay sang trục Z của Three.js. */
@@ -844,25 +854,40 @@ function createFireTowerTemplate(frostTemplate: THREE.Group) {
 function decorateElementalTowerGlow(
   group: THREE.Group,
   kind: "fire" | "thunder" | "water",
+  level: 1 | 2 | 3,
 ) {
   const colors = {
     fire: 0xff5a18,
     thunder: 0x9b7cff,
     water: 0x38bdf8,
   } as const;
-  const heights = { fire: 1.8, thunder: 1.7, water: 1.6 } as const;
-  const glowScales = { fire: 1.5, thunder: 0.98, water: 1.02 } as const;
+  const heightRatios = {
+    fire: { 1: 0.82, 2: 0.84, 3: 0.86 },
+    thunder: { 1: 0.82, 2: 0.73, 3: 0.8 },
+    water: { 1: 0.76, 2: 0.73, 3: 0.68 },
+  } as const;
+  const glowScales = { fire: 1.5, thunder: 1, water: 1.02 } as const;
+  const levelBrightness = { 1: 1, 2: 1.5, 3: 2 } as const;
+  group.updateMatrixWorld(true);
+  const towerBounds = new THREE.Box3().setFromObject(group);
+  const towerSize = towerBounds.getSize(new THREE.Vector3());
+  const glowPosition = towerBounds.getCenter(new THREE.Vector3());
+  glowPosition.y =
+    towerBounds.min.y + towerSize.y * heightRatios[kind][level];
+  group.worldToLocal(glowPosition);
   const effect = new THREE.Group();
   effect.name = "elementalTowerGlow";
   effect.userData.kind = kind;
-  effect.position.y = heights[kind];
+  effect.userData.level = level;
+  effect.position.copy(glowPosition);
 
   // Hai lớp sprite additive tạo quầng rộng và lõi sáng rõ kể cả trên map tối.
   const outerMaterial = new THREE.SpriteMaterial({
     map: getFrostGlowTexture(),
     color: colors[kind],
     transparent: true,
-    opacity: kind === "fire" ? 0.58 : 0.52,
+    opacity:
+      (kind === "fire" ? 0.58 : 0.52) * levelBrightness[level],
     depthWrite: false,
     depthTest: false,
     blending: THREE.AdditiveBlending,
@@ -878,7 +903,7 @@ function decorateElementalTowerGlow(
       map: getFrostGlowTexture(),
       color: colors[kind],
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.92 * levelBrightness[level],
       depthWrite: false,
       depthTest: false,
       blending: THREE.AdditiveBlending,
@@ -893,10 +918,10 @@ function decorateElementalTowerGlow(
 
   // Tăng emissive cho phần nửa trên của model để glow không chỉ là một sprite
   // nổi bên ngoài mà còn phản ánh trực tiếp trên lõi/chi tiết của tháp.
-  group.updateMatrixWorld(true);
-  const towerBounds = new THREE.Box3().setFromObject(group);
   const glowFloor = towerBounds.min.y + towerBounds.getSize(new THREE.Vector3()).y * 0.52;
-  const emissiveColor = new THREE.Color(colors[kind]).multiplyScalar(0.38);
+  const emissiveColor = new THREE.Color(colors[kind]).multiplyScalar(
+    { 1: 0.3, 2: 0.42, 3: 0.56 }[level],
+  );
   group.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
     const childCenter = new THREE.Box3().setFromObject(child).getCenter(new THREE.Vector3());
@@ -905,7 +930,13 @@ function decorateElementalTowerGlow(
     for (const material of materials) {
       if (!(material instanceof THREE.MeshStandardMaterial)) continue;
       material.emissive.copy(emissiveColor);
-      material.emissiveIntensity = Math.max(material.emissiveIntensity, kind === "thunder" ? 1.75 : 1.5);
+      const levelIntensity =
+        { 1: 1.05, 2: 1.65, 3: 2.3 }[level] +
+        (kind === "thunder" ? 0.2 : 0);
+      material.emissiveIntensity = Math.max(
+        material.emissiveIntensity,
+        levelIntensity,
+      );
       material.needsUpdate = true;
     }
   });
@@ -916,10 +947,10 @@ function decorateElementalTowerGlow(
 function decorateLoadedTowerModel(
   template: THREE.Group,
   kind: LevelledTowerKind,
-  _level: 1 | 2 | 3,
+  level: 1 | 2 | 3,
 ) {
   if (kind === "frost") decorateFrostTower(template);
-  else decorateElementalTowerGlow(template, kind);
+  else decorateElementalTowerGlow(template, kind, level);
   template.add(groundShadow(0.42));
   optimizeTemplateShadows(template);
 }
@@ -1947,7 +1978,7 @@ function createImpact(impact: Impact, now: number) {
             : 420) / props.speedMultiplier;
   if (impact.kind === "frost") {
     group.position.y = 0.08;
-    const radius = impact.radius ?? 1;
+    const radius = (impact.radius ?? 1) * DEFENSE_CELL_SIZE;
 
     // Sóng gradient lan trực tiếp từ chân tháp ra toàn bộ vùng sát thương.
     const waveMaterial = (opacity: number) => {
@@ -1990,7 +2021,7 @@ function createImpact(impact: Impact, now: number) {
     group.add(disc, innerWave);
   } else if (impact.kind === "fire") {
     group.position.y = 0.08;
-    const radius = impact.radius ?? 1;
+    const radius = (impact.radius ?? 1) * DEFENSE_CELL_SIZE;
     const waveMaterial = (opacity: number) =>
       new THREE.MeshBasicMaterial({
         map: getFireWaveTexture(),
@@ -2030,7 +2061,7 @@ function createImpact(impact: Impact, now: number) {
     group.add(outerWave, innerWave);
   } else if (impact.kind === "water") {
     group.position.y = 0.1;
-    const radius = impact.radius ?? 0.7;
+    const radius = (impact.radius ?? 0.7) * DEFENSE_CELL_SIZE;
     for (let index = 0; index < 3; index++) {
       const ripple = new THREE.Mesh(
         new THREE.RingGeometry(0.12 + index * 0.07, 0.17 + index * 0.08, 40),
@@ -2230,6 +2261,19 @@ async function loadCastleModel() {
   }
 }
 
+/** Tải layer nền tùy chọn và đồng bộ trạng thái bật/tắt từ HUD. */
+async function loadMapBackgroundModel() {
+  if (!scene) return;
+  const layer = await loadTowerDefenseBackgroundModel(
+    scene,
+    props.map,
+    tileMeshes,
+  );
+  if (!layer || !host.value?.isConnected) return;
+  mapBackgroundLayer = layer;
+  layer.setVisible(props.showBrickBackground);
+}
+
 // ===== Đồng bộ state gameplay sang Three.js mỗi frame =======================
 /**
  * Đồng bộ snapshot gameplay sang object Three.js: tạo/xóa instance, nội suy
@@ -2328,7 +2372,11 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
         worldPosition(previewCell.x, previewCell.y),
       );
       attackRangeMarker.position.y = 0.14;
-      attackRangeMarker.scale.set(radius, 1, radius);
+      attackRangeMarker.scale.set(
+        radius * DEFENSE_CELL_SIZE,
+        1,
+        radius * DEFENSE_CELL_SIZE,
+      );
       const color =
         previewKind === "frost"
           ? 0x65e6ff
@@ -2570,9 +2618,14 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
           beam.visible = Boolean(targetModel);
           if (!targetModel) return;
           const startWorld = new THREE.Vector3();
-          if (segmentIndex === 0)
-            model.localToWorld(startWorld.set(0, 1.72, 0));
-          else
+          if (segmentIndex === 0) {
+            const crystalAnchor =
+              tower.level === 2
+                ? model.getObjectByName("elementalTowerGlow")
+                : undefined;
+            if (crystalAnchor) crystalAnchor.getWorldPosition(startWorld);
+            else model.localToWorld(startWorld.set(0, 1.72, 0));
+          } else
             targets[segmentIndex - 1]!.getWorldPosition(startWorld).add(
               new THREE.Vector3(0, 0.62, 0),
             );
@@ -2724,6 +2777,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     elapsed,
     frameDelta,
     now,
+    worldUnitsPerCell: DEFENSE_CELL_SIZE,
     pathPosition,
   });
   // Projectile: nội suy theo bornAt + duration render; gameplay vẫn quyết định
@@ -2993,18 +3047,22 @@ function updateCameraReturn(frameDelta: number) {
   const easing = 1 - Math.exp(-frameDelta * 6.5);
   camera.position.lerp(defaultCameraPosition, easing);
   controls.target.lerp(defaultCameraTarget, easing);
-  camera.zoom = THREE.MathUtils.lerp(camera.zoom, 0.92, easing);
+  camera.zoom = THREE.MathUtils.lerp(
+    camera.zoom,
+    props.map.camera.zoom,
+    easing,
+  );
   camera.updateProjectionMatrix();
   camera.lookAt(controls.target);
 
   if (
     camera.position.distanceToSquared(defaultCameraPosition) < 0.0004 &&
     controls.target.distanceToSquared(defaultCameraTarget) < 0.0004 &&
-    Math.abs(camera.zoom - 0.92) < 0.001
+    Math.abs(camera.zoom - props.map.camera.zoom) < 0.001
   ) {
     camera.position.copy(defaultCameraPosition);
     controls.target.copy(defaultCameraTarget);
-    camera.zoom = 0.92;
+    camera.zoom = props.map.camera.zoom;
     camera.updateProjectionMatrix();
     camera.lookAt(controls.target);
     cameraReturning = false;
@@ -3089,7 +3147,9 @@ async function createWorld() {
     camera.zoom = props.map.camera.zoom;
     camera.lookAt(defaultCameraTarget);
     camera.updateProjectionMatrix();
-    enemyScene = createTowerDefenseEnemyScene(scene, camera);
+    enemyScene = createTowerDefenseEnemyScene(scene, camera, {
+      bossModel: props.map.bossModel,
+    });
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.copy(defaultCameraTarget);
     controls.enableDamping = true;
@@ -3098,7 +3158,7 @@ async function createWorld() {
     controls.panSpeed = 0.85;
     controls.zoomToCursor = true;
     controls.screenSpacePanning = true;
-    controls.minZoom = 0.72;
+    controls.minZoom = props.map.camera.zoom * 0.78;
     controls.maxZoom = 3.1;
     controls.minPolarAngle = 0.38;
     controls.maxPolarAngle = 1.32;
@@ -3114,10 +3174,10 @@ async function createWorld() {
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.00008;
     sun.shadow.normalBias = 0.025;
-    sun.shadow.camera.left = -9;
-    sun.shadow.camera.right = 9;
-    sun.shadow.camera.top = 7;
-    sun.shadow.camera.bottom = -7;
+    sun.shadow.camera.left = -9 * DEFENSE_CELL_SIZE;
+    sun.shadow.camera.right = 9 * DEFENSE_CELL_SIZE;
+    sun.shadow.camera.top = 7 * DEFENSE_CELL_SIZE;
+    sun.shadow.camera.bottom = -7 * DEFENSE_CELL_SIZE;
     scene.add(sun);
     const fill = new THREE.DirectionalLight(0xdbeafe, 0.58);
     fill.position.set(7, 6, -8);
@@ -3253,6 +3313,12 @@ async function createWorld() {
       const cell = cellAtPointer(event);
       if (cell) {
         console.log("[Tower Defense] Clicked cell", { x: cell.x, y: cell.y });
+        console.table({
+          calls: renderer.info.render.calls,
+          triangles: renderer.info.render.triangles,
+          geometries: renderer.info.memory.geometries,
+          textures: renderer.info.memory.textures,
+        });
         emit("cellSelect", cell.x, cell.y);
       } else emit("backgroundSelect");
     });
@@ -3280,6 +3346,7 @@ async function createWorld() {
     await Promise.allSettled([
       towerModelLibrary.load(),
       enemyScene.load(),
+      loadMapBackgroundModel(),
       loadCastleModel(),
     ]);
     if (!renderer || !scene || !camera || !host.value?.isConnected) return;
@@ -3320,6 +3387,7 @@ onBeforeUnmount(() => {
   tileMeshes.length = 0;
   enemyScene?.dispose();
   enemyScene = null;
+  mapBackgroundLayer = null;
   towerModelLibrary?.dispose();
   towerModelLibrary = null;
   towerUpgradeEffects.clear();

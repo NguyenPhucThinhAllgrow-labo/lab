@@ -17,7 +17,6 @@ import {
   ENEMY_SPAWN_PROGRESS,
   FROST_EFFECT_RADIUS,
   FROST_SLOW_DURATION_SECONDS,
-  MAX_TOWER_COUNT,
   MAX_TOWER_LEVEL,
   MAX_SIMULATION_STEPS_PER_TICK,
   MAX_TICK_BACKLOG_SECONDS,
@@ -33,7 +32,7 @@ import {
 } from "~/games/tower-defense/gameplay-config";
 import { DEFAULT_TOWER_DEFENSE_MAP_ID, getTowerDefenseMap, mapPathPosition } from "~/games/tower-defense/maps";
 
-export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_COUNT, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS } from "~/games/tower-defense/gameplay-config";
+export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS } from "~/games/tower-defense/gameplay-config";
 
 /** Cung cấp state, command và simulation loop độc lập với lớp render Three.js. */
 export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
@@ -158,8 +157,8 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
       return;
     }
     const definition = TOWER_DEFINITIONS[selectedKind.value];
-    if (towers.value.length >= MAX_TOWER_COUNT) {
-      message.value = `Đã đạt giới hạn ${MAX_TOWER_COUNT} tháp. Hãy bán một tháp trước khi xây mới.`;
+    if (towers.value.length >= map.maxTowerCount) {
+      message.value = `Đã đạt giới hạn ${map.maxTowerCount} tháp. Hãy bán một tháp trước khi xây mới.`;
       return;
     }
     if (credits.value < definition.cost) {
@@ -684,14 +683,19 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
   function isTowerFiring(tower: Tower) {
     return tower.firingUntil > elapsed;
   }
-  /** Tạm dừng/tiếp tục wave và reset mốc thời gian để không chạy bù lúc resume. */
-  function togglePause() {
-    if (phase.value !== "wave") return;
-    isPaused.value = !isPaused.value;
+  /** Đặt trạng thái pause và reset mốc thời gian để không chạy bù lúc resume. */
+  function setPaused(paused: boolean) {
+    if (phase.value === "ready" || phase.value === "gameover") return;
+    if (isPaused.value === paused) return;
+    isPaused.value = paused;
     lastTickAt = Date.now();
     message.value = isPaused.value
       ? "Trận đấu đã tạm dừng."
       : "Trận đấu tiếp tục.";
+  }
+
+  function togglePause() {
+    setPaused(!isPaused.value);
   }
 
   return {
@@ -728,6 +732,7 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
     undoSelectedPlacement,
     startWave,
     resetGame,
+    setPaused,
     togglePause,
   };
 }
