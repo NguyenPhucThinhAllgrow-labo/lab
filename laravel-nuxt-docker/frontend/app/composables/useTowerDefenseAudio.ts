@@ -6,7 +6,7 @@ type TowerSoundKind = Extract<
 >;
 
 const STORAGE_KEY = "game-lab:tower-defense:sound-enabled";
-const BACKGROUND_MUSIC_URL = "/api/tower-defense/assets/sounds/background/default.mp3";
+const DEFAULT_BACKGROUND_MUSIC_URL = "/api/tower-defense/assets/sounds/background/default.mp3";
 const EFFECT_URLS: Record<TowerSoundKind, string> = {
   archer: "/api/tower-defense/assets/sounds/acher/default.mp3",
   cannon: "/api/tower-defense/assets/sounds/cannon/default.mp3",
@@ -37,21 +37,27 @@ const hasTowerShotSound = (kind: TowerKind): kind is TowerSoundKind =>
   kind in EFFECT_URLS;
 
 /** Quản lý nhạc nền và SFX của tower bằng các Audio element tái sử dụng cache. */
-export function useTowerDefenseAudio() {
+export function useTowerDefenseAudio(
+  backgroundMusicUrl = DEFAULT_BACKGROUND_MUSIC_URL,
+) {
   const soundEnabled = ref(true);
   const sourceEffects = new Map<TowerSoundKind, HTMLAudioElement>();
   const activeEffects = new Set<HTMLAudioElement>();
   const lastEffectAt = new Map<TowerSoundKind, number>();
   const lastShotSequence = new Map<number, number>();
   let backgroundMusic: HTMLAudioElement | null = null;
+  let audioPrepared = false;
 
   function prepareAudio() {
-    if (!import.meta.client || backgroundMusic) return;
+    if (!import.meta.client || audioPrepared) return;
+    audioPrepared = true;
 
-    backgroundMusic = new Audio(BACKGROUND_MUSIC_URL);
-    backgroundMusic.loop = true;
-    backgroundMusic.preload = "auto";
-    backgroundMusic.volume = 0.18;
+    if (backgroundMusicUrl) {
+      backgroundMusic = new Audio(backgroundMusicUrl);
+      backgroundMusic.loop = true;
+      backgroundMusic.preload = "auto";
+      backgroundMusic.volume = 0.18;
+    }
 
     for (const [kind, url] of Object.entries(EFFECT_URLS) as Array<
       [TowerSoundKind, string]

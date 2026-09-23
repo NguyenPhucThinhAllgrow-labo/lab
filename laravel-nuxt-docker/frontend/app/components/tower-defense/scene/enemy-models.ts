@@ -1,6 +1,7 @@
 import type {
   BossClass,
   TowerDefenseCharacterModelDefinition,
+  TowerDefenseEquipmentTransform,
 } from "~/types/games/towerDefense";
 
 /**
@@ -49,10 +50,7 @@ export interface BossEquipmentDefinition {
   leftTransform?: EquipmentTransform;
 }
 
-export interface EquipmentTransform {
-  position?: [number, number, number];
-  rotation?: [number, number, number];
-}
+export type EquipmentTransform = Partial<TowerDefenseEquipmentTransform>;
 
 export const BOSS_EQUIPMENT_PATHS: Record<
   BossClass,

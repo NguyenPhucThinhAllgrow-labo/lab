@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class TowerDefenseAssetController extends Controller
 {
@@ -22,7 +23,8 @@ class TowerDefenseAssetController extends Controller
                     'id' => $asset->id,
                     'key' => $asset->key,
                     'type' => $asset->type,
-                    'url' => url('/api/tower-defense/assets/'.str_replace('%2F', '/', rawurlencode($asset->key))),
+                    'purpose' => $asset->purpose,
+                    'url' => '/api/tower-defense/assets/'.str_replace('%2F', '/', rawurlencode($asset->key)),
                     'mimeType' => $asset->mime_type,
                     'size' => $asset->size,
                     'metadata' => $asset->metadata,
@@ -37,15 +39,18 @@ class TowerDefenseAssetController extends Controller
         $data = $request->validate([
             'key' => ['required', 'string', 'max:500', 'regex:/^(models|sounds|images)\/[A-Za-z0-9_().\/-]+$/', 'not_regex:/\.\./', Rule::unique('tower_defense_assets')],
             'type' => ['required', Rule::in(['model', 'sound', 'image'])],
+            'purpose' => ['required', Rule::in(TowerDefenseAsset::purposes())],
             'file' => ['required', 'file', 'max:204800'],
             'metadata' => ['sometimes', 'array'],
         ]);
+        $this->ensurePurposeMatchesType($data['type'], $data['purpose']);
         $file = $request->file('file');
         $path = $data['key'];
         Storage::disk('tower-defense')->putFileAs(dirname($path), $file, basename($path));
         $asset = TowerDefenseAsset::create([
             'key' => $data['key'],
             'type' => $data['type'],
+            'purpose' => $data['purpose'],
             'path' => $path,
             'mime_type' => $file->getMimeType(),
             'size' => $file->getSize(),
@@ -56,11 +61,36 @@ class TowerDefenseAssetController extends Controller
         return response()->json(['data' => $asset, 'message' => 'Đã tải asset lên.'], 201);
     }
 
+    public function update(Request $request, TowerDefenseAsset $asset): JsonResponse
+    {
+        $data = $request->validate([
+            'purpose' => ['required', Rule::in(TowerDefenseAsset::purposes())],
+        ]);
+        $this->ensurePurposeMatchesType($asset->type, $data['purpose']);
+        $asset->update(['purpose' => $data['purpose']]);
+
+        return response()->json([
+            'data' => ['key' => $asset->key, 'type' => $asset->type, 'purpose' => $asset->purpose],
+            'message' => 'Đã cập nhật mục đích asset.',
+        ]);
+    }
+
     public function destroy(TowerDefenseAsset $asset): JsonResponse
     {
         Storage::disk('tower-defense')->delete($asset->path);
         $asset->delete();
 
         return response()->json(['message' => 'Đã xóa asset.']);
+    }
+
+    private function ensurePurposeMatchesType(string $type, string $purpose): void
+    {
+        if (in_array($purpose, TowerDefenseAsset::PURPOSES_BY_TYPE[$type], true)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'purpose' => ['Mục đích tài nguyên không phù hợp với loại đã chọn.'],
+        ]);
     }
 }

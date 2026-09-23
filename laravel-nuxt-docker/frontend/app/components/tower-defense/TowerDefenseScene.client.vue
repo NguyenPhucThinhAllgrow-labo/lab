@@ -2854,7 +2854,18 @@ async function createWorld() {
     camera.lookAt(defaultCameraTarget);
     camera.updateProjectionMatrix();
     enemyScene = createTowerDefenseEnemyScene(scene, camera, {
+      enemyModel: props.map.enemyModel,
       bossModel: props.map.bossModel,
+      enemyModels: Object.fromEntries(
+        (props.map.enemyDefinitions ?? [])
+          .filter((definition) => definition.model)
+          .map((definition) => [definition.id, definition.model!]),
+      ),
+      bossModels: Object.fromEntries(
+        (props.map.bossDefinitions ?? [])
+          .filter((definition) => definition.model)
+          .map((definition) => [definition.id, definition.model!]),
+      ),
     });
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.copy(defaultCameraTarget);

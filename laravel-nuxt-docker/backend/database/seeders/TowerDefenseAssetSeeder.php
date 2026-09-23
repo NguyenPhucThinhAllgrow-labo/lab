@@ -25,6 +25,7 @@ class TowerDefenseAssetSeeder extends Seeder
                 ['key' => $path],
                 [
                     'type' => $type,
+                    'purpose' => $this->purposeFor($type, $path),
                     'path' => $path,
                     'mime_type' => MimeTypes::getDefault()->guessMimeType($disk->path($path)),
                     'size' => $disk->size($path),
@@ -47,5 +48,52 @@ class TowerDefenseAssetSeeder extends Seeder
             'images' => 'image',
             default => null,
         };
+    }
+
+    private function purposeFor(string $type, string $path): string
+    {
+        $path = strtolower($path);
+
+        if ($type === 'sound') {
+            return str_contains($path, 'sounds/background/')
+                ? 'background-music'
+                : 'tower-sfx';
+        }
+        if ($type === 'image') {
+            if (str_contains($path, '/boss.')) {
+                return 'boss-avatar';
+            }
+            if (str_contains($path, '/map/') || str_contains($path, '/background/')) {
+                return 'map-image';
+            }
+
+            return str_contains($path, '/military/') ? 'enemy-avatar' : 'ui-image';
+        }
+        if (preg_match('/\.(png|jpe?g|webp)$/', $path)) {
+            return 'texture';
+        }
+        if (str_contains($path, '/character/boss/') || str_contains($path, '/characters/')) {
+            return 'boss-model';
+        }
+        if (str_contains($path, '/character/')) {
+            return 'enemy-model';
+        }
+        if (str_contains($path, '/towers/')) {
+            return 'tower-model';
+        }
+        if (str_contains($path, '/castle.') || str_contains($path, '/barrack/')) {
+            return 'castle-model';
+        }
+        if (str_contains($path, '/tile/') || str_contains($path, '/background/')) {
+            return 'map-model';
+        }
+        if (str_contains($path, '/assets/')) {
+            return 'equipment-model';
+        }
+        if (str_contains($path, '/animations/')) {
+            return 'animation';
+        }
+
+        return 'other';
     }
 }

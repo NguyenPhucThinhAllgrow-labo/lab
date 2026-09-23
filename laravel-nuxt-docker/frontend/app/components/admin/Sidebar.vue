@@ -25,6 +25,7 @@ import {
   Trophy,
   LogOut,
   MapPinned,
+  Skull,
 } from "lucide-vue-next";
 
 defineProps<{
@@ -61,6 +62,11 @@ const menuItems = [
     label: "Tower Defense",
     to: "/admin/tower-defense",
     icon: MapPinned,
+  },
+  {
+    label: "Quái & Boss",
+    to: "/admin/tower-defense/enemies",
+    icon: Skull,
   },
   {
     label: "Pandora Ranking",

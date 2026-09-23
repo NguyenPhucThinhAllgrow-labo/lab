@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\ChineseChessHistoryController;
 use App\Http\Controllers\Api\Admin\DetectiveLeaderboardController;
+use App\Http\Controllers\Api\Admin\TowerDefenseEnemyController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChineseChessEngineController;
@@ -84,8 +85,14 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::post('/tower-defense/maps', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'store']);
     Route::put('/tower-defense/maps/{map}', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'update']);
     Route::delete('/tower-defense/maps/{map}', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'destroy']);
+    Route::get('/tower-defense/enemies', [TowerDefenseEnemyController::class, 'index']);
+    Route::post('/tower-defense/enemies', [TowerDefenseEnemyController::class, 'store']);
+    Route::put('/tower-defense/enemies/{enemy}', [TowerDefenseEnemyController::class, 'update']);
+    Route::delete('/tower-defense/enemies/{enemy}', [TowerDefenseEnemyController::class, 'destroy']);
     Route::get('/tower-defense/assets', [App\Http\Controllers\Api\Admin\TowerDefenseAssetController::class, 'index']);
     Route::post('/tower-defense/assets', [App\Http\Controllers\Api\Admin\TowerDefenseAssetController::class, 'store']);
+    Route::put('/tower-defense/assets/{asset}', [App\Http\Controllers\Api\Admin\TowerDefenseAssetController::class, 'update'])
+        ->where('asset', '.*');
     Route::delete('/tower-defense/assets/{asset}', [App\Http\Controllers\Api\Admin\TowerDefenseAssetController::class, 'destroy'])
         ->where('asset', '.*');
 });

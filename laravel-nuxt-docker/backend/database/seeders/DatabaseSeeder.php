@@ -11,8 +11,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,
             DetectiveCaseSeeder::class,
-            TowerDefenseMapSeeder::class,
             TowerDefenseAssetSeeder::class,
+            TowerDefenseEnemySeeder::class,
+            TowerDefenseMapSeeder::class,
         ]);
     }
 }

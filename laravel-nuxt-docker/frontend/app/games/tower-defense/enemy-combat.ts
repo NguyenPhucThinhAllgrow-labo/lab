@@ -30,6 +30,7 @@ export const ENEMY_COMBAT_PROFILES: Record<
 };
 
 export function getEnemyCombatProfile(enemy: Enemy) {
+  if (enemy.combatProfile) return enemy.combatProfile;
   return (
     ENEMY_COMBAT_PROFILES[enemy.combatProfileKey] ??
     ENEMY_COMBAT_PROFILES.normal

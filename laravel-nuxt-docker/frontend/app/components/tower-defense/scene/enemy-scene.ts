@@ -47,7 +47,10 @@ export interface TowerDefenseEnemyScene {
 }
 
 export interface TowerDefenseEnemySceneOptions {
+  enemyModel?: TowerDefenseCharacterModelDefinition;
   bossModel?: TowerDefenseCharacterModelDefinition;
+  enemyModels?: Record<string, TowerDefenseCharacterModelDefinition>;
+  bossModels?: Record<string, TowerDefenseCharacterModelDefinition>;
 }
 
 function disposeObject(object: THREE.Object3D, disposeResources = true) {
@@ -146,7 +149,7 @@ function prepareEquipment(
   });
   item.position.set(0, 0, 0);
   item.rotation.set(0, 0, 0);
-  item.scale.setScalar(1);
+  item.scale.setScalar(transform?.scale ?? 1);
   const [positionX, positionY, positionZ] = transform?.position ?? [0, 0, 0];
   const [rotationX, rotationY, rotationZ] = transform?.rotation ?? [0, 0, 0];
   item.userData.attachPositionX = positionX;
@@ -155,6 +158,7 @@ function prepareEquipment(
   item.userData.attachRotationX = rotationX;
   item.userData.attachRotationY = rotationY;
   item.userData.attachRotationZ = rotationZ;
+  item.userData.attachScale = transform?.scale ?? 1;
   return item;
 }
 
@@ -188,6 +192,20 @@ export function createTowerDefenseEnemyScene(
   let lavaFlameTexture: THREE.CanvasTexture | null = null;
   let customBossTemplate: THREE.Group | null = null;
   let customBossAnimations: THREE.AnimationClip[] = [];
+  const enemyEquipment = new Map<
+    string,
+    { left?: THREE.Object3D; right?: THREE.Object3D }
+  >();
+  const managedBossTemplates = new Map<string, THREE.Group>();
+  const managedBossAnimations = new Map<string, THREE.AnimationClip[]>();
+  const managedBossEquipment = new Map<
+    string,
+    { left?: THREE.Object3D; right?: THREE.Object3D }
+  >();
+  let customBossEquipment: {
+    left?: THREE.Object3D;
+    right?: THREE.Object3D;
+  } = {};
   let bossAnimations: THREE.AnimationClip[] = [];
   let disposed = false;
 
@@ -395,7 +413,20 @@ export function createTowerDefenseEnemyScene(
     template: THREE.Object3D,
     name: string,
   ) {
-    const slot = group.getObjectByName(slotName);
+    const normalizedSlotName = slotName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const isRight = normalizedSlotName.endsWith("r");
+    const aliases = isRight
+      ? ["handslotr", "righthand", "handr", "mixamorighhand", "mixamorigrightHand"]
+      : ["handslotl", "lefthand", "handl", "mixamoriglefthand"];
+    let slot = group.getObjectByName(slotName);
+    if (!slot) {
+      group.traverse((child) => {
+        if (slot) return;
+        const normalizedName = child.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (aliases.some((alias) => normalizedName === alias.toLowerCase()))
+          slot = child;
+      });
+    }
     if (!slot) return;
     const item = template.clone(true);
     item.name = name;
@@ -409,14 +440,14 @@ export function createTowerDefenseEnemyScene(
       Number(template.userData.attachRotationY) || 0,
       Number(template.userData.attachRotationZ) || 0,
     );
-    item.scale.setScalar(1);
+    item.scale.setScalar(Number(template.userData.attachScale) || 1);
     slot.add(item);
   }
 
   function createModel(enemy: Enemy) {
     const modelKey = enemy.modelKey ?? DEFAULT_ENEMY_MODEL_KEY;
     const poolKey =
-      enemy.kind === "boss" ? `boss:${enemy.bossClass}` : `enemy:${modelKey}`;
+      enemy.kind === "boss" ? `boss:${modelKey}` : `enemy:${modelKey}`;
     const pooledModel = modelPool.get(poolKey)?.pop();
     if (pooledModel) {
       pooledModel.visible = true;
@@ -437,14 +468,48 @@ export function createTowerDefenseEnemyScene(
     const template =
       enemy.kind === "normal"
         ? enemyTemplates.get(modelKey)
-        : (customBossTemplate ?? bossTemplates.get(bossClass));
+        : (managedBossTemplates.get(modelKey) ??
+          customBossTemplate ??
+          bossTemplates.get(bossClass));
     if (!template)
       throw new Error(
         `Model ${enemy.kind === "normal" ? modelKey : bossClass} chưa được tải`,
       );
     const group = cloneSkeleton(template) as THREE.Group;
 
-    if (enemy.kind === "boss" && !customBossTemplate) {
+    if (enemy.kind === "normal") {
+      const equipment = enemyEquipment.get(modelKey);
+      if (equipment?.right)
+        attachEquipment(
+          group,
+          "handslotr",
+          equipment.right,
+          "enemyRightWeapon",
+        );
+      if (equipment?.left)
+        attachEquipment(
+          group,
+          "handslotl",
+          equipment.left,
+          "enemyLeftWeapon",
+        );
+    } else if (managedBossTemplates.has(modelKey)) {
+      const equipment = managedBossEquipment.get(modelKey);
+      if (equipment?.right)
+        attachEquipment(
+          group,
+          "handslotr",
+          equipment.right,
+          "enemyRightWeapon",
+        );
+      if (equipment?.left)
+        attachEquipment(
+          group,
+          "handslotl",
+          equipment.left,
+          "enemyLeftWeapon",
+        );
+    } else {
       const equipment = bossEquipment.get(bossClass);
       if (equipment) {
         // GLTFLoader loại dấu chấm trong handslot.r/l thành handslotr/l.
@@ -462,17 +527,22 @@ export function createTowerDefenseEnemyScene(
         health.material.color.setHex(0xe34b38);
     }
 
-    const definition = ENEMY_MODEL_DEFINITIONS[modelKey];
+    const definition =
+      enemy.kind === "normal"
+        ? (options.enemyModels?.[modelKey] ??
+          (modelKey === DEFAULT_ENEMY_MODEL_KEY && options.enemyModel
+            ? options.enemyModel
+            : ENEMY_MODEL_DEFINITIONS[modelKey]))
+        : (options.bossModels?.[modelKey] ?? options.bossModel);
     const animations =
       enemy.kind === "normal"
         ? (enemyAnimations.get(modelKey) ?? [])
-        : customBossTemplate
-          ? customBossAnimations
-          : bossAnimations;
+        : (managedBossAnimations.get(modelKey) ??
+          (customBossTemplate ? customBossAnimations : bossAnimations));
     const animationNames =
       enemy.kind === "normal"
         ? (definition?.animationNames ?? [])
-        : (options.bossModel?.animationNames ?? BOSS_WALK_ANIMATION_NAMES);
+        : (definition?.animationNames ?? BOSS_WALK_ANIMATION_NAMES);
     const walk =
       animations.find((clip) =>
         animationNames.some((name) =>
@@ -492,7 +562,7 @@ export function createTowerDefenseEnemyScene(
     group.userData.sceneScale =
       enemy.kind === "normal"
         ? definition?.sceneScale
-        : (options.bossModel?.sceneScale ?? BOSS_MODEL_SCALE);
+        : (definition?.sceneScale ?? BOSS_MODEL_SCALE);
     const sceneScale = Number(group.userData.sceneScale) || 1;
     const shadowRadius = enemy.kind === "boss" ? 0.42 : 0.24;
     const groundShadow = new THREE.Mesh(
@@ -573,8 +643,15 @@ export function createTowerDefenseEnemyScene(
 
   async function loadEnemyModels() {
     const loader = new GLTFLoader();
+    const definitions = {
+      ...ENEMY_MODEL_DEFINITIONS,
+      ...(options.enemyModel
+        ? { [DEFAULT_ENEMY_MODEL_KEY]: options.enemyModel }
+        : {}),
+      ...(options.enemyModels ?? {}),
+    };
     await Promise.all(
-      Object.entries(ENEMY_MODEL_DEFINITIONS).map(async ([modelKey, definition]) => {
+      Object.entries(definitions).map(async ([modelKey, definition]) => {
         const gltf = await loader.loadAsync(definition.url);
         if (disposed) return;
         enemyTemplates.set(
@@ -591,12 +668,78 @@ export function createTowerDefenseEnemyScene(
             ? gltf.animations.map(removeRootMotion)
             : gltf.animations,
         );
+        if (definition.leftWeaponUrl || definition.rightWeaponUrl) {
+          const [leftWeapon, rightWeapon] = await Promise.all([
+            definition.leftWeaponUrl
+              ? loader.loadAsync(definition.leftWeaponUrl)
+              : null,
+            definition.rightWeaponUrl
+              ? loader.loadAsync(definition.rightWeaponUrl)
+              : null,
+          ]);
+          if (disposed) return;
+          enemyEquipment.set(modelKey, {
+            left: leftWeapon
+              ? prepareEquipment(leftWeapon.scene, definition.leftWeaponTransform)
+              : undefined,
+            right: rightWeapon
+              ? prepareEquipment(rightWeapon.scene, definition.rightWeaponTransform)
+              : undefined,
+          });
+        }
       }),
     );
   }
 
   async function loadBossModels() {
     const loader = new GLTFLoader();
+    if (options.bossModels && Object.keys(options.bossModels).length > 0) {
+      await Promise.all(
+        Object.entries(options.bossModels).map(async ([modelKey, definition]) => {
+          const gltf = await loader.loadAsync(definition.url);
+          if (disposed) return;
+          managedBossTemplates.set(
+            modelKey,
+            prepareCharacter(
+              gltf.scene,
+              definition.characterScale,
+              definition.healthBarY,
+            ),
+          );
+          let sourceAnimations = gltf.animations;
+          if (sourceAnimations.length === 0) {
+            const movement = await loader.loadAsync(
+              `${ADVENTURE_KIT_ROOT}/${BOSS_MOVEMENT_PATH}`,
+            );
+            sourceAnimations = movement.animations;
+          }
+          managedBossAnimations.set(
+            modelKey,
+            definition.removeRootMotion
+              ? sourceAnimations.map(removeRootMotion)
+              : sourceAnimations,
+          );
+          const [leftWeapon, rightWeapon] = await Promise.all([
+            definition.leftWeaponUrl
+              ? loader.loadAsync(definition.leftWeaponUrl)
+              : null,
+            definition.rightWeaponUrl
+              ? loader.loadAsync(definition.rightWeaponUrl)
+              : null,
+          ]);
+          if (disposed) return;
+          managedBossEquipment.set(modelKey, {
+            left: leftWeapon
+              ? prepareEquipment(leftWeapon.scene, definition.leftWeaponTransform)
+              : undefined,
+            right: rightWeapon
+              ? prepareEquipment(rightWeapon.scene, definition.rightWeaponTransform)
+              : undefined,
+          });
+        }),
+      );
+      return;
+    }
     if (options.bossModel) {
       const gltf = await loader.loadAsync(options.bossModel.url);
       if (disposed) return;
@@ -605,9 +748,33 @@ export function createTowerDefenseEnemyScene(
         options.bossModel.characterScale,
         options.bossModel.healthBarY,
       );
+      let sourceAnimations = gltf.animations;
+      if (sourceAnimations.length === 0) {
+        const movement = await loader.loadAsync(
+          `${ADVENTURE_KIT_ROOT}/${BOSS_MOVEMENT_PATH}`,
+        );
+        sourceAnimations = movement.animations;
+      }
       customBossAnimations = options.bossModel.removeRootMotion
-        ? gltf.animations.map(removeRootMotion)
-        : gltf.animations;
+        ? sourceAnimations.map(removeRootMotion)
+        : sourceAnimations;
+      const [leftWeapon, rightWeapon] = await Promise.all([
+        options.bossModel.leftWeaponUrl
+          ? loader.loadAsync(options.bossModel.leftWeaponUrl)
+          : null,
+        options.bossModel.rightWeaponUrl
+          ? loader.loadAsync(options.bossModel.rightWeaponUrl)
+          : null,
+      ]);
+      if (disposed) return;
+      customBossEquipment = {
+        left: leftWeapon
+          ? prepareEquipment(leftWeapon.scene, options.bossModel.leftWeaponTransform)
+          : undefined,
+        right: rightWeapon
+          ? prepareEquipment(rightWeapon.scene, options.bossModel.rightWeaponTransform)
+          : undefined,
+      };
       return;
     }
     const loadAsset = (path: string) =>
@@ -851,9 +1018,24 @@ export function createTowerDefenseEnemyScene(
     enemyTemplates.forEach((template) => disposeObject(template));
     enemyTemplates.clear();
     enemyAnimations.clear();
+    enemyEquipment.forEach(({ left, right }) => {
+      if (left) disposeObject(left);
+      if (right && right !== left) disposeObject(right);
+    });
+    enemyEquipment.clear();
+    managedBossTemplates.forEach((template) => disposeObject(template));
+    managedBossTemplates.clear();
+    managedBossAnimations.clear();
+    managedBossEquipment.forEach(({ left, right }) => {
+      if (left) disposeObject(left);
+      if (right && right !== left) disposeObject(right);
+    });
+    managedBossEquipment.clear();
     if (customBossTemplate) disposeObject(customBossTemplate);
     customBossTemplate = null;
     customBossAnimations = [];
+    Object.values(customBossEquipment).forEach((item) => disposeObject(item));
+    customBossEquipment = {};
     const characterTemplates = new Set(bossTemplates.values());
     characterTemplates.forEach((template) => disposeObject(template));
     bossTemplates.clear();

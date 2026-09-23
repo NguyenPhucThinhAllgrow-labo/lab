@@ -100,7 +100,7 @@ const {
   startBackgroundMusic,
   syncTowerShots,
   toggleSound,
-} = useTowerDefenseAudio();
+} = useTowerDefenseAudio(map.backgroundMusicUrl);
 
 /** Chỉ số chiến đấu đã bao gồm buff để popup phản ánh đúng sức mạnh hiện tại. */
 const selectedTowerEffectiveDamage = computed(() => {
@@ -153,7 +153,7 @@ const enemiesRemaining = computed(
 );
 
 interface EnemyIntelCard {
-  id: "normal" | "boss";
+  id: string;
   name: string;
   avatar: string;
   summary: string;
@@ -170,36 +170,69 @@ const enemyIntelWave = computed(() =>
 );
 const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
   if (enemyIntelWave.value <= 0 || phase.value === "gameover") return [];
-  const normalHp =
+  const legacyNormalHp =
     60 +
     enemyIntelWave.value * 18 +
     Math.floor(enemyIntelWave.value * enemyIntelWave.value * 1.15);
-  const cards: EnemyIntelCard[] = [
-    {
-      id: "normal",
-      name: "Hắc binh",
-      avatar: "/api/tower-defense/assets/images/games/tower-defense/military/dark/normal.png",
-      summary: "Lính tiền tuyến cân bằng, không có kháng hay điểm yếu đặc biệt.",
-      health: `${normalHp} HP`,
-      resistance: "Không",
-      weakness: "Không",
-    },
-  ];
+  const managedWaveScale =
+    1 + Math.max(0, enemyIntelWave.value - 1) * 0.18 +
+    Math.max(0, enemyIntelWave.value - 1) ** 2 * 0.0115;
+  const normalDefinitions = map.enemyDefinitions?.length
+    ? map.enemyDefinitions
+    : map.enemyDefinition
+      ? [map.enemyDefinition]
+      : [];
+  const cards: EnemyIntelCard[] = normalDefinitions.length
+    ? normalDefinitions.map((definition) => ({
+        id: `normal:${definition.id}`,
+        name: definition.intel?.name ?? definition.name ?? definition.id,
+        avatar: definition.intel?.avatarUrl ?? "",
+        summary: definition.intel?.summary ?? "",
+        health: `${Math.round(definition.baseHealth * managedWaveScale)} HP`,
+        resistance: definition.intel?.resistance ?? "Không",
+        weakness: definition.intel?.weakness ?? "Không",
+      }))
+    : [
+        {
+          id: "normal",
+          name: map.enemyIntel?.name ?? "Hắc binh",
+          avatar: map.enemyIntel?.avatarUrl ?? "/api/tower-defense/assets/images/games/tower-defense/military/dark/normal.png",
+          summary: map.enemyIntel?.summary ?? "Lính tiền tuyến cân bằng, không có kháng hay điểm yếu đặc biệt.",
+          health: `${legacyNormalHp} HP`,
+          resistance: map.enemyIntel?.resistance ?? "Không",
+          weakness: map.enemyIntel?.weakness ?? "Không",
+        },
+      ];
   if (enemyIntelWave.value % 5 === 0) {
-    const isLavaBoss = map.bossCombatProfileKey === "lava-boss";
-    cards.push({
-      id: "boss",
-      name: isLavaBoss ? "Chúa tể Dung nham" : "Thủ lĩnh Hắc quân",
-      avatar: "/api/tower-defense/assets/images/games/tower-defense/military/dark/lava/boss.png",
-      summary: isLavaBoss
-        ? "Boss của Pháo đài Dung nham, sở hữu lớp giáp hấp thụ nhiệt cực mạnh."
-        : "Kẻ địch tinh nhuệ có lượng máu cao và tốc độ di chuyển chậm.",
-      health: `${Math.round(normalHp * 5.5)} HP`,
-      resistance: isLavaBoss
-        ? "Miễn nhiễm thiêu đốt · giảm 90% sát thương lửa"
-        : "Không",
-      weakness: isLavaBoss ? "Nhận thêm 25% sát thương nước" : "Không",
-    });
+    const bossDefinitions = map.bossDefinitions?.length
+      ? map.bossDefinitions
+      : map.bossDefinition
+        ? [map.bossDefinition]
+        : [];
+    if (bossDefinitions.length)
+      cards.push(
+        ...bossDefinitions.map((definition) => ({
+          id: `boss:${definition.id}`,
+          name: definition.intel?.name ?? definition.name ?? definition.id,
+          avatar: definition.intel?.avatarUrl ?? "",
+          summary: definition.intel?.summary ?? "",
+          health: `${Math.round(definition.baseHealth * managedWaveScale)} HP`,
+          resistance: definition.intel?.resistance ?? "Không",
+          weakness: definition.intel?.weakness ?? "Không",
+        })),
+      );
+    else {
+      const isLavaBoss = map.bossCombatProfileKey === "lava-boss";
+      cards.push({
+        id: "boss",
+        name: map.bossIntel?.name ?? (isLavaBoss ? "Chúa tể Dung nham" : "Thủ lĩnh Hắc quân"),
+        avatar: map.bossIntel?.avatarUrl ?? "/api/tower-defense/assets/images/games/tower-defense/military/dark/lava/boss.png",
+        summary: map.bossIntel?.summary ?? "Kẻ địch tinh nhuệ có lượng máu cao.",
+        health: `${Math.round(legacyNormalHp * 5.5)} HP`,
+        resistance: map.bossIntel?.resistance ?? "Không",
+        weakness: map.bossIntel?.weakness ?? "Không",
+      });
+    }
   }
   return cards.filter(
     (card) => !dismissedEnemyIntelIds.value.includes(card.id),

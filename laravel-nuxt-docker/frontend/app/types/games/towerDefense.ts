@@ -47,6 +47,8 @@ export interface TowerDefenseMapDefinition {
   rows: number;
   /** Số tháp tối đa người chơi được xây trên map. */
   maxTowerCount: number;
+  /** Số vàng người chơi nhận khi bắt đầu hoặc chơi lại map. */
+  startingCredits: number;
   /** Khoảng cách world-space giữa tâm hai ô kề nhau. */
   cellSize: number;
   paths: [GridPoint[], GridPoint[]];
@@ -56,9 +58,22 @@ export interface TowerDefenseMapDefinition {
     url: string;
     offsetY?: number;
   };
+  /** Nhạc nền riêng của map, được chọn từ kho asset backend. */
+  backgroundMusicUrl?: string;
+  /** Model quái thường riêng của map. */
+  enemyModel?: TowerDefenseCharacterModelDefinition;
   /** Profile kháng/điểm yếu áp dụng cho boss riêng của map. */
   bossCombatProfileKey?: EnemyCombatProfileKey;
   bossModel?: TowerDefenseCharacterModelDefinition;
+  enemyIntel?: TowerDefenseEnemyIntelDefinition;
+  bossIntel?: TowerDefenseEnemyIntelDefinition;
+  /** Hồ sơ gameplay được admin chọn từ danh mục quái. */
+  enemyDefinition?: TowerDefenseManagedEnemyDefinition;
+  bossDefinition?: TowerDefenseManagedEnemyDefinition;
+  enemyDefinitionIds?: string[];
+  bossDefinitionIds?: string[];
+  enemyDefinitions?: TowerDefenseManagedEnemyDefinition[];
+  bossDefinitions?: TowerDefenseManagedEnemyDefinition[];
   castle: {
     modelUrl: string;
     offsetX: number;
@@ -77,13 +92,46 @@ export interface TowerDefenseMapDefinition {
   scenery: TowerDefenseMapScenery;
 }
 
+export interface TowerDefenseManagedEnemyDefinition {
+  id: string;
+  name?: string;
+  kind?: EnemyKind;
+  baseHealth: number;
+  baseSpeed: number;
+  reward: number;
+  castleDamage: number;
+  combatProfile: EnemyCombatProfile;
+  model?: TowerDefenseCharacterModelDefinition;
+  intel?: TowerDefenseEnemyIntelDefinition;
+}
+
+export interface TowerDefenseEnemyIntelDefinition {
+  name: string;
+  avatarUrl: string;
+  summary: string;
+  resistance: string;
+  weakness: string;
+}
+
 export interface TowerDefenseCharacterModelDefinition {
   url: string;
+  /** Model trang bị gắn vào bone tay; bỏ trống nếu nhân vật không dùng. */
+  leftWeaponUrl?: string;
+  rightWeaponUrl?: string;
+  leftWeaponTransform?: TowerDefenseEquipmentTransform;
+  rightWeaponTransform?: TowerDefenseEquipmentTransform;
   characterScale: number;
   sceneScale: number;
   healthBarY: number;
   animationNames: string[];
   removeRootMotion?: boolean;
+}
+
+export interface TowerDefenseEquipmentTransform {
+  position: [number, number, number];
+  /** Góc Euler tính theo radian. */
+  rotation: [number, number, number];
+  scale: number;
 }
 
 export interface TowerDefinition {
@@ -120,8 +168,11 @@ export interface Enemy {
   id: number;
   kind: EnemyKind;
   combatProfileKey: EnemyCombatProfileKey;
+  /** Profile từ database; nếu không có sẽ dùng profile legacy theo key. */
+  combatProfile?: EnemyCombatProfile;
   /** Khóa model trong ENEMY_MODEL_DEFINITIONS; mặc định là "normal". */
   modelKey?: string;
+  definitionId?: string;
   bossClass?: BossClass;
   lane: 0 | 1;
   progress: number;
@@ -129,6 +180,7 @@ export interface Enemy {
   maxHp: number;
   speed: number;
   reward: number;
+  castleDamage: number;
   slowUntil: number;
   slowAmount: number;
   isSlowed: boolean;

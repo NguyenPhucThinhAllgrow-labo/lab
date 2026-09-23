@@ -46,10 +46,13 @@ export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWE
 /** Cung cấp state, command và simulation loop độc lập với lớp render Three.js. */
 export function useTowerDefense(map: TowerDefenseMapDefinition) {
   const storageKey = `${TOWER_DEFENSE_STORAGE_KEY}:${map.id}`;
+  const startingCredits = Number.isFinite(map.startingCredits)
+    ? Math.max(0, Math.floor(map.startingCredits))
+    : STARTING_CREDITS;
   const castleGateProgress = (lane: 0 | 1) =>
     map.paths[lane].length - 1 + map.castle.pathEndOffset;
   // ===== State công khai cho page và scene ==================================
-  const credits = ref(STARTING_CREDITS);
+  const credits = ref(startingCredits);
   const castleHealth = ref(20);
   const wave = ref(0);
   const score = ref(0);
@@ -71,6 +74,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   const message = ref("Chọn tháp và đặt vào vùng trống để bắt đầu phòng thủ.");
   let nextTowerId = 1;
   let nextEnemyId = 1;
+  let nextManagedEnemyIndex = 0;
+  let nextManagedBossIndex = 0;
   let nextProjectileId = 1;
   let nextImpactId = 1;
   const pendingEnemiesByLane: [number, number] = [0, 0];
@@ -352,21 +357,50 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     const maxHp =
       60 + wave.value * 18 + Math.floor(wave.value * wave.value * 1.15);
     const id = nextEnemyId++;
-    const enemyHp = boss ? maxHp * BOSS_HEALTH_MULTIPLIER : maxHp;
+    const managedRoster = boss ? map.bossDefinitions : map.enemyDefinitions;
+    const managedDefinition = managedRoster?.length
+      ? managedRoster[
+          boss
+            ? nextManagedBossIndex++ % managedRoster.length
+            : nextManagedEnemyIndex++ % managedRoster.length
+        ]
+      : boss
+        ? map.bossDefinition
+        : map.enemyDefinition;
+    const managedWaveScale =
+      1 + Math.max(0, wave.value - 1) * 0.18 + Math.max(0, wave.value - 1) ** 2 * 0.0115;
+    const enemyHp = managedDefinition
+      ? Math.round(managedDefinition.baseHealth * managedWaveScale)
+      : boss
+        ? maxHp * BOSS_HEALTH_MULTIPLIER
+        : maxHp;
     const baseReward = 6 + Math.floor(wave.value * 0.55);
     enemies.value.push({
       id,
       kind: boss?.kind ?? "normal",
       combatProfileKey: boss
-        ? (map.bossCombatProfileKey ?? "normal")
+        ? managedDefinition?.id === "lava-overlord"
+          ? "lava-boss"
+          : (map.bossCombatProfileKey ?? "normal")
         : "normal",
-      bossClass: boss?.bossClass,
+      combatProfile: managedDefinition?.combatProfile,
+      definitionId: managedDefinition?.id,
+      modelKey: managedDefinition?.id,
+      bossClass: managedDefinition ? undefined : boss?.bossClass,
       lane,
       progress: ENEMY_SPAWN_PROGRESS,
       hp: enemyHp,
       maxHp: enemyHp,
-      speed: (0.72 + Math.min(wave.value * 0.025, 0.35)) * (boss ? 0.5 : 1),
-      reward: baseReward * (boss ? BOSS_REWARD_MULTIPLIER : 1),
+      speed: managedDefinition
+        ? managedDefinition.baseSpeed *
+          (1 + Math.min(Math.max(0, wave.value - 1) * 0.02, 0.3))
+        : (0.72 + Math.min(wave.value * 0.025, 0.35)) * (boss ? 0.5 : 1),
+      reward: managedDefinition
+        ? Math.round(managedDefinition.reward * (1 + Math.max(0, wave.value - 1) * 0.05))
+        : baseReward * (boss ? BOSS_REWARD_MULTIPLIER : 1),
+      castleDamage:
+        managedDefinition?.castleDamage ??
+        (boss ? BOSS_CASTLE_DAMAGE : 1),
       slowUntil: 0,
       slowAmount: 0,
       isSlowed: false,
@@ -520,7 +554,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     if (escaped.length) {
       const castleDamage = escaped.reduce(
         (total, enemy) =>
-          total + (enemy.kind === "boss" ? BOSS_CASTLE_DAMAGE : 1),
+          total + enemy.castleDamage,
         0,
       );
       castleHealth.value = Math.max(0, castleHealth.value - castleDamage);
@@ -771,7 +805,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   // ===== Lifecycle và điều khiển phiên chơi ================================
   /** Khôi phục toàn bộ state phiên chơi nhưng giữ bestWave đã lưu ở localStorage. */
   function resetGame() {
-    credits.value = STARTING_CREDITS;
+    credits.value = startingCredits;
     castleHealth.value = 20;
     wave.value = 0;
     score.value = 0;
@@ -787,6 +821,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     selectedTowerId.value = null;
     nextTowerId = 1;
     nextEnemyId = 1;
+    nextManagedEnemyIndex = 0;
+    nextManagedBossIndex = 0;
     nextProjectileId = 1;
     nextImpactId = 1;
     elapsed = 0;

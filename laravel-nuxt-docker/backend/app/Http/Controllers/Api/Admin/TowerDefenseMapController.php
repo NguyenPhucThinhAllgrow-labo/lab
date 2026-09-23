@@ -48,6 +48,7 @@ class TowerDefenseMapController extends Controller
             'configuration.columns' => ['required', 'integer', 'between:4,100'],
             'configuration.rows' => ['required', 'integer', 'between:4,100'],
             'configuration.maxTowerCount' => ['required', 'integer', 'between:1,1000'],
+            'configuration.startingCredits' => ['sometimes', 'integer', 'between:0,10000000'],
             'configuration.cellSize' => ['required', 'numeric', 'gt:0'],
             'configuration.paths' => ['required', 'array', 'size:2'],
             'configuration.paths.*' => ['required', 'array', 'min:2'],
@@ -55,6 +56,28 @@ class TowerDefenseMapController extends Controller
             'configuration.paths.*.*.y' => ['required', 'integer', 'min:0'],
             'configuration.pathTiles' => ['required', 'array'],
             'configuration.cornerRadius' => ['required', 'numeric', 'min:0'],
+            'configuration.enemyDefinitionIds' => ['required', 'array', 'min:1', 'max:50'],
+            'configuration.enemyDefinitionIds.*' => [
+                'required',
+                'string',
+                'distinct:strict',
+                Rule::exists('tower_defense_enemies', 'id')->where(
+                    fn ($query) => $query
+                        ->where('kind', 'normal')
+                        ->where('is_active', true),
+                ),
+            ],
+            'configuration.bossDefinitionIds' => ['required', 'array', 'min:1', 'max:50'],
+            'configuration.bossDefinitionIds.*' => [
+                'required',
+                'string',
+                'distinct:strict',
+                Rule::exists('tower_defense_enemies', 'id')->where(
+                    fn ($query) => $query
+                        ->where('kind', 'boss')
+                        ->where('is_active', true),
+                ),
+            ],
             'configuration.castle' => ['required', 'array'],
             'configuration.camera' => ['required', 'array'],
             'configuration.theme' => ['required', 'array'],
@@ -69,6 +92,9 @@ class TowerDefenseMapController extends Controller
         ?TowerDefenseMap $map = null,
     ): array {
         $data = $request->validate($this->rules($map));
+        // Configuration là tài liệu JSON mở rộng. Giữ các khóa nội dung do
+        // admin quản lý (model, intel, audio...) sau khi phần lõi đã hợp lệ.
+        $data['configuration'] = $request->input('configuration');
         $configuration = $data['configuration'];
         $columns = (int) $configuration['columns'];
         $rows = (int) $configuration['rows'];

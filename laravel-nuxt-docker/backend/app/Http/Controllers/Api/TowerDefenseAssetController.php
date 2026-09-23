@@ -42,7 +42,8 @@ class TowerDefenseAssetController extends Controller
         return [
             'key' => $asset->key,
             'type' => $asset->type,
-            'url' => url('/api/tower-defense/assets/'.str_replace('%2F', '/', rawurlencode($asset->key))),
+            'purpose' => $asset->purpose,
+            'url' => '/api/tower-defense/assets/'.str_replace('%2F', '/', rawurlencode($asset->key)),
             'mimeType' => $asset->mime_type,
             'size' => $asset->size,
             'metadata' => $asset->metadata,
