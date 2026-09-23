@@ -30,6 +30,7 @@ import {
 import {
   createTowerModelLibrary,
   type LevelledTowerKind,
+  type ManagedTowerModelDefinition,
   type TowerFaction,
   type TowerModelLibrary,
 } from "~/components/tower-defense/scene/tower-models";
@@ -56,6 +57,7 @@ const props = defineProps<{
   speedMultiplier: 0.5 | 1 | 2 | 4;
   showBrickBackground: boolean;
   faction: TowerFaction;
+  managedTowerModels?: Partial<Record<LevelledTowerKind, ManagedTowerModelDefinition>>;
 }>();
 const DEFENSE_GRID_ROWS = props.map.rows;
 const DEFENSE_PATH_TILES = props.map.pathTiles;
@@ -937,7 +939,7 @@ function decorateLoadedTowerModel(
   level: 1 | 2 | 3,
 ) {
   if (kind === "frost") decorateFrostTower(template);
-  else if (kind !== "speed" && kind !== "damage")
+  else if (kind === "fire" || kind === "thunder" || kind === "water")
     decorateElementalTowerGlow(template, kind, level);
   template.add(groundShadow(0.42));
   optimizeTemplateShadows(template);
@@ -2842,6 +2844,7 @@ async function createWorld() {
     towerModelLibrary = createTowerModelLibrary({
       renderer,
       faction: props.faction,
+      managedModels: props.managedTowerModels,
       decorate: decorateLoadedTowerModel,
     });
     target.appendChild(renderer.domElement);

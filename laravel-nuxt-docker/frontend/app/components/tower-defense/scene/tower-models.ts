@@ -2,20 +2,35 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { TowerKind } from "~/types/games/towerDefense";
 
-export type LevelledTowerKind = Extract<
-  TowerKind,
-  "frost" | "fire" | "thunder" | "water" | "speed" | "damage"
->;
+export type LevelledTowerKind = TowerKind;
 export type TowerFaction = "human" | "dark";
 
 interface TowerModelDefinition {
   kind: LevelledTowerKind;
   modelName: string;
   targetHeight: number;
-  urls: Record<1 | 2 | 3, string>;
+  urls: Partial<Record<1 | 2 | 3, string>>;
+}
+
+export interface ManagedTowerModelDefinition {
+  targetHeight: number;
+  dark: Partial<Record<1 | 2 | 3, string>>;
+  human: Partial<Record<1 | 2 | 3, string>>;
 }
 
 const LEVELLED_TOWER_MODELS: TowerModelDefinition[] = [
+  {
+    kind: "archer",
+    modelName: "ArcherTower3D",
+    targetHeight: 2,
+    urls: {},
+  },
+  {
+    kind: "cannon",
+    modelName: "CannonTower3D",
+    targetHeight: 2,
+    urls: {},
+  },
   {
     kind: "frost",
     modelName: "FrostTower3D",
@@ -81,6 +96,7 @@ const LEVELLED_TOWER_MODELS: TowerModelDefinition[] = [
 export interface TowerModelLibraryOptions {
   renderer: THREE.WebGLRenderer;
   faction: TowerFaction;
+  managedModels?: Partial<Record<LevelledTowerKind, ManagedTowerModelDefinition>>;
   decorate: (
     template: THREE.Group,
     kind: LevelledTowerKind,
@@ -179,6 +195,7 @@ function normalizeSource(
 export function createTowerModelLibrary({
   renderer,
   faction,
+  managedModels,
   decorate,
 }: TowerModelLibraryOptions): TowerModelLibrary {
   const templates = new Map<string, THREE.Group>();
@@ -189,19 +206,23 @@ export function createTowerModelLibrary({
     const requests = LEVELLED_TOWER_MODELS.flatMap((definition) =>
       ([1, 2, 3] as const).map(async (level) => {
         try {
+          const managed = managedModels?.[definition.kind];
           const hasHumanModel = definition.kind === "water";
           const modelUrl =
-            faction === "human" && hasHumanModel
+            managed?.[faction]?.[level] ??
+            managed?.dark[level] ??
+            (faction === "human" && hasHumanModel
               ? `/api/tower-defense/assets/models/games/tower-defense/towers/water/human/level${level}.glb`
-              : definition.urls[level];
+              : definition.urls[level]);
+          if (!modelUrl) return;
           const gltf = await loader.loadAsync(modelUrl);
           if (disposed) return;
           normalizeSource(
             gltf.scene,
-            definition.targetHeight,
+            managed?.targetHeight ?? definition.targetHeight,
             renderer,
             faction,
-            faction === "human" && hasHumanModel,
+            faction === "human" && Boolean(managed?.human[level] || hasHumanModel),
           );
           const template = new THREE.Group();
           template.name = `${definition.modelName}Level${level}`;

@@ -53,6 +53,7 @@ useHead({
 
 const route = useRoute();
 const requestedMapId = typeof route.query.map === "string" ? route.query.map : undefined;
+const towerCatalog = await fetchTowerDefenseTowers();
 const availableMaps = await fetchTowerDefenseMaps();
 const requestedMap =
   availableMaps.find((item) => item.id === requestedMapId) ?? availableMaps[0];
@@ -137,7 +138,7 @@ function selectMap(event: Event) {
 }
 
 // Dữ liệu trình bày của bảng chọn tháp.
-const towerKinds = Object.keys(TOWER_DEFINITIONS) as TowerKind[];
+const towerKinds = towerCatalog.activeKinds;
 const phaseLabel = computed(() =>
   isPaused.value
     ? "Đã tạm dừng"
@@ -461,6 +462,7 @@ onBeforeUnmount(() => {
                 :is-paused="isPaused"
                 :speed-multiplier="speedMultiplier"
                 :show-brick-background="showBrickBackground"
+                :managed-tower-models="towerCatalog.managedModels"
                 @cell-select="handleCellSelect"
                 @background-select="clearBoardSelection"
                 @selected-tower-position="updateSelectedTowerAnchor"
