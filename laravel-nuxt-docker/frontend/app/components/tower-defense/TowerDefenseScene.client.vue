@@ -4,9 +4,10 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   TOWER_DEFINITIONS,
   TOWER_RANGE_LEVEL_BONUS,
+  canTowerReceiveSupportBuff,
   isSupportTowerKind,
 } from "~/composables/useTowerDefense";
-import { mapPathPosition } from "~/games/tower-defense/maps";
+import { mapPathPosition } from "~/games/tower-defense/map-path";
 import {
   createTowerDefenseMapScene,
   loadTowerDefenseBackgroundModel,
@@ -1088,6 +1089,8 @@ function syncTowerBuffBadges(group: THREE.Group, tower: Tower) {
   const buffs: Array<"damage" | "speed"> = [];
   if (!isSupportTowerKind(tower.kind)) {
     for (const kind of ["damage", "speed"] as const) {
+      if (!canTowerReceiveSupportBuff(tower.kind, kind)) continue;
+
       const receivesBuff = props.towers.some((support) => {
         if (support.kind !== kind || support.id === tower.id) return false;
         return (
@@ -1800,8 +1803,12 @@ function createTowerUpgradeEffect(tower: Tower, now: number) {
       transparent: true,
       opacity,
       depthWrite: false,
+      blending: THREE.AdditiveBlending,
       toneMapped: false,
     });
+  const accentColor = new THREE.Color(colors[tower.kind])
+    .lerp(new THREE.Color(0xffffff), 0.62)
+    .getHex();
 
   const beam = new THREE.Mesh(
     new THREE.CylinderGeometry(0.18, 0.42, 2.4, 24, 1, true),
@@ -1827,6 +1834,96 @@ function createTowerUpgradeEffect(tower: Tower, now: number) {
     shockwave.position.y = 0.08;
     shockwave.userData.delay = index * 0.14;
     group.add(shockwave);
+  }
+
+  // Glow mềm nhiều lớp làm burst có chiều sâu thay vì chỉ là geometry cứng.
+  for (let index = 0; index < 2; index++) {
+    const halo = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: getFrostGlowTexture(),
+        color: index === 0 ? colors[tower.kind] : accentColor,
+        transparent: true,
+        opacity: index === 0 ? 0.72 : 0.5,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      }),
+    );
+    halo.name = "upgradeHalo";
+    halo.position.y = 0.65 + index * 0.56;
+    halo.scale.setScalar(0.72 + index * 0.22);
+    halo.userData.delay = index * 0.09;
+    halo.userData.baseScale = 0.72 + index * 0.22;
+    group.add(halo);
+  }
+
+  // Các dải sáng dựng đứng bay lên quanh thân tower.
+  for (let index = 0; index < 6; index++) {
+    const angle = (index / 6) * Math.PI * 2;
+    const ray = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: getFrostGlowTexture(),
+        color: index % 2 ? accentColor : colors[tower.kind],
+        transparent: true,
+        opacity: 0.46,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      }),
+    );
+    ray.name = "upgradeRay";
+    ray.position.set(Math.cos(angle) * 0.34, 0.42, Math.sin(angle) * 0.34);
+    ray.scale.set(0.15, 0.74, 1);
+    ray.userData.angle = angle;
+    ray.userData.delay = index * 0.025;
+    group.add(ray);
+  }
+
+  // Kim tuyến bắn ra, xoáy nhẹ rồi bay lên. Giảm số lượng khi scene đang nặng.
+  const sparkleCount = performanceMode ? 9 : tower.level >= 3 ? 18 : 14;
+  for (let index = 0; index < sparkleCount; index++) {
+    const angle = (index / sparkleCount) * Math.PI * 2;
+    const sparkle = new THREE.Mesh(
+      new THREE.OctahedronGeometry(index % 4 === 0 ? 0.045 : 0.027, 0),
+      new THREE.MeshBasicMaterial({
+        color: index % 3 === 0 ? 0xffffff : accentColor,
+        transparent: true,
+        opacity: 0.92,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      }),
+    );
+    sparkle.name = "upgradeSparkle";
+    sparkle.userData.angle = angle;
+    sparkle.userData.radius = 0.18 + (index % 4) * 0.055;
+    sparkle.userData.baseY = 0.12 + (index % 5) * 0.1;
+    sparkle.userData.delay = (index % 6) * 0.035;
+    sparkle.position.set(
+      Math.cos(angle) * sparkle.userData.radius,
+      sparkle.userData.baseY,
+      Math.sin(angle) * sparkle.userData.radius,
+    );
+    group.add(sparkle);
+  }
+
+  for (let index = 0; index < 2; index++) {
+    const orbit = new THREE.Mesh(
+      new THREE.TorusGeometry(0.42 + index * 0.1, 0.012, 5, 52),
+      new THREE.MeshBasicMaterial({
+        color: index ? accentColor : colors[tower.kind],
+        transparent: true,
+        opacity: 0.72,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      }),
+    );
+    orbit.name = "upgradeOrbit";
+    orbit.position.y = 0.48 + index * 0.34;
+    orbit.rotation.set(Math.PI / 2.5, index ? -0.65 : 0.55, index * 0.8);
+    orbit.userData.direction = index ? -1 : 1;
+    group.add(orbit);
   }
 
   if (tower.kind === "archer") {
@@ -1901,7 +1998,7 @@ function createTowerUpgradeEffect(tower: Tower, now: number) {
 /** Cập nhật tiến trình, opacity và giải phóng các effect nâng cấp đã kết thúc. */
 function syncTowerUpgradeEffects(now: number) {
   for (const [towerId, effect] of towerUpgradeEffects) {
-    const progress = (now - effect.bornAt) / 1550;
+    const progress = (now - effect.bornAt) / 1850;
     if (progress >= 1) {
       disposeObject(effect.group);
       towerUpgradeEffects.delete(towerId);
@@ -1924,6 +2021,52 @@ function syncTowerUpgradeEffects(now: number) {
         const local = Math.max(0, progress - Number(item.userData.delay));
         item.scale.setScalar(0.35 + local * 4.2);
         itemMaterial.opacity = local > 0 ? fade * 0.72 : 0;
+      } else if (item.name === "upgradeHalo") {
+        const local = Math.max(0, progress - Number(item.userData.delay));
+        const pulse = Math.sin(Math.min(1, local * 1.7) * Math.PI);
+        const scale = Number(item.userData.baseScale) * (0.55 + pulse * 1.5);
+        item.scale.setScalar(scale);
+        itemMaterial.opacity = local > 0 ? fade * pulse * 0.7 : 0;
+        item.rotation.z += 0.012 * (index % 2 ? -1 : 1);
+      } else if (item.name === "upgradeRay") {
+        const local = Math.max(0, progress - Number(item.userData.delay));
+        const pulse = Math.sin(Math.min(1, local * 1.45) * Math.PI);
+        const angle = Number(item.userData.angle) + progress * 0.7;
+        const radius = 0.34 + local * 0.18;
+        item.position.set(
+          Math.cos(angle) * radius,
+          0.42 + local * 0.78,
+          Math.sin(angle) * radius,
+        );
+        item.scale.set(0.12 + pulse * 0.1, 0.55 + pulse * 0.7, 1);
+        itemMaterial.opacity = local > 0 ? fade * pulse * 0.48 : 0;
+      } else if (item.name === "upgradeSparkle") {
+        const delay = Number(item.userData.delay);
+        const local = THREE.MathUtils.clamp(
+          (progress - delay) / Math.max(0.01, 1 - delay),
+          0,
+          1,
+        );
+        const sparkle = Math.sin(local * Math.PI);
+        const angle = Number(item.userData.angle) + local * 1.35;
+        const radius = Number(item.userData.radius) + local * 0.48;
+        item.position.set(
+          Math.cos(angle) * radius,
+          Number(item.userData.baseY) + local * 1.42,
+          Math.sin(angle) * radius,
+        );
+        item.rotation.x += 0.08 + (index % 3) * 0.02;
+        item.rotation.y += 0.11;
+        item.scale.setScalar(0.35 + sparkle * 1.45);
+        itemMaterial.opacity = local > 0 ? fade * sparkle : 0;
+      } else if (item.name === "upgradeOrbit") {
+        const pulse = Math.sin(progress * Math.PI);
+        const direction = Number(item.userData.direction);
+        item.rotation.x += 0.018 * direction;
+        item.rotation.y += 0.026 * direction;
+        item.rotation.z += 0.038 * direction;
+        item.scale.setScalar(0.72 + pulse * 0.72);
+        itemMaterial.opacity = fade * pulse * 0.78;
       } else if (item.name === "upgradeRing") {
         const local = Math.max(0, progress - Number(item.userData.delay));
         item.scale.setScalar(0.55 + local * 1.5);
@@ -2661,13 +2804,13 @@ async function createWorld() {
     const archerTemplate = createArcherTower();
     archerTemplate.add(groundShadow(0.42));
     applyTowerMetallicFinish(archerTemplate, 0x8a7658);
-    applyProceduralTowerFaction(archerTemplate);
+    // applyProceduralTowerFaction(archerTemplate);
     optimizeTemplateShadows(archerTemplate);
     towerTemplates.set("archer", archerTemplate);
     const cannonTemplate = createCannonTower();
     cannonTemplate.add(groundShadow(0.42));
     applyTowerMetallicFinish(cannonTemplate, 0x776b5d);
-    applyProceduralTowerFaction(cannonTemplate);
+    // applyProceduralTowerFaction(cannonTemplate);
     optimizeTemplateShadows(cannonTemplate);
     towerTemplates.set("cannon", cannonTemplate);
     const frostPlaceholder = new THREE.Group();
@@ -2724,7 +2867,9 @@ async function createWorld() {
     controls.minZoom = props.map.camera.zoom * 0.78;
     controls.maxZoom = 3.1;
     controls.minPolarAngle = 0.38;
-    controls.maxPolarAngle = 1.32;
+    // Không cho camera hạ gần song song mặt đất: với camera orthographic,
+    // foreground sẽ vượt khỏi frustum và làm lộ clearColor thành mảng đen.
+    controls.maxPolarAngle = 1.08;
     controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
     controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
     controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;

@@ -12,7 +12,7 @@ spawn và hồ sơ giao diện cho quái thường hoặc boss trong Tower Defen
 | Render | `scene/enemy-scene.ts` | Tải GLB, animation, di chuyển, bóng và thanh máu |
 | Gameplay | `app/composables/useTowerDefense.ts` | Spawn, HP, tốc độ, phần thưởng và sát thương lâu đài |
 | Kháng/điểm yếu | `app/games/tower-defense/enemy-combat.ts` | Hệ số damage và thời gian hiệu ứng |
-| Map | `app/games/tower-defense/maps/*.ts` | Boss model/profile riêng của từng map |
+| Map | Bảng `tower_defense_maps` | Boss model/profile riêng của từng map |
 | Giao diện | `app/pages/games/tower-defense/index.vue` | Avatar và hồ sơ kẻ địch |
 
 Quái thường và boss đều sử dụng interface `Enemy`. Không cần thêm một
@@ -26,9 +26,9 @@ boss có thể dùng `bossClass` hoặc model riêng được cấu hình trên 
 Đặt GLB trong thư mục public, ví dụ:
 
 ```text
-public/models/games/tower-defense/character/normal.glb
-public/models/games/tower-defense/character/armored.glb
-public/models/games/tower-defense/character/runner.glb
+backend/storage/app/tower-defense/assets/models/games/tower-defense/character/normal.glb
+backend/storage/app/tower-defense/assets/models/games/tower-defense/character/armored.glb
+backend/storage/app/tower-defense/assets/models/games/tower-defense/character/runner.glb
 ```
 
 Model nên đáp ứng các yêu cầu sau:
@@ -48,7 +48,7 @@ Mở `app/components/tower-defense/scene/enemy-models.ts` và thêm entry vào
 ```ts
 export const ENEMY_MODEL_DEFINITIONS = {
   normal: {
-    url: "/models/games/tower-defense/character/normal.glb",
+    url: "/api/tower-defense/assets/models/games/tower-defense/character/normal.glb",
     characterScale: 2,
     sceneScale: 0.494,
     healthBarY: 2.1,
@@ -57,7 +57,7 @@ export const ENEMY_MODEL_DEFINITIONS = {
   },
 
   armored: {
-    url: "/models/games/tower-defense/character/armored.glb",
+    url: "/api/tower-defense/assets/models/games/tower-defense/character/armored.glb",
     characterScale: 1.8,
     sceneScale: 0.55,
     healthBarY: 2.25,
@@ -192,8 +192,8 @@ Các tower không được khai báo sẽ mặc định có multiplier bằng `1
 Ví dụ boss băng:
 
 ```text
-public/models/games/tower-defense/character/boss/map/ice/boss.glb
-public/image/games/tower-defense/military/dark/ice/boss.png
+backend/storage/app/tower-defense/assets/models/games/tower-defense/character/boss/map/ice/boss.glb
+backend/storage/app/tower-defense/assets/images/games/tower-defense/military/dark/ice/boss.png
 ```
 
 ### 2. Cấu hình boss trong map
@@ -203,7 +203,7 @@ Mở file map tương ứng và thêm:
 ```ts
 bossCombatProfileKey: "ice-boss",
 bossModel: {
-  url: "/models/games/tower-defense/character/boss/map/ice/boss.glb",
+  url: "/api/tower-defense/assets/models/games/tower-defense/character/boss/map/ice/boss.glb",
   characterScale: 2,
   sceneScale: 1,
   healthBarY: 2.2,
@@ -338,8 +338,8 @@ hiện phụ thuộc vào `EnemyKind`; nếu model mới lớn hoặc nhỏ bấ
 Avatar đặt trong:
 
 ```text
-public/image/games/tower-defense/military/dark/<enemy-key>.png
-public/image/games/tower-defense/military/dark/<map-key>/boss.png
+backend/storage/app/tower-defense/assets/images/games/tower-defense/military/dark/<enemy-key>.png
+backend/storage/app/tower-defense/assets/images/games/tower-defense/military/dark/<map-key>/boss.png
 ```
 
 Sau đó cập nhật `enemyIntelCards` trong
@@ -349,7 +349,7 @@ Sau đó cập nhật `enemyIntelCards` trong
 {
   id: "armored",
   name: "Thiết giáp binh",
-  avatar: "/image/games/tower-defense/military/dark/armored.png",
+  avatar: "/api/tower-defense/assets/images/games/tower-defense/military/dark/armored.png",
   summary: "Giáp dày, di chuyển chậm và kháng tên.",
   health: `${armoredHp} HP`,
   resistance: "Giảm 35% sát thương cung",

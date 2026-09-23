@@ -72,9 +72,9 @@ vào `TowerDefinition` và `Projectile` trong `towerDefense.ts`.
 Đặt model trong `public` theo cấu trúc thống nhất:
 
 ```text
-public/models/games/tower-defense/poison/enemy/level1.glb
-public/models/games/tower-defense/poison/enemy/level2.glb
-public/models/games/tower-defense/poison/enemy/level3.glb
+backend/storage/app/tower-defense/assets/models/games/tower-defense/poison/enemy/level1.glb
+backend/storage/app/tower-defense/assets/models/games/tower-defense/poison/enemy/level2.glb
+backend/storage/app/tower-defense/assets/models/games/tower-defense/poison/enemy/level3.glb
 ```
 
 Sau đó cập nhật `scene/tower-models.ts`.
@@ -96,9 +96,9 @@ export type LevelledTowerKind = Extract<
   modelName: "PoisonTower3D",
   targetHeight: 2.1,
   urls: {
-    1: "/models/games/tower-defense/poison/enemy/level1.glb",
-    2: "/models/games/tower-defense/poison/enemy/level2.glb",
-    3: "/models/games/tower-defense/poison/enemy/level3.glb",
+    1: "/api/tower-defense/assets/models/games/tower-defense/poison/enemy/level1.glb",
+    2: "/api/tower-defense/assets/models/games/tower-defense/poison/enemy/level2.glb",
+    3: "/api/tower-defense/assets/models/games/tower-defense/poison/enemy/level3.glb",
   },
 },
 ```

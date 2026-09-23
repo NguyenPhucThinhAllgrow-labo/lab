@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { mapPathPosition } from "~/games/tower-defense/maps";
+import { mapPathPosition } from "~/games/tower-defense/map-path";
 import type {
   GridPoint,
   TowerDefenseMapDefinition,

@@ -7,6 +7,7 @@ import type {
   Projectile,
   Tower,
   TowerKind,
+  TowerDefenseMapDefinition,
 } from "~/types/games/towerDefense";
 import {
   BETWEEN_WAVE_DELAY_SECONDS,
@@ -20,7 +21,6 @@ import {
   FROST_SLOW_DURATION_SECONDS,
   MAX_TOWER_LEVEL,
   MAX_SIMULATION_STEPS_PER_TICK,
-  MAX_TICK_BACKLOG_SECONDS,
   PREVIEW_ALL_BOSSES_ON_FIRST_WAVE,
   STARTING_CREDITS,
   TOWER_DEFINITIONS,
@@ -30,21 +30,21 @@ import {
   WATER_SLOW_DURATION_SECONDS,
   WAVE_BASE_REWARD,
   WAVE_REWARD_GROWTH,
+  canTowerReceiveSupportBuff,
   isSupportTowerKind,
   towerFireInterval,
   towerSupportBonus,
 } from "~/games/tower-defense/gameplay-config";
-import { DEFAULT_TOWER_DEFENSE_MAP_ID, getTowerDefenseMap, mapPathPosition } from "~/games/tower-defense/maps";
+import { mapPathPosition } from "~/games/tower-defense/map-path";
 import {
   damageEnemy,
   enemyEffectDuration,
 } from "~/games/tower-defense/enemy-combat";
 
-export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS, isSupportTowerKind, towerFireInterval, towerSupportBonus } from "~/games/tower-defense/gameplay-config";
+export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS, canTowerReceiveSupportBuff, isSupportTowerKind, towerFireInterval, towerSupportBonus } from "~/games/tower-defense/gameplay-config";
 
 /** Cung cấp state, command và simulation loop độc lập với lớp render Three.js. */
-export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
-  const map = getTowerDefenseMap(mapId);
+export function useTowerDefense(map: TowerDefenseMapDefinition) {
   const storageKey = `${TOWER_DEFENSE_STORAGE_KEY}:${map.id}`;
   const castleGateProgress = (lane: 0 | 1) =>
     map.paths[lane].length - 1 + map.castle.pathEndOffset;
@@ -83,6 +83,7 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
   let timer: ReturnType<typeof setInterval> | null = null;
   let elapsed = 0;
   let lastTickAt = 0;
+  let pendingRealTime = 0;
 
   // ===== Selection và quản lý vòng đời tháp ================================
   const pathKeys = new Set(
@@ -127,6 +128,8 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
 
   /** Buff cùng loại không cộng dồn; tower nhận mức mạnh nhất đang phủ lên nó. */
   function supportBonusFor(tower: Tower, supportKind: "speed" | "damage") {
+    if (!canTowerReceiveSupportBuff(tower.kind, supportKind)) return 0;
+
     return towers.value.reduce((strongest, support) => {
       if (support.kind !== supportKind || support.id === tower.id)
         return strongest;
@@ -720,36 +723,49 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
   }
 
   // Đồng hồ thực được chia thành bước nhỏ để gameplay ổn định khi đổi tốc độ.
-  // Backlog bị giới hạn để một timer trễ không khóa main thread vì chạy bù dài.
-  /** Đổi thời gian thực thành các bước simulation tối đa 100 ms có giới hạn. */
+  // Thời gian chưa xử lý được giữ lại, giúp game tiếp tục khi timer tab nền bị throttle.
+  /** Đổi thời gian thực thành các bước simulation và giữ backlog cho tick kế tiếp. */
   function tick() {
     const now = Date.now();
     const realDelta = lastTickAt ? Math.max(0, (now - lastTickAt) / 1000) : 0;
     lastTickAt = now;
-    if (isPaused.value || document.hidden) return;
+    if (isPaused.value) {
+      pendingRealTime = 0;
+      return;
+    }
+    if (phase.value !== "wave" && phase.value !== "between") {
+      pendingRealTime = 0;
+      return;
+    }
 
-    // Chỉ bù một cửa sổ ngắn. Phần thời gian tab bị ẩn hoặc main thread bị treo
-    // lâu được bỏ qua để tránh vòng lặp hàng nghìn bước khi quay lại game.
-    let remainingRealTime = Math.min(realDelta, MAX_TICK_BACKLOG_SECONDS);
+    pendingRealTime += realDelta;
     let simulationSteps = 0;
-    while (remainingRealTime > 0 && simulationSteps < MAX_SIMULATION_STEPS_PER_TICK) {
+    while (
+      pendingRealTime > 0.000001 &&
+      simulationSteps < MAX_SIMULATION_STEPS_PER_TICK
+    ) {
       simulationSteps++;
       if (phase.value === "between") {
-        const consumed = Math.min(remainingRealTime, nextWaveCountdown.value);
+        const consumed = Math.min(pendingRealTime, nextWaveCountdown.value);
         nextWaveCountdown.value = Math.max(
           0,
           nextWaveCountdown.value - consumed,
         );
-        remainingRealTime -= consumed;
+        pendingRealTime -= consumed;
         if (nextWaveCountdown.value === 0) startWave();
         continue;
       }
       if (phase.value !== "wave") break;
 
-      const realStep = Math.min(0.1 / speedMultiplier.value, remainingRealTime);
+      const realStep = Math.min(
+        0.1 / speedMultiplier.value,
+        pendingRealTime,
+      );
       step(realStep * speedMultiplier.value);
-      remainingRealTime -= realStep;
+      pendingRealTime -= realStep;
     }
+    if (phase.value !== "wave" && phase.value !== "between")
+      pendingRealTime = 0;
   }
 
   // ===== Lifecycle và điều khiển phiên chơi ================================
@@ -781,26 +797,27 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
     spawnCooldownByLane[1] = 0;
     pendingBosses = [];
     lastTickAt = Date.now();
+    pendingRealTime = 0;
     message.value = "Vương quốc đang chờ lệnh. Hãy xây dựng tuyến phòng thủ.";
   }
 
-  // Khởi động simulation timer ở client; khi visibility đổi chỉ reset đồng hồ,
-  // không chạy bù khoảng thời gian tab nằm ở nền.
+  // Timer tab nền có thể bị trình duyệt giảm tần suất; tick dùng thời gian thực
+  // nên gameplay vẫn tiến lên và xử lý phần backlog khi quay lại.
   onMounted(() => {
     bestWave.value = Number(localStorage.getItem(storageKey) ?? 0);
     lastTickAt = Date.now();
     timer = setInterval(tick, 100);
-    document.addEventListener("visibilitychange", resetTickClock);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
   });
   // Luôn dọn timer/listener để không còn simulation chạy sau khi rời route.
   onBeforeUnmount(() => {
     if (timer) clearInterval(timer);
-    document.removeEventListener("visibilitychange", resetTickClock);
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
   });
 
-  /** Bỏ backlog của tab nền; game tiếp tục từ thời điểm người chơi quay lại. */
-  function resetTickClock() {
-    lastTickAt = Date.now();
+  /** Khi quay lại tab, xử lý ngay thời gian đã trôi qua thay vì chờ timer kế tiếp. */
+  function handleVisibilityChange() {
+    if (!document.hidden) tick();
   }
 
   /** Cho renderer biết tower còn nằm trong cửa sổ animation khai hỏa hay không. */
@@ -813,6 +830,7 @@ export function useTowerDefense(mapId = DEFAULT_TOWER_DEFENSE_MAP_ID) {
     if (isPaused.value === paused) return;
     isPaused.value = paused;
     lastTickAt = Date.now();
+    pendingRealTime = 0;
     message.value = isPaused.value
       ? "Trận đấu đã tạm dừng."
       : "Trận đấu tiếp tục.";

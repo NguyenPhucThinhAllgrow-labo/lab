@@ -14,7 +14,7 @@ export const ENEMY_MODEL_DEFINITIONS: Record<
   TowerDefenseCharacterModelDefinition
 > = {
   normal: {
-    url: "/models/games/tower-defense/character/normal.glb",
+    url: "/api/tower-defense/assets/models/games/tower-defense/character/normal.glb",
     characterScale: 2,
     sceneScale: 0.494,
     healthBarY: 2.1,
@@ -24,7 +24,7 @@ export const ENEMY_MODEL_DEFINITIONS: Record<
 };
 
 export const ADVENTURE_KIT_ROOT =
-  "/models/games/tower-defense/kit/adventure";
+  "/api/tower-defense/assets/models/games/tower-defense/kit/adventure";
 
 export const BOSS_CHARACTER_PATHS: Record<BossClass, string> = {
   knight: "Characters/gltf/Knight.glb",

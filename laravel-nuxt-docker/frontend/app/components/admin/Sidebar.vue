@@ -24,6 +24,7 @@ import {
   SquareTerminal,
   Trophy,
   LogOut,
+  MapPinned,
 } from "lucide-vue-next";
 
 defineProps<{
@@ -55,6 +56,11 @@ const menuItems = [
     label: "Users",
     to: "/admin/users",
     icon: Users,
+  },
+  {
+    label: "Tower Defense",
+    to: "/admin/tower-defense",
+    icon: MapPinned,
   },
   {
     label: "Pandora Ranking",

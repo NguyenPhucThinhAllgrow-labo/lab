@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\ChineseChessHistoryController;
 use App\Http\Controllers\Api\Admin\DetectiveLeaderboardController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\AuthController;
@@ -9,6 +10,8 @@ use App\Http\Controllers\Api\ChineseChessRoomController;
 use App\Http\Controllers\Api\DetectiveCaseController;
 use App\Http\Controllers\Api\DetectiveHistoryController;
 use App\Http\Controllers\Api\DetectiveProgressController;
+use App\Http\Controllers\Api\TowerDefenseAssetController;
+use App\Http\Controllers\Api\TowerDefenseMapController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', function () {
@@ -24,6 +27,14 @@ Route::post('/chinese-chess/ml/predict', ChineseChessMlController::class)
     ->middleware('throttle:120,1');
 Route::post('/chinese-chess/engine/best-move', ChineseChessEngineController::class)
     ->middleware('throttle:120,1');
+
+Route::prefix('tower-defense')->group(function (): void {
+    Route::get('/maps', [TowerDefenseMapController::class, 'index']);
+    Route::get('/maps/{map}', [TowerDefenseMapController::class, 'show']);
+    Route::get('/assets', [TowerDefenseAssetController::class, 'index']);
+    Route::get('/assets/{asset}', [TowerDefenseAssetController::class, 'show'])
+        ->where('asset', '.*');
+});
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/user', [AuthController::class, 'user']);
@@ -60,13 +71,21 @@ Route::middleware(['auth:sanctum', 'role:user'])->group(function (): void {
 
 Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(function (): void {
     Route::get('/user', [AuthController::class, 'user']);
-    Route::get('/chinese-chess/history', [\App\Http\Controllers\Api\Admin\ChineseChessHistoryController::class, 'index']);
-    Route::get('/chinese-chess/history/{round}', [\App\Http\Controllers\Api\Admin\ChineseChessHistoryController::class, 'show']);
-    Route::delete('/chinese-chess/history/{round}', [\App\Http\Controllers\Api\Admin\ChineseChessHistoryController::class, 'destroy']);
+    Route::get('/chinese-chess/history', [ChineseChessHistoryController::class, 'index']);
+    Route::get('/chinese-chess/history/{round}', [ChineseChessHistoryController::class, 'show']);
+    Route::delete('/chinese-chess/history/{round}', [ChineseChessHistoryController::class, 'destroy']);
     Route::get('/users', [AdminUserController::class, 'index']);
     Route::post('/users', [AdminUserController::class, 'store']);
     Route::put('/users/{user}', [AdminUserController::class, 'update']);
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
     Route::get('/pandora/leaderboard/best', [DetectiveLeaderboardController::class, 'best']);
     Route::get('/pandora/leaderboard/history', [DetectiveLeaderboardController::class, 'history']);
+    Route::get('/tower-defense/maps', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'index']);
+    Route::post('/tower-defense/maps', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'store']);
+    Route::put('/tower-defense/maps/{map}', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'update']);
+    Route::delete('/tower-defense/maps/{map}', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'destroy']);
+    Route::get('/tower-defense/assets', [App\Http\Controllers\Api\Admin\TowerDefenseAssetController::class, 'index']);
+    Route::post('/tower-defense/assets', [App\Http\Controllers\Api\Admin\TowerDefenseAssetController::class, 'store']);
+    Route::delete('/tower-defense/assets/{asset}', [App\Http\Controllers\Api\Admin\TowerDefenseAssetController::class, 'destroy'])
+        ->where('asset', '.*');
 });

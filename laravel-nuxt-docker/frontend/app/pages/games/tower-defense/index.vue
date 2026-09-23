@@ -20,6 +20,8 @@ import {
   Sparkles,
   Swords,
   Undo2,
+  Volume2,
+  VolumeX,
   Waves,
   X,
   Zap,
@@ -35,7 +37,6 @@ import {
   towerSupportBonus,
   useTowerDefense,
 } from "~/composables/useTowerDefense";
-import { TOWER_DEFENSE_MAPS } from "~/games/tower-defense/maps";
 import type { TowerFaction } from "~/components/tower-defense/scene/tower-models";
 import type { TowerKind } from "~/types/games/towerDefense";
 
@@ -52,7 +53,12 @@ useHead({
 
 const route = useRoute();
 const requestedMapId = typeof route.query.map === "string" ? route.query.map : undefined;
-const availableMaps = Object.values(TOWER_DEFENSE_MAPS);
+const availableMaps = await fetchTowerDefenseMaps();
+const requestedMap =
+  availableMaps.find((item) => item.id === requestedMapId) ?? availableMaps[0];
+
+if (!requestedMap)
+  throw createError({ statusCode: 503, statusMessage: "Không có cấu hình map Tower Defense." });
 
 // Composable giữ toàn bộ state và luật chơi; page chỉ điều phối HUD và thao tác UI.
 const {
@@ -88,7 +94,13 @@ const {
   startWave,
   resetGame,
   setPaused,
-} = useTowerDefense(requestedMapId);
+} = useTowerDefense(requestedMap);
+const {
+  soundEnabled,
+  startBackgroundMusic,
+  syncTowerShots,
+  toggleSound,
+} = useTowerDefenseAudio();
 
 /** Chỉ số chiến đấu đã bao gồm buff để popup phản ánh đúng sức mạnh hiện tại. */
 const selectedTowerEffectiveDamage = computed(() => {
@@ -166,7 +178,7 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
     {
       id: "normal",
       name: "Hắc binh",
-      avatar: "/image/games/tower-defense/military/dark/normal.png",
+      avatar: "/api/tower-defense/assets/images/games/tower-defense/military/dark/normal.png",
       summary: "Lính tiền tuyến cân bằng, không có kháng hay điểm yếu đặc biệt.",
       health: `${normalHp} HP`,
       resistance: "Không",
@@ -178,7 +190,7 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
     cards.push({
       id: "boss",
       name: isLavaBoss ? "Chúa tể Dung nham" : "Thủ lĩnh Hắc quân",
-      avatar: "/image/games/tower-defense/military/dark/lava/boss.png",
+      avatar: "/api/tower-defense/assets/images/games/tower-defense/military/dark/lava/boss.png",
       summary: isLavaBoss
         ? "Boss của Pháo đài Dung nham, sở hữu lớp giáp hấp thụ nhiệt cực mạnh."
         : "Kẻ địch tinh nhuệ có lượng máu cao và tốc độ di chuyển chậm.",
@@ -216,6 +228,12 @@ const isGameReady = computed(
   () =>
     selectedFaction.value !== null && sceneReady.value && imagesReady.value,
 );
+
+/** Chọn phe từ thao tác click đồng thời mở khóa audio theo chính sách trình duyệt. */
+function selectFaction(faction: TowerFaction) {
+  selectedFaction.value = faction;
+  void startBackgroundMusic();
+}
 
 function togglePauseFromHud() {
   if (isPaused.value) {
@@ -326,6 +344,13 @@ watch(phase, (currentPhase) => {
     isMovePlacementMode.value = false;
 });
 
+watch(
+  [towers, phase, isPaused],
+  ([currentTowers, currentPhase, paused]) =>
+    syncTowerShots(currentTowers, currentPhase === "wave" && !paused),
+  { flush: "sync" },
+);
+
 watch(enemyIntelWave, () => {
   dismissedEnemyIntelIds.value = [];
 });
@@ -354,12 +379,20 @@ onBeforeUnmount(() => {
       <h1 id="defense-faction-title">Tuyên thệ với vương quốc</h1>
       <p>Phe được chọn sẽ quyết định diện mạo của toàn bộ công trình.</p>
       <div>
-        <button type="button" class="is-human" @click="selectedFaction = 'human'">
+        <button
+          type="button"
+          class="is-human"
+          @click="selectFaction('human')"
+        >
           <span><ShieldCheck /></span>
           <strong>HUMAN</strong>
           <small>Thành lũy sáng, kim loại và sắc vàng của vương quốc.</small>
         </button>
-        <button type="button" class="is-dark" @click="selectedFaction = 'dark'">
+        <button
+          type="button"
+          class="is-dark"
+          @click="selectFaction('dark')"
+        >
           <span><Swords /></span>
           <strong>DARK</strong>
           <small>Pháo đài hắc ám với giáp tối và năng lượng ma thuật.</small>
@@ -830,6 +863,18 @@ onBeforeUnmount(() => {
             <footer class="defense-board-footer">
               <p><span>CHỈ HUY</span>{{ message }}</p>
               <div>
+                <button
+                  type="button"
+                  class="defense-sound-toggle"
+                  :class="{ active: soundEnabled }"
+                  :aria-pressed="soundEnabled"
+                  :aria-label="soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'"
+                  :title="soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'"
+                  @click="toggleSound"
+                >
+                  <Volume2 v-if="soundEnabled" />
+                  <VolumeX v-else />
+                </button>
                 <button
                   v-if="map.backgroundModel"
                   type="button"

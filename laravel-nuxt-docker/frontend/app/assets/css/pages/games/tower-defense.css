@@ -35,16 +35,28 @@
   align-content: center;
   justify-items: center;
   margin: auto;
+  font-family:
+    Inter, "Segoe UI", Arial, ui-sans-serif, system-ui, sans-serif;
   text-align: center;
 }
 .defense-faction-select > small {
   color: var(--gold);
-  font: 800 10px Georgia, serif;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.4;
   letter-spacing: 0.2em;
 }
 .defense-faction-select > h1 {
+  max-width: 100%;
   margin: 9px 0 7px;
-  font: 900 clamp(30px, 5vw, 48px)/1 Georgia, serif;
+  font-family: inherit;
+  font-size: clamp(30px, 5vw, 48px);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  overflow-wrap: normal;
+  text-wrap: balance;
 }
 .defense-faction-select > p {
   color: #afa58f;
@@ -91,7 +103,10 @@
   height: 36px;
 }
 .defense-faction-select button strong {
-  font: 900 22px Georgia, serif;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.2;
   letter-spacing: 0.12em;
 }
 .defense-faction-select button small {
@@ -2145,6 +2160,28 @@
   font: inherit;
   white-space: nowrap;
   cursor: pointer;
+}
+.defense-sound-toggle {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border: 1px solid #665b43;
+  border-radius: 7px;
+  background: #25251d;
+  color: #8f8572;
+  cursor: pointer;
+}
+.defense-sound-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+.defense-sound-toggle.active {
+  border-color: #d7b85d;
+  background: #44391f;
+  color: #ffe29a;
+  box-shadow: 0 0 10px #d7b85d24;
 }
 .defense-background-toggle svg {
   width: 13px;
