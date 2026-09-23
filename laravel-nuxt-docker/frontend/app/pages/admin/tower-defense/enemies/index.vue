@@ -406,7 +406,7 @@ onMounted(loadData);
   <main class="enemy-admin-page">
     <header class="enemy-header">
       <div><small>TOWER DEFENSE CMS</small><h1>Quái và boss</h1><p>Quản lý chỉ số, hồ sơ chiến đấu và tài nguyên hiển thị.</p></div>
-      <div class="enemy-header-actions"><NuxtLink to="/admin/tower-defense">Map & tài nguyên</NuxtLink><button type="button" @click="loadData"><RefreshCw :class="{ spin: loading }" /> Làm mới</button><button class="primary" type="button" @click="openCreate()"><Plus /> Thêm kẻ địch</button></div>
+      <div class="enemy-header-actions"><NuxtLink to="/admin/tower-defense">Map & tài nguyên</NuxtLink><button type="button" @click="loadData"><RefreshCw :class="{ spin: loading }" /> Làm mới</button><NuxtLink class="primary" to="/admin/tower-defense/enemies/new"><Plus /> Thêm kẻ địch</NuxtLink></div>
     </header>
 
     <section class="enemy-stats">
@@ -419,19 +419,19 @@ onMounted(loadData);
     <p v-if="pageError" class="enemy-alert">{{ pageError }}</p>
 
     <section class="enemy-panel">
-      <header><div class="enemy-search"><Search /><input v-model="search" placeholder="Tìm theo tên hoặc mã…" /></div><select v-model="kindFilter"><option value="">Tất cả</option><option value="normal">Lính thường</option><option value="boss">Boss</option></select><button type="button" @click="openCreate('boss')"><Crown /> Thêm boss</button></header>
+      <header><div class="enemy-search"><Search /><input v-model="search" placeholder="Tìm theo tên hoặc mã…" /></div><select v-model="kindFilter"><option value="">Tất cả</option><option value="normal">Lính thường</option><option value="boss">Boss</option></select><NuxtLink class="enemy-add-link" to="/admin/tower-defense/enemies/new?kind=boss"><Crown /> Thêm boss</NuxtLink></header>
       <div v-if="loading" class="enemy-loading"><RefreshCw class="spin" /> Đang tải danh mục…</div>
       <div v-else class="enemy-grid">
         <article v-for="enemy in filteredEnemies" :key="enemy.id" class="enemy-card" :class="{ boss: enemy.kind === 'boss', inactive: !enemy.is_active }">
           <div class="enemy-avatar"><img v-if="enemy.avatar_asset_key" :src="assetUrl(enemy.avatar_asset_key)" alt="" /><Skull v-else /></div>
           <div class="enemy-card-body"><div class="enemy-card-title"><span>{{ enemy.kind === 'boss' ? 'BOSS' : 'LÍNH THƯỜNG' }}</span><i :class="{ active: enemy.is_active }">{{ enemy.is_active ? 'Đang bật' : 'Đã tắt' }}</i></div><h2>{{ enemy.name }}</h2><code>{{ enemy.id }}</code><p>{{ enemy.summary || 'Chưa có mô tả.' }}</p><dl><div><dt>HP</dt><dd>{{ enemy.base_health }}</dd></div><div><dt>Tốc độ</dt><dd>{{ enemy.base_speed }}</dd></div><div><dt>Thưởng</dt><dd>{{ enemy.reward }}</dd></div><div><dt>Mất máu</dt><dd>{{ enemy.castle_damage }}</dd></div></dl><div class="enemy-traits"><span><b>Kháng</b>{{ enemy.resistance || 'Không' }}</span><span><b>Điểm yếu</b>{{ enemy.weakness || 'Không' }}</span></div></div>
-          <footer><button type="button" @click="openEdit(enemy)"><Pencil /> Sửa</button><button class="danger" type="button" @click="deleteEnemy(enemy)"><Trash2 /> Xóa</button></footer>
+          <footer><NuxtLink :to="`/admin/tower-defense/enemies/${encodeURIComponent(enemy.id)}`"><Pencil /> Sửa</NuxtLink><button class="danger" type="button" @click="deleteEnemy(enemy)"><Trash2 /> Xóa</button></footer>
         </article>
         <p v-if="filteredEnemies.length === 0" class="enemy-empty">Không tìm thấy kẻ địch phù hợp.</p>
       </div>
     </section>
 
-    <Teleport to="body">
+    <Teleport v-if="false" to="body">
       <dialog ref="dialog" class="enemy-dialog" @cancel.prevent="!saving && dialog?.close()">
         <form @submit.prevent="submitForm">
           <header><div><small>{{ editingId ? 'CHỈNH SỬA' : 'TẠO MỚI' }}</small><h2>{{ form.kind === 'boss' ? 'Hồ sơ boss' : 'Hồ sơ lính thường' }}</h2></div><button type="button" @click="dialog?.close()"><X /></button></header>
