@@ -9,13 +9,14 @@ interface TowerModelDefinition {
   kind: LevelledTowerKind;
   modelName: string;
   targetHeight: number;
-  urls: Partial<Record<1 | 2 | 3, string>>;
+  urls: Record<number, string>;
 }
 
 export interface ManagedTowerModelDefinition {
   targetHeight: number;
-  dark: Partial<Record<1 | 2 | 3, string>>;
-  human: Partial<Record<1 | 2 | 3, string>>;
+  targetHeightByLevel?: Record<number, number>;
+  dark: Record<number, string>;
+  human: Record<number, string>;
 }
 
 const LEVELLED_TOWER_MODELS: TowerModelDefinition[] = [
@@ -112,7 +113,7 @@ export interface TowerModelLibrary {
 }
 
 const templateKey = (kind: TowerKind, level: number) =>
-  `${kind}:${THREE.MathUtils.clamp(Math.round(level), 1, 3)}`;
+  `${kind}:${Math.max(1, Math.round(level))}`;
 
 function disposeTemplate(template: THREE.Group) {
   template.traverse((child) => {
@@ -203,10 +204,15 @@ export function createTowerModelLibrary({
 
   async function load() {
     const loader = new GLTFLoader();
-    const requests = LEVELLED_TOWER_MODELS.flatMap((definition) =>
-      ([1, 2, 3] as const).map(async (level) => {
+    const requests = LEVELLED_TOWER_MODELS.flatMap((definition) => {
+      const managed = managedModels?.[definition.kind];
+      const levels = [...new Set([
+        ...Object.keys(definition.urls),
+        ...Object.keys(managed?.dark ?? {}),
+        ...Object.keys(managed?.human ?? {}),
+      ].map(Number))].filter((level) => Number.isInteger(level) && level > 0);
+      return levels.map(async (level) => {
         try {
-          const managed = managedModels?.[definition.kind];
           const hasHumanModel = definition.kind === "water";
           const modelUrl =
             managed?.[faction]?.[level] ??
@@ -219,7 +225,7 @@ export function createTowerModelLibrary({
           if (disposed) return;
           normalizeSource(
             gltf.scene,
-            managed?.targetHeight ?? definition.targetHeight,
+            managed?.targetHeightByLevel?.[level] ?? managed?.targetHeight ?? definition.targetHeight,
             renderer,
             faction,
             faction === "human" && Boolean(managed?.human[level] || hasHumanModel),
@@ -231,7 +237,7 @@ export function createTowerModelLibrary({
           if (definition.kind === "frost")
             template.userData.frostEffectCenterY = 1.77;
           template.add(gltf.scene);
-          decorate(template, definition.kind, level);
+          decorate(template, definition.kind, Math.min(3, level) as 1 | 2 | 3);
           templates.set(templateKey(definition.kind, level), template);
         } catch (error) {
           console.warn(
@@ -239,8 +245,8 @@ export function createTowerModelLibrary({
             error,
           );
         }
-      }),
-    );
+      });
+    });
     await Promise.all(requests);
   }
 

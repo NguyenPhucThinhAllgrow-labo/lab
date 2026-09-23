@@ -19,20 +19,22 @@ import {
   ENEMY_SPAWN_PROGRESS,
   FROST_EFFECT_RADIUS,
   FROST_SLOW_DURATION_SECONDS,
-  MAX_TOWER_LEVEL,
   MAX_SIMULATION_STEPS_PER_TICK,
   PREVIEW_ALL_BOSSES_ON_FIRST_WAVE,
   STARTING_CREDITS,
   TOWER_DEFINITIONS,
   TOWER_DEFENSE_STORAGE_KEY,
-  TOWER_RANGE_LEVEL_BONUS,
-  UPGRADE_COST_MULTIPLIERS,
   WATER_SLOW_DURATION_SECONDS,
   WAVE_BASE_REWARD,
   WAVE_REWARD_GROWTH,
   canTowerReceiveSupportBuff,
   isSupportTowerKind,
   towerFireInterval,
+  towerEffectValue,
+  towerDamageAtLevel,
+  towerMaxLevel,
+  towerRangeAtLevel,
+  towerUpgradeCost,
   towerSupportBonus,
 } from "~/games/tower-defense/gameplay-config";
 import { mapPathPosition } from "~/games/tower-defense/map-path";
@@ -41,7 +43,7 @@ import {
   enemyEffectDuration,
 } from "~/games/tower-defense/enemy-combat";
 
-export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS, canTowerReceiveSupportBuff, isSupportTowerKind, towerFireInterval, towerSupportBonus } from "~/games/tower-defense/gameplay-config";
+export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS, canTowerReceiveSupportBuff, isSupportTowerKind, towerDamageAtLevel, towerEffectValue, towerFireInterval, towerMaxLevel, towerRangeAtLevel, towerSupportBonus } from "~/games/tower-defense/gameplay-config";
 
 /** Cung cấp state, command và simulation loop độc lập với lớp render Three.js. */
 export function useTowerDefense(map: TowerDefenseMapDefinition) {
@@ -115,11 +117,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   );
   const upgradeCost = computed(() => {
     const tower = selectedTower.value;
-    if (!tower || tower.level >= MAX_TOWER_LEVEL) return 0;
-    const multiplier = UPGRADE_COST_MULTIPLIERS[tower.level as 1 | 2];
-    return (
-      Math.round((TOWER_DEFINITIONS[tower.kind].cost * multiplier) / 5) * 5
-    );
+    if (!tower || tower.level >= towerMaxLevel(tower.kind)) return 0;
+    return towerUpgradeCost(tower.kind, tower.level + 1);
   });
 
   /** Kiểm tra ô có thuộc một trong hai lane và vì vậy bị cấm xây tower hay không. */
@@ -136,12 +135,18 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     if (!canTowerReceiveSupportBuff(tower.kind, supportKind)) return 0;
 
     return towers.value.reduce((strongest, support) => {
-      if (support.kind !== supportKind || support.id === tower.id)
-        return strongest;
-      const range = TOWER_DEFINITIONS[support.kind].range;
+      if (support.id === tower.id) return strongest;
+      const supportDefinition = TOWER_DEFINITIONS[support.kind];
+      const effectType = supportKind === "speed" ? "attack_speed_aura" : "damage_aura";
+      const effect = supportDefinition.effects?.find((item) => item.behavior === effectType);
+      if (!effect && support.kind !== supportKind) return strongest;
+      const range = towerRangeAtLevel(supportDefinition, support.level);
       if (Math.hypot(support.x - tower.x, support.y - tower.y) > range)
         return strongest;
-      return Math.max(strongest, towerSupportBonus(support.level));
+      return Math.max(
+        strongest,
+        effect ? towerEffectValue(effect, support.level) : towerSupportBonus(support.level),
+      );
     }, 0);
   }
 
@@ -252,7 +257,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     const tower = selectedTower.value;
     if (
       !tower ||
-      tower.level >= MAX_TOWER_LEVEL ||
+      tower.level >= towerMaxLevel(tower.kind) ||
       credits.value < upgradeCost.value
     )
       return;
@@ -580,10 +585,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       }
       const damageMultiplier = 1 + supportBonusFor(tower, "damage");
       const attackSpeedMultiplier = 1 + supportBonusFor(tower, "speed");
-      const effectiveRange =
-        tower.kind === "frost"
-          ? definition.range
-          : definition.range + (tower.level - 1) * TOWER_RANGE_LEVEL_BONUS;
+      const effectiveRange = towerRangeAtLevel(definition, tower.level);
       const target = targetsByProgress.find((enemy) => {
         if (enemy.hp <= 0) return false;
         const position = enemyPositions.get(enemy.id)!;
@@ -619,13 +621,11 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
           if (!next) break;
           chainTargets.push(next);
         }
-        const levelMultiplier = 1 + (tower.level - 1) * 0.42;
         chainTargets.forEach((enemy, index) => {
           damageEnemy(
             enemy,
             "thunder",
-            definition.damage *
-              levelMultiplier *
+            towerDamageAtLevel(definition, tower.level) *
               damageMultiplier *
               attackSpeedMultiplier *
               Math.pow(0.72, index) *
@@ -688,6 +688,12 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       const shotDuration =
         tower.kind === "fire" ? 0.55 : tower.kind === "water" ? 0.28 : 0.34;
       const levelMultiplier = 1 + (tower.level - 1) * 0.55;
+      const bonusDamage = (definition.effects ?? [])
+        .filter((effect) => effect.behavior === "bonus_damage")
+        .reduce((total, effect) => total + towerEffectValue(effect, tower.level), 0);
+      const slowEffect = definition.effects?.find((effect) => effect.behavior === "slow");
+      const burnEffect = definition.effects?.find((effect) => effect.behavior === "damage_over_time");
+      const splashEffect = definition.effects?.find((effect) => effect.behavior === "splash_damage");
       const shotTargets =
         tower.kind === "archer"
           ? targetsByProgress
@@ -711,16 +717,18 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
           life: shotDuration,
           duration: shotDuration / speedMultiplier.value,
           targetId: shotTarget.id,
-          damage: definition.damage * levelMultiplier * damageMultiplier,
+          damage: (towerDamageAtLevel(definition, tower.level) + bonusDamage) * damageMultiplier,
           level: tower.level,
-          slow: definition.slow,
-          slowDuration: definition.slowDuration,
-          burnDuration: definition.burnDuration,
-          burnDamagePerSecond: definition.burnDamagePerSecond
-            ? definition.burnDamagePerSecond * levelMultiplier * damageMultiplier
+          slow: slowEffect ? towerEffectValue(slowEffect, tower.level) : definition.slow,
+          slowDuration: slowEffect?.duration ?? definition.slowDuration,
+          burnDuration: burnEffect?.duration ?? definition.burnDuration,
+          burnDamagePerSecond: burnEffect
+            ? towerEffectValue(burnEffect, tower.level) * damageMultiplier
+            : definition.burnDamagePerSecond
+              ? definition.burnDamagePerSecond * levelMultiplier * damageMultiplier
             : undefined,
-          splashRadius: definition.splashRadius,
-          splashDamageRatio: definition.splashDamageRatio,
+          splashRadius: splashEffect?.radius ?? definition.splashRadius,
+          splashDamageRatio: splashEffect?.ratio ?? definition.splashDamageRatio,
         });
       }
       tower.cooldown =

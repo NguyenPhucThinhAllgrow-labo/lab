@@ -136,10 +136,14 @@ export interface TowerDefenseEquipmentTransform {
 
 export interface TowerDefinition {
   kind: TowerKind;
+  role?: "damage" | "buff";
   name: string;
   description: string;
   cost: number;
   damage: number;
+  damageByLevel?: Record<number, number>;
+  levelStats?: Record<number, TowerLevelStats>;
+  maxLevel?: number;
   range: number;
   fireRate: number;
   slow?: number;
@@ -148,7 +152,38 @@ export interface TowerDefinition {
   burnDamagePerSecond?: number;
   splashRadius?: number;
   splashDamageRatio?: number;
+  effects?: TowerEffectDefinition[];
   color: string;
+  imageUrl?: string;
+}
+
+export interface TowerLevelStats {
+  damage: number;
+  range: number;
+  fireRate: number;
+  /** Cấp 1 là giá xây; từ cấp 2 trở đi là giá nâng lên cấp đó. */
+  upgradeCost: number;
+}
+
+export type TowerEffectBehavior =
+  | "bonus_damage"
+  | "damage_over_time"
+  | "slow"
+  | "splash_damage"
+  | "damage_aura"
+  | "attack_speed_aura";
+
+export interface TowerEffectDefinition {
+  id: string;
+  type: string;
+  behavior: TowerEffectBehavior;
+  name: string;
+  value: number;
+  duration?: number;
+  radius?: number;
+  ratio?: number;
+  perLevel?: number;
+  color?: string;
 }
 
 export interface Tower extends GridPoint {

@@ -3,9 +3,9 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   TOWER_DEFINITIONS,
-  TOWER_RANGE_LEVEL_BONUS,
   canTowerReceiveSupportBuff,
   isSupportTowerKind,
+  towerRangeAtLevel,
 } from "~/composables/useTowerDefense";
 import { mapPathPosition } from "~/games/tower-defense/map-path";
 import {
@@ -981,7 +981,7 @@ function bindTowerParts(group: THREE.Group) {
 
 /** Tạo và cache texture chữ level để mọi tower cùng cấp dùng chung tài nguyên. */
 function getTowerLevelLabelTexture(level: number) {
-  const normalizedLevel = THREE.MathUtils.clamp(Math.round(level), 1, 3);
+  const normalizedLevel = Math.max(1, Math.round(level));
   const cached = towerLevelLabelTextures.get(normalizedLevel);
   if (cached) return cached;
 
@@ -1168,7 +1168,7 @@ function syncTowerLevelLabel(group: THREE.Group, level: number) {
     group.add(label);
   }
 
-  const normalizedLevel = THREE.MathUtils.clamp(Math.round(level), 1, 3);
+  const normalizedLevel = Math.max(1, Math.round(level));
   if (label.userData.level !== normalizedLevel) {
     (label.material as THREE.SpriteMaterial).map =
       getTowerLevelLabelTexture(normalizedLevel);
@@ -2270,11 +2270,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     attackRangeMarker.visible = Boolean(previewCell && previewKind);
     if (previewCell && previewKind) {
       const definition = TOWER_DEFINITIONS[previewKind];
-      const radius =
-        previewKind === "frost" || isSupportTowerKind(previewKind)
-          ? definition.range
-          : definition.range +
-            ((selectedTower?.level ?? 1) - 1) * TOWER_RANGE_LEVEL_BONUS;
+      const radius = towerRangeAtLevel(definition, selectedTower?.level ?? 1);
       attackRangeMarker.position.copy(
         worldPosition(previewCell.x, previewCell.y),
       );

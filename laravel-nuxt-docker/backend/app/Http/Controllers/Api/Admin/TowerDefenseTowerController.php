@@ -46,11 +46,21 @@ class TowerDefenseTowerController extends Controller
             'id' => [$tower ? 'sometimes' : 'required', 'string', Rule::in(['archer', 'cannon', 'frost', 'fire', 'thunder', 'water', 'speed', 'damage']), Rule::unique('tower_defense_towers')->ignore($tower?->id)],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'role' => ['required', Rule::in(['damage', 'buff'])],
             'cost' => ['required', 'integer', 'between:0,100000000'],
             'damage' => ['required', 'numeric', 'between:0,100000000'],
+            'damage_by_level' => ['required', 'array'],
+            'damage_by_level.*' => ['required', 'numeric', 'between:0,100000000'],
+            'max_level' => ['required', 'integer', 'min:1'],
+            'level_stats' => ['required', 'array'],
+            'level_stats.*.damage' => ['required', 'numeric', 'between:0,100000000'],
+            'level_stats.*.range' => ['required', 'numeric', 'between:0.01,100'],
+            'level_stats.*.fireRate' => ['required', 'numeric', 'between:0,100'],
+            'level_stats.*.upgradeCost' => ['required', 'integer', 'between:0,100000000'],
             'range' => ['required', 'numeric', 'between:0.01,100'],
             'fire_rate' => ['required', 'numeric', 'between:0,100'],
             'color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'image_asset_key' => ['nullable', 'string', Rule::exists('tower_defense_assets', 'key')],
             'effects' => ['present', 'array'],
             'effects.slow' => ['sometimes', 'numeric', 'between:0,1'],
             'effects.slowDuration' => ['sometimes', 'numeric', 'between:0,100'],
@@ -58,10 +68,23 @@ class TowerDefenseTowerController extends Controller
             'effects.burnDamagePerSecond' => ['sometimes', 'numeric', 'between:0,1000000'],
             'effects.splashRadius' => ['sometimes', 'numeric', 'between:0,100'],
             'effects.splashDamageRatio' => ['sometimes', 'numeric', 'between:0,1'],
+            'effects.items' => ['sometimes', 'array', 'max:20'],
+            'effects.items.*.id' => ['required', 'string', 'max:100'],
+            'effects.items.*.type' => ['required', 'string', Rule::exists('tower_defense_effect_types', 'id')],
+            'effects.items.*.behavior' => ['required', Rule::in(['bonus_damage', 'damage_over_time', 'slow', 'splash_damage', 'damage_aura', 'attack_speed_aura'])],
+            'effects.items.*.name' => ['required', 'string', 'max:100'],
+            'effects.items.*.value' => ['required', 'numeric', 'between:0,1000000'],
+            'effects.items.*.duration' => ['sometimes', 'numeric', 'between:0,1000'],
+            'effects.items.*.radius' => ['sometimes', 'numeric', 'between:0,100'],
+            'effects.items.*.ratio' => ['sometimes', 'numeric', 'between:0,1'],
+            'effects.items.*.perLevel' => ['sometimes', 'numeric', 'between:0,1000000'],
+            'effects.items.*.color' => ['sometimes', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'model_asset_keys' => ['present', 'array'],
             'model_asset_keys.*' => ['nullable', 'string', Rule::exists('tower_defense_assets', 'key')],
             'model_configuration' => ['required', 'array'],
             'model_configuration.targetHeight' => ['required', 'numeric', 'between:0.01,100'],
+            'model_configuration.targetHeightByLevel' => ['required', 'array'],
+            'model_configuration.targetHeightByLevel.*' => ['required', 'numeric', 'between:0.01,100'],
             'sort_order' => ['sometimes', 'integer', 'between:0,100000'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
@@ -75,7 +98,40 @@ class TowerDefenseTowerController extends Controller
             }
         }
 
+        if (! empty($data['image_asset_key'])) {
+            $image = TowerDefenseAsset::query()->where('key', $data['image_asset_key'])->first();
+            if ($image?->type !== 'image' || $image?->purpose !== 'tower-image') {
+                throw ValidationException::withMessages([
+                    'image_asset_key' => ['Ảnh tower phải thuộc nhóm tower-image.'],
+                ]);
+            }
+        }
+
+        for ($level = 1; $level <= $data['max_level']; $level++) {
+            if (! array_key_exists($level, $data['damage_by_level'])) {
+                throw ValidationException::withMessages(['damage_by_level' => ["Thiếu damage cho cấp {$level}."]]);
+            }
+            if (! array_key_exists($level, $data['level_stats'])) {
+                throw ValidationException::withMessages(['level_stats' => ["Thiếu chỉ số gameplay cho cấp {$level}."]]);
+            }
+            if (! array_key_exists($level, $data['model_configuration']['targetHeightByLevel'])) {
+                throw ValidationException::withMessages(['model_configuration.targetHeightByLevel' => ["Thiếu độ cao model cho cấp {$level}."]]);
+            }
+        }
+        $data['level_stats'] = array_intersect_key($data['level_stats'], array_flip(range(1, $data['max_level'])));
+        $data['damage_by_level'] = collect($data['level_stats'])
+            ->mapWithKeys(fn (array $stats, int|string $level): array => [(string) $level => $stats['damage']])
+            ->all();
         $data['model_asset_keys'] = array_filter($data['model_asset_keys']);
+        $data['model_configuration']['targetHeightByLevel'] = array_intersect_key(
+            $data['model_configuration']['targetHeightByLevel'],
+            array_flip(range(1, $data['max_level'])),
+        );
+        $data['model_configuration']['targetHeight'] = $data['model_configuration']['targetHeightByLevel'][1];
+        $data['damage'] = $data['level_stats'][1]['damage'];
+        $data['cost'] = $data['level_stats'][1]['upgradeCost'];
+        $data['range'] = $data['level_stats'][1]['range'];
+        $data['fire_rate'] = $data['level_stats'][1]['fireRate'];
         if ($tower) {
             unset($data['id']);
         }

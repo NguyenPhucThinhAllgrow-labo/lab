@@ -1,5 +1,5 @@
 import { TOWER_DEFINITIONS } from "~/games/tower-defense/gameplay-config";
-import type { TowerDefinition, TowerKind } from "~/types/games/towerDefense";
+import type { TowerDefinition, TowerEffectDefinition, TowerKind, TowerLevelStats } from "~/types/games/towerDefense";
 import type {
   LevelledTowerKind,
   ManagedTowerModelDefinition,
@@ -9,14 +9,19 @@ interface ManagedTower {
   id: string;
   name: string;
   description: string | null;
+  role: "damage" | "buff";
   cost: number;
   damage: number;
+  damage_by_level: Record<string, number> | null;
+  max_level: number;
+  level_stats: Record<string, TowerLevelStats> | null;
   range: number;
   fire_rate: number;
   color: string;
-  effects: Partial<TowerDefinition> | null;
+  image_asset_key: string | null;
+  effects: (Partial<TowerDefinition> & { items?: TowerEffectDefinition[] }) | null;
   model_asset_keys: Record<string, string> | null;
-  model_configuration: { targetHeight?: number } | null;
+  model_configuration: { targetHeight?: number; targetHeightByLevel?: Record<string, number> } | null;
 }
 
 const knownTowerKinds = new Set(Object.keys(TOWER_DEFINITIONS));
@@ -46,24 +51,44 @@ export async function fetchTowerDefenseTowers(): Promise<TowerDefenseTowerCatalo
         ...TOWER_DEFINITIONS[kind],
         ...(tower.effects ?? {}),
         kind,
+        role: tower.role,
         name: tower.name,
         description: tower.description ?? "",
         cost: tower.cost,
         damage: tower.damage,
+        damageByLevel: tower.damage_by_level
+          ? Object.fromEntries(Object.entries(tower.damage_by_level).map(([level, damage]) => [Number(level), Number(damage)]))
+          : undefined,
+        maxLevel: tower.max_level,
+        levelStats: tower.level_stats
+          ? Object.fromEntries(Object.entries(tower.level_stats).map(([level, stats]) => [Number(level), {
+              damage: Number(stats.damage),
+              range: Number(stats.range),
+              fireRate: Number(stats.fireRate),
+              upgradeCost: Number(stats.upgradeCost),
+            }]))
+          : undefined,
         range: tower.range,
         fireRate: tower.fire_rate,
         color: tower.color,
+        imageUrl: tower.image_asset_key ? modelUrl(tower.image_asset_key) : undefined,
+        effects: tower.effects?.items ?? [],
       };
       const levelledKind = kind as LevelledTowerKind;
       const keys = tower.model_asset_keys ?? {};
+      const factionModels = (faction: "dark" | "human") => Object.fromEntries(
+        Object.entries(keys)
+          .filter(([key, value]) => key.startsWith(faction) && value)
+          .map(([key, value]) => [Number(key.slice(faction.length)), modelUrl(value)!])
+          .filter(([level]) => Number.isInteger(level) && Number(level) > 0),
+      );
       managedModels[levelledKind] = {
         targetHeight: tower.model_configuration?.targetHeight ?? 2,
-        dark: {
-          1: modelUrl(keys.dark1), 2: modelUrl(keys.dark2), 3: modelUrl(keys.dark3),
-        },
-        human: {
-          1: modelUrl(keys.human1), 2: modelUrl(keys.human2), 3: modelUrl(keys.human3),
-        },
+        targetHeightByLevel: tower.model_configuration?.targetHeightByLevel
+          ? Object.fromEntries(Object.entries(tower.model_configuration.targetHeightByLevel).map(([level, height]) => [Number(level), Number(height)]))
+          : undefined,
+        dark: factionModels("dark"),
+        human: factionModels("human"),
       };
     }
     return { activeKinds, managedModels, usesFallback: false };

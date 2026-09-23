@@ -884,6 +884,12 @@
     0 0 7px color-mix(in srgb, var(--tower-color) 75%, transparent)
   );
 }
+.defense-build__list > button > span > img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
 .defense-build__list > button:disabled {
   cursor: not-allowed;
   opacity: 0.42;
@@ -1022,6 +1028,13 @@
 .defense-tower-tooltip dl .is-burn dd {
   color: #be123c;
 }
+.defense-tower-tooltip dl .is-effect {
+  background: color-mix(in srgb, var(--tower-color) 12%, white);
+}
+.defense-tower-tooltip dl .is-effect dt,
+.defense-tower-tooltip dl .is-effect dd {
+  color: color-mix(in srgb, var(--tower-color) 75%, #1f2937);
+}
 .defense-upgrade h3 {
   margin: 5px 0 13px;
   font-size: 14px;
@@ -1073,7 +1086,7 @@
 .defense-upgrade--floating {
   position: absolute;
   z-index: 15;
-  width: 220px;
+  width: 340px;
   padding: 11px;
   border: 1px solid #7aa788;
   border-radius: 12px;
@@ -1121,81 +1134,118 @@
   border: 0;
   border-radius: 7px;
 }
+.defense-upgrade--floating > .defense-upgrade__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+.defense-upgrade--floating > .defense-upgrade__stats > div {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  margin: 0;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 7px;
+  font-size: 10px;
+}
+.defense-upgrade--floating > .defense-upgrade__stats > div span {
+  opacity: .82;
+}
+.defense-upgrade--floating > .defense-upgrade__stats > div b {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  font-weight: 900;
+}
 .defense-upgrade--floating > div b {
   font-weight: 900;
 }
-.defense-upgrade--floating > div.is-price {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-price {
   background: #fff8db;
   color: #74580c;
 }
-.defense-upgrade--floating > div.is-price b {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-price b {
   color: #9a6a00;
 }
-.defense-upgrade--floating > div.is-damage {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-damage {
   background: #fff0e7;
   color: #804326;
 }
-.defense-upgrade--floating > div.is-damage b {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-damage b {
   color: #a43f20;
 }
-.defense-upgrade--floating > div.is-range {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-range {
   background: #e6f2ff;
   color: #315c84;
 }
-.defense-upgrade--floating > div.is-range b {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-range b {
   color: #1e5f99;
 }
-.defense-upgrade--floating > div.is-rate {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-rate {
   background: #f4ebff;
   color: #69418b;
 }
-.defense-upgrade--floating > div.is-rate b {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-rate b {
   color: #7130a5;
 }
-.defense-upgrade--floating > div.is-buff-damage,
-.defense-upgrade--floating > div.is-buff-speed {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-buff-damage,
+.defense-upgrade--floating .defense-upgrade__stats > div.is-buff-speed {
   border: 0;
   background: #f2f5f3;
   color: #68736b;
 }
-.defense-upgrade--floating > div.is-buff-damage b,
-.defense-upgrade--floating > div.is-buff-speed b {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-buff-damage b,
+.defense-upgrade--floating .defense-upgrade__stats > div.is-buff-speed b {
   color: #7c8880;
 }
-.defense-upgrade--floating > div.is-buff-damage.is-active {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-buff-damage.is-active {
   background: #ffe8df;
   color: #873f28;
 }
-.defense-upgrade--floating > div.is-buff-damage.is-active b {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-buff-damage.is-active b {
   color: #c63e1c;
 }
-.defense-upgrade--floating > div.is-buff-speed.is-active {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-buff-speed.is-active {
   background: #e1f8ea;
   color: #276a45;
 }
-.defense-upgrade--floating > div.is-buff-speed.is-active b {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-buff-speed.is-active b {
   color: #14864a;
 }
-.defense-upgrade--floating > div.is-slow {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-slow {
   background: #e5fbff;
   color: #246675;
 }
-.defense-upgrade--floating > div.is-slow b {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-slow b {
   color: #087c94;
 }
-.defense-upgrade--floating > div.is-burn {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-burn {
   background: #ffe7df;
   color: #8b321f;
 }
-.defense-upgrade--floating > div.is-burn b {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-burn b {
   color: #bd2f19;
 }
-.defense-upgrade--floating > div.is-splash {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-splash {
   background: #fff0d8;
   color: #87500e;
 }
-.defense-upgrade--floating > div.is-splash b {
+.defense-upgrade--floating .defense-upgrade__stats > div.is-splash b {
   color: #b56408;
+}
+.defense-upgrade--floating .defense-upgrade__stats > div.is-effect {
+  border-left: 3px solid var(--effect-color, #8b5cf6);
+  background: color-mix(in srgb, var(--effect-color, #8b5cf6) 12%, white);
+  color: #4b5563;
+}
+.defense-upgrade--floating .defense-upgrade__stats > div.is-effect b {
+  color: color-mix(in srgb, var(--effect-color, #8b5cf6) 76%, #111827);
 }
 .defense-upgrade--floating > button:not(.defense-upgrade__close) {
   border-color: #b48529;

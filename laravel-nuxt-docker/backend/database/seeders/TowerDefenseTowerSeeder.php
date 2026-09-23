@@ -140,11 +140,51 @@ class TowerDefenseTowerSeeder extends Seeder
         ];
 
         foreach ($towers as $sortOrder => $tower) {
+            $tower['role'] = in_array($tower['id'], ['speed', 'damage'], true) ? 'buff' : 'damage';
+            $tower['effects']['items'] = $this->effectItems($tower['id']);
+            $levelMultiplier = $tower['id'] === 'thunder' ? [1, 1.42, 1.84] : [1, 1.55, 2.1];
+            $tower['damage_by_level'] = [
+                '1' => round($tower['damage'] * $levelMultiplier[0], 2),
+                '2' => round($tower['damage'] * $levelMultiplier[1], 2),
+                '3' => round($tower['damage'] * $levelMultiplier[2], 2),
+            ];
+            $tower['max_level'] = 3;
+            $tower['model_configuration']['targetHeightByLevel'] = array_fill(1, $tower['max_level'], $tower['model_configuration']['targetHeight']);
+            $tower['level_stats'] = collect(range(1, $tower['max_level']))->mapWithKeys(function (int $level) use ($tower): array {
+                $rangeGrowth = in_array($tower['id'], ['frost', 'speed', 'damage'], true) ? 0 : ($level - 1) * 0.22;
+                $fireRateGrowth = $tower['id'] === 'archer' ? 0.35 : 0.18;
+
+                return [(string) $level => [
+                    'damage' => $tower['damage_by_level'][(string) $level],
+                    'range' => round($tower['range'] + $rangeGrowth, 2),
+                    'fireRate' => round($tower['fire_rate'] / (1 + ($level - 1) * $fireRateGrowth), 3),
+                    'upgradeCost' => $level === 1 ? $tower['cost'] : (int) round($tower['cost'] * (0.75 + ($level - 2) * 0.35) / 5) * 5,
+                ]];
+            })->all();
             TowerDefenseTower::query()->updateOrCreate(
                 ['id' => $tower['id']],
                 [...$tower, 'sort_order' => $sortOrder, 'is_active' => true],
             );
         }
+    }
+
+    /** @return array<int, array<string, int|float|string>> */
+    private function effectItems(string $kind): array
+    {
+        return match ($kind) {
+            'cannon' => [['id' => 'cannon-splash', 'type' => 'splash-damage', 'behavior' => 'splash_damage', 'name' => 'Nổ lan', 'value' => 0, 'radius' => 0.9, 'ratio' => 0.45, 'perLevel' => 0, 'color' => '#f59e0b']],
+            'fire' => [
+                ['id' => 'fire-burn', 'type' => 'damage-over-time', 'behavior' => 'damage_over_time', 'name' => 'Thiêu đốt', 'value' => 4, 'duration' => 4, 'perLevel' => 2.2, 'color' => '#ef4444'],
+                ['id' => 'fire-splash', 'type' => 'splash-damage', 'behavior' => 'splash_damage', 'name' => 'Cầu lửa nổ', 'value' => 0, 'radius' => 1.05, 'ratio' => 0.55, 'perLevel' => 0, 'color' => '#f97316'],
+            ],
+            'water' => [
+                ['id' => 'water-slow', 'type' => 'slow', 'behavior' => 'slow', 'name' => 'Dòng nước chậm', 'value' => 0.25, 'duration' => 2, 'perLevel' => 0, 'color' => '#38bdf8'],
+                ['id' => 'water-splash', 'type' => 'splash-damage', 'behavior' => 'splash_damage', 'name' => 'Nước lan', 'value' => 0, 'radius' => 0.85, 'ratio' => 0.6, 'perLevel' => 0, 'color' => '#0ea5e9'],
+            ],
+            'speed' => [['id' => 'speed-aura', 'type' => 'attack-speed-aura', 'behavior' => 'attack_speed_aura', 'name' => 'Hào quang tốc độ', 'value' => 0.1, 'perLevel' => 0.2, 'radius' => 2.5, 'color' => '#22c55e']],
+            'damage' => [['id' => 'damage-aura', 'type' => 'damage-aura', 'behavior' => 'damage_aura', 'name' => 'Hào quang sát thương', 'value' => 0.1, 'perLevel' => 0.2, 'radius' => 2.5, 'color' => '#ef4444']],
+            default => [],
+        };
     }
 
     /** @return array<string, string> */

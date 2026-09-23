@@ -27,6 +27,7 @@ import {
   MapPinned,
   Skull,
   Castle,
+  Sparkles,
 } from "lucide-vue-next";
 
 defineProps<{
@@ -38,10 +39,12 @@ const emit = defineEmits<{
 }>();
 
 const { user, logout } = useAuth();
+const route = useRoute();
 
 const gameMenuOpen = ref(false);
 const algorithmMenuOpen = ref(false);
 const sortingMenuOpen = ref(false);
+const towerDefenseMenuOpen = ref(route.path.startsWith("/admin/tower-defense"));
 
 const menuItems = [
   {
@@ -60,26 +63,22 @@ const menuItems = [
     icon: Users,
   },
   {
-    label: "Tower Defense",
-    to: "/admin/tower-defense",
-    icon: MapPinned,
-  },
-  {
-    label: "Quái & Boss",
-    to: "/admin/tower-defense/enemies",
-    icon: Skull,
-  },
-  {
-    label: "Quản lý Tower",
-    to: "/admin/tower-defense/towers",
-    icon: Castle,
-  },
-  {
     label: "Pandora Ranking",
     to: "/admin/pandora/leaderboard",
     icon: Trophy,
   },
 ];
+
+const towerDefenseMenuItems = [
+  { label: "Map & tài nguyên", to: "/admin/tower-defense", icon: MapPinned },
+  { label: "Quản lý Tower", to: "/admin/tower-defense/towers", icon: Crosshair },
+  { label: "Loại hiệu ứng", to: "/admin/tower-defense/effect-types", icon: Sparkles },
+  { label: "Quái & Boss", to: "/admin/tower-defense/enemies", icon: Skull },
+];
+
+watch(() => route.path, (path) => {
+  if (path.startsWith("/admin/tower-defense")) towerDefenseMenuOpen.value = true;
+});
 
 const gameMenuItems = [
   {
@@ -214,6 +213,35 @@ const handleLogout = async () => {
             {{ item.badge }}
           </span> -->
         </NuxtLink>
+
+        <!-- Tower Defense -->
+        <div class="pt-1">
+          <button
+            type="button"
+            class="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-zinc-500 transition-all duration-200 hover:bg-white/[0.04] hover:text-zinc-200"
+            :class="{ 'bg-violet-500/10 !text-violet-300': route.path.startsWith('/admin/tower-defense') }"
+            :aria-expanded="towerDefenseMenuOpen"
+            @click="towerDefenseMenuOpen = !towerDefenseMenuOpen"
+          >
+            <Castle class="h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-105" />
+            <span>Tower Defense</span>
+            <ChevronDown class="ml-auto h-4 w-4 transition-transform duration-200" :class="towerDefenseMenuOpen ? 'rotate-180' : ''" />
+          </button>
+          <Transition name="game-menu">
+            <nav v-if="towerDefenseMenuOpen" class="mt-1 space-y-1 pl-6">
+              <NuxtLink
+                v-for="item in towerDefenseMenuItems"
+                :key="item.to"
+                :to="item.to"
+                class="group flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition-all duration-200 hover:bg-white/[0.04] hover:text-zinc-200"
+                active-class="bg-violet-500/10 !text-violet-300"
+              >
+                <component :is="item.icon" class="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-105" />
+                <span>{{ item.label }}</span>
+              </NuxtLink>
+            </nav>
+          </Transition>
+        </div>
 
         <!-- Game -->
         <div class="pt-1">

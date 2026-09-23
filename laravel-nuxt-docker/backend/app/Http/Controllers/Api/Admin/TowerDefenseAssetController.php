@@ -45,6 +45,9 @@ class TowerDefenseAssetController extends Controller
         ]);
         $this->ensurePurposeMatchesType($data['type'], $data['purpose']);
         $file = $request->file('file');
+        if ($data['type'] === 'image' && ! str_starts_with((string) $file->getMimeType(), 'image/')) {
+            throw ValidationException::withMessages(['file' => ['File tải lên phải là hình ảnh hợp lệ.']]);
+        }
         $path = $data['key'];
         Storage::disk('tower-defense')->putFileAs(dirname($path), $file, basename($path));
         $asset = TowerDefenseAsset::create([

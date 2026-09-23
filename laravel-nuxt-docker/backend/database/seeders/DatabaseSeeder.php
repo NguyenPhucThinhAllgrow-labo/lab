@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             DetectiveCaseSeeder::class,
             TowerDefenseAssetSeeder::class,
+            TowerDefenseEffectTypeSeeder::class,
             TowerDefenseTowerSeeder::class,
             TowerDefenseEnemySeeder::class,
             TowerDefenseMapSeeder::class,

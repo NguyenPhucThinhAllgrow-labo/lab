@@ -28,17 +28,19 @@ import {
 } from "lucide-vue-next";
 import {
   FROST_SLOW_DURATION_SECONDS,
-  MAX_TOWER_LEVEL,
   TOWER_DEFINITIONS,
-  TOWER_RANGE_LEVEL_BONUS,
   WATER_SLOW_DURATION_SECONDS,
   isSupportTowerKind,
   towerFireInterval,
+  towerEffectValue,
+  towerDamageAtLevel,
+  towerMaxLevel,
+  towerRangeAtLevel,
   towerSupportBonus,
   useTowerDefense,
 } from "~/composables/useTowerDefense";
 import type { TowerFaction } from "~/components/tower-defense/scene/tower-models";
-import type { TowerKind } from "~/types/games/towerDefense";
+import type { TowerEffectDefinition, TowerKind } from "~/types/games/towerDefense";
 
 useHead({
   title: "Kingdom Defense — Game Lab",
@@ -107,9 +109,7 @@ const {
 const selectedTowerEffectiveDamage = computed(() => {
   const tower = selectedTower.value;
   if (!tower || isSupportTowerKind(tower.kind)) return 0;
-  const baseDamage =
-    TOWER_DEFINITIONS[tower.kind].damage *
-    (1 + (tower.level - 1) * (tower.kind === "thunder" ? 0.42 : 0.55));
+  const baseDamage = towerDamageAtLevel(TOWER_DEFINITIONS[tower.kind], tower.level);
   const speedMultiplier =
     tower.kind === "thunder" ? 1 + selectedTowerSupportBonuses.value.speed : 1;
   return Math.round(
@@ -139,6 +139,14 @@ function selectMap(event: Event) {
 
 // Dữ liệu trình bày của bảng chọn tháp.
 const towerKinds = towerCatalog.activeKinds;
+function effectSummary(effect: TowerEffectDefinition, level: number) {
+  const value = towerEffectValue(effect, level);
+  if (effect.behavior === "damage_over_time") return `${value.toFixed(1)} damage/s · ${effect.duration ?? 0}s`;
+  if (effect.behavior === "slow") return `${Math.round(value * 100)}% · ${effect.duration ?? 0}s`;
+  if (effect.behavior === "splash_damage") return `Bán kính ${effect.radius ?? 0} · ${Math.round((effect.ratio ?? 1) * 100)}% tại rìa`;
+  if (effect.behavior === "damage_aura" || effect.behavior === "attack_speed_aura") return `+${Math.round(value * 100)}% · bán kính ${effect.radius ?? 0}`;
+  return `+${value.toFixed(1)} damage`;
+}
 const phaseLabel = computed(() =>
   isPaused.value
     ? "Đã tạm dừng"
@@ -652,17 +660,18 @@ onBeforeUnmount(() => {
                         : "Không thể di chuyển tháp khi round đang diễn ra."
                 }}
               </p>
+              <div class="defense-upgrade__stats">
               <div class="is-price">
                 <span>{{
                   selectedTower.level > 1 ? "Tổng đầu tư" : "Giá xây"
                 }}</span
                 ><b>{{ selectedTower.invested }} vàng</b>
               </div>
-              <div v-if="isSupportTowerKind(selectedTower.kind)" class="is-damage">
+              <div v-if="isSupportTowerKind(selectedTower.kind) && !TOWER_DEFINITIONS[selectedTower.kind].effects?.length" class="is-damage">
                 <span>{{ selectedTower.kind === "speed" ? "Tốc độ" : "Sát thương" }}</span
                 ><b>+{{ Math.round(towerSupportBonus(selectedTower.level) * 100) }}%</b>
               </div>
-              <div v-else class="is-damage">
+              <div v-else-if="!isSupportTowerKind(selectedTower.kind)" class="is-damage">
                 <span>{{
                   selectedTower.kind === "thunder"
                     ? "Sát thương/giây hiện tại"
@@ -679,11 +688,7 @@ onBeforeUnmount(() => {
                       : "Tầm bắn"
                 }}</span
                 ><b>{{
-                  (selectedTower.kind === "frost" || isSupportTowerKind(selectedTower.kind)
-                    ? TOWER_DEFINITIONS[selectedTower.kind].range
-                    : TOWER_DEFINITIONS[selectedTower.kind].range +
-                      (selectedTower.level - 1) * TOWER_RANGE_LEVEL_BONUS
-                  ).toFixed(1)
+                  towerRangeAtLevel(TOWER_DEFINITIONS[selectedTower.kind], selectedTower.level).toFixed(1)
                 }}</b>
               </div>
               <div v-if="!isSupportTowerKind(selectedTower.kind)" class="is-rate">
@@ -714,11 +719,19 @@ onBeforeUnmount(() => {
                 <span>Buff tốc độ</span
                 ><b>+{{ Math.round(selectedTowerSupportBonuses.speed * 100) }}%</b>
               </div>
+              <div
+                v-for="effect in TOWER_DEFINITIONS[selectedTower.kind].effects ?? []"
+                :key="effect.id"
+                class="is-effect"
+                :style="{ '--effect-color': effect.color ?? TOWER_DEFINITIONS[selectedTower.kind].color }"
+              >
+                <span>{{ effect.name }}</span><b>{{ effectSummary(effect, selectedTower.level) }}</b>
+              </div>
               <div v-if="selectedTower.kind === 'frost'" class="is-slow">
                 <span>Đóng băng</span
                 ><b>100% · {{ FROST_SLOW_DURATION_SECONDS }} giây</b>
               </div>
-              <div v-if="selectedTower.kind === 'water'" class="is-slow">
+              <div v-if="selectedTower.kind === 'water' && !TOWER_DEFINITIONS[selectedTower.kind].effects?.length" class="is-slow">
                 <span>Làm chậm</span
                 ><b
                   >{{ Math.round((TOWER_DEFINITIONS.water.slow ?? 0) * 100) }}%
@@ -727,16 +740,16 @@ onBeforeUnmount(() => {
               </div>
               <div
                 v-if="
-                  selectedTower.kind === 'fire' ||
+                  !TOWER_DEFINITIONS[selectedTower.kind].effects?.length && (selectedTower.kind === 'fire' ||
                   selectedTower.kind === 'cannon' ||
-                  selectedTower.kind === 'water'
+                  selectedTower.kind === 'water')
                 "
                 class="is-splash"
               >
                 <span>Bán kính lan</span
                 ><b>{{ TOWER_DEFINITIONS[selectedTower.kind].splashRadius }}</b>
               </div>
-              <div v-if="selectedTower.kind === 'fire'" class="is-burn">
+              <div v-if="selectedTower.kind === 'fire' && !TOWER_DEFINITIONS[selectedTower.kind].effects?.length" class="is-burn">
                 <span>Thiêu đốt</span
                 ><b
                   >{{
@@ -747,16 +760,17 @@ onBeforeUnmount(() => {
                   }}/s · {{ TOWER_DEFINITIONS.fire.burnDuration }}s</b
                 >
               </div>
+              </div>
               <button
                 type="button"
                 :disabled="
-                  selectedTower.level >= MAX_TOWER_LEVEL ||
+                  selectedTower.level >= towerMaxLevel(selectedTower.kind) ||
                   credits < upgradeCost
                 "
                 @click="upgradeSelected"
               >
                 {{
-                  selectedTower.level >= MAX_TOWER_LEVEL
+                  selectedTower.level >= towerMaxLevel(selectedTower.kind)
                     ? "Đã tối đa"
                     : `Nâng cấp · ${upgradeCost}`
                 }}
@@ -845,14 +859,8 @@ onBeforeUnmount(() => {
                       }"
                       aria-hidden="true"
                     >
-                      <Crosshair v-if="kind === 'archer'" />
-                      <Bomb v-else-if="kind === 'cannon'" />
-                      <Snowflake v-else-if="kind === 'frost'" />
-                      <Flame v-else-if="kind === 'fire'" />
-                      <Zap v-else-if="kind === 'thunder'" />
-                      <Waves v-else-if="kind === 'water'" />
-                      <Gauge v-else-if="kind === 'speed'" />
-                      <Swords v-else />
+                      <img v-if="TOWER_DEFINITIONS[kind].imageUrl" :src="TOWER_DEFINITIONS[kind].imageUrl" :alt="TOWER_DEFINITIONS[kind].name" />
+                      <template v-else><Crosshair v-if="kind === 'archer'" /><Bomb v-else-if="kind === 'cannon'" /><Snowflake v-else-if="kind === 'frost'" /><Flame v-else-if="kind === 'fire'" /><Zap v-else-if="kind === 'thunder'" /><Waves v-else-if="kind === 'water'" /><Gauge v-else-if="kind === 'speed'" /><Swords v-else /></template>
                     </span>
                     <div>
                       <strong>{{ TOWER_DEFINITIONS[kind].name }}</strong
@@ -995,7 +1003,7 @@ onBeforeUnmount(() => {
             <dt>Giá xây</dt>
             <dd>{{ hoveredTowerDefinition.cost }} vàng</dd>
           </div>
-          <div v-if="isSupportTowerKind(hoveredTowerKind)" class="is-damage">
+          <div v-if="isSupportTowerKind(hoveredTowerKind) && !hoveredTowerDefinition.effects?.length" class="is-damage">
             <dt>Buff theo cấp</dt>
             <dd>10% · 30% · 50%</dd>
           </div>
@@ -1027,11 +1035,19 @@ onBeforeUnmount(() => {
               }}
             </dd>
           </div>
+          <div
+            v-for="effect in hoveredTowerDefinition.effects ?? []"
+            :key="effect.id"
+            class="is-effect"
+          >
+            <dt>{{ effect.name }}</dt>
+            <dd>{{ effectSummary(effect, 1) }}</dd>
+          </div>
           <div v-if="hoveredTowerKind === 'frost'" class="is-slow">
             <dt>Đóng băng</dt>
             <dd>100% · {{ FROST_SLOW_DURATION_SECONDS }} giây</dd>
           </div>
-          <div v-if="hoveredTowerKind === 'water'" class="is-slow">
+          <div v-if="hoveredTowerKind === 'water' && !hoveredTowerDefinition.effects?.length" class="is-slow">
             <dt>Làm chậm</dt>
             <dd>
               {{ Math.round((hoveredTowerDefinition.slow ?? 0) * 100) }}% ·
@@ -1040,16 +1056,16 @@ onBeforeUnmount(() => {
           </div>
           <div
             v-if="
-              hoveredTowerKind === 'fire' ||
+              !hoveredTowerDefinition.effects?.length && (hoveredTowerKind === 'fire' ||
               hoveredTowerKind === 'cannon' ||
-              hoveredTowerKind === 'water'
+              hoveredTowerKind === 'water')
             "
             class="is-splash"
           >
             <dt>Bán kính lan</dt>
             <dd>{{ hoveredTowerDefinition.splashRadius }}</dd>
           </div>
-          <div v-if="hoveredTowerKind === 'fire'" class="is-burn">
+          <div v-if="hoveredTowerKind === 'fire' && !hoveredTowerDefinition.effects?.length" class="is-burn">
             <dt>Thiêu đốt</dt>
             <dd>
               {{ hoveredTowerDefinition.burnDamagePerSecond }}/s ·
