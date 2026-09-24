@@ -513,20 +513,47 @@ function closeTowerPopupOnOutsideClick(event: MouseEvent) {
   selectedTowerId.value = null;
 }
 
-/** Escape luôn bật/tắt pause trong mọi giai đoạn còn có thể chơi. */
-function handleEscapeKey(event: KeyboardEvent) {
-  if (event.key !== "Escape" || event.repeat) return;
-  if (showStoryIntroduction.value) {
+function isInteractiveKeyboardTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target.matches("input, textarea, select, button, a, [role='button']")
+  );
+}
+
+/** Escape bật/tắt pause; Space bắt đầu đợt khi người chơi đang ở màn chuẩn bị. */
+function handleGameKeyDown(event: KeyboardEvent) {
+  if (event.repeat) return;
+
+  if (event.key === "Escape") {
+    if (showStoryIntroduction.value) {
+      event.preventDefault();
+      dismissStoryIntroduction();
+      return;
+    }
+    if (!selectedFaction.value) return;
+    if (phase.value === "completed" || phase.value === "gameover") return;
     event.preventDefault();
-    dismissStoryIntroduction();
+
+    if (!isPaused.value) clearBoardSelection();
+    togglePauseFromHud();
     return;
   }
-  if (!selectedFaction.value) return;
-  if (phase.value === "completed" || phase.value === "gameover") return;
-  event.preventDefault();
 
-  if (!isPaused.value) clearBoardSelection();
-  togglePauseFromHud();
+  if (
+    event.code !== "Space" ||
+    isInteractiveKeyboardTarget(event.target) ||
+    showStoryIntroduction.value ||
+    !selectedFaction.value ||
+    !isGameReady.value ||
+    isPaused.value ||
+    !canStartWave.value
+  )
+    return;
+
+  event.preventDefault();
+  clearBoardSelection();
+  startWave();
 }
 
 watch(phase, (currentPhase) => {
@@ -644,7 +671,7 @@ onMounted(async () => {
   sessionAutosaveTimer = setInterval(() => void saveGameSession(), 3000);
   document.addEventListener("click", closeTowerPopupOnOutsideClick);
   document.addEventListener("visibilitychange", saveSessionWhenHidden);
-  window.addEventListener("keydown", handleEscapeKey);
+  window.addEventListener("keydown", handleGameKeyDown);
 });
 onBeforeUnmount(() => {
   restoreStoryPageScroll();
@@ -653,7 +680,7 @@ onBeforeUnmount(() => {
   void saveGameSession();
   document.removeEventListener("click", closeTowerPopupOnOutsideClick);
   document.removeEventListener("visibilitychange", saveSessionWhenHidden);
-  window.removeEventListener("keydown", handleEscapeKey);
+  window.removeEventListener("keydown", handleGameKeyDown);
 });
 </script>
 
@@ -1333,6 +1360,8 @@ onBeforeUnmount(() => {
                   v-if="phase !== 'gameover' && phase !== 'completed'"
                   type="button"
                   :disabled="!canStartWave"
+                  aria-keyshortcuts="Space"
+                  title="Bắt đầu đợt — phím Space"
                   @click="startWave"
                 >
                   <Play />{{
