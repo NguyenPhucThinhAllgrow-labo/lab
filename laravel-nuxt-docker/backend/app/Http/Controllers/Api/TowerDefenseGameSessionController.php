@@ -45,18 +45,19 @@ class TowerDefenseGameSessionController extends Controller
             'snapshot.towers' => ['present', 'array', 'max:500'],
             'snapshot.enemies' => ['present', 'array', 'max:5000'],
         ]);
-        $encoded = json_encode($validated['snapshot'], JSON_THROW_ON_ERROR);
+        $snapshot = $request->input('snapshot');
+        $encoded = json_encode($snapshot, JSON_THROW_ON_ERROR);
         if (strlen($encoded) > self::MAX_SNAPSHOT_BYTES) {
             throw ValidationException::withMessages([
                 'snapshot' => ['Dữ liệu phiên chơi vượt quá giới hạn cho phép.'],
             ]);
         }
 
-        $phase = $validated['snapshot']['phase'];
+        $phase = $snapshot['phase'];
         $status = in_array($phase, ['completed', 'gameover'], true) ? $phase : 'active';
         $now = now();
 
-        $session = DB::transaction(function () use ($request, $map, $validated, $status, $now): TowerDefenseGameSession {
+        $session = DB::transaction(function () use ($request, $map, $validated, $snapshot, $status, $now): TowerDefenseGameSession {
             $session = TowerDefenseGameSession::query()
                 ->where('user_id', $request->user()->id)
                 ->where('tower_defense_map_id', $map->id)
@@ -76,10 +77,10 @@ class TowerDefenseGameSessionController extends Controller
             $session->fill([
                 'faction' => $validated['faction'],
                 'status' => $status,
-                'current_wave' => $validated['snapshot']['wave'],
-                'score' => $validated['snapshot']['score'],
-                'castle_health' => $validated['snapshot']['castleHealth'],
-                'snapshot' => $validated['snapshot'],
+                'current_wave' => $snapshot['wave'],
+                'score' => $snapshot['score'],
+                'castle_health' => $snapshot['castleHealth'],
+                'snapshot' => $snapshot,
                 'last_played_at' => $now,
                 'finished_at' => $status === 'active' ? null : $now,
             ]);

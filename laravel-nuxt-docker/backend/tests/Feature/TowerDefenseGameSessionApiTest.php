@@ -42,6 +42,8 @@ class TowerDefenseGameSessionApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.faction', 'human')
             ->assertJsonPath('data.snapshot.wave', 5)
+            ->assertJsonPath('data.snapshot.credits', 2500)
+            ->assertJsonPath('data.snapshot.pendingEnemies', 7)
             ->assertJsonPath('data.snapshot.towers.0.kind', 'frost');
     }
 
@@ -99,6 +101,8 @@ class TowerDefenseGameSessionApiTest extends TestCase
             'score' => $score,
             'castleHealth' => 20,
             'credits' => 2500,
+            'pendingEnemies' => 7,
+            'speedMultiplier' => 2,
             'towers' => [['id' => 1, 'kind' => 'frost', 'x' => 2, 'y' => 3, 'level' => 1]],
             'enemies' => [],
             'projectiles' => [],

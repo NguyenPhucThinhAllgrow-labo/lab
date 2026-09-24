@@ -879,11 +879,19 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     ) return false;
 
     const restored = JSON.parse(JSON.stringify(snapshot)) as TowerDefenseGameSnapshot;
-    credits.value = Math.max(0, Number(restored.credits) || 0);
-    castleHealth.value = Math.max(0, Number(restored.castleHealth) || 0);
-    wave.value = Math.max(0, Math.floor(Number(restored.wave) || 0));
-    score.value = Math.max(0, Math.floor(Number(restored.score) || 0));
-    bestWave.value = Math.max(bestWave.value, Math.floor(Number(restored.bestWave) || 0));
+    const finiteNumber = (value: unknown, fallback: number) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : fallback;
+    };
+    credits.value = Math.max(0, finiteNumber(restored.credits, startingCredits));
+    castleHealth.value = Math.max(0, finiteNumber(restored.castleHealth, 20));
+    wave.value = Math.max(0, Math.floor(finiteNumber(restored.wave, 0)));
+    score.value = Math.max(0, Math.floor(finiteNumber(restored.score, 0)));
+    bestWave.value = Math.max(
+      bestWave.value,
+      wave.value,
+      Math.floor(finiteNumber(restored.bestWave, 0)),
+    );
     phase.value = restored.phase;
     speedMultiplier.value = [0.5, 1, 2, 4].includes(restored.speedMultiplier)
       ? restored.speedMultiplier
@@ -906,13 +914,33 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     spawnCooldownByLane[0] = Math.max(0, Number(restored.spawnCooldownByLane?.[0]) || 0);
     spawnCooldownByLane[1] = Math.max(0, Number(restored.spawnCooldownByLane?.[1]) || 0);
     pendingBosses = Array.isArray(restored.pendingBosses) ? restored.pendingBosses : [];
-    nextTowerId = Math.max(1, Math.floor(Number(restored.nextTowerId) || 1));
-    nextEnemyId = Math.max(1, Math.floor(Number(restored.nextEnemyId) || 1));
-    nextManagedEnemyIndex = Math.max(0, Math.floor(Number(restored.nextManagedEnemyIndex) || 0));
-    nextManagedBossIndex = Math.max(0, Math.floor(Number(restored.nextManagedBossIndex) || 0));
-    nextProjectileId = Math.max(1, Math.floor(Number(restored.nextProjectileId) || 1));
-    nextImpactId = Math.max(1, Math.floor(Number(restored.nextImpactId) || 1));
-    elapsed = Math.max(0, Number(restored.elapsed) || 0);
+    nextTowerId = Math.max(
+      1,
+      ...restored.towers.map((tower) => tower.id + 1),
+      Math.floor(finiteNumber(restored.nextTowerId, 1)),
+    );
+    nextEnemyId = Math.max(
+      1,
+      ...restored.enemies.map((enemy) => enemy.id + 1),
+      Math.floor(finiteNumber(restored.nextEnemyId, 1)),
+    );
+    nextManagedEnemyIndex = Math.max(0, Math.floor(finiteNumber(restored.nextManagedEnemyIndex, 0)));
+    nextManagedBossIndex = Math.max(0, Math.floor(finiteNumber(restored.nextManagedBossIndex, 0)));
+    nextProjectileId = Math.max(
+      1,
+      ...projectiles.value.map((projectile) => projectile.id + 1),
+      Math.floor(finiteNumber(restored.nextProjectileId, 1)),
+    );
+    nextImpactId = Math.max(
+      1,
+      ...impacts.value.map((impact) => impact.id + 1),
+      Math.floor(finiteNumber(restored.nextImpactId, 1)),
+    );
+    elapsed = Math.max(
+      0,
+      ...restored.towers.map((tower) => tower.firingUntil ?? 0),
+      finiteNumber(restored.elapsed, 0),
+    );
     isPaused.value = phase.value === "wave" || phase.value === "between";
     lastTickAt = Date.now();
     pendingRealTime = 0;

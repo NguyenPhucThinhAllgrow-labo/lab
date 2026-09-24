@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Trophy,
   ShieldCheck,
+  Skull,
   Snowflake,
   Sparkles,
   Swords,
@@ -489,16 +490,21 @@ watch(phase, (currentPhase) => {
 const completionReported = ref(false);
 const completionSaving = ref(false);
 const completionSaveError = ref("");
-const showFinalWaveAnnouncement = ref(false);
-let finalWaveAnnouncementTimer: ReturnType<typeof setTimeout> | null = null;
+const showBossWaveAnnouncement = ref(false);
+const announcedBossWave = ref(0);
+const announcedWaveIsFinal = computed(
+  () => announcedBossWave.value === completionWave.value,
+);
+let bossWaveAnnouncementTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Hiện cảnh báo cinematic ngắn khi người chơi bước vào đợt cuối. */
-function announceFinalWave() {
-  if (finalWaveAnnouncementTimer) clearTimeout(finalWaveAnnouncementTimer);
-  showFinalWaveAnnouncement.value = true;
-  finalWaveAnnouncementTimer = setTimeout(() => {
-    showFinalWaveAnnouncement.value = false;
-    finalWaveAnnouncementTimer = null;
+/** Hiện cảnh báo cinematic ngắn ở đầu mỗi đợt có boss. */
+function announceBossWave(currentWave: number) {
+  if (bossWaveAnnouncementTimer) clearTimeout(bossWaveAnnouncementTimer);
+  announcedBossWave.value = currentWave;
+  showBossWaveAnnouncement.value = true;
+  bossWaveAnnouncementTimer = setTimeout(() => {
+    showBossWaveAnnouncement.value = false;
+    bossWaveAnnouncementTimer = null;
   }, 2800);
 }
 const nextMap = computed(() => {
@@ -556,8 +562,9 @@ watch([phase, wave], ([currentPhase, currentWave]) => {
   if (
     !sessionLoading.value &&
     currentPhase === "wave" &&
-    currentWave === completionWave.value
-  ) announceFinalWave();
+    currentWave > 0 &&
+    currentWave % 5 === 0
+  ) announceBossWave(currentWave);
 });
 watch(
   [towers, phase, isPaused],
@@ -585,7 +592,7 @@ onMounted(async () => {
 });
 onBeforeUnmount(() => {
   if (sessionAutosaveTimer) clearInterval(sessionAutosaveTimer);
-  if (finalWaveAnnouncementTimer) clearTimeout(finalWaveAnnouncementTimer);
+  if (bossWaveAnnouncementTimer) clearTimeout(bossWaveAnnouncementTimer);
   void saveGameSession();
   document.removeEventListener("click", closeTowerPopupOnOutsideClick);
   document.removeEventListener("visibilitychange", saveSessionWhenHidden);
@@ -669,7 +676,7 @@ onBeforeUnmount(() => {
 
             <Transition name="defense-final-wave">
               <section
-                v-if="showFinalWaveAnnouncement"
+                v-if="showBossWaveAnnouncement"
                 class="defense-final-wave-announcement"
                 role="alert"
                 aria-live="assertive"
@@ -677,9 +684,13 @@ onBeforeUnmount(() => {
                 <div class="defense-final-wave-announcement__line" />
                 <div class="defense-final-wave-announcement__content">
                   <span><Swords /></span>
-                  <small>THỬ THÁCH CUỐI CÙNG</small>
-                  <strong>ĐỢT CUỐI</strong>
-                  <p>Toàn quân địch đang tiến công — hãy giữ vững lâu đài!</p>
+                  <small>{{ announcedWaveIsFinal ? "THỬ THÁCH CUỐI CÙNG" : `CẢNH BÁO ĐỢT ${announcedBossWave}` }}</small>
+                  <strong>{{ announcedWaveIsFinal ? "ĐỢT CUỐI" : "BOSS XUẤT HIỆN" }}</strong>
+                  <p>
+                    {{ announcedWaveIsFinal
+                      ? "Toàn quân địch đang tiến công — hãy giữ vững lâu đài!"
+                      : "Một kẻ địch hùng mạnh đã bước vào chiến trường!" }}
+                  </p>
                 </div>
                 <div class="defense-final-wave-announcement__line" />
               </section>
@@ -762,6 +773,31 @@ onBeforeUnmount(() => {
                       <RotateCcw /> Chơi lại map này
                     </button>
                   </div>
+                </div>
+              </section>
+            </Transition>
+
+            <Transition name="defense-defeat">
+              <section
+                v-if="phase === 'gameover'"
+                class="defense-defeat-overlay"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="defense-defeat-title"
+                aria-live="assertive"
+              >
+                <div class="defense-defeat-dialog">
+                  <span class="defense-defeat-emblem"><Skull /></span>
+                  <small>PHÒNG TUYẾN ĐÃ SỤP ĐỔ</small>
+                  <h2 id="defense-defeat-title">Lâu đài đã thất thủ</h2>
+                  <p>Quân địch đã xuyên thủng phòng tuyến. Hãy tập hợp lại lực lượng và thử thêm lần nữa.</p>
+                  <div class="defense-defeat-stats">
+                    <span>ĐỢT ĐẠT ĐƯỢC<strong>{{ wave }}</strong></span>
+                    <span>ĐIỂM SỐ<strong>{{ score.toLocaleString('vi-VN') }}</strong></span>
+                  </div>
+                  <button type="button" autofocus @click.stop="replayMap">
+                    <RotateCcw /> Chơi lại
+                  </button>
                 </div>
               </section>
             </Transition>
