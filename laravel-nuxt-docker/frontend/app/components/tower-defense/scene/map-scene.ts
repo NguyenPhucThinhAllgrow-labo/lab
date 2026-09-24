@@ -136,6 +136,76 @@ function addRouteLines(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   }
 }
 
+function createPineTree(surfaceDetail: THREE.DataTexture | null) {
+  const tree = new THREE.Group();
+  const trunk = createMapMesh(surfaceDetail, new THREE.CylinderGeometry(0.1, 0.15, 0.85, 10), 0x493629, { roughness: 0.92 });
+  trunk.position.y = 0.4;
+  const layers = [
+    [0.58, 1.05, 0x29452f, 1.02],
+    [0.46, 0.9, 0x31563a, 1.48],
+    [0.32, 0.72, 0x3b6542, 1.87],
+  ] as const;
+  tree.add(trunk);
+  for (const [radius, height, color, y] of layers) {
+    const layer = createMapMesh(surfaceDetail, new THREE.ConeGeometry(radius, height, 12), color, { roughness: 0.9 });
+    layer.position.y = y;
+    tree.add(layer);
+  }
+  return tree;
+}
+
+function createCrystalCluster(surfaceDetail: THREE.DataTexture | null, color: number) {
+  const cluster = new THREE.Group();
+  const stone = createMapMesh(surfaceDetail, new THREE.DodecahedronGeometry(0.24, 0), 0x41494b, { roughness: 0.9, flatShading: true });
+  stone.position.y = 0.12;
+  stone.scale.set(1.5, 0.55, 1.15);
+  cluster.add(stone);
+  for (let index = 0; index < 3; index++) {
+    const crystal = createMapMesh(surfaceDetail, new THREE.OctahedronGeometry(0.15 - index * 0.025, 0), color, { emissive: color, roughness: 0.12, flatShading: true });
+    crystal.position.set((index - 1) * 0.14, 0.31 + index * 0.055, index % 2 ? -0.05 : 0.04);
+    crystal.scale.y = 1.8 - index * 0.2;
+    crystal.rotation.z = (index - 1) * -0.2;
+    cluster.add(crystal);
+  }
+  return cluster;
+}
+
+function createRuneStone(surfaceDetail: THREE.DataTexture | null) {
+  const stone = new THREE.Group();
+  const pillar = createMapMesh(surfaceDetail, new THREE.BoxGeometry(0.28, 0.82, 0.2, 2, 4, 2), 0x575c59, { roughness: 0.94 });
+  pillar.position.y = 0.36;
+  pillar.rotation.z = 0.035;
+  const rune = createMapMesh(surfaceDetail, new THREE.TorusGeometry(0.075, 0.014, 6, 16), 0x8bd8cb, { emissive: 0x397f77, roughness: 0.2 });
+  rune.position.set(0, 0.45, 0.11);
+  const mark = createMapMesh(surfaceDetail, new THREE.BoxGeometry(0.018, 0.22, 0.018), 0x8bd8cb, { emissive: 0x397f77, roughness: 0.2 });
+  mark.position.set(0, 0.45, 0.125);
+  stone.add(pillar, rune, mark);
+  return stone;
+}
+
+function addScenery(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null) {
+  const edgeX = map.columns / 2 + 0.45;
+  const edgeZ = map.rows / 2 - 0.75;
+  for (const definition of map.scenery.trees) {
+    const item = createPineTree(surfaceDetail);
+    item.position.set(definition.x * edgeX * 2 * map.cellSize, -0.08, definition.y * edgeZ * 2 * map.cellSize);
+    item.scale.setScalar(definition.scale);
+    scene.add(item);
+  }
+  for (const definition of map.scenery.crystals) {
+    const item = createCrystalCluster(surfaceDetail, definition.color);
+    item.position.set(definition.x * edgeX * 2 * map.cellSize, -0.03, definition.y * edgeZ * 2 * map.cellSize);
+    item.scale.setScalar(definition.scale ?? 1);
+    scene.add(item);
+  }
+  for (const definition of map.scenery.runes) {
+    const item = createRuneStone(surfaceDetail);
+    item.position.set(definition.x * edgeX * 2 * map.cellSize, -0.08, definition.y * edgeZ * 2 * map.cellSize);
+    item.rotation.y = definition.rotation;
+    scene.add(item);
+  }
+}
+
 function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   const isLavaPortal = map.bossCombatProfileKey === "lava-boss";
   const portalColor = new THREE.Color(isLavaPortal ? 0xd93612 : 0x7040b8);
@@ -183,10 +253,30 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
           // Nhiều lớp sóng có tốc độ khác nhau làm biên portal biến dạng
           // liên tục, tránh silhouette tròn đều như một tấm đĩa.
           float angularDrift = sin(uTime * 0.74) * 0.38;
-          float boundary = 0.89
-            + sin(angle * 3.0 + uTime * 1.08 + angularDrift) * 0.05
-            + sin(angle * 7.0 - uTime * 1.57) * 0.028
-            + sin(angle * 13.0 + uTime * 2.18) * 0.017;
+          float morphCycle = uTime * 0.9;
+          float fiveLobeWeight = pow(
+            0.5 + 0.5 * cos(morphCycle),
+            3.0
+          );
+          float sixLobeWeight = pow(
+            0.5 + 0.5 * cos(morphCycle - 2.094),
+            3.0
+          );
+          float manyLobeWeight = pow(
+            0.5 + 0.5 * cos(morphCycle - 4.188),
+            3.0
+          );
+          float totalShapeWeight =
+            fiveLobeWeight + sixLobeWeight + manyLobeWeight;
+          float morphShape = (
+            cos(angle * 5.0 + angularDrift) * fiveLobeWeight +
+            cos(angle * 6.0 - angularDrift * 0.7) * sixLobeWeight +
+            cos(angle * 11.0 + angularDrift * 1.3) * manyLobeWeight
+          ) / totalShapeWeight;
+          float boundary = 0.875
+            + morphShape * 0.075
+            + sin(angle * 5.0 - uTime * 1.46) * 0.028
+            + sin(angle * 13.0 + uTime * 2.18) * 0.014;
           float shapedRadius = radius / boundary;
           if (shapedRadius > 1.0) discard;
           float edgeFade = 1.0 - smoothstep(0.84, 1.0, shapedRadius);
@@ -471,6 +561,7 @@ export function createTowerDefenseMapScene(scene: THREE.Scene, map: TowerDefense
   const tileMeshes = addTiles(scene, map, surfaceDetail);
   addCobblestonePath(scene, map, surfaceDetail);
   addRouteLines(scene, map);
+  addScenery(scene, map, surfaceDetail);
   const updatePortal = addSpawnPortal(scene, map);
   const particles = addAtmosphere(scene, map);
   return { tileMeshes, particles, updatePortal };
