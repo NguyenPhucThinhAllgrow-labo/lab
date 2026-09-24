@@ -145,6 +145,7 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
     auraMaterial: THREE.ShaderMaterial;
     matter: THREE.Points;
     matterPositions: THREE.BufferAttribute;
+    matterLife: THREE.BufferAttribute;
     light: THREE.PointLight;
   }> = [];
 
@@ -177,14 +178,31 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
         void main() {
           vec2 point = vUv - vec2(0.5);
           float radius = length(point) * 2.0;
-          if (radius > 1.0) discard;
           float angle = atan(point.y, point.x);
-          float edgeFade = 1.0 - smoothstep(0.84, 1.0, radius);
+
+          // Nhiều lớp sóng có tốc độ khác nhau làm biên portal biến dạng
+          // liên tục, tránh silhouette tròn đều như một tấm đĩa.
+          float angularDrift = sin(uTime * 0.74) * 0.38;
+          float boundary = 0.89
+            + sin(angle * 3.0 + uTime * 1.08 + angularDrift) * 0.05
+            + sin(angle * 7.0 - uTime * 1.57) * 0.028
+            + sin(angle * 13.0 + uTime * 2.18) * 0.017;
+          float shapedRadius = radius / boundary;
+          if (shapedRadius > 1.0) discard;
+          float edgeFade = 1.0 - smoothstep(0.84, 1.0, shapedRadius);
           float spiral = 0.5 + 0.5 * sin(angle * 5.0 - radius * 18.0 + uTime * 3.0);
           float inwardFlow = 0.5 + 0.5 * sin(radius * 25.0 + uTime * 4.2);
           float filament = pow(spiral, 5.0) * (0.55 + inwardFlow * 0.45);
-          vec3 magicColor = mix(uInnerColor, uOuterColor, smoothstep(0.15, 0.92, radius));
+          float unstableRim = smoothstep(0.82, 0.94, shapedRadius) *
+            (1.0 - smoothstep(0.94, 1.0, shapedRadius));
+          vec3 magicColor = mix(
+            uInnerColor,
+            uOuterColor,
+            smoothstep(0.15, 0.92, shapedRadius)
+          );
           vec3 color = mix(vec3(0.006, 0.004, 0.01), magicColor, filament * 0.9);
+          float rimPulse = 0.36 + 0.14 * sin(angle * 5.0 - uTime * 2.6);
+          color += uInnerColor * unstableRim * rimPulse;
 
           // Các mảnh vật chất xuất hiện ở vành ngoài, xoắn dần rồi bị hút vào lõi.
           float matterAlpha = 0.0;
@@ -243,24 +261,58 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
     portal.add(light);
 
     // Các mảnh vật chất bên ngoài portal bị kéo theo quỹ đạo xoắn vào tâm.
-    const matterCount = 28;
+    const matterCount = 52;
     const matterGeometry = new THREE.BufferGeometry();
     const matterPositions = new THREE.BufferAttribute(
       new Float32Array(matterCount * 3),
       3,
     );
+    const matterLife = new THREE.BufferAttribute(
+      new Float32Array(matterCount),
+      1,
+    );
     matterGeometry.setAttribute("position", matterPositions);
+    matterGeometry.setAttribute("aLife", matterLife);
     const matter = new THREE.Points(
       matterGeometry,
-      new THREE.PointsMaterial({
-        color: highlightColor,
-        size: 0.045,
+      new THREE.ShaderMaterial({
         transparent: true,
-        opacity: 0.88,
         depthWrite: false,
         depthTest: true,
         blending: THREE.AdditiveBlending,
-        sizeAttenuation: true,
+        toneMapped: false,
+        uniforms: {
+          uColor: { value: highlightColor },
+        },
+        vertexShader: `
+          attribute float aLife;
+          varying float vLife;
+
+          void main() {
+            vLife = aLife;
+            vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+            gl_Position = projectionMatrix * viewPosition;
+            float perspective = clamp(
+              14.0 / max(6.0, -viewPosition.z),
+              0.85,
+              1.5
+            );
+            gl_PointSize = mix(3.0, 6.5, aLife) * perspective;
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 uColor;
+          varying float vLife;
+
+          void main() {
+            float distanceToCenter = length(gl_PointCoord - vec2(0.5));
+            if (distanceToCenter > 0.5) discard;
+            float core = 1.0 - smoothstep(0.04, 0.2, distanceToCenter);
+            float glow = 1.0 - smoothstep(0.08, 0.5, distanceToCenter);
+            float alpha = (glow * 0.28 + core * 0.72) * vLife * 0.82;
+            gl_FragColor = vec4(uColor * (0.65 + core * 1.25), alpha);
+          }
+        `,
       }),
     );
     matter.name = "spawnPortalMatter";
@@ -291,13 +343,24 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
         varying vec2 vUv;
 
         void main() {
-          float radius = length(vUv - vec2(0.5)) * 2.0;
+          vec2 point = vUv - vec2(0.5);
+          float radius = length(point) * 2.0;
           if (radius > 1.0) discard;
+          float angle = atan(point.y, point.x);
           float fade = 1.0 - smoothstep(0.18, 1.0, radius);
           float wave = 0.5 + 0.5 * sin(radius * 17.0 - uTime * 3.1);
           float ring = pow(wave, 5.0) * (1.0 - smoothstep(0.35, 1.0, radius));
-          float alpha = fade * 0.13 + ring * 0.1;
-          gl_FragColor = vec4(uColor * (0.55 + ring), alpha);
+          float suction = 0.5 + 0.5 * sin(
+            angle * 7.0 + radius * 24.0 + uTime * 4.0
+          );
+          float filament = pow(suction, 9.0) *
+            smoothstep(0.12, 0.42, radius) *
+            (1.0 - smoothstep(0.7, 1.0, radius));
+          float alpha = fade * 0.075 + ring * 0.065 + filament * 0.1;
+          gl_FragColor = vec4(
+            uColor * (0.42 + ring * 0.8 + filament),
+            alpha
+          );
         }
       `,
     });
@@ -318,6 +381,7 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       auraMaterial,
       matter,
       matterPositions,
+      matterLife,
       light,
     });
   }
@@ -325,7 +389,14 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   return (elapsed: number) => {
     portals.forEach(
       (
-        { vortexMaterial, auraMaterial, matter, matterPositions, light },
+        {
+          vortexMaterial,
+          auraMaterial,
+          matter,
+          matterPositions,
+          matterLife,
+          light,
+        },
         index,
       ) => {
         const phase = elapsed + index * 0.65;
@@ -340,19 +411,24 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
         ) {
           const seed = ((particleIndex * 47 + index * 19) % 97) / 97;
           const progress = (phase * (0.1 + seed * 0.045) + seed) % 1;
-          const radius = THREE.MathUtils.lerp(1.75, 0.08, progress);
+          const radius = THREE.MathUtils.lerp(2.55, 0.08, progress);
           const angle =
             seed * Math.PI * 2 +
-            progress * 3.4 +
+            progress * 4.15 +
             Math.sin(phase * 0.28 + particleIndex) * 0.13;
           matterPositions.setXYZ(
             particleIndex,
             Math.cos(angle) * radius,
-            Math.sin(angle) * radius * 0.32,
-            Math.sin(seed * 31.7 + phase * 0.7) * 0.08,
+            Math.sin(angle) * radius * 0.5,
+            Math.sin(seed * 31.7 + phase * 0.7) * 0.1,
           );
+          const fadeIn = THREE.MathUtils.smoothstep(progress, 0, 0.12);
+          const fadeOut =
+            1 - THREE.MathUtils.smoothstep(progress, 0.84, 1);
+          matterLife.setX(particleIndex, fadeIn * fadeOut);
         }
         matterPositions.needsUpdate = true;
+        matterLife.needsUpdate = true;
         matter.rotation.z = Math.sin(phase * 0.32) * 0.04;
       },
     );
