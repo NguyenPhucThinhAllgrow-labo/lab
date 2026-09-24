@@ -1,6 +1,12 @@
 <script setup lang="ts">
 const sidebarOpen = ref(true);
 
+useHead({
+  bodyAttrs: {
+    class: "admin-interface",
+  },
+});
+
 const openSidebar = () => {
   sidebarOpen.value = true;
 };

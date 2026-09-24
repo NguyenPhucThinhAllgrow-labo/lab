@@ -224,7 +224,9 @@ function fitCharacter(root: THREE.Object3D) {
   const weaponParents = weapons.map((weapon) => weapon.parent);
   weapons.forEach((weapon) => weapon.removeFromParent());
   root.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(root);
+  // `precise=true` rất quan trọng với SkinnedMesh: bounding box cache của asset
+  // thường lấy từ bind pose và có thể làm tâm camera lệch xa model đang hiển thị.
+  const box = new THREE.Box3().setFromObject(root, true);
   if (box.isEmpty()) {
     weapons.forEach((weapon, index) => weaponParents[index]?.add(weapon));
     return;
@@ -236,20 +238,17 @@ function fitCharacter(root: THREE.Object3D) {
   root.position.z -= center.z;
   const height = Math.max(size.y, 0.1);
   fittedCharacterHeight = height;
-  const combinedScale = Math.max(
-    Number(root.userData.previewCombinedScale) || 1,
-    0.0001,
-  );
-  const unscaledHeight = height / combinedScale;
-  // Camera bám chiều cao gốc của asset, không bám chiều cao sau scale. Nhờ đó
-  // characterScale/sceneScale thay đổi sẽ hiện đúng tương quan với mặt sàn.
+  // Fit theo kích thước thật sau characterScale/sceneScale để model luôn đủ lớn
+  // và nằm giữa khung trong lúc quản trị viên chỉnh vũ khí, scale, animation.
   fittedCameraZoom = THREE.MathUtils.clamp(
-    (PREVIEW_FRUSTUM_HEIGHT * 0.38) / Math.max(unscaledHeight, 0.1),
+    (PREVIEW_FRUSTUM_HEIGHT * 0.68) / height,
     0.35,
-    4,
+    6,
   );
   root.updateMatrixWorld(true);
-  new THREE.Box3().setFromObject(root).getCenter(fittedCameraTarget);
+  // Sau ba phép dịch phía trên, tâm thân nhân vật luôn là trục X/Z = 0. Không
+  // đo lại từ bounding box cache để tránh sai số khiến nội dung dạt sang góc.
+  fittedCameraTarget.set(0, height * 0.5, 0);
   weapons.forEach((weapon, index) => weaponParents[index]?.add(weapon));
   root.updateMatrixWorld(true);
   resetCamera();
@@ -351,6 +350,13 @@ async function loadPreview() {
     // Căn lại sau khi animation đã áp pose. Đây là bước giúp Safari/macOS và
     // Chrome/Windows dùng đúng cùng tâm model thay vì phụ thuộc bind pose.
     fitCharacter(root);
+    // Trên màn hình Retina, canvas có thể nhận kích thước thực sau frame tải
+    // model. Fit lại ở frame kế tiếp để Mac và Windows dùng cùng layout cuối.
+    requestAnimationFrame(() => {
+      if (version !== loadVersion || characterRoot !== root) return;
+      resizeRenderer();
+      fitCharacter(root);
+    });
   } catch (error) {
     console.error("[Tower Defense] Không thể preview model.", error);
     errorMessage.value = "Không thể tải model hoặc vũ khí đã chọn.";
@@ -366,7 +372,9 @@ function createPreview() {
   scene.fog = new THREE.Fog(0x090910, 8, 22);
   camera = new THREE.OrthographicCamera(-2.5, 2.5, 2.5, -2.5, 0.05, 100);
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  // Dùng cùng mật độ render trên mọi hệ điều hành. Retina DPR=2 từng khiến
+  // frame khởi tạo trên Mac khác với Chrome/Windows và làm camera fit lệch.
+  renderer.setPixelRatio(1);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   // Dùng cùng pipeline màu với scene thật để preview không bị ám tím/sáng khác
   // giữa màn hình Display-P3 của macOS và màn hình sRGB phổ biến trên Windows.

@@ -9,7 +9,7 @@ class TowerDefenseAsset extends Model
     public const PURPOSES_BY_TYPE = [
         'model' => ['enemy-model', 'boss-model', 'castle-model', 'map-model', 'tower-model', 'equipment-model', 'animation', 'texture', 'other'],
         'sound' => ['background-music', 'tower-sfx', 'other'],
-        'image' => ['enemy-avatar', 'boss-avatar', 'map-image', 'ui-image', 'other'],
+        'image' => ['enemy-avatar', 'boss-avatar', 'tower-image', 'map-image', 'ui-image', 'other'],
     ];
 
     protected $fillable = [

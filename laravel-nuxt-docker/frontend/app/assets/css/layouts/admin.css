@@ -8,6 +8,38 @@
   opacity: 0;
 }
 
+/* Chuẩn chữ dùng chung cho toàn bộ form admin, bao gồm dialog được Teleport. */
+.admin-interface form label {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.admin-interface form label > span:first-child {
+  color: #c4c4cc !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+.admin-interface form fieldset > legend {
+  color: #ddd6fe;
+  font-size: 13px !important;
+  line-height: 1.4;
+}
+
+.admin-interface form label > small {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.admin-interface form label.check,
+.admin-interface form label.checkbox,
+.admin-interface form label[class*="checkbox"] {
+  color: #c4c4cc;
+  font-size: 13px !important;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }

@@ -64,6 +64,9 @@ const api = useApi();
 const enemies = ref<Enemy[]>([]);
 const assets = ref<Asset[]>([]);
 const loading = ref(true);
+const enemyPage = ref(1);
+const enemyLastPage = ref(1);
+const enemyTotal = ref(0);
 const saving = ref(false);
 const pageError = ref("");
 const formError = ref("");
@@ -204,15 +207,18 @@ function multiplier(profile: Enemy["combat_profile"], group: "damageMultipliers"
   return profile[group]?.[key] ?? 1;
 }
 
-async function loadData() {
+async function loadData(page = enemyPage.value) {
   loading.value = true;
   pageError.value = "";
   try {
     const [enemyResponse, assetResponse] = await Promise.all([
-      api<{ data: Enemy[] }>("/api/admin/tower-defense/enemies"),
-      api<{ data: Asset[] }>("/api/admin/tower-defense/assets"),
+      api<{ data: Enemy[]; current_page: number; last_page: number; total: number }>(`/api/admin/tower-defense/enemies?per_page=12&page=${page}`),
+      api<{ data: Asset[] }>("/api/admin/tower-defense/assets?per_page=500"),
     ]);
     enemies.value = enemyResponse.data;
+    enemyPage.value = enemyResponse.current_page;
+    enemyLastPage.value = enemyResponse.last_page;
+    enemyTotal.value = enemyResponse.total;
     assets.value = assetResponse.data;
   } catch (error: any) {
     pageError.value = error?.data?.message || "Không thể tải danh mục quái.";
@@ -407,7 +413,7 @@ onMounted(loadData);
   <main class="enemy-admin-page">
     <header class="enemy-header">
       <div><small>TOWER DEFENSE CMS</small><h1>Quái và boss</h1><p>Quản lý chỉ số, hồ sơ chiến đấu và tài nguyên hiển thị.</p></div>
-      <div class="enemy-header-actions"><NuxtLink to="/admin/tower-defense">Map & tài nguyên</NuxtLink><button type="button" @click="loadData"><RefreshCw :class="{ spin: loading }" /> Làm mới</button><NuxtLink class="primary" to="/admin/tower-defense/enemies/new"><Plus /> Thêm kẻ địch</NuxtLink></div>
+      <div class="enemy-header-actions"><NuxtLink to="/admin/tower-defense/maps">Quản lý Map</NuxtLink><button type="button" @click="loadData()"><RefreshCw :class="{ spin: loading }" /> Làm mới</button><NuxtLink class="primary" to="/admin/tower-defense/enemies/new"><Plus /> Thêm kẻ địch</NuxtLink></div>
     </header>
 
     <section class="enemy-stats">
@@ -430,6 +436,7 @@ onMounted(loadData);
         </article>
         <p v-if="filteredEnemies.length === 0" class="enemy-empty">Không tìm thấy kẻ địch phù hợp.</p>
       </div>
+      <AdminPagination :page="enemyPage" :last-page="enemyLastPage" :total="enemyTotal" :loading="loading" @change="loadData" />
     </section>
 
     <Teleport v-if="false" to="body">

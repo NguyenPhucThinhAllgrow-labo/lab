@@ -87,10 +87,10 @@ function fillForm(enemy: Enemy) {
 async function loadData() {
   loading.value = true;
   try {
-    const requests = [api<{ data: Asset[] }>("/api/admin/tower-defense/assets")];
+    const requests = [api<{ data: Asset[] }>("/api/admin/tower-defense/assets?per_page=500")];
     const [assetResponse, enemyResponse] = await Promise.all([
       requests[0]!,
-      isCreating.value ? Promise.resolve(null) : api<{ data: Enemy[] }>("/api/admin/tower-defense/enemies"),
+      isCreating.value ? Promise.resolve(null) : api<{ data: Enemy[] }>("/api/admin/tower-defense/enemies?per_page=500"),
     ]);
     assets.value = assetResponse.data;
     if (enemyResponse) {

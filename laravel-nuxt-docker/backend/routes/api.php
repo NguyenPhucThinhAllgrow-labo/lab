@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\Admin\ChineseChessHistoryController;
 use App\Http\Controllers\Api\Admin\DetectiveLeaderboardController;
 use App\Http\Controllers\Api\Admin\TowerDefenseEnemyController;
+use App\Http\Controllers\Api\Admin\TowerDefenseEffectTypeController;
+use App\Http\Controllers\Api\Admin\TowerDefenseTowerController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChineseChessEngineController;
@@ -14,6 +16,8 @@ use App\Http\Controllers\Api\DetectiveProgressController;
 use App\Http\Controllers\Api\TowerDefenseAssetController;
 use App\Http\Controllers\Api\TowerDefenseGameSessionController;
 use App\Http\Controllers\Api\TowerDefenseMapController;
+use App\Http\Controllers\Api\TowerDefenseTowerController as PublicTowerDefenseTowerController;
+use App\Http\Controllers\Api\TowerDefenseEffectTypeController as PublicTowerDefenseEffectTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', function () {
@@ -34,6 +38,8 @@ Route::prefix('tower-defense')->group(function (): void {
     Route::get('/maps', [TowerDefenseMapController::class, 'index']);
     Route::get('/maps/{map}', [TowerDefenseMapController::class, 'show']);
     Route::get('/assets', [TowerDefenseAssetController::class, 'index']);
+    Route::get('/towers', [PublicTowerDefenseTowerController::class, 'index']);
+    Route::get('/effect-types', [PublicTowerDefenseEffectTypeController::class, 'index']);
     Route::get('/assets/{asset}', [TowerDefenseAssetController::class, 'show'])
         ->where('asset', '.*');
 });
@@ -94,6 +100,14 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::post('/tower-defense/enemies', [TowerDefenseEnemyController::class, 'store']);
     Route::put('/tower-defense/enemies/{enemy}', [TowerDefenseEnemyController::class, 'update']);
     Route::delete('/tower-defense/enemies/{enemy}', [TowerDefenseEnemyController::class, 'destroy']);
+    Route::get('/tower-defense/towers', [TowerDefenseTowerController::class, 'index']);
+    Route::post('/tower-defense/towers', [TowerDefenseTowerController::class, 'store']);
+    Route::put('/tower-defense/towers/{tower}', [TowerDefenseTowerController::class, 'update']);
+    Route::delete('/tower-defense/towers/{tower}', [TowerDefenseTowerController::class, 'destroy']);
+    Route::get('/tower-defense/effect-types', [TowerDefenseEffectTypeController::class, 'index']);
+    Route::post('/tower-defense/effect-types', [TowerDefenseEffectTypeController::class, 'store']);
+    Route::put('/tower-defense/effect-types/{effectType}', [TowerDefenseEffectTypeController::class, 'update']);
+    Route::delete('/tower-defense/effect-types/{effectType}', [TowerDefenseEffectTypeController::class, 'destroy']);
     Route::get('/tower-defense/assets', [App\Http\Controllers\Api\Admin\TowerDefenseAssetController::class, 'index']);
     Route::post('/tower-defense/assets', [App\Http\Controllers\Api\Admin\TowerDefenseAssetController::class, 'store']);
     Route::put('/tower-defense/assets/{asset}', [App\Http\Controllers\Api\Admin\TowerDefenseAssetController::class, 'update'])

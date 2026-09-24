@@ -30,6 +30,19 @@ export function createTowerDefenseProjectileScene(
   const projectileDirection = new THREE.Vector3();
   const projectileLookTarget = new THREE.Vector3();
 
+  function modelLaunchPoint(towerId: number, heightRatio: number, nodeName?: string) {
+    const model = towerModels.get(towerId);
+    if (!model) return undefined;
+    const node = nodeName ? model.getObjectByName(nodeName) : undefined;
+    if (node) return node.getWorldPosition(new THREE.Vector3());
+    model.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(model);
+    if (bounds.isEmpty()) return undefined;
+    const point = bounds.getCenter(new THREE.Vector3());
+    point.y = THREE.MathUtils.lerp(bounds.min.y, bounds.max.y, heightRatio);
+    return point;
+  }
+
   /** Tạo material đồng nhất với các model procedural còn lại trong scene. */
   function mesh(
     geometry: THREE.BufferGeometry,
@@ -334,7 +347,12 @@ export function createTowerDefenseProjectileScene(
         const launchOffset = 0.34 * towerScale.horizontal;
         from.x += (directionX / horizontalDistance) * launchOffset;
         from.z += (directionZ / horizontalDistance) * launchOffset;
-        startHeight = 1.24 * towerScale.vertical;
+        const launchPoint = sourceTower ? modelLaunchPoint(sourceTower.id, 0.78) : undefined;
+        if (launchPoint) {
+          from.x = launchPoint.x + (directionX / horizontalDistance) * launchOffset;
+          from.z = launchPoint.z + (directionZ / horizontalDistance) * launchOffset;
+          startHeight = launchPoint.y;
+        } else startHeight = 1.24 * towerScale.vertical;
         arcHeight = THREE.MathUtils.clamp(
           horizontalDistance * 0.28,
           0.55,
@@ -357,9 +375,12 @@ export function createTowerDefenseProjectileScene(
         const muzzleDistance = Math.cos(0.2) * 0.9 * towerScale.horizontal;
         from.x += (directionX / directionLength) * muzzleDistance;
         from.z += (directionZ / directionLength) * muzzleDistance;
-        startHeight =
-          0.05 +
-          (1.08 + 0.13 + Math.sin(0.2) * 0.9) * towerScale.vertical;
+        const launchPoint = sourceTower ? modelLaunchPoint(sourceTower.id, 0.72, "towerMuzzle") : undefined;
+        if (launchPoint) {
+          from.copy(launchPoint);
+        }
+        startHeight = launchPoint?.y ??
+          0.05 + (1.08 + 0.13 + Math.sin(0.2) * 0.9) * towerScale.vertical;
         arcHeight = 0.42;
       } else if (
         projectile.kind === "fire" ||

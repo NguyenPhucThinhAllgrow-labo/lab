@@ -12,14 +12,16 @@ use Illuminate\Validation\ValidationException;
 
 class TowerDefenseAssetController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json([
-            'data' => TowerDefenseAsset::query()
+        $assets = TowerDefenseAsset::query()
+                ->when($request->filled('type'), fn ($query) => $query->where('type', (string) $request->string('type')))
+                ->when($request->filled('purpose'), fn ($query) => $query->where('purpose', (string) $request->string('purpose')))
+                ->when($request->filled('search'), fn ($query) => $query->where('key', 'like', '%'.(string) $request->string('search').'%'))
                 ->orderBy('type')
                 ->orderBy('key')
-                ->get()
-                ->map(fn (TowerDefenseAsset $asset): array => [
+                ->paginate($this->perPage($request));
+        $assets->through(fn (TowerDefenseAsset $asset): array => [
                     'id' => $asset->id,
                     'key' => $asset->key,
                     'type' => $asset->type,
@@ -30,8 +32,14 @@ class TowerDefenseAssetController extends Controller
                     'metadata' => $asset->metadata,
                     'isActive' => $asset->is_active,
                     'updatedAt' => $asset->updated_at?->toISOString(),
-                ]),
-        ]);
+                ]);
+
+        return response()->json($assets);
+    }
+
+    private function perPage(Request $request): int
+    {
+        return min(500, max(1, $request->integer('per_page', 20)));
     }
 
     public function store(Request $request): JsonResponse
@@ -45,6 +53,9 @@ class TowerDefenseAssetController extends Controller
         ]);
         $this->ensurePurposeMatchesType($data['type'], $data['purpose']);
         $file = $request->file('file');
+        if ($data['type'] === 'image' && ! str_starts_with((string) $file->getMimeType(), 'image/')) {
+            throw ValidationException::withMessages(['file' => ['File tải lên phải là hình ảnh hợp lệ.']]);
+        }
         $path = $data['key'];
         Storage::disk('tower-defense')->putFileAs(dirname($path), $file, basename($path));
         $asset = TowerDefenseAsset::create([
