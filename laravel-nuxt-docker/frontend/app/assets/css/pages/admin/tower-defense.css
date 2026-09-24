@@ -777,6 +777,16 @@
   color: #ddd6fe;
 }
 .td-editor-action.is-danger { color: #fb7185; }
+.td-editor-action.is-reset {
+  margin-top: 3px;
+  border-color: rgb(245 158 11 / 16%);
+  background: rgb(245 158 11 / 5%);
+  color: #fbbf24;
+}
+.td-editor-action.is-reset:hover:not(:disabled) {
+  border-color: rgb(245 158 11 / 38%);
+  color: #fde68a;
+}
 .td-editor-action:disabled { cursor: default; opacity: 0.35; }
 .td-editor-action svg { width: 13px; height: 13px; }
 .td-editor-message,

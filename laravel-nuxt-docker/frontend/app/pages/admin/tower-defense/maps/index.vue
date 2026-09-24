@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Skull,
   Trash2,
@@ -622,6 +623,27 @@ function clearMapEditorLane() {
   mapEditorAnchors.value[mapEditorLane.value] = [];
   mapEditorMessage.value = `Đã xóa lane ${mapEditorLane.value + 1}.`;
   syncEditorPaths();
+}
+
+function resetMapEditorLayout() {
+  const defaults = defaultMapConfiguration();
+  updateMapConfiguration((configuration) => {
+    configuration.columns = defaults.columns;
+    configuration.rows = defaults.rows;
+    configuration.cellSize = defaults.cellSize;
+    configuration.cornerRadius = defaults.cornerRadius;
+    configuration.spawnPoints = structuredClone(defaults.spawnPoints);
+    configuration.paths = structuredClone(defaults.paths) as [
+      MapEditorPoint[],
+      MapEditorPoint[],
+    ];
+    configuration.pathTiles = structuredClone(defaults.pathTiles);
+    configuration.castle.position = { ...defaults.castle.position };
+  });
+  mapEditorLane.value = 0;
+  mapEditorPlacementMode.value = "path";
+  mapEditorMessage.value =
+    "Đã đưa kích thước, hai lane, cổng spawn và cổng lâu đài về bố cục mặc định.";
 }
 
 function isEditorAnchor(point: MapEditorPoint, lane: 0 | 1) {
@@ -1256,6 +1278,7 @@ onMounted(() => {
                   </dl>
                   <button class="td-editor-action" type="button" :disabled="mapEditorAnchors[mapEditorLane].length === 0" @click="undoMapEditorLane"><Undo2 /> Hoàn tác điểm</button>
                   <button class="td-editor-action is-danger" type="button" :disabled="mapEditorAnchors[mapEditorLane].length === 0" @click="clearMapEditorLane"><Trash2 /> Xóa lane {{ mapEditorLane + 1 }}</button>
+                  <button class="td-editor-action is-reset" type="button" @click="resetMapEditorLayout"><RotateCcw /> Đặt lại mặc định</button>
                 </aside>
               </div>
               <p v-else class="td-live-invalid">JSON chưa hợp lệ nên không thể dựng bản xem trước.</p>
