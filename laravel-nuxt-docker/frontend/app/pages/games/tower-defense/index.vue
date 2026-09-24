@@ -15,7 +15,10 @@ import {
   Pause,
   Play,
   RotateCcw,
+  ArrowRight,
+  Trophy,
   ShieldCheck,
+  Skull,
   Snowflake,
   Sparkles,
   Swords,
@@ -40,7 +43,11 @@ import {
   useTowerDefense,
 } from "~/composables/useTowerDefense";
 import type { TowerFaction } from "~/components/tower-defense/scene/tower-models";
+<<<<<<< HEAD
+import type { TowerDefenseGameSnapshot, TowerKind } from "~/types/games/towerDefense";
+=======
 import type { TowerEffectDefinition, TowerKind } from "~/types/games/towerDefense";
+>>>>>>> main
 
 useHead({
   title: "Kingdom Defense — Game Lab",
@@ -54,11 +61,17 @@ useHead({
 });
 
 const route = useRoute();
+const api = useApi();
 const requestedMapId = typeof route.query.map === "string" ? route.query.map : undefined;
+<<<<<<< HEAD
+const availableMaps = ref(await fetchTowerDefenseMaps());
+=======
 const towerCatalog = await fetchTowerDefenseTowers();
 const availableMaps = await fetchTowerDefenseMaps();
+>>>>>>> main
 const requestedMap =
-  availableMaps.find((item) => item.id === requestedMapId) ?? availableMaps[0];
+  availableMaps.value.find((item) => item.id === requestedMapId && item.isUnlocked !== false) ??
+  availableMaps.value.find((item) => item.isUnlocked !== false);
 
 if (!requestedMap)
   throw createError({ statusCode: 503, statusMessage: "Không có cấu hình map Tower Defense." });
@@ -96,6 +109,8 @@ const {
   undoSelectedPlacement,
   startWave,
   resetGame,
+  createSnapshot,
+  restoreSnapshot,
   setPaused,
 } = useTowerDefense(requestedMap);
 const {
@@ -132,12 +147,39 @@ const selectedTowerEffectiveFireInterval = computed(() => {
 /** Đổi map bằng URL để khởi tạo lại sạch toàn bộ simulation và WebGL resources. */
 function selectMap(event: Event) {
   const target = event.target as HTMLSelectElement;
+  const selectedMap = availableMaps.value.find((item) => item.id === target.value);
+  if (!selectedMap || selectedMap.isUnlocked === false) {
+    target.value = map.id;
+    message.value = "Map này chưa mở khóa. Hãy hoàn thành đợt 20 của map trước đó.";
+    return;
+  }
   const url = new URL(window.location.href);
   url.searchParams.set("map", target.value);
   window.location.assign(url);
 }
 
+function playNextMap() {
+  const target = nextMap.value;
+  if (!target || target.isUnlocked === false) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("map", target.id);
+  window.location.assign(url);
+}
+
+function replayMap() {
+  completionReported.value = false;
+  completionSaving.value = false;
+  completionSaveError.value = "";
+  sessionFinalized.value = false;
+  resetGame();
+  void saveGameSession();
+}
+
 // Dữ liệu trình bày của bảng chọn tháp.
+<<<<<<< HEAD
+const towerKinds = Object.keys(TOWER_DEFINITIONS) as TowerKind[];
+const completionWave = computed(() => map.completionWave ?? 20);
+=======
 const towerKinds = towerCatalog.activeKinds;
 function effectSummary(effect: TowerEffectDefinition, level: number) {
   const value = towerEffectValue(effect, level);
@@ -147,13 +189,17 @@ function effectSummary(effect: TowerEffectDefinition, level: number) {
   if (effect.behavior === "damage_aura" || effect.behavior === "attack_speed_aura") return `+${Math.round(value * 100)}% · bán kính ${effect.radius ?? 0}`;
   return `+${value.toFixed(1)} damage`;
 }
+>>>>>>> main
 const phaseLabel = computed(() =>
   isPaused.value
     ? "Đã tạm dừng"
-    : {
+    : phase.value === "wave" && wave.value === completionWave.value
+      ? "Đợt cuối"
+      : {
         ready: "Sẵn sàng",
         wave: "Đang giao chiến",
         between: "Chuẩn bị đợt mới",
+        completed: "Đã hoàn thành",
         gameover: "Lâu đài thất thủ",
       }[phase.value],
 );
@@ -169,6 +215,8 @@ interface EnemyIntelCard {
   health: string;
   resistance: string;
   weakness: string;
+  primaryColor: string;
+  glowColor: string;
 }
 
 const dismissedEnemyIntelIds = ref<EnemyIntelCard["id"][]>([]);
@@ -178,7 +226,7 @@ const enemyIntelWave = computed(() =>
     : wave.value,
 );
 const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
-  if (enemyIntelWave.value <= 0 || phase.value === "gameover") return [];
+  if (enemyIntelWave.value <= 0 || phase.value === "gameover" || phase.value === "completed") return [];
   const legacyNormalHp =
     60 +
     enemyIntelWave.value * 18 +
@@ -200,6 +248,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
         health: `${Math.round(definition.baseHealth * managedWaveScale)} HP`,
         resistance: definition.intel?.resistance ?? "Không",
         weakness: definition.intel?.weakness ?? "Không",
+        primaryColor: definition.intel?.primaryColor ?? "#8b5cf6",
+        glowColor: definition.intel?.glowColor ?? "#7c3aed",
       }))
     : [
         {
@@ -210,6 +260,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
           health: `${legacyNormalHp} HP`,
           resistance: map.enemyIntel?.resistance ?? "Không",
           weakness: map.enemyIntel?.weakness ?? "Không",
+          primaryColor: map.enemyIntel?.primaryColor ?? "#8b5cf6",
+          glowColor: map.enemyIntel?.glowColor ?? "#7c3aed",
         },
       ];
   if (enemyIntelWave.value % 5 === 0) {
@@ -228,6 +280,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
           health: `${Math.round(definition.baseHealth * managedWaveScale)} HP`,
           resistance: definition.intel?.resistance ?? "Không",
           weakness: definition.intel?.weakness ?? "Không",
+          primaryColor: definition.intel?.primaryColor ?? "#f59e0b",
+          glowColor: definition.intel?.glowColor ?? "#ef4444",
         })),
       );
     else {
@@ -240,6 +294,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
         health: `${Math.round(legacyNormalHp * 5.5)} HP`,
         resistance: map.bossIntel?.resistance ?? "Không",
         weakness: map.bossIntel?.weakness ?? "Không",
+        primaryColor: map.bossIntel?.primaryColor ?? "#f59e0b",
+        glowColor: map.bossIntel?.glowColor ?? "#ef4444",
       });
     }
   }
@@ -271,10 +327,123 @@ const isGameReady = computed(
     selectedFaction.value !== null && sceneReady.value && imagesReady.value,
 );
 
+interface TowerDefenseSessionResponse {
+  data: {
+    id: number;
+    faction: TowerFaction;
+    status: "active" | "completed" | "gameover";
+    lastPlayedAt: string;
+    snapshot: TowerDefenseGameSnapshot;
+  } | null;
+}
+
+const sessionLoading = ref(true);
+const sessionSaving = ref(false);
+const sessionSaveQueued = ref(false);
+const sessionFinalized = ref(false);
+const STORY_INTRO_STORAGE_KEY = "tower-defense:story-intro:v1";
+const showStoryIntroduction = ref(false);
+
+/** Mở lại phần dẫn truyện; tạm dừng trận đấu để người chơi có thể đọc an toàn. */
+function openStoryIntroduction() {
+  if ((phase.value === "wave" || phase.value === "between") && !isPaused.value) {
+    setPaused(true);
+  }
+  showStoryIntroduction.value = true;
+}
+
+/** Ghi nhận người chơi đã đọc phần dẫn truyện trên trình duyệt hiện tại. */
+function dismissStoryIntroduction() {
+  showStoryIntroduction.value = false;
+  try {
+    localStorage.setItem(STORY_INTRO_STORAGE_KEY, "seen");
+  } catch {
+    // Trình duyệt chặn storage không được phép làm gián đoạn gameplay.
+  }
+}
+
+function chooseFactionFromStory(faction: TowerFaction) {
+  selectFaction(faction);
+  dismissStoryIntroduction();
+}
+
+let isStoryScrollLocked = false;
+
+function restoreStoryPageScroll() {
+  isStoryScrollLocked = false;
+}
+
+function lockStoryPageScroll() {
+  if (!import.meta.client || isStoryScrollLocked) return;
+  isStoryScrollLocked = true;
+  void nextTick(() => {
+    document
+      .querySelector<HTMLElement>(".defense-story-intro")
+      ?.focus({ preventScroll: true });
+  });
+}
+
+watch(showStoryIntroduction, (isOpen) => {
+  if (isOpen) lockStoryPageScroll();
+}, { flush: "sync" });
+
+/** Nạp phiên active của tài khoản; khách chưa đăng nhập vẫn được chơi bình thường. */
+async function loadSavedSession() {
+  sessionLoading.value = true;
+  try {
+    const response = await api<TowerDefenseSessionResponse>(
+      `/api/tower-defense/maps/${encodeURIComponent(map.id)}/session`,
+    );
+    if (response.data && restoreSnapshot(response.data.snapshot)) {
+      selectedFaction.value = response.data.faction;
+    }
+  } catch (error: any) {
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+    if (status !== 401 && status !== 403)
+      message.value = "Chưa thể tải phiên đã lưu. Bạn vẫn có thể bắt đầu một trận mới.";
+  } finally {
+    sessionLoading.value = false;
+  }
+}
+
+/** Ghi snapshot lên backend; nếu đang có request thì gom thành một lần lưu kế tiếp. */
+async function saveGameSession(force = false) {
+  if (sessionLoading.value || !selectedFaction.value) return;
+  if (!force && sessionFinalized.value && (phase.value === "completed" || phase.value === "gameover"))
+    return;
+  if (sessionSaving.value) {
+    sessionSaveQueued.value = true;
+    return;
+  }
+
+  sessionSaving.value = true;
+  const snapshot = createSnapshot();
+  try {
+    await api(`/api/tower-defense/maps/${encodeURIComponent(map.id)}/session`, {
+      method: "PUT",
+      body: { faction: selectedFaction.value, snapshot },
+    });
+    if (snapshot.phase === "completed" || snapshot.phase === "gameover")
+      sessionFinalized.value = true;
+  } catch (error: any) {
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+    if (status !== 401 && status !== 403)
+      message.value = "Không thể tự động lưu phiên chơi. Hệ thống sẽ thử lại.";
+  } finally {
+    sessionSaving.value = false;
+    if (sessionSaveQueued.value) {
+      sessionSaveQueued.value = false;
+      void saveGameSession();
+    }
+  }
+}
+
+
 /** Chọn phe từ thao tác click đồng thời mở khóa audio theo chính sách trình duyệt. */
 function selectFaction(faction: TowerFaction) {
   selectedFaction.value = faction;
   void startBackgroundMusic();
+  void saveGameSession();
 }
 
 function togglePauseFromHud() {
@@ -365,27 +534,137 @@ function closeTowerPopupOnOutsideClick(event: MouseEvent) {
   selectedTowerId.value = null;
 }
 
-/** Escape bật/tắt pause khi trận đang chạy; ngoài trận chỉ dùng để hủy chọn. */
-function handleEscapeKey(event: KeyboardEvent) {
-  if (event.key !== "Escape" || event.repeat) return;
-  event.preventDefault();
+function isInteractiveKeyboardTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target.matches("input, textarea, select, button, a, [role='button']")
+  );
+}
 
-  if (phase.value === "wave" || phase.value === "between") {
+/** Escape bật/tắt pause; Space bắt đầu đợt khi người chơi đang ở màn chuẩn bị. */
+function handleGameKeyDown(event: KeyboardEvent) {
+  if (event.repeat) return;
+
+  if (event.key === "Escape") {
+    if (showStoryIntroduction.value) {
+      event.preventDefault();
+      dismissStoryIntroduction();
+      return;
+    }
+    if (!selectedFaction.value) return;
+    if (phase.value === "completed" || phase.value === "gameover") return;
+    event.preventDefault();
+
     if (!isPaused.value) clearBoardSelection();
     togglePauseFromHud();
     return;
   }
 
-  if (!selectedKind.value && selectedTowerId.value === null) return;
+  if (
+    event.code !== "Space" ||
+    isInteractiveKeyboardTarget(event.target) ||
+    showStoryIntroduction.value ||
+    !selectedFaction.value ||
+    !isGameReady.value ||
+    isPaused.value ||
+    !canStartWave.value
+  )
+    return;
+
+  event.preventDefault();
   clearBoardSelection();
-  message.value = "Đã hủy lựa chọn.";
+  startWave();
 }
 
 watch(phase, (currentPhase) => {
-  if (currentPhase === "wave" || currentPhase === "gameover")
+  if (currentPhase === "wave" || currentPhase === "gameover" || currentPhase === "completed")
     isMovePlacementMode.value = false;
+  if (currentPhase === "completed" || currentPhase === "gameover")
+    void saveGameSession(true);
+  else if (currentPhase === "wave" || currentPhase === "between")
+    void saveGameSession();
 });
 
+const completionReported = ref(false);
+const completionSaving = ref(false);
+const completionSaveError = ref("");
+const showBossWaveAnnouncement = ref(false);
+const announcedBossWave = ref(0);
+const announcedWaveIsFinal = computed(
+  () => announcedBossWave.value === completionWave.value,
+);
+let bossWaveAnnouncementTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Hiện cảnh báo cinematic ngắn ở đầu mỗi đợt có boss. */
+function announceBossWave(currentWave: number) {
+  if (bossWaveAnnouncementTimer) clearTimeout(bossWaveAnnouncementTimer);
+  announcedBossWave.value = currentWave;
+  showBossWaveAnnouncement.value = true;
+  bossWaveAnnouncementTimer = setTimeout(() => {
+    showBossWaveAnnouncement.value = false;
+    bossWaveAnnouncementTimer = null;
+  }, 2800);
+}
+const nextMap = computed(() => {
+  const index = availableMaps.value.findIndex((item) => item.id === map.id);
+  return index >= 0 ? availableMaps.value[index + 1] ?? null : null;
+});
+
+interface TowerDefenseProgressResponse {
+  message: string;
+  data: {
+    mapId: string;
+    maxWave: number;
+    completed: boolean;
+    completedAt: string | null;
+    unlockedMap: { id: string; name: string } | null;
+  };
+  completionWave: number;
+}
+
+/** Lưu mốc hoàn thành đợt 20 và mở khóa map kế tiếp cho tài khoản hiện tại. */
+async function reportMapCompletion() {
+  if (completionReported.value) return;
+  completionReported.value = true;
+  completionSaving.value = true;
+  completionSaveError.value = "";
+
+  try {
+    const response = await api<TowerDefenseProgressResponse>(
+      `/api/tower-defense/maps/${encodeURIComponent(map.id)}/progress`,
+      { method: "POST", body: { wave: wave.value } },
+    );
+    availableMaps.value = availableMaps.value.map((item) => {
+      if (item.id === map.id)
+        return { ...item, bestWave: response.data.maxWave, completed: response.data.completed };
+      if (item.id === response.data.unlockedMap?.id)
+        return { ...item, isUnlocked: true };
+      return item;
+    });
+    message.value = response.message;
+    completionSaving.value = false;
+  } catch (error: any) {
+    completionReported.value = false;
+    completionSaving.value = false;
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+    completionSaveError.value = status === 401
+      ? "Hãy đăng nhập để lưu chiến thắng và mở map tiếp theo."
+      : "Chưa thể lưu tiến trình. Vui lòng thử lại.";
+    message.value = completionSaveError.value;
+  }
+}
+
+watch([phase, wave], ([currentPhase, currentWave]) => {
+  if (currentPhase === "completed" && currentWave >= completionWave.value)
+    void reportMapCompletion();
+  if (
+    !sessionLoading.value &&
+    currentPhase === "wave" &&
+    currentWave > 0 &&
+    currentWave % 5 === 0
+  ) announceBossWave(currentWave);
+});
 watch(
   [towers, phase, isPaused],
   ([currentTowers, currentPhase, paused]) =>
@@ -397,14 +676,32 @@ watch(enemyIntelWave, () => {
   dismissedEnemyIntelIds.value = [];
 });
 
-// Chỉ bỏ loading sau khi cả WebGL scene lẫn ảnh dùng trong sidebar đã sẵn sàng.
-onMounted(() => {
+// Chỉ bỏ loading sau khi đã kiểm tra phiên lưu và tài nguyên scene sẵn sàng.
+let sessionAutosaveTimer: ReturnType<typeof setInterval> | null = null;
+function saveSessionWhenHidden() {
+  if (document.hidden) void saveGameSession();
+}
+
+onMounted(async () => {
+  await loadSavedSession();
+  try {
+    showStoryIntroduction.value = localStorage.getItem(STORY_INTRO_STORAGE_KEY) !== "seen";
+  } catch {
+    showStoryIntroduction.value = true;
+  }
+  sessionAutosaveTimer = setInterval(() => void saveGameSession(), 3000);
   document.addEventListener("click", closeTowerPopupOnOutsideClick);
-  window.addEventListener("keydown", handleEscapeKey);
+  document.addEventListener("visibilitychange", saveSessionWhenHidden);
+  window.addEventListener("keydown", handleGameKeyDown);
 });
 onBeforeUnmount(() => {
+  restoreStoryPageScroll();
+  if (sessionAutosaveTimer) clearInterval(sessionAutosaveTimer);
+  if (bossWaveAnnouncementTimer) clearTimeout(bossWaveAnnouncementTimer);
+  void saveGameSession();
   document.removeEventListener("click", closeTowerPopupOnOutsideClick);
-  window.removeEventListener("keydown", handleEscapeKey);
+  document.removeEventListener("visibilitychange", saveSessionWhenHidden);
+  window.removeEventListener("keydown", handleGameKeyDown);
 });
 </script>
 
@@ -412,14 +709,102 @@ onBeforeUnmount(() => {
   <main class="defense-page">
     <div class="defense-page__grid" aria-hidden="true" />
 
+    <Transition
+      name="defense-story-intro"
+      @after-leave="restoreStoryPageScroll"
+    >
+      <section
+        v-if="showStoryIntroduction"
+        class="defense-story-intro"
+        tabindex="-1"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="defense-story-title"
+      >
+        <div class="defense-story-intro__dialog">
+          <aside class="defense-story-intro__omen" aria-hidden="true">
+            <span class="defense-story-intro__crest"><Skull /></span>
+            <small>HƯ KHÔNG</small>
+            <strong>XÂM LĂNG</strong>
+            <i />
+            <p>Mọi vương quốc đều đang hấp hối</p>
+          </aside>
+
+          <div class="defense-story-intro__content">
+            <div class="defense-story-intro__warning">
+              <span />
+              <small>CHIẾU LỆNH KHẨN CẤP</small>
+              <Crown />
+            </div>
+            <h1 id="defense-story-title">
+              Hư Không đang nuốt chửng <em>các vương quốc</em>
+            </h1>
+            <p class="defense-story-intro__lead">
+              Những cánh cổng Hư Không đã mở ra trên khắp lục địa. Chúng không thuộc về ánh sáng hay bóng tối, mà muốn nuốt chửng cả hai và biến mọi vùng đất thành cõi chết.
+            </p>
+            <div class="defense-story-intro__mission">
+              <span><ShieldCheck /></span>
+              <div>
+                <small>SỨ MỆNH CUỐI CÙNG</small>
+                <strong>Dựng phòng tuyến và bảo vệ lâu đài qua 20 đợt tiến công.</strong>
+                <p>Chỉ huy Liên minh Vương quốc hoặc Hắc Minh Ước, đánh bại các thủ lĩnh Hư Không và giải phóng từng vương quốc.</p>
+              </div>
+            </div>
+            <div class="defense-story-intro__factions">
+              <small>
+                {{ selectedFaction ? "LỰC LƯỢNG ĐÃ TUYÊN THỆ" : "CHỌN LỰC LƯỢNG CỦA BẠN" }}
+              </small>
+              <div>
+                <button
+                  type="button"
+                  class="is-human"
+                  :class="{ 'is-selected': selectedFaction === 'human' }"
+                  :disabled="selectedFaction !== null"
+                  :aria-pressed="selectedFaction === 'human'"
+                  @click.stop="chooseFactionFromStory('human')"
+                >
+                  <ShieldCheck />
+                  <span>
+                    <strong>Liên minh Vương quốc</strong>
+                    <small>Thành lũy, thép và ánh sáng.</small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="is-dark"
+                  :class="{ 'is-selected': selectedFaction === 'dark' }"
+                  :disabled="selectedFaction !== null"
+                  :aria-pressed="selectedFaction === 'dark'"
+                  @click.stop="chooseFactionFromStory('dark')"
+                >
+                  <Swords />
+                  <span>
+                    <strong>Hắc Minh Ước</strong>
+                    <small>Bóng tối chống lại Hư Không.</small>
+                  </span>
+                </button>
+              </div>
+            </div>
+            <button
+              v-if="selectedFaction"
+              type="button"
+              @click.stop="dismissStoryIntroduction"
+            >
+              <Swords /> Trở lại chiến trường
+            </button>
+          </div>
+        </div>
+      </section>
+    </Transition>
+
     <section
-      v-if="!selectedFaction"
+      v-if="!sessionLoading && !selectedFaction"
       class="defense-faction-select"
       aria-labelledby="defense-faction-title"
     >
-      <small>CHỌN PHE PHÒNG THỦ</small>
-      <h1 id="defense-faction-title">Tuyên thệ với vương quốc</h1>
-      <p>Phe được chọn sẽ quyết định diện mạo của toàn bộ công trình.</p>
+      <small>CHỌN LỰC LƯỢNG PHÒNG THỦ</small>
+      <h1 id="defense-faction-title">Ai sẽ đáp lại lời cầu cứu?</h1>
+      <p>Cả hai lực lượng đều chống lại Hư Không. Lựa chọn sẽ quyết định diện mạo công trình của bạn.</p>
       <div>
         <button
           type="button"
@@ -427,8 +812,8 @@ onBeforeUnmount(() => {
           @click="selectFaction('human')"
         >
           <span><ShieldCheck /></span>
-          <strong>HUMAN</strong>
-          <small>Thành lũy sáng, kim loại và sắc vàng của vương quốc.</small>
+          <strong>LIÊN MINH VƯƠNG QUỐC</strong>
+          <small>Con người đoàn kết dưới thành lũy, thép và ánh sáng để bảo vệ lục địa.</small>
         </button>
         <button
           type="button"
@@ -436,14 +821,14 @@ onBeforeUnmount(() => {
           @click="selectFaction('dark')"
         >
           <span><Swords /></span>
-          <strong>DARK</strong>
-          <small>Pháo đài hắc ám với giáp tối và năng lượng ma thuật.</small>
+          <strong>HẮC MINH ƯỚC</strong>
+          <small>Những chiến binh bóng tối khước từ Hư Không và chiến đấu để giữ lấy lãnh địa.</small>
         </button>
       </div>
     </section>
 
     <section
-      v-if="selectedFaction"
+      v-if="!sessionLoading && selectedFaction"
       class="defense-shell"
       :class="{ 'is-loading': !isGameReady }"
       :aria-hidden="!isGameReady"
@@ -483,9 +868,31 @@ onBeforeUnmount(() => {
               >
             </ClientOnly>
 
+            <Transition name="defense-final-wave">
+              <section
+                v-if="showBossWaveAnnouncement"
+                class="defense-final-wave-announcement"
+                role="alert"
+                aria-live="assertive"
+              >
+                <div class="defense-final-wave-announcement__line" />
+                <div class="defense-final-wave-announcement__content">
+                  <span><Swords /></span>
+                  <small>{{ announcedWaveIsFinal ? "THỬ THÁCH CUỐI CÙNG" : `CẢNH BÁO ĐỢT ${announcedBossWave}` }}</small>
+                  <strong>{{ announcedWaveIsFinal ? "ĐỢT CUỐI" : "BOSS XUẤT HIỆN" }}</strong>
+                  <p>
+                    {{ announcedWaveIsFinal
+                      ? "Toàn quân địch đang tiến công — hãy giữ vững lâu đài!"
+                      : "Một kẻ địch hùng mạnh đã bước vào chiến trường!" }}
+                  </p>
+                </div>
+                <div class="defense-final-wave-announcement__line" />
+              </section>
+            </Transition>
+
             <Transition name="defense-pause-overlay">
               <section
-                v-if="isPaused && (phase === 'wave' || phase === 'between')"
+                v-if="isPaused && phase !== 'completed' && phase !== 'gameover'"
                 class="defense-pause-overlay"
                 role="dialog"
                 aria-modal="true"
@@ -498,8 +905,92 @@ onBeforeUnmount(() => {
                   <p>
                     Mọi chuyển động và thời gian trong trận đấu đang tạm dừng.
                   </p>
-                  <button type="button" autofocus @click="resumeGame">
-                    <Play /> Tiếp tục
+                  <div class="defense-pause-actions">
+                    <button type="button" autofocus @click="resumeGame">
+                      <Play /> Tiếp tục
+                    </button>
+                    <button
+                      type="button"
+                      class="is-replay"
+                      @click="replayMap"
+                    >
+                      <RotateCcw /> Chơi lại
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </Transition>
+
+            <Transition name="defense-pause-overlay">
+              <section
+                v-if="phase === 'completed'"
+                class="defense-completion-overlay"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="defense-completion-title"
+              >
+                <div class="defense-completion-dialog">
+                  <span class="defense-completion-trophy"><Trophy /></span>
+                  <small>HOÀN THÀNH ĐỢT {{ completionWave }}</small>
+                  <h2 id="defense-completion-title">{{ map.name }} đã được chinh phục</h2>
+                  <p>Bạn đã bảo vệ lâu đài qua toàn bộ {{ completionWave }} đợt tấn công.</p>
+
+                  <div v-if="completionSaving" class="defense-completion-unlock is-loading">
+                    Đang lưu chiến thắng và kiểm tra bản đồ tiếp theo…
+                  </div>
+                  <div v-else-if="completionSaveError" class="defense-completion-unlock is-error">
+                    {{ completionSaveError }}
+                    <button type="button" @click="reportMapCompletion">Thử lưu lại</button>
+                  </div>
+                  <div v-else-if="nextMap && nextMap.isUnlocked !== false" class="defense-completion-unlock">
+                    <small>BẢN ĐỒ MỚI ĐÃ MỞ</small>
+                    <strong>{{ nextMap.name }}</strong>
+                  </div>
+                  <div v-else-if="nextMap" class="defense-completion-unlock is-loading">
+                    Đang chờ mở khóa {{ nextMap.name }}…
+                  </div>
+                  <div v-else class="defense-completion-unlock">
+                    <small>CHIẾN DỊCH HOÀN TẤT</small>
+                    <strong>Bạn đã chinh phục toàn bộ bản đồ</strong>
+                  </div>
+
+                  <div class="defense-completion-actions">
+                    <button
+                      v-if="nextMap && nextMap.isUnlocked !== false"
+                      type="button"
+                      class="primary"
+                      @click="playNextMap"
+                    >
+                      Qua map tiếp theo <ArrowRight />
+                    </button>
+                    <button type="button" class="secondary" @click="replayMap">
+                      <RotateCcw /> Chơi lại map này
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </Transition>
+
+            <Transition name="defense-defeat">
+              <section
+                v-if="phase === 'gameover'"
+                class="defense-defeat-overlay"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="defense-defeat-title"
+                aria-live="assertive"
+              >
+                <div class="defense-defeat-dialog">
+                  <span class="defense-defeat-emblem"><Skull /></span>
+                  <small>PHÒNG TUYẾN ĐÃ SỤP ĐỔ</small>
+                  <h2 id="defense-defeat-title">Lâu đài đã thất thủ</h2>
+                  <p>Quân địch đã xuyên thủng phòng tuyến. Hãy tập hợp lại lực lượng và thử thêm lần nữa.</p>
+                  <div class="defense-defeat-stats">
+                    <span>ĐỢT ĐẠT ĐƯỢC<strong>{{ wave }}</strong></span>
+                    <span>ĐIỂM SỐ<strong>{{ score.toLocaleString('vi-VN') }}</strong></span>
+                  </div>
+                  <button type="button" autofocus @click.stop="replayMap">
+                    <RotateCcw /> Chơi lại
                   </button>
                 </div>
               </section>
@@ -518,7 +1009,7 @@ onBeforeUnmount(() => {
                   <b>{{ enemiesRemaining }} quân địch</b>
                 </div>
                 <button
-                  v-if="phase === 'wave'"
+                  v-if="phase !== 'completed' && phase !== 'gameover'"
                   type="button"
                   class="defense-pause"
                   :class="{ active: isPaused }"
@@ -547,7 +1038,7 @@ onBeforeUnmount(() => {
                 <article>
                   <Swords />
                   <div>
-                    <small>ĐỢT</small><strong>{{ wave }}</strong>
+                    <small>{{ phase === 'wave' && wave === completionWave ? 'ĐỢT CUỐI' : 'ĐỢT' }}</small><strong>{{ wave }}</strong>
                   </div>
                 </article>
                 <article>
@@ -571,14 +1062,15 @@ onBeforeUnmount(() => {
               aria-label="Thông tin quân địch trong đợt hiện tại"
             >
               <article
+                :style="{ '--enemy-intel-primary': enemyIntel.primaryColor, '--enemy-intel-glow': enemyIntel.glowColor }"
                 v-for="enemyIntel in enemyIntelCards"
                 :key="enemyIntel.id"
-                :class="{ 'is-boss': enemyIntel.id === 'boss' }"
+                :class="{ 'is-boss': enemyIntel.id.startsWith('boss') }"
               >
                 <img :src="enemyIntel.avatar" :alt="enemyIntel.name" />
                 <div class="defense-enemy-intel__identity">
                   <small>
-                    {{ enemyIntel.id === "boss" ? "BOSS" : "ĐỢT" }}
+                    {{ enemyIntel.id.startsWith("boss") ? "BOSS" : "ĐỢT" }}
                     {{ enemyIntelWave }}
                   </small>
                   <strong>{{ enemyIntel.name }}</strong>
@@ -809,7 +1301,7 @@ onBeforeUnmount(() => {
               <label v-if="availableMaps.length > 1" class="defense-map-picker">
                 <span>BẢN ĐỒ</span>
                 <select :value="map.id" @change="selectMap">
-                  <option v-for="item in availableMaps" :key="item.id" :value="item.id">{{ item.name }}</option>
+                  <option v-for="item in availableMaps" :key="item.id" :value="item.id" :disabled="item.isUnlocked === false">{{ item.isUnlocked === false ? '🔒 ' + item.name : item.completed ? '✓ ' + item.name : item.name }}</option>
                 </select>
               </label>
               <section
@@ -876,7 +1368,10 @@ onBeforeUnmount(() => {
                   <span>Đợt hiện tại</span
                   ><strong>{{ wave > 0 ? wave : "—" }}</strong>
                 </div>
-                <p v-if="phase === 'between'">
+                <p v-if="phase === 'wave' && wave === completionWave" class="is-final-wave">
+                  Đây là đợt cuối. Tiêu diệt toàn bộ quân địch để hoàn thành map.
+                </p>
+                <p v-else-if="phase === 'between'">
                   Tự động bắt đầu sau {{ Math.ceil(nextWaveCountdown) }} giây.
                   Bạn vẫn có thể bắt đầu sớm.
                 </p>
@@ -884,9 +1379,11 @@ onBeforeUnmount(() => {
                   Mỗi đợt tăng số lượng, tốc độ và sức chống chịu của quân địch.
                 </p>
                 <button
-                  v-if="phase !== 'gameover'"
+                  v-if="phase !== 'gameover' && phase !== 'completed'"
                   type="button"
                   :disabled="!canStartWave"
+                  aria-keyshortcuts="Space"
+                  title="Bắt đầu đợt — phím Space"
                   @click="startWave"
                 >
                   <Play />{{
@@ -897,7 +1394,7 @@ onBeforeUnmount(() => {
                         : "Bắt đầu đợt đầu tiên"
                   }}
                 </button>
-                <button v-else type="button" @click="resetGame">
+                <button v-else type="button" @click="replayMap">
                   <RotateCcw />Chơi lại
                 </button>
               </section>
@@ -917,6 +1414,15 @@ onBeforeUnmount(() => {
                 >
                   <Volume2 v-if="soundEnabled" />
                   <VolumeX v-else />
+                </button>
+                <button
+                  type="button"
+                  class="defense-story-toggle"
+                  title="Xem lại cốt truyện"
+                  aria-label="Xem lại cốt truyện"
+                  @click="openStoryIntroduction"
+                >
+                  <Info /> Cốt truyện
                 </button>
                 <button
                   v-if="map.backgroundModel"
@@ -971,17 +1477,17 @@ onBeforeUnmount(() => {
     <!-- Loading toàn màn hình tránh lộ scene đang nạp GLB/texture. -->
     <Transition name="defense-loader">
       <section
-        v-if="selectedFaction && !isGameReady"
+        v-if="sessionLoading || (selectedFaction && !isGameReady)"
         class="defense-loading-screen"
         role="status"
         aria-live="polite"
         aria-label="Đang tải trò chơi"
       >
         <div class="defense-loading-screen__crest"><Crown /></div>
-        <span>ĐANG TRIỆU TẬP QUÂN ĐỘI</span>
+        <span>{{ sessionLoading ? "ĐANG KHÔI PHỤC PHIÊN CHƠI" : "ĐANG TRIỆU TẬP QUÂN ĐỘI" }}</span>
         <h1>Kingdom <em>Defense</em></h1>
         <div class="defense-loading-screen__bar"><i /></div>
-        <p>Đang chuẩn bị chiến trường và tài nguyên 3D…</p>
+        <p>{{ sessionLoading ? "Đang kiểm tra dữ liệu đã lưu của bạn…" : "Đang chuẩn bị chiến trường và tài nguyên 3D…" }}</p>
       </section>
     </Transition>
 

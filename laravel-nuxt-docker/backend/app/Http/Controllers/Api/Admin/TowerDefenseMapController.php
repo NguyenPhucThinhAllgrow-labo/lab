@@ -11,11 +11,16 @@ use Illuminate\Validation\ValidationException;
 
 class TowerDefenseMapController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json([
-            'data' => TowerDefenseMap::query()->orderBy('sort_order')->get(),
-        ]);
+        return response()->json(
+            TowerDefenseMap::query()->orderBy('sort_order')->paginate($this->perPage($request)),
+        );
+    }
+
+    private function perPage(Request $request): int
+    {
+        return min(500, max(1, $request->integer('per_page', 20)));
     }
 
     public function store(Request $request): JsonResponse

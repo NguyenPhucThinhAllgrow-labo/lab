@@ -12,14 +12,21 @@ use Illuminate\Validation\ValidationException;
 
 class TowerDefenseEnemyController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json([
-            'data' => TowerDefenseEnemy::query()
+        return response()->json(
+            TowerDefenseEnemy::query()
+                ->when($request->filled('kind'), fn ($query) => $query->where('kind', (string) $request->string('kind')))
+                ->when($request->filled('search'), fn ($query) => $query->where(fn ($nested) => $nested->where('name', 'like', '%'.(string) $request->string('search').'%')->orWhere('id', 'like', '%'.(string) $request->string('search').'%')))
                 ->orderByRaw("CASE WHEN kind = 'normal' THEN 0 ELSE 1 END")
                 ->orderBy('name')
-                ->get(),
-        ]);
+                ->paginate($this->perPage($request)),
+        );
+    }
+
+    private function perPage(Request $request): int
+    {
+        return min(500, max(1, $request->integer('per_page', 20)));
     }
 
     public function store(Request $request): JsonResponse
@@ -60,6 +67,9 @@ class TowerDefenseEnemyController extends Controller
             'summary' => ['nullable', 'string', 'max:2000'],
             'resistance' => ['nullable', 'string', 'max:1000'],
             'weakness' => ['nullable', 'string', 'max:1000'],
+            'display_configuration' => ['sometimes', 'array'],
+            'display_configuration.primaryColor' => ['required_with:display_configuration', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'display_configuration.glowColor' => ['required_with:display_configuration', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'model_configuration' => ['required', 'array'],
             'model_configuration.characterScale' => ['required', 'numeric', 'gt:0'],
             'model_configuration.sceneScale' => ['required', 'numeric', 'gt:0'],

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Pause, Play, RotateCcw } from "lucide-vue-next";
+import { Pause, Play, RotateCcw, RotateCw } from "lucide-vue-next";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -40,6 +40,7 @@ const errorMessage = ref("");
 const activeAnimation = ref("Tĩnh");
 const isAnimationPlaying = ref(false);
 const hasAnimation = ref(false);
+const previewYaw = ref(0);
 const equipmentWarning = ref("");
 
 let renderer: THREE.WebGLRenderer | null = null;
@@ -55,14 +56,19 @@ let loadVersion = 0;
 let rendererWidth = 0;
 let rendererHeight = 0;
 let fittedCharacterHeight = 2;
+let fittedCameraZoom = 1;
+const fittedCameraTarget = new THREE.Vector3(0, 1, 0);
 const clock = new THREE.Clock();
 const PREVIEW_FRUSTUM_HEIGHT = 5;
 const GAME_CAMERA_DIRECTION = new THREE.Vector3(0.31, 0.86, 0.39).normalize();
 
 function resizeRenderer() {
   if (!host.value || !renderer || !camera) return;
-  const width = Math.round(host.value.clientWidth);
-  const height = Math.round(host.value.clientHeight);
+  // Safari có thể làm tròn clientWidth/clientHeight khác Chrome khi dialog vừa
+  // mở. Bounding rect giữ đúng kích thước CSS thực trên cả macOS và Windows.
+  const bounds = host.value.getBoundingClientRect();
+  const width = Math.max(0, Math.round(bounds.width));
+  const height = Math.max(0, Math.round(bounds.height));
   if (width < 2 || height < 2) return;
   if (width === rendererWidth && height === rendererHeight) return;
   rendererWidth = width;
@@ -129,10 +135,24 @@ function removeRootMotion(clip: THREE.AnimationClip) {
 }
 
 function findHand(root: THREE.Object3D, side: "left" | "right") {
+  // Model Adventure Kit có cả bone bàn tay và bone socket handslot. Scene game
+  // luôn ưu tiên socket; preview cũng phải làm giống hệt để pivot vũ khí khớp.
+  const slotName = side === "right" ? "handslotr" : "handslotl";
+  const exactSlot = root.getObjectByName(slotName);
+  if (exactSlot) return exactSlot;
+
+  let normalizedSlot: THREE.Object3D | null = null;
+  root.traverse((child) => {
+    if (normalizedSlot) return;
+    const name = child.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (name === slotName) normalizedSlot = child;
+  });
+  if (normalizedSlot) return normalizedSlot as THREE.Object3D;
+
   const aliases =
     side === "right"
-      ? ["handslotr", "righthand", "handr", "mixamorigrightHand"]
-      : ["handslotl", "lefthand", "handl", "mixamorigleftHand"];
+      ? ["righthand", "handr", "mixamorighhand", "mixamorigrightHand"]
+      : ["lefthand", "handl", "mixamorigleftHand"];
   const normalizedAliases = aliases.map((name) =>
     name.toLowerCase().replace(/[^a-z0-9]/g, ""),
   );
@@ -179,24 +199,38 @@ function applyEquipmentTransform(
 
 function resetCamera() {
   if (!camera || !controls) return;
-  const target = new THREE.Vector3(0, fittedCharacterHeight * 0.46, 0);
   const distance = Math.max(fittedCharacterHeight * 6, 8);
-  camera.position.copy(target).addScaledVector(GAME_CAMERA_DIRECTION, distance);
-  camera.zoom = THREE.MathUtils.clamp(
-    (PREVIEW_FRUSTUM_HEIGHT * 0.72) / fittedCharacterHeight,
-    0.55,
-    4,
-  );
-  controls.target.copy(target);
+  camera.position
+    .copy(fittedCameraTarget)
+    .addScaledVector(GAME_CAMERA_DIRECTION, distance);
+  camera.zoom = fittedCameraZoom;
+  controls.target.copy(fittedCameraTarget);
   controls.update();
   camera.updateProjectionMatrix();
 }
 
+function rotateCharacter(direction: -1 | 1) {
+  previewYaw.value += direction * (Math.PI / 4);
+  if (characterRoot) characterRoot.rotation.y = previewYaw.value;
+}
+
 function fitCharacter(root: THREE.Object3D) {
   if (!camera || !controls) return;
+  // Không để vũ khí dài làm sai tâm và thu nhỏ cơ thể trong khung preview.
+  const weapons = [
+    root.getObjectByName("previewWeapon-left"),
+    root.getObjectByName("previewWeapon-right"),
+  ].filter((weapon): weapon is THREE.Object3D => Boolean(weapon));
+  const weaponParents = weapons.map((weapon) => weapon.parent);
+  weapons.forEach((weapon) => weapon.removeFromParent());
   root.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(root);
-  if (box.isEmpty()) return;
+  // `precise=true` rất quan trọng với SkinnedMesh: bounding box cache của asset
+  // thường lấy từ bind pose và có thể làm tâm camera lệch xa model đang hiển thị.
+  const box = new THREE.Box3().setFromObject(root, true);
+  if (box.isEmpty()) {
+    weapons.forEach((weapon, index) => weaponParents[index]?.add(weapon));
+    return;
+  }
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
   root.position.x -= center.x;
@@ -204,6 +238,19 @@ function fitCharacter(root: THREE.Object3D) {
   root.position.z -= center.z;
   const height = Math.max(size.y, 0.1);
   fittedCharacterHeight = height;
+  // Fit theo kích thước thật sau characterScale/sceneScale để model luôn đủ lớn
+  // và nằm giữa khung trong lúc quản trị viên chỉnh vũ khí, scale, animation.
+  fittedCameraZoom = THREE.MathUtils.clamp(
+    (PREVIEW_FRUSTUM_HEIGHT * 0.68) / height,
+    0.35,
+    6,
+  );
+  root.updateMatrixWorld(true);
+  // Sau ba phép dịch phía trên, tâm thân nhân vật luôn là trục X/Z = 0. Không
+  // đo lại từ bounding box cache để tránh sai số khiến nội dung dạt sang góc.
+  fittedCameraTarget.set(0, height * 0.5, 0);
+  weapons.forEach((weapon, index) => weaponParents[index]?.add(weapon));
+  root.updateMatrixWorld(true);
   resetCamera();
   const distance = Math.max(height * 6, 8);
   camera.near = Math.max(0.01, distance / 100);
@@ -231,7 +278,12 @@ async function loadPreview() {
     }
     const root = new THREE.Group();
     const character = gltf.scene;
-    character.scale.setScalar(Math.max(Number(props.characterScale) || 1, 0.01));
+    const characterScale = Math.max(Number(props.characterScale) || 1, 0.01);
+    const sceneScale = Math.max(Number(props.sceneScale) || 1, 0.01);
+    character.scale.setScalar(characterScale);
+    root.scale.setScalar(sceneScale);
+    root.userData.previewCombinedScale = characterScale * sceneScale;
+    root.rotation.y = previewYaw.value;
     character.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       child.castShadow = true;
@@ -241,9 +293,6 @@ async function loadPreview() {
     scene.add(root);
     characterRoot = root;
 
-    // Căn camera theo cơ thể trước khi gắn trang bị để vũ khí lớn không làm
-    // nhân vật bị thu nhỏ hoặc khiến góc nhìn lệch khỏi tâm.
-    fitCharacter(root);
     const [leftAttached, rightAttached] = await Promise.all([
       attachWeapon(
         loader,
@@ -298,6 +347,16 @@ async function loadPreview() {
       hasAnimation.value = true;
       activeAnimation.value = animation.name;
     }
+    // Căn lại sau khi animation đã áp pose. Đây là bước giúp Safari/macOS và
+    // Chrome/Windows dùng đúng cùng tâm model thay vì phụ thuộc bind pose.
+    fitCharacter(root);
+    // Trên màn hình Retina, canvas có thể nhận kích thước thực sau frame tải
+    // model. Fit lại ở frame kế tiếp để Mac và Windows dùng cùng layout cuối.
+    requestAnimationFrame(() => {
+      if (version !== loadVersion || characterRoot !== root) return;
+      resizeRenderer();
+      fitCharacter(root);
+    });
   } catch (error) {
     console.error("[Tower Defense] Không thể preview model.", error);
     errorMessage.value = "Không thể tải model hoặc vũ khí đã chọn.";
@@ -313,11 +372,16 @@ function createPreview() {
   scene.fog = new THREE.Fog(0x090910, 8, 22);
   camera = new THREE.OrthographicCamera(-2.5, 2.5, 2.5, -2.5, 0.05, 100);
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  // Dùng cùng mật độ render trên mọi hệ điều hành. Retina DPR=2 từng khiến
+  // frame khởi tạo trên Mac khác với Chrome/Windows và làm camera fit lệch.
+  renderer.setPixelRatio(1);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  // Dùng cùng pipeline màu với scene thật để preview không bị ám tím/sáng khác
+  // giữa màn hình Display-P3 của macOS và màn hình sRGB phổ biến trên Windows.
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 1.12;
   renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   host.value.appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
@@ -327,14 +391,15 @@ function createPreview() {
   controls.enablePan = false;
   resetCamera();
 
-  scene.add(new THREE.HemisphereLight(0xc4d8ff, 0x291929, 2.1));
-  const keyLight = new THREE.DirectionalLight(0xffe6c7, 4.2);
-  keyLight.position.set(3.5, 6, 4);
-  keyLight.castShadow = true;
-  scene.add(keyLight);
-  const rimLight = new THREE.DirectionalLight(0x8b5cf6, 3.2);
-  rimLight.position.set(-4, 3, -4);
-  scene.add(rimLight);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x64706a, 1.45));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.85);
+  sun.position.set(-6, 12, 7);
+  sun.castShadow = true;
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xdbeafe, 0.58);
+  fill.position.set(7, 6, -8);
+  scene.add(fill);
   const floor = new THREE.Mesh(
     new THREE.CircleGeometry(3.2, 64),
     new THREE.MeshStandardMaterial({
@@ -376,6 +441,7 @@ watch(
     props.leftWeaponUrl,
     props.rightWeaponUrl,
     props.characterScale,
+    props.sceneScale,
     props.removeRootMotion,
     ...props.animationNames,
   ],
@@ -422,6 +488,8 @@ onBeforeUnmount(() => {
     <header>
       <div><small>LIVE PREVIEW</small><strong>Model trong game</strong></div>
       <nav>
+        <button type="button" title="Xoay nhân vật sang trái 45°" @click="rotateCharacter(-1)"><RotateCcw /></button>
+        <button type="button" title="Xoay nhân vật sang phải 45°" @click="rotateCharacter(1)"><RotateCw /></button>
         <button
           class="animation-toggle"
           type="button"

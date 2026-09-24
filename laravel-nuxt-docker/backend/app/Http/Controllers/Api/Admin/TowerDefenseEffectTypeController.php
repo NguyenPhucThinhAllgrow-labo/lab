@@ -11,9 +11,16 @@ use Illuminate\Validation\Rule;
 
 class TowerDefenseEffectTypeController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json(['data' => TowerDefenseEffectType::query()->orderBy('sort_order')->orderBy('name')->get()]);
+        return response()->json(
+            TowerDefenseEffectType::query()->orderBy('sort_order')->orderBy('name')->paginate($this->perPage($request)),
+        );
+    }
+
+    private function perPage(Request $request): int
+    {
+        return min(500, max(1, $request->integer('per_page', 20)));
     }
 
     public function store(Request $request): JsonResponse

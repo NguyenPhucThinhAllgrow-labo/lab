@@ -12,11 +12,18 @@ use Illuminate\Validation\ValidationException;
 
 class TowerDefenseTowerController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json([
-            'data' => TowerDefenseTower::query()->orderBy('sort_order')->orderBy('name')->get(),
-        ]);
+        return response()->json(
+            TowerDefenseTower::query()
+                ->when($request->filled('search'), fn ($query) => $query->where(fn ($nested) => $nested->where('name', 'like', '%'.(string) $request->string('search').'%')->orWhere('id', 'like', '%'.(string) $request->string('search').'%')))
+                ->orderBy('sort_order')->orderBy('name')->paginate($this->perPage($request)),
+        );
+    }
+
+    private function perPage(Request $request): int
+    {
+        return min(500, max(1, $request->integer('per_page', 20)));
     }
 
     public function store(Request $request): JsonResponse

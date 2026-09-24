@@ -28,8 +28,17 @@ const themeClass = computed(() => {
   return "player-header--default";
 });
 
+function syncCollapsedDocumentState() {
+  if (!import.meta.client) return;
+  document.documentElement.toggleAttribute(
+    "data-player-header-collapsed",
+    collapsed.value,
+  );
+}
+
 function toggleHeader() {
   collapsed.value = !collapsed.value;
+  syncCollapsedDocumentState();
   try {
     localStorage.setItem("player-header-collapsed", String(collapsed.value));
   } catch {
@@ -44,6 +53,11 @@ onMounted(() => {
   } catch {
     /* Use the expanded header by default. */
   }
+  syncCollapsedDocumentState();
+});
+
+onBeforeUnmount(() => {
+  document.documentElement.removeAttribute("data-player-header-collapsed");
 });
 
 async function confirmLogout() {
@@ -119,8 +133,8 @@ async function confirmLogout() {
         :aria-expanded="!collapsed"
         @click="toggleHeader"
       >
-        <ChevronDown v-if="collapsed" :size="18" aria-hidden="true" />
-        <ChevronUp v-else :size="18" aria-hidden="true" />
+        <ChevronDown v-if="collapsed" :size="16" aria-hidden="true" />
+        <ChevronUp v-else :size="16" aria-hidden="true" />
       </button>
     </header>
   </div>
@@ -211,7 +225,7 @@ async function confirmLogout() {
   display: grid;
   width: min(calc(100% - 80px), 1200px);
   min-height: 96px;
-  grid-template-columns: auto minmax(0, 1fr) auto 40px;
+  grid-template-columns: auto minmax(0, 1fr) auto 32px;
   grid-template-areas: "brand nav account toggle";
   align-items: center;
   gap: 12px;
@@ -349,15 +363,19 @@ async function confirmLogout() {
 .home-header-toggle {
   grid-area: toggle;
   display: inline-grid;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   padding: 0;
   border: 1px solid #9ca3af60;
-  border-radius: 9px;
-  background: transparent;
+  border-radius: 8px;
+  background: #ffffff05;
   color: inherit;
   cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    color 0.16s ease;
 }
 .home-header-toggle:hover {
   border-color: var(--home-accent);
@@ -371,24 +389,31 @@ async function confirmLogout() {
 }
 .game-header-shell.is-collapsed .home-header {
   position: fixed;
-  top: max(10px, env(safe-area-inset-top));
-  right: max(10px, env(safe-area-inset-right));
-  width: 44px;
-  min-height: 44px;
-  grid-template-columns: 40px;
+  top: 0;
+  left: 50%;
+  right: auto;
+  width: 48px;
+  min-height: 28px;
+  grid-template-columns: 44px;
   grid-template-areas: "toggle";
   justify-content: center;
-  padding: 2px;
+  padding: 0 2px 2px;
   border: 1px solid var(--home-border);
-  border-radius: 12px;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
   background: var(--header-bg);
   box-shadow: 0 8px 24px var(--header-glow);
+  transform: translateX(-50%);
 }
 .game-header-shell.is-collapsed :where(.home-brand, .home-nav, .home-account) {
   display: none;
 }
 .game-header-shell.is-collapsed .home-header-toggle {
+  width: 44px;
+  height: 26px;
   border-color: transparent;
+  border-radius: 0 0 9px 9px;
+  background: transparent;
 }
 .player-header__spinner {
   animation: player-header-spin 0.8s linear infinite;
@@ -426,7 +451,7 @@ async function confirmLogout() {
 }
 @media (max-width: 1100px) {
   .home-header {
-    grid-template-columns: minmax(0, 1fr) auto 40px;
+    grid-template-columns: minmax(0, 1fr) auto 32px;
     grid-template-areas: "brand account toggle" "nav nav nav";
     gap: 14px 12px;
   }
@@ -440,17 +465,17 @@ async function confirmLogout() {
 @media (max-width: 600px) {
   .home-header {
     width: min(calc(100% - 28px), 1200px);
-    grid-template-columns: minmax(0, 1fr) 40px;
+    grid-template-columns: minmax(0, 1fr) 32px;
     grid-template-areas: "brand toggle" "nav nav" "account account";
     gap: 12px;
     padding-block: 12px;
   }
   .game-header-shell.is-collapsed .home-header {
-    width: 44px;
-    min-height: 44px;
-    grid-template-columns: 40px;
+    width: 48px;
+    min-height: 28px;
+    grid-template-columns: 44px;
     grid-template-areas: "toggle";
-    padding: 2px;
+    padding: 0 2px 2px;
   }
   .home-nav {
     justify-content: space-between;

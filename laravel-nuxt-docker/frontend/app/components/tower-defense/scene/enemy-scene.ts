@@ -123,7 +123,9 @@ function prepareCharacter(
   healthBarY: number,
 ) {
   character.rotation.y = 0;
-  character.scale.setScalar(characterScale);
+  character.scale.setScalar(
+    Math.max(Number(characterScale) || 1, 0.01),
+  );
   character.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
     child.castShadow = true;
@@ -559,10 +561,14 @@ export function createTowerDefenseEnemyScene(
     group.userData.animationWorldSpeed = 0;
     group.userData.walkPhase = 0;
     group.userData.poolKey = poolKey;
-    group.userData.sceneScale =
-      enemy.kind === "normal"
-        ? definition?.sceneScale
-        : (definition?.sceneScale ?? BOSS_MODEL_SCALE);
+    group.userData.sceneScale = Math.max(
+      Number(
+        enemy.kind === "normal"
+          ? definition?.sceneScale
+          : (definition?.sceneScale ?? BOSS_MODEL_SCALE),
+      ) || 1,
+      0.01,
+    );
     const sceneScale = Number(group.userData.sceneScale) || 1;
     const shadowRadius = enemy.kind === "boss" ? 0.42 : 0.24;
     const groundShadow = new THREE.Mesh(

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Box, Castle, Gauge, ImageIcon, Pencil, Plus, RefreshCw, Save, Search, Sparkles, Trash2, Upload, X } from "lucide-vue-next";
+import { Box, Castle, Gauge, ImageIcon, Pencil, Plus, RefreshCw, Save, Search, Sparkles, Trash2, X } from "lucide-vue-next";
 
 type TowerRole = "damage" | "buff";
 type EffectBehavior = "bonus_damage" | "damage_over_time" | "slow" | "splash_damage" | "damage_aura" | "attack_speed_aura";
@@ -7,7 +7,8 @@ interface EffectTypeOption { id: string; name: string; role: TowerRole; behavior
 interface EffectForm { id: string; type: string; behavior: EffectBehavior; name: string; value: number; duration: number; radius: number; ratio: number; perLevel: number; color: string }
 interface LevelStatsForm { damage: number; range: number; fireRate: number; upgradeCost: number; targetHeight: number }
 
-interface Asset { id: number; key: string; type: string; purpose: string }
+interface Asset { id: number; key: string; type: string; purpose: string; isActive?: boolean }
+interface Paginated<T> { data: T[]; current_page: number; last_page: number; total: number }
 interface Tower {
   id: string; name: string; description: string | null; cost: number; damage: number;
   damage_by_level: Record<string, number> | null;
@@ -24,13 +25,15 @@ const towers = ref<Tower[]>([]);
 const assets = ref<Asset[]>([]);
 const effectTypes = ref<EffectTypeOption[]>([]);
 const loading = ref(true);
+const towerPage = ref(1);
+const towerLastPage = ref(1);
+const towerTotal = ref(0);
 const saving = ref(false);
 const pageError = ref("");
 const formError = ref("");
 const fieldErrors = ref<Record<string, string[]>>({});
 const search = ref("");
 const dialog = ref<HTMLDialogElement | null>(null);
-const imageInput = ref<HTMLInputElement | null>(null);
 const editingId = ref<string | null>(null);
 const towerKindOptions = [
   ["archer", "Tháp cung"], ["cannon", "Tháp pháo"], ["frost", "Tháp băng"],
@@ -46,12 +49,13 @@ const blankForm = () => ({
     3: { damage: 21, range: 3.44, fireRate: 0.74, upgradeCost: 110, targetHeight: 2 },
   } as Record<number, LevelStatsForm>,
   color: "#64748b", sortOrder: 0, isActive: true,
-  imageAssetKey: "", imageFile: null as File | null, imagePreview: "",
+  imageAssetKey: "", imagePreview: "",
   effectItems: [] as EffectForm[],
   darkModels: {} as Record<number, string>, humanModels: {} as Record<number, string>,
 });
 const form = reactive(blankForm());
 const modelAssets = computed(() => assets.value.filter(asset => asset.type === "model" && asset.purpose === "tower-model"));
+const towerImageAssets = computed(() => assets.value.filter(asset => asset.type === "image" && asset.purpose === "tower-image" && asset.isActive !== false));
 const filteredTowers = computed(() => {
   const term = search.value.trim().toLocaleLowerCase("vi");
   return term ? towers.value.filter(tower => `${tower.id} ${tower.name} ${tower.description ?? ""}`.toLocaleLowerCase("vi").includes(term)) : towers.value;
@@ -106,25 +110,12 @@ function openCreate() {
   formError.value = ""; fieldErrors.value = {};
   dialog.value?.showModal();
 }
-function selectTowerImage(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0] ?? null;
-  if (!file) return;
-  if (file.size > 200 * 1024 * 1024) {
-    formError.value = "Ảnh tower không được lớn hơn 200 MB.";
-    if (imageInput.value) imageInput.value.value = "";
-    return;
-  }
-  formError.value = "";
-  if (form.imagePreview.startsWith("blob:")) URL.revokeObjectURL(form.imagePreview);
-  form.imageFile = file;
-  form.imagePreview = URL.createObjectURL(file);
+function selectTowerImageAsset() {
+  form.imagePreview = form.imageAssetKey ? assetUrl(form.imageAssetKey) : "";
 }
 function clearTowerImage() {
-  if (form.imagePreview.startsWith("blob:")) URL.revokeObjectURL(form.imagePreview);
-  form.imageFile = null;
   form.imageAssetKey = "";
   form.imagePreview = "";
-  if (imageInput.value) imageInput.value.value = "";
 }
 function openEdit(tower: Tower) {
   editingId.value = tower.id;
@@ -145,7 +136,7 @@ function openEdit(tower: Tower) {
         targetHeight: tower.model_configuration?.targetHeightByLevel?.[String(level)] ?? tower.model_configuration?.targetHeight ?? 2,
       }];
     })),
-    color: tower.color, imageAssetKey: tower.image_asset_key ?? "", imageFile: null,
+    color: tower.color, imageAssetKey: tower.image_asset_key ?? "",
     imagePreview: tower.image_asset_key ? assetUrl(tower.image_asset_key) : "",
     sortOrder: tower.sort_order,
     isActive: tower.is_active, effectItems: normalizeEffects(tower.effects),
@@ -155,15 +146,16 @@ function openEdit(tower: Tower) {
   formError.value = ""; fieldErrors.value = {};
   dialog.value?.showModal();
 }
-async function loadData() {
+async function loadData(page = towerPage.value) {
   loading.value = true; pageError.value = "";
   try {
     const [towerResponse, assetResponse, effectTypeResponse] = await Promise.all([
-      api<{ data: Tower[] }>("/api/admin/tower-defense/towers"),
-      api<{ data: Asset[] }>("/api/admin/tower-defense/assets"),
-      api<{ data: EffectTypeOption[] }>("/api/admin/tower-defense/effect-types"),
+      api<Paginated<Tower>>(`/api/admin/tower-defense/towers?per_page=12&page=${page}`),
+      api<{ data: Asset[] }>("/api/admin/tower-defense/assets?per_page=500"),
+      api<{ data: EffectTypeOption[] }>("/api/admin/tower-defense/effect-types?per_page=500"),
     ]);
-    towers.value = towerResponse.data; assets.value = assetResponse.data; effectTypes.value = effectTypeResponse.data;
+    towers.value = towerResponse.data; towerPage.value = towerResponse.current_page; towerLastPage.value = towerResponse.last_page; towerTotal.value = towerResponse.total;
+    assets.value = assetResponse.data; effectTypes.value = effectTypeResponse.data;
   } catch (error: any) {
     pageError.value = error?.data?.message || "Không thể tải danh sách tower.";
   } finally { loading.value = false }
@@ -171,27 +163,6 @@ async function loadData() {
 async function submitForm() {
   if (saving.value) return;
   saving.value = true; formError.value = ""; fieldErrors.value = {};
-  try {
-    if (form.imageFile) {
-      const extension = form.imageFile.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
-      const imageKey = `images/games/tower-defense/towers/${form.id}-${Date.now()}.${extension}`;
-      const imageBody = new FormData();
-      imageBody.append("key", imageKey);
-      imageBody.append("type", "image");
-      imageBody.append("purpose", "tower-image");
-      imageBody.append("file", form.imageFile);
-      await api("/api/admin/tower-defense/assets", { method: "POST", body: imageBody });
-      form.imageAssetKey = imageKey;
-    }
-  } catch (error: any) {
-    const status = error?.statusCode ?? error?.response?.status;
-    formError.value = status === 413
-      ? "Ảnh vượt quá giới hạn upload của máy chủ."
-      : error?.data?.errors?.file?.[0] || error?.data?.message || "Không thể tải ảnh tower lên.";
-    fieldErrors.value = error?.data?.errors || {};
-    saving.value = false;
-    return;
-  }
   const payload = {
     id: form.id, name: form.name, description: form.description || null, role: form.role,
     cost: Number(form.levelStats[1]?.upgradeCost ?? 0), damage: Number(form.levelStats[1]?.damage ?? 0), max_level: Number(form.maxLevel),
@@ -258,7 +229,7 @@ onMounted(loadData);
     </header>
     <section class="tower-toolbar">
       <label><Search /><input v-model="search" placeholder="Tìm tên hoặc mã tower…" /></label>
-      <button type="button" :disabled="loading" @click="loadData"><RefreshCw :class="{ spin: loading }" /> Làm mới</button>
+      <button type="button" :disabled="loading" @click="loadData()"><RefreshCw :class="{ spin: loading }" /> Làm mới</button>
     </section>
     <p v-if="pageError" class="tower-alert">{{ pageError }}</p>
     <div v-if="loading" class="tower-empty">Đang tải danh sách…</div>
@@ -271,6 +242,7 @@ onMounted(loadData);
         <footer><span>{{ modelCount(tower) }} model đã gắn</span><div><button title="Chỉnh sửa" @click="openEdit(tower)"><Pencil /></button><button class="danger" title="Xóa" @click="removeTower(tower)"><Trash2 /></button></div></footer>
       </article>
     </section>
+    <AdminPagination :page="towerPage" :last-page="towerLastPage" :total="towerTotal" :loading="loading" @change="loadData" />
 
     <dialog ref="dialog" class="tower-dialog" @click.self="dialog?.close()">
       <form @submit.prevent="submitForm">
@@ -283,7 +255,7 @@ onMounted(loadData);
             <label><span>Màu nhận diện</span><input v-model="form.color" type="color" /></label>
             <label><span>Thứ tự</span><input v-model.number="form.sortOrder" type="number" min="0" step="1" /></label>
             <label class="wide"><span>Mô tả</span><textarea v-model="form.description" rows="2" /></label>
-            <div class="tower-image-field wide"><div class="tower-image-preview" :style="{ '--tower-color': form.color }"><img v-if="form.imagePreview" :src="form.imagePreview" alt="Ảnh xem trước tower" /><ImageIcon v-else /></div><div><b>Ảnh đại diện tower</b><small>PNG, JPG, WEBP hoặc GIF; dùng trong danh sách admin và menu xây tower.</small><label class="tower-image-upload"><Upload /> {{ form.imagePreview ? 'Thay ảnh' : 'Chọn ảnh' }}<input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectTowerImage" /></label><button v-if="form.imagePreview" type="button" class="danger" @click="clearTowerImage"><Trash2 /> Xóa ảnh</button><small v-if="fieldErrors.image_asset_key">{{ fieldErrors.image_asset_key[0] }}</small></div></div>
+            <div class="tower-image-field wide"><div class="tower-image-preview" :style="{ '--tower-color': form.color }"><img v-if="form.imagePreview" :src="form.imagePreview" alt="Ảnh xem trước tower" /><ImageIcon v-else /></div><div><b>Ảnh đại diện tower</b><small>Chọn ảnh đã được upload với loại “Ảnh tower” trong phần Tài nguyên.</small><select v-model="form.imageAssetKey" @change="selectTowerImageAsset"><option value="">Không dùng ảnh đại diện</option><option v-for="asset in towerImageAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select><button v-if="form.imageAssetKey" type="button" class="danger" @click="clearTowerImage"><Trash2 /> Bỏ chọn ảnh</button><small v-if="!towerImageAssets.length">Chưa có tài nguyên Ảnh tower.</small><small v-if="fieldErrors.image_asset_key">{{ fieldErrors.image_asset_key[0] }}</small></div></div>
             <label class="check"><input v-model="form.isActive" type="checkbox" /> Cho phép sử dụng</label>
           </div></fieldset>
           <fieldset><legend><span class="section-icon"><Gauge /></span><span>Chỉ số gameplay theo level<small>Mỗi cấp có bộ chỉ số và giá nâng cấp riêng</small></span></legend><div class="level-stats-builder">

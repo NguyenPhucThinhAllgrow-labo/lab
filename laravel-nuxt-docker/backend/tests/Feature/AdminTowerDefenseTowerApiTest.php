@@ -122,7 +122,10 @@ class AdminTowerDefenseTowerApiTest extends TestCase
 
         $this->getJson('/api/admin/tower-defense/towers')
             ->assertOk()
-            ->assertJsonCount(1, 'data');
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('current_page', 1)
+            ->assertJsonPath('per_page', 20)
+            ->assertJsonPath('total', 1);
 
         $this->getJson('/api/tower-defense/towers')
             ->assertOk()

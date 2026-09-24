@@ -47,6 +47,10 @@ class AdminTowerDefenseEnemyApiTest extends TestCase
             'summary' => 'Test profile',
             'resistance' => 'Không',
             'weakness' => 'Nước',
+            'display_configuration' => [
+                'primaryColor' => '#8b5cf6',
+                'glowColor' => '#2563eb',
+            ],
             'model_configuration' => [
                 'characterScale' => 2,
                 'sceneScale' => 0.5,
@@ -72,6 +76,8 @@ class AdminTowerDefenseEnemyApiTest extends TestCase
             ->assertJsonPath('data.right_weapon_asset_key', 'models/sword.gltf')
             ->assertJsonPath('data.model_configuration.rightWeaponTransform.position.0', 0.1)
             ->assertJsonPath('data.model_configuration.rightWeaponTransform.scale', 0.8)
+            ->assertJsonPath('data.display_configuration.primaryColor', '#8b5cf6')
+            ->assertJsonPath('data.display_configuration.glowColor', '#2563eb')
             ->assertJsonPath('data.combat_profile.damageMultipliers.water', 1.25);
 
         $this->putJson('/api/admin/tower-defense/enemies/test-enemy', [
@@ -106,6 +112,10 @@ class AdminTowerDefenseEnemyApiTest extends TestCase
             'base_speed' => 1,
             'reward' => 10,
             'castle_damage' => 1,
+            'display_configuration' => [
+                'primaryColor' => '#8b5cf6',
+                'glowColor' => '#2563eb',
+            ],
             'model_configuration' => [
                 'characterScale' => 1,
                 'sceneScale' => 1,

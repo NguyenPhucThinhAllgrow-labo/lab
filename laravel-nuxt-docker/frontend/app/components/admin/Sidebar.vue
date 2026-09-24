@@ -70,11 +70,16 @@ const menuItems = [
 ];
 
 const towerDefenseMenuItems = [
-  { label: "Map & tài nguyên", to: "/admin/tower-defense", icon: MapPinned },
+  { label: "Map", to: "/admin/tower-defense/maps", icon: MapPinned },
+  { label: "Tài nguyên", to: "/admin/tower-defense/assets", icon: Package },
+  { label: "Quái & Boss", to: "/admin/tower-defense/enemies", icon: Skull },
   { label: "Quản lý Tower", to: "/admin/tower-defense/towers", icon: Crosshair },
   { label: "Loại hiệu ứng", to: "/admin/tower-defense/effect-types", icon: Sparkles },
-  { label: "Quái & Boss", to: "/admin/tower-defense/enemies", icon: Skull },
 ];
+
+function isTowerDefenseItemActive(item: (typeof towerDefenseMenuItems)[number]) {
+  return route.path === item.to || route.path.startsWith(`${item.to}/`);
+}
 
 watch(() => route.path, (path) => {
   if (path.startsWith("/admin/tower-defense")) towerDefenseMenuOpen.value = true;
@@ -234,7 +239,7 @@ const handleLogout = async () => {
                 :key="item.to"
                 :to="item.to"
                 class="group flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition-all duration-200 hover:bg-white/[0.04] hover:text-zinc-200"
-                active-class="bg-violet-500/10 !text-violet-300"
+                :class="{ 'bg-violet-500/10 !text-violet-300': isTowerDefenseItemActive(item) }"
               >
                 <component :is="item.icon" class="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-105" />
                 <span>{{ item.label }}</span>

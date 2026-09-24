@@ -2235,7 +2235,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     hovered &&
     selectedTower.canRelocate &&
     props.phase !== "wave" &&
-    props.phase !== "gameover" &&
+    props.phase !== "gameover" && props.phase !== "completed" &&
     !hoveredIsPath &&
     !hoveredHasTower,
   );
@@ -2249,7 +2249,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       hovered &&
       !hoveredIsPath &&
       !hoveredHasTower &&
-      props.phase !== "gameover",
+      props.phase !== "gameover" && props.phase !== "completed",
     );
     towerPreviewModel.visible = canPlacePreview;
     if (hovered && canPlacePreview) {
@@ -2262,7 +2262,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     const placementPreviewCell =
       hovered && !hoveredIsPath && !hoveredHasTower ? hovered : undefined;
     const previewCell =
-      props.phase !== "gameover" && previewKind
+      props.phase !== "gameover" && props.phase !== "completed" && previewKind
         ? selectedTower
           ? selectedPreviewCell
           : placementPreviewCell

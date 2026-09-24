@@ -8,6 +8,7 @@ import type {
   Tower,
   TowerKind,
   TowerDefenseMapDefinition,
+  TowerDefenseGameSnapshot,
 } from "~/types/games/towerDefense";
 import {
   BETWEEN_WAVE_DELAY_SECONDS,
@@ -51,6 +52,9 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   const startingCredits = Number.isFinite(map.startingCredits)
     ? Math.max(0, Math.floor(map.startingCredits))
     : STARTING_CREDITS;
+  const completionWave = Number.isFinite(map.completionWave)
+    ? Math.max(1, Math.floor(map.completionWave ?? 20))
+    : 20;
   const castleGateProgress = (lane: 0 | 1) =>
     map.paths[lane].length - 1 + map.castle.pathEndOffset;
   // ===== State công khai cho page và scene ==================================
@@ -86,6 +90,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     lane: 0 | 1;
     kind: "boss";
     bossClass: BossClass;
+    definitionId?: string;
   }> = [];
   let timer: ReturnType<typeof setInterval> | null = null;
   let elapsed = 0;
@@ -198,7 +203,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
             : "Hãy nhấn nút Di chuyển trước khi chọn ô mới.";
         return;
       }
-      if (phase.value === "gameover") return;
+      if (phase.value === "gameover" || phase.value === "completed") return;
       if (isPath(x, y)) {
         message.value =
           "Không thể đặt tháp trên đường di chuyển của quân địch.";
@@ -213,7 +218,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       return;
     }
 
-    if (isPath(x, y) || phase.value === "gameover") return;
+    if (isPath(x, y) || phase.value === "gameover" || phase.value === "completed") return;
     if (!selectedKind.value) {
       message.value = "Hãy chọn một công trình trước khi đặt tháp.";
       return;
@@ -311,8 +316,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
 
   // ===== Wave, spawn và boss ===============================================
   /**
-   * Khóa thao tác di chuyển, phân phối quân cho hai lane và lên lịch một boss
-   * class ngẫu nhiên ở mỗi wave chia hết cho 5.
+   * Khóa thao tác di chuyển, phân phối quân cho hai lane và lên lịch toàn bộ
+   * boss được admin chọn ở mỗi wave chia hết cho 5.
    */
   function startWave() {
     if (!canStartWave.value) return;
@@ -325,6 +330,11 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     const waveEnemyCount = 8 + wave.value * 3;
     pendingEnemiesByLane[0] = Math.ceil(waveEnemyCount / 2);
     pendingEnemiesByLane[1] = Math.floor(waveEnemyCount / 2);
+    const managedBosses = map.bossDefinitions?.length
+      ? map.bossDefinitions
+      : map.bossDefinition
+        ? [map.bossDefinition]
+        : [];
     pendingBosses =
       PREVIEW_ALL_BOSSES_ON_FIRST_WAVE && wave.value === 1
         ? BOSS_CLASSES.map((bossClass, index) => ({
@@ -333,7 +343,14 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
             bossClass,
           }))
         : wave.value % 5 === 0
-          ? [
+          ? managedBosses.length
+            ? managedBosses.map((definition, index) => ({
+                lane: (index % 2) as 0 | 1,
+                kind: "boss" as const,
+                bossClass: BOSS_CLASSES[index % BOSS_CLASSES.length]!,
+                definitionId: definition.id,
+              }))
+            : [
               {
                 lane: Math.random() < 0.5 ? 0 : 1,
                 kind: "boss",
@@ -363,12 +380,19 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       60 + wave.value * 18 + Math.floor(wave.value * wave.value * 1.15);
     const id = nextEnemyId++;
     const managedRoster = boss ? map.bossDefinitions : map.enemyDefinitions;
-    const managedDefinition = managedRoster?.length
-      ? managedRoster[
-          boss
-            ? nextManagedBossIndex++ % managedRoster.length
-            : nextManagedEnemyIndex++ % managedRoster.length
-        ]
+    const managedDefinition = boss?.definitionId
+      ? (map.bossDefinitions?.find(
+          (definition) => definition.id === boss.definitionId,
+        ) ??
+        (map.bossDefinition?.id === boss.definitionId
+          ? map.bossDefinition
+          : undefined))
+      : managedRoster?.length
+        ? managedRoster[
+            boss
+              ? nextManagedBossIndex++ % managedRoster.length
+              : nextManagedEnemyIndex++ % managedRoster.length
+          ]
       : boss
         ? map.bossDefinition
         : map.enemyDefinition;
@@ -750,12 +774,20 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       localStorage.setItem(storageKey, String(bestWave.value));
       message.value = "Lâu đài đã thất thủ. Hãy tập hợp quân đội và thử lại.";
     } else if (pendingEnemies.value === 0 && enemies.value.length === 0) {
-      phase.value = "between";
-      nextWaveCountdown.value = BETWEEN_WAVE_DELAY_SECONDS;
       projectiles.value = [];
       impacts.value = [];
       credits.value += WAVE_BASE_REWARD + wave.value * WAVE_REWARD_GROWTH;
-      message.value = `Đã đẩy lùi đợt ${wave.value}. Đợt tiếp theo sẽ tự bắt đầu sau ${BETWEEN_WAVE_DELAY_SECONDS} giây.`;
+      if (wave.value >= completionWave) {
+        phase.value = "completed";
+        nextWaveCountdown.value = 0;
+        bestWave.value = Math.max(bestWave.value, wave.value);
+        localStorage.setItem(storageKey, String(bestWave.value));
+        message.value = `Đã hoàn thành đợt cuối ${completionWave}. Vương quốc đã được bảo vệ!`;
+      } else {
+        phase.value = "between";
+        nextWaveCountdown.value = BETWEEN_WAVE_DELAY_SECONDS;
+        message.value = `Đã đẩy lùi đợt ${wave.value}. Đợt tiếp theo sẽ tự bắt đầu sau ${BETWEEN_WAVE_DELAY_SECONDS} giây.`;
+      }
     }
 
     triggerRef(towers);
@@ -811,6 +843,121 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   }
 
   // ===== Lifecycle và điều khiển phiên chơi ================================
+  /** Tạo bản sao thuần JSON của toàn bộ state cần để tiếp tục đúng một phiên. */
+  function createSnapshot(): TowerDefenseGameSnapshot {
+    return JSON.parse(JSON.stringify({
+      version: 1,
+      mapId: map.id,
+      phase: phase.value,
+      credits: credits.value,
+      castleHealth: castleHealth.value,
+      wave: wave.value,
+      score: score.value,
+      bestWave: bestWave.value,
+      speedMultiplier: speedMultiplier.value,
+      selectedKind: selectedKind.value,
+      selectedTowerId: selectedTowerId.value,
+      towers: towers.value,
+      enemies: enemies.value,
+      projectiles: projectiles.value,
+      impacts: impacts.value,
+      pendingEnemies: pendingEnemies.value,
+      nextWaveCountdown: nextWaveCountdown.value,
+      undoableTowerIds: undoableTowerIds.value,
+      pendingEnemiesByLane,
+      spawnCooldownByLane,
+      pendingBosses,
+      nextTowerId,
+      nextEnemyId,
+      nextManagedEnemyIndex,
+      nextManagedBossIndex,
+      nextProjectileId,
+      nextImpactId,
+      elapsed,
+    })) as TowerDefenseGameSnapshot;
+  }
+
+  /** Khôi phục snapshot từ backend; phiên đang đánh luôn trở lại ở trạng thái pause. */
+  function restoreSnapshot(snapshot: TowerDefenseGameSnapshot): boolean {
+    if (
+      snapshot?.version !== 1 ||
+      snapshot.mapId !== map.id ||
+      !Array.isArray(snapshot.towers) ||
+      !Array.isArray(snapshot.enemies)
+    ) return false;
+
+    const restored = JSON.parse(JSON.stringify(snapshot)) as TowerDefenseGameSnapshot;
+    const finiteNumber = (value: unknown, fallback: number) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : fallback;
+    };
+    credits.value = Math.max(0, finiteNumber(restored.credits, startingCredits));
+    castleHealth.value = Math.max(0, finiteNumber(restored.castleHealth, 20));
+    wave.value = Math.max(0, Math.floor(finiteNumber(restored.wave, 0)));
+    score.value = Math.max(0, Math.floor(finiteNumber(restored.score, 0)));
+    bestWave.value = Math.max(
+      bestWave.value,
+      wave.value,
+      Math.floor(finiteNumber(restored.bestWave, 0)),
+    );
+    phase.value = restored.phase;
+    speedMultiplier.value = [0.5, 1, 2, 4].includes(restored.speedMultiplier)
+      ? restored.speedMultiplier
+      : 1;
+    selectedKind.value = restored.selectedKind ?? null;
+    selectedTowerId.value = restored.towers.some((tower) => tower.id === restored.selectedTowerId)
+      ? restored.selectedTowerId
+      : null;
+    towers.value = restored.towers;
+    enemies.value = restored.enemies;
+    projectiles.value = Array.isArray(restored.projectiles) ? restored.projectiles : [];
+    impacts.value = Array.isArray(restored.impacts) ? restored.impacts : [];
+    pendingEnemies.value = Math.max(0, Math.floor(Number(restored.pendingEnemies) || 0));
+    nextWaveCountdown.value = Math.max(0, Number(restored.nextWaveCountdown) || 0);
+    undoableTowerIds.value = Array.isArray(restored.undoableTowerIds)
+      ? restored.undoableTowerIds
+      : [];
+    pendingEnemiesByLane[0] = Math.max(0, Math.floor(Number(restored.pendingEnemiesByLane?.[0]) || 0));
+    pendingEnemiesByLane[1] = Math.max(0, Math.floor(Number(restored.pendingEnemiesByLane?.[1]) || 0));
+    spawnCooldownByLane[0] = Math.max(0, Number(restored.spawnCooldownByLane?.[0]) || 0);
+    spawnCooldownByLane[1] = Math.max(0, Number(restored.spawnCooldownByLane?.[1]) || 0);
+    pendingBosses = Array.isArray(restored.pendingBosses) ? restored.pendingBosses : [];
+    nextTowerId = Math.max(
+      1,
+      ...restored.towers.map((tower) => tower.id + 1),
+      Math.floor(finiteNumber(restored.nextTowerId, 1)),
+    );
+    nextEnemyId = Math.max(
+      1,
+      ...restored.enemies.map((enemy) => enemy.id + 1),
+      Math.floor(finiteNumber(restored.nextEnemyId, 1)),
+    );
+    nextManagedEnemyIndex = Math.max(0, Math.floor(finiteNumber(restored.nextManagedEnemyIndex, 0)));
+    nextManagedBossIndex = Math.max(0, Math.floor(finiteNumber(restored.nextManagedBossIndex, 0)));
+    nextProjectileId = Math.max(
+      1,
+      ...projectiles.value.map((projectile) => projectile.id + 1),
+      Math.floor(finiteNumber(restored.nextProjectileId, 1)),
+    );
+    nextImpactId = Math.max(
+      1,
+      ...impacts.value.map((impact) => impact.id + 1),
+      Math.floor(finiteNumber(restored.nextImpactId, 1)),
+    );
+    elapsed = Math.max(
+      0,
+      ...restored.towers.map((tower) => tower.firingUntil ?? 0),
+      finiteNumber(restored.elapsed, 0),
+    );
+    isPaused.value = phase.value === "wave" || phase.value === "between";
+    lastTickAt = Date.now();
+    pendingRealTime = 0;
+    message.value = isPaused.value
+      ? `Đã khôi phục phiên ở đợt ${wave.value}. Nhấn Tiếp tục khi bạn sẵn sàng.`
+      : "Đã khôi phục phiên chơi gần nhất.";
+    return true;
+  }
+
   /** Khôi phục toàn bộ state phiên chơi nhưng giữ bestWave đã lưu ở localStorage. */
   function resetGame() {
     credits.value = startingCredits;
@@ -870,7 +1017,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   }
   /** Đặt trạng thái pause và reset mốc thời gian để không chạy bù lúc resume. */
   function setPaused(paused: boolean) {
-    if (phase.value === "ready" || phase.value === "gameover") return;
+    if (phase.value === "gameover" || phase.value === "completed") return;
     if (isPaused.value === paused) return;
     isPaused.value = paused;
     lastTickAt = Date.now();
@@ -920,6 +1067,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     undoSelectedPlacement,
     startWave,
     resetGame,
+    createSnapshot,
+    restoreSnapshot,
     setPaused,
     togglePause,
   };

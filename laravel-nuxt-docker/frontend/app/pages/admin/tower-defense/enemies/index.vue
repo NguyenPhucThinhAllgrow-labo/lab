@@ -43,6 +43,7 @@ interface Enemy {
   summary: string | null;
   resistance: string | null;
   weakness: string | null;
+  display_configuration?: { primaryColor?: string; glowColor?: string } | null;
   model_configuration: {
     characterScale: number;
     sceneScale: number;
@@ -63,6 +64,9 @@ const api = useApi();
 const enemies = ref<Enemy[]>([]);
 const assets = ref<Asset[]>([]);
 const loading = ref(true);
+const enemyPage = ref(1);
+const enemyLastPage = ref(1);
+const enemyTotal = ref(0);
 const saving = ref(false);
 const pageError = ref("");
 const formError = ref("");
@@ -203,15 +207,18 @@ function multiplier(profile: Enemy["combat_profile"], group: "damageMultipliers"
   return profile[group]?.[key] ?? 1;
 }
 
-async function loadData() {
+async function loadData(page = enemyPage.value) {
   loading.value = true;
   pageError.value = "";
   try {
     const [enemyResponse, assetResponse] = await Promise.all([
-      api<{ data: Enemy[] }>("/api/admin/tower-defense/enemies"),
-      api<{ data: Asset[] }>("/api/admin/tower-defense/assets"),
+      api<{ data: Enemy[]; current_page: number; last_page: number; total: number }>(`/api/admin/tower-defense/enemies?per_page=12&page=${page}`),
+      api<{ data: Asset[] }>("/api/admin/tower-defense/assets?per_page=500"),
     ]);
     enemies.value = enemyResponse.data;
+    enemyPage.value = enemyResponse.current_page;
+    enemyLastPage.value = enemyResponse.last_page;
+    enemyTotal.value = enemyResponse.total;
     assets.value = assetResponse.data;
   } catch (error: any) {
     pageError.value = error?.data?.message || "Không thể tải danh mục quái.";
@@ -406,7 +413,7 @@ onMounted(loadData);
   <main class="enemy-admin-page">
     <header class="enemy-header">
       <div><small>TOWER DEFENSE CMS</small><h1>Quái và boss</h1><p>Quản lý chỉ số, hồ sơ chiến đấu và tài nguyên hiển thị.</p></div>
-      <div class="enemy-header-actions"><NuxtLink to="/admin/tower-defense">Map & tài nguyên</NuxtLink><button type="button" @click="loadData"><RefreshCw :class="{ spin: loading }" /> Làm mới</button><NuxtLink class="primary" to="/admin/tower-defense/enemies/new"><Plus /> Thêm kẻ địch</NuxtLink></div>
+      <div class="enemy-header-actions"><NuxtLink to="/admin/tower-defense/maps">Quản lý Map</NuxtLink><button type="button" @click="loadData()"><RefreshCw :class="{ spin: loading }" /> Làm mới</button><NuxtLink class="primary" to="/admin/tower-defense/enemies/new"><Plus /> Thêm kẻ địch</NuxtLink></div>
     </header>
 
     <section class="enemy-stats">
@@ -422,13 +429,14 @@ onMounted(loadData);
       <header><div class="enemy-search"><Search /><input v-model="search" placeholder="Tìm theo tên hoặc mã…" /></div><select v-model="kindFilter"><option value="">Tất cả</option><option value="normal">Lính thường</option><option value="boss">Boss</option></select><NuxtLink class="enemy-add-link" to="/admin/tower-defense/enemies/new?kind=boss"><Crown /> Thêm boss</NuxtLink></header>
       <div v-if="loading" class="enemy-loading"><RefreshCw class="spin" /> Đang tải danh mục…</div>
       <div v-else class="enemy-grid">
-        <article v-for="enemy in filteredEnemies" :key="enemy.id" class="enemy-card" :class="{ boss: enemy.kind === 'boss', inactive: !enemy.is_active }">
+        <article v-for="enemy in filteredEnemies" :key="enemy.id" class="enemy-card" :class="{ boss: enemy.kind === 'boss', inactive: !enemy.is_active }" :style="{ '--enemy-primary': enemy.display_configuration?.primaryColor ?? (enemy.kind === 'boss' ? '#f59e0b' : '#8b5cf6'), '--enemy-glow': enemy.display_configuration?.glowColor ?? (enemy.kind === 'boss' ? '#ef4444' : '#7c3aed') }">
           <div class="enemy-avatar"><img v-if="enemy.avatar_asset_key" :src="assetUrl(enemy.avatar_asset_key)" alt="" /><Skull v-else /></div>
           <div class="enemy-card-body"><div class="enemy-card-title"><span>{{ enemy.kind === 'boss' ? 'BOSS' : 'LÍNH THƯỜNG' }}</span><i :class="{ active: enemy.is_active }">{{ enemy.is_active ? 'Đang bật' : 'Đã tắt' }}</i></div><h2>{{ enemy.name }}</h2><code>{{ enemy.id }}</code><p>{{ enemy.summary || 'Chưa có mô tả.' }}</p><dl><div><dt>HP</dt><dd>{{ enemy.base_health }}</dd></div><div><dt>Tốc độ</dt><dd>{{ enemy.base_speed }}</dd></div><div><dt>Thưởng</dt><dd>{{ enemy.reward }}</dd></div><div><dt>Mất máu</dt><dd>{{ enemy.castle_damage }}</dd></div></dl><div class="enemy-traits"><span><b>Kháng</b>{{ enemy.resistance || 'Không' }}</span><span><b>Điểm yếu</b>{{ enemy.weakness || 'Không' }}</span></div></div>
           <footer><NuxtLink :to="`/admin/tower-defense/enemies/${encodeURIComponent(enemy.id)}`"><Pencil /> Sửa</NuxtLink><button class="danger" type="button" @click="deleteEnemy(enemy)"><Trash2 /> Xóa</button></footer>
         </article>
         <p v-if="filteredEnemies.length === 0" class="enemy-empty">Không tìm thấy kẻ địch phù hợp.</p>
       </div>
+      <AdminPagination :page="enemyPage" :last-page="enemyLastPage" :total="enemyTotal" :loading="loading" @change="loadData" />
     </section>
 
     <Teleport v-if="false" to="body">
@@ -436,15 +444,15 @@ onMounted(loadData);
         <form @submit.prevent="submitForm">
           <header><div><small>{{ editingId ? 'CHỈNH SỬA' : 'TẠO MỚI' }}</small><h2>{{ form.kind === 'boss' ? 'Hồ sơ boss' : 'Hồ sơ lính thường' }}</h2></div><button type="button" @click="dialog?.close()"><X /></button></header>
           <div class="enemy-form">
-            <fieldset><legend>Thông tin cơ bản</legend><div class="form-grid"><label><span>Loại</span><select v-model="form.kind"><option value="normal">Lính thường</option><option value="boss">Boss</option></select></label><label><span>Mã định danh</span><input v-model="form.id" :disabled="!!editingId" required placeholder="lava-overlord" /><small v-if="fieldErrors.id">{{ fieldErrors.id[0] }}</small></label><label><span>Tên</span><input v-model="form.name" required /><small v-if="fieldErrors.name">{{ fieldErrors.name[0] }}</small></label><label class="check"><input v-model="form.isActive" type="checkbox" /> Cho phép sử dụng</label><label class="wide"><span>Mô tả</span><textarea v-model="form.summary" rows="2" /></label><label><span>Kháng</span><input v-model="form.resistance" /></label><label><span>Điểm yếu</span><input v-model="form.weakness" /></label></div></fieldset>
+            <fieldset><legend>Thông tin cơ bản</legend><div class="form-grid"><label><span>Loại</span><select v-model="form.kind"><option value="normal">Lính thường</option><option value="boss">Boss</option></select></label><label><span>Mã định danh</span><input v-model="form.id" :disabled="!!editingId" required placeholder="lava-overlord" /><small v-if="fieldErrors.id">{{ fieldErrors.id?.[0] }}</small></label><label><span>Tên</span><input v-model="form.name" required /><small v-if="fieldErrors.name">{{ fieldErrors.name?.[0] }}</small></label><label class="check"><input v-model="form.isActive" type="checkbox" /> Cho phép sử dụng</label><label class="wide"><span>Mô tả</span><textarea v-model="form.summary" rows="2" /></label><label><span>Kháng</span><input v-model="form.resistance" /></label><label><span>Điểm yếu</span><input v-model="form.weakness" /></label></div></fieldset>
             <fieldset>
               <legend>Tài nguyên và model</legend>
               <div class="enemy-resource-editor">
                 <div class="form-grid">
-                  <label class="wide"><span>Model</span><select v-model="form.modelAssetKey" required><option value="">Chọn model {{ form.kind === 'boss' ? 'boss' : 'lính' }}…</option><option v-for="asset in modelAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select><small v-if="fieldErrors.model_asset_key">{{ fieldErrors.model_asset_key[0] }}</small></label>
+                  <label class="wide"><span>Model</span><select v-model="form.modelAssetKey" required><option value="">Chọn model {{ form.kind === 'boss' ? 'boss' : 'lính' }}…</option><option v-for="asset in modelAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select><small v-if="fieldErrors.model_asset_key">{{ fieldErrors.model_asset_key?.[0] }}</small></label>
                   <label class="wide"><span>Avatar</span><select v-model="form.avatarAssetKey"><option value="">Không có avatar</option><option v-for="asset in avatarAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>
-                  <label><span>Vũ khí tay trái (không bắt buộc)</span><select v-model="form.leftWeaponAssetKey"><option value="">Không trang bị</option><option v-for="asset in weaponAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select><small v-if="fieldErrors.left_weapon_asset_key">{{ fieldErrors.left_weapon_asset_key[0] }}</small></label>
-                  <label><span>Vũ khí tay phải (không bắt buộc)</span><select v-model="form.rightWeaponAssetKey"><option value="">Không trang bị</option><option v-for="asset in weaponAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select><small v-if="fieldErrors.right_weapon_asset_key">{{ fieldErrors.right_weapon_asset_key[0] }}</small></label>
+                  <label><span>Vũ khí tay trái (không bắt buộc)</span><select v-model="form.leftWeaponAssetKey"><option value="">Không trang bị</option><option v-for="asset in weaponAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select><small v-if="fieldErrors.left_weapon_asset_key">{{ fieldErrors.left_weapon_asset_key?.[0] }}</small></label>
+                  <label><span>Vũ khí tay phải (không bắt buộc)</span><select v-model="form.rightWeaponAssetKey"><option value="">Không trang bị</option><option v-for="asset in weaponAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select><small v-if="fieldErrors.right_weapon_asset_key">{{ fieldErrors.right_weapon_asset_key?.[0] }}</small></label>
                   <div v-if="form.leftWeaponAssetKey || form.rightWeaponAssetKey" class="weapon-transform-panels wide">
                     <section v-if="form.leftWeaponAssetKey" class="weapon-transform-panel">
                       <header><div><small>TAY TRÁI</small><strong>Vị trí vũ khí</strong></div><button type="button" @click="resetWeaponTransform('left')">Đặt lại</button></header>
