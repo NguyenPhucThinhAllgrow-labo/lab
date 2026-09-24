@@ -90,6 +90,11 @@ export interface TowerDefenseMapDefinition {
   };
   theme: TowerDefenseMapTheme;
   scenery: TowerDefenseMapScenery;
+  /** Trạng thái mở khóa theo tiến trình người chơi. */
+  isUnlocked?: boolean;
+  bestWave?: number;
+  completed?: boolean;
+  completionWave?: number;
 }
 
 export interface TowerDefenseManagedEnemyDefinition {
@@ -219,4 +224,4 @@ export interface Impact {
   radius?: number;
 }
 
-export type GamePhase = "ready" | "wave" | "between" | "gameover";
+export type GamePhase = "ready" | "wave" | "between" | "completed" | "gameover";

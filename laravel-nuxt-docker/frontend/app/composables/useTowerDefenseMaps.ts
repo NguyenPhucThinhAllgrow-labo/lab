@@ -2,6 +2,7 @@ import type { TowerDefenseMapDefinition } from "~/types/games/towerDefense";
 
 interface TowerDefenseMapResponse {
   data: TowerDefenseMapDefinition[];
+  completionWave?: number;
 }
 
 /**
@@ -101,8 +102,10 @@ function normalizeMapAssets(
 /** Nạp catalog map từ Laravel; database là nguồn cấu hình duy nhất. */
 export async function fetchTowerDefenseMaps() {
   try {
+    const headers = import.meta.server ? useRequestHeaders(["cookie"]) : undefined;
     const response = await $fetch<TowerDefenseMapResponse>(
       "/api/tower-defense/maps",
+      { credentials: "include", headers },
     );
     if (response.data.length === 0)
       throw new Error("Database chưa có cấu hình map Tower Defense.");

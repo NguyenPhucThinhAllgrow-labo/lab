@@ -24,6 +24,11 @@ class User extends Authenticatable
         return $this->hasMany(DetectiveProgress::class);
     }
 
+    public function towerDefenseProgress(): HasMany
+    {
+        return $this->hasMany(TowerDefenseProgress::class);
+    }
+
     public function hostedChineseChessRooms(): HasMany
     {
         return $this->hasMany(ChineseChessRoom::class, 'host_id');

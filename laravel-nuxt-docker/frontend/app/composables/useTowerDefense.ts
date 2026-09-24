@@ -49,6 +49,9 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   const startingCredits = Number.isFinite(map.startingCredits)
     ? Math.max(0, Math.floor(map.startingCredits))
     : STARTING_CREDITS;
+  const completionWave = Number.isFinite(map.completionWave)
+    ? Math.max(1, Math.floor(map.completionWave ?? 20))
+    : 20;
   const castleGateProgress = (lane: 0 | 1) =>
     map.paths[lane].length - 1 + map.castle.pathEndOffset;
   // ===== State công khai cho page và scene ==================================
@@ -194,7 +197,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
             : "Hãy nhấn nút Di chuyển trước khi chọn ô mới.";
         return;
       }
-      if (phase.value === "gameover") return;
+      if (phase.value === "gameover" || phase.value === "completed") return;
       if (isPath(x, y)) {
         message.value =
           "Không thể đặt tháp trên đường di chuyển của quân địch.";
@@ -209,7 +212,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       return;
     }
 
-    if (isPath(x, y) || phase.value === "gameover") return;
+    if (isPath(x, y) || phase.value === "gameover" || phase.value === "completed") return;
     if (!selectedKind.value) {
       message.value = "Hãy chọn một công trình trước khi đặt tháp.";
       return;
@@ -762,12 +765,20 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       localStorage.setItem(storageKey, String(bestWave.value));
       message.value = "Lâu đài đã thất thủ. Hãy tập hợp quân đội và thử lại.";
     } else if (pendingEnemies.value === 0 && enemies.value.length === 0) {
-      phase.value = "between";
-      nextWaveCountdown.value = BETWEEN_WAVE_DELAY_SECONDS;
       projectiles.value = [];
       impacts.value = [];
       credits.value += WAVE_BASE_REWARD + wave.value * WAVE_REWARD_GROWTH;
-      message.value = `Đã đẩy lùi đợt ${wave.value}. Đợt tiếp theo sẽ tự bắt đầu sau ${BETWEEN_WAVE_DELAY_SECONDS} giây.`;
+      if (wave.value >= completionWave) {
+        phase.value = "completed";
+        nextWaveCountdown.value = 0;
+        bestWave.value = Math.max(bestWave.value, wave.value);
+        localStorage.setItem(storageKey, String(bestWave.value));
+        message.value = `Đã hoàn thành đợt cuối ${completionWave}. Vương quốc đã được bảo vệ!`;
+      } else {
+        phase.value = "between";
+        nextWaveCountdown.value = BETWEEN_WAVE_DELAY_SECONDS;
+        message.value = `Đã đẩy lùi đợt ${wave.value}. Đợt tiếp theo sẽ tự bắt đầu sau ${BETWEEN_WAVE_DELAY_SECONDS} giây.`;
+      }
     }
 
     triggerRef(towers);
@@ -882,7 +893,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   }
   /** Đặt trạng thái pause và reset mốc thời gian để không chạy bù lúc resume. */
   function setPaused(paused: boolean) {
-    if (phase.value === "ready" || phase.value === "gameover") return;
+    if (phase.value === "ready" || phase.value === "gameover" || phase.value === "completed") return;
     if (isPaused.value === paused) return;
     isPaused.value = paused;
     lastTickAt = Date.now();

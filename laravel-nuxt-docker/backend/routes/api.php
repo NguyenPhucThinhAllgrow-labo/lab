@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
 });
 
 Route::middleware(['auth:sanctum', 'role:user'])->group(function (): void {
+    Route::post('/tower-defense/maps/{map}/progress', [TowerDefenseMapController::class, 'recordProgress']);
     Route::prefix('chinese-chess/rooms')->group(function (): void {
         Route::post('/', [ChineseChessRoomController::class, 'create']);
         Route::post('/{code}/join', [ChineseChessRoomController::class, 'join']);

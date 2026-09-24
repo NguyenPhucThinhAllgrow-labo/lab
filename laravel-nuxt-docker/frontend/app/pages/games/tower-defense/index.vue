@@ -15,6 +15,8 @@ import {
   Pause,
   Play,
   RotateCcw,
+  ArrowRight,
+  Trophy,
   ShieldCheck,
   Snowflake,
   Sparkles,
@@ -52,10 +54,12 @@ useHead({
 });
 
 const route = useRoute();
+const api = useApi();
 const requestedMapId = typeof route.query.map === "string" ? route.query.map : undefined;
-const availableMaps = await fetchTowerDefenseMaps();
+const availableMaps = ref(await fetchTowerDefenseMaps());
 const requestedMap =
-  availableMaps.find((item) => item.id === requestedMapId) ?? availableMaps[0];
+  availableMaps.value.find((item) => item.id === requestedMapId && item.isUnlocked !== false) ??
+  availableMaps.value.find((item) => item.isUnlocked !== false);
 
 if (!requestedMap)
   throw createError({ statusCode: 503, statusMessage: "Không có cấu hình map Tower Defense." });
@@ -131,20 +135,45 @@ const selectedTowerEffectiveFireInterval = computed(() => {
 /** Đổi map bằng URL để khởi tạo lại sạch toàn bộ simulation và WebGL resources. */
 function selectMap(event: Event) {
   const target = event.target as HTMLSelectElement;
+  const selectedMap = availableMaps.value.find((item) => item.id === target.value);
+  if (!selectedMap || selectedMap.isUnlocked === false) {
+    target.value = map.id;
+    message.value = "Map này chưa mở khóa. Hãy hoàn thành đợt 20 của map trước đó.";
+    return;
+  }
   const url = new URL(window.location.href);
   url.searchParams.set("map", target.value);
   window.location.assign(url);
 }
 
+function playNextMap() {
+  const target = nextMap.value;
+  if (!target || target.isUnlocked === false) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("map", target.id);
+  window.location.assign(url);
+}
+
+function replayMap() {
+  completionReported.value = false;
+  completionSaving.value = false;
+  completionSaveError.value = "";
+  resetGame();
+}
+
 // Dữ liệu trình bày của bảng chọn tháp.
 const towerKinds = Object.keys(TOWER_DEFINITIONS) as TowerKind[];
+const completionWave = computed(() => map.completionWave ?? 20);
 const phaseLabel = computed(() =>
   isPaused.value
     ? "Đã tạm dừng"
-    : {
+    : phase.value === "wave" && wave.value === completionWave.value
+      ? "Đợt cuối"
+      : {
         ready: "Sẵn sàng",
         wave: "Đang giao chiến",
         between: "Chuẩn bị đợt mới",
+        completed: "Đã hoàn thành",
         gameover: "Lâu đài thất thủ",
       }[phase.value],
 );
@@ -171,7 +200,7 @@ const enemyIntelWave = computed(() =>
     : wave.value,
 );
 const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
-  if (enemyIntelWave.value <= 0 || phase.value === "gameover") return [];
+  if (enemyIntelWave.value <= 0 || phase.value === "gameover" || phase.value === "completed") return [];
   const legacyNormalHp =
     60 +
     enemyIntelWave.value * 18 +
@@ -383,10 +412,66 @@ function handleEscapeKey(event: KeyboardEvent) {
 }
 
 watch(phase, (currentPhase) => {
-  if (currentPhase === "wave" || currentPhase === "gameover")
+  if (currentPhase === "wave" || currentPhase === "gameover" || currentPhase === "completed")
     isMovePlacementMode.value = false;
 });
 
+const completionReported = ref(false);
+const completionSaving = ref(false);
+const completionSaveError = ref("");
+const nextMap = computed(() => {
+  const index = availableMaps.value.findIndex((item) => item.id === map.id);
+  return index >= 0 ? availableMaps.value[index + 1] ?? null : null;
+});
+
+interface TowerDefenseProgressResponse {
+  message: string;
+  data: {
+    mapId: string;
+    maxWave: number;
+    completed: boolean;
+    completedAt: string | null;
+    unlockedMap: { id: string; name: string } | null;
+  };
+  completionWave: number;
+}
+
+/** Lưu mốc hoàn thành đợt 20 và mở khóa map kế tiếp cho tài khoản hiện tại. */
+async function reportMapCompletion() {
+  if (completionReported.value) return;
+  completionReported.value = true;
+  completionSaving.value = true;
+  completionSaveError.value = "";
+
+  try {
+    const response = await api<TowerDefenseProgressResponse>(
+      `/api/tower-defense/maps/${encodeURIComponent(map.id)}/progress`,
+      { method: "POST", body: { wave: wave.value } },
+    );
+    availableMaps.value = availableMaps.value.map((item) => {
+      if (item.id === map.id)
+        return { ...item, bestWave: response.data.maxWave, completed: response.data.completed };
+      if (item.id === response.data.unlockedMap?.id)
+        return { ...item, isUnlocked: true };
+      return item;
+    });
+    message.value = response.message;
+    completionSaving.value = false;
+  } catch (error: any) {
+    completionReported.value = false;
+    completionSaving.value = false;
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+    completionSaveError.value = status === 401
+      ? "Hãy đăng nhập để lưu chiến thắng và mở map tiếp theo."
+      : "Chưa thể lưu tiến trình. Vui lòng thử lại.";
+    message.value = completionSaveError.value;
+  }
+}
+
+watch([phase, wave], ([currentPhase, currentWave]) => {
+  if (currentPhase === "completed" && currentWave >= completionWave.value)
+    void reportMapCompletion();
+});
 watch(
   [towers, phase, isPaused],
   ([currentTowers, currentPhase, paused]) =>
@@ -505,6 +590,56 @@ onBeforeUnmount(() => {
               </section>
             </Transition>
 
+            <Transition name="defense-pause-overlay">
+              <section
+                v-if="phase === 'completed'"
+                class="defense-completion-overlay"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="defense-completion-title"
+              >
+                <div class="defense-completion-dialog">
+                  <span class="defense-completion-trophy"><Trophy /></span>
+                  <small>HOÀN THÀNH ĐỢT {{ completionWave }}</small>
+                  <h2 id="defense-completion-title">{{ map.name }} đã được chinh phục</h2>
+                  <p>Bạn đã bảo vệ lâu đài qua toàn bộ {{ completionWave }} đợt tấn công.</p>
+
+                  <div v-if="completionSaving" class="defense-completion-unlock is-loading">
+                    Đang lưu chiến thắng và kiểm tra bản đồ tiếp theo…
+                  </div>
+                  <div v-else-if="completionSaveError" class="defense-completion-unlock is-error">
+                    {{ completionSaveError }}
+                    <button type="button" @click="reportMapCompletion">Thử lưu lại</button>
+                  </div>
+                  <div v-else-if="nextMap && nextMap.isUnlocked !== false" class="defense-completion-unlock">
+                    <small>BẢN ĐỒ MỚI ĐÃ MỞ</small>
+                    <strong>{{ nextMap.name }}</strong>
+                  </div>
+                  <div v-else-if="nextMap" class="defense-completion-unlock is-loading">
+                    Đang chờ mở khóa {{ nextMap.name }}…
+                  </div>
+                  <div v-else class="defense-completion-unlock">
+                    <small>CHIẾN DỊCH HOÀN TẤT</small>
+                    <strong>Bạn đã chinh phục toàn bộ bản đồ</strong>
+                  </div>
+
+                  <div class="defense-completion-actions">
+                    <button
+                      v-if="nextMap && nextMap.isUnlocked !== false"
+                      type="button"
+                      class="primary"
+                      @click="playNextMap"
+                    >
+                      Qua map tiếp theo <ArrowRight />
+                    </button>
+                    <button type="button" class="secondary" @click="replayMap">
+                      <RotateCcw /> Chơi lại map này
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </Transition>
+
             <!-- HUD trạng thái trận đấu phủ trên WebGL canvas. -->
             <header class="defense-game-hud">
               <div class="defense-game-title">
@@ -547,7 +682,7 @@ onBeforeUnmount(() => {
                 <article>
                   <Swords />
                   <div>
-                    <small>ĐỢT</small><strong>{{ wave }}</strong>
+                    <small>{{ phase === 'wave' && wave === completionWave ? 'ĐỢT CUỐI' : 'ĐỢT' }}</small><strong>{{ wave }}</strong>
                   </div>
                 </article>
                 <article>
@@ -804,7 +939,7 @@ onBeforeUnmount(() => {
               <label v-if="availableMaps.length > 1" class="defense-map-picker">
                 <span>BẢN ĐỒ</span>
                 <select :value="map.id" @change="selectMap">
-                  <option v-for="item in availableMaps" :key="item.id" :value="item.id">{{ item.name }}</option>
+                  <option v-for="item in availableMaps" :key="item.id" :value="item.id" :disabled="item.isUnlocked === false">{{ item.isUnlocked === false ? '🔒 ' + item.name : item.completed ? '✓ ' + item.name : item.name }}</option>
                 </select>
               </label>
               <section
@@ -877,7 +1012,10 @@ onBeforeUnmount(() => {
                   <span>Đợt hiện tại</span
                   ><strong>{{ wave > 0 ? wave : "—" }}</strong>
                 </div>
-                <p v-if="phase === 'between'">
+                <p v-if="phase === 'wave' && wave === completionWave" class="is-final-wave">
+                  Đây là đợt cuối. Tiêu diệt toàn bộ quân địch để hoàn thành map.
+                </p>
+                <p v-else-if="phase === 'between'">
                   Tự động bắt đầu sau {{ Math.ceil(nextWaveCountdown) }} giây.
                   Bạn vẫn có thể bắt đầu sớm.
                 </p>
@@ -885,7 +1023,7 @@ onBeforeUnmount(() => {
                   Mỗi đợt tăng số lượng, tốc độ và sức chống chịu của quân địch.
                 </p>
                 <button
-                  v-if="phase !== 'gameover'"
+                  v-if="phase !== 'gameover' && phase !== 'completed'"
                   type="button"
                   :disabled="!canStartWave"
                   @click="startWave"
@@ -898,7 +1036,7 @@ onBeforeUnmount(() => {
                         : "Bắt đầu đợt đầu tiên"
                   }}
                 </button>
-                <button v-else type="button" @click="resetGame">
+                <button v-else type="button" @click="replayMap">
                   <RotateCcw />Chơi lại
                 </button>
               </section>
