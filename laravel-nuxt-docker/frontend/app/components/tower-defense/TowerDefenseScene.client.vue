@@ -59,7 +59,6 @@ const props = defineProps<{
   faction: TowerFaction;
   managedTowerModels?: Partial<Record<LevelledTowerKind, ManagedTowerModelDefinition>>;
 }>();
-const DEFENSE_GRID_ROWS = props.map.rows;
 const DEFENSE_PATH_TILES = props.map.pathTiles;
 const DEFENSE_CELL_SIZE = props.map.cellSize;
 const emit = defineEmits<{
@@ -75,7 +74,7 @@ const renderError = ref("");
 
 let renderer: THREE.WebGLRenderer | null = null;
 let scene: THREE.Scene | null = null;
-let camera: THREE.OrthographicCamera | null = null;
+let camera: THREE.PerspectiveCamera | null = null;
 let controls: OrbitControls | null = null;
 let mapBackgroundLayer: TowerDefenseBackgroundLayer | null = null;
 let animationFrame = 0;
@@ -107,8 +106,17 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const pointerStart = new THREE.Vector2();
 const pointerCurrent = new THREE.Vector2();
-const defaultCameraPosition = new THREE.Vector3(...props.map.camera.position);
-const defaultCameraTarget = new THREE.Vector3(...props.map.camera.target);
+const cameraMapSpan = Math.max(
+  props.map.columns * props.map.cellSize,
+  props.map.rows * props.map.cellSize,
+  8,
+);
+const defaultCameraPosition = new THREE.Vector3(
+  cameraMapSpan * 0.58,
+  cameraMapSpan * 0.82,
+  cameraMapSpan * 0.68,
+);
+const defaultCameraTarget = new THREE.Vector3(0, 0, 0);
 const towerScreenPosition = new THREE.Vector3();
 const thunderStartWorld = new THREE.Vector3();
 const thunderEndWorld = new THREE.Vector3();
@@ -2743,23 +2751,14 @@ function updateCameraReturn(frameDelta: number) {
   const easing = 1 - Math.exp(-frameDelta * 6.5);
   camera.position.lerp(defaultCameraPosition, easing);
   controls.target.lerp(defaultCameraTarget, easing);
-  camera.zoom = THREE.MathUtils.lerp(
-    camera.zoom,
-    props.map.camera.zoom,
-    easing,
-  );
-  camera.updateProjectionMatrix();
   camera.lookAt(controls.target);
 
   if (
     camera.position.distanceToSquared(defaultCameraPosition) < 0.0004 &&
-    controls.target.distanceToSquared(defaultCameraTarget) < 0.0004 &&
-    Math.abs(camera.zoom - props.map.camera.zoom) < 0.001
+    controls.target.distanceToSquared(defaultCameraTarget) < 0.0004
   ) {
     camera.position.copy(defaultCameraPosition);
     controls.target.copy(defaultCameraTarget);
-    camera.zoom = props.map.camera.zoom;
-    camera.updateProjectionMatrix();
     camera.lookAt(controls.target);
     cameraReturning = false;
     controls.enabled = true;
@@ -2845,11 +2844,9 @@ async function createWorld() {
     });
     target.appendChild(renderer.domElement);
     renderer.setClearColor(props.map.theme.background, 1);
-    // Bao trọn nền mở rộng để cả far plane lẫn mép GridHelper không lọt vào hình.
-    const cameraFar = Math.max(800, props.map.columns * 30, props.map.rows * 30);
-    camera = new THREE.OrthographicCamera(-7, 7, 5, -5, 0.1, cameraFar);
+    const cameraFar = Math.max(250, cameraMapSpan * 10);
+    camera = new THREE.PerspectiveCamera(38, 1, 0.1, cameraFar);
     camera.position.copy(defaultCameraPosition);
-    camera.zoom = props.map.camera.zoom;
     camera.lookAt(defaultCameraTarget);
     camera.updateProjectionMatrix();
     enemyScene = createTowerDefenseEnemyScene(scene, camera, {
@@ -2869,17 +2866,10 @@ async function createWorld() {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.copy(defaultCameraTarget);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.075;
-    controls.enablePan = true;
-    controls.panSpeed = 0.85;
-    controls.zoomToCursor = true;
-    controls.screenSpacePanning = true;
-    controls.minZoom = props.map.camera.zoom * 0.78;
-    controls.maxZoom = 3.1;
-    controls.minPolarAngle = 0.38;
-    // Không cho camera hạ gần song song mặt đất: với camera orthographic,
-    // foreground sẽ vượt khỏi frustum và làm lộ clearColor thành mảng đen.
-    controls.maxPolarAngle = 1.08;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = Math.max(4, cameraMapSpan * 0.18);
+    controls.maxDistance = Math.max(35, cameraMapSpan * 2.5);
+    controls.maxPolarAngle = Math.PI * 0.48;
     controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
     controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
     controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
@@ -2979,12 +2969,7 @@ async function createWorld() {
       if (!renderer || !camera) return;
       const width = Math.max(target.clientWidth, 2);
       const height = Math.max(target.clientHeight, 2);
-      const aspect = width / height;
-      const viewHeight = DEFENSE_GRID_ROWS + 4;
-      camera.left = (-viewHeight * aspect) / 2;
-      camera.right = (viewHeight * aspect) / 2;
-      camera.top = viewHeight / 2;
-      camera.bottom = -viewHeight / 2;
+      camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
     };
