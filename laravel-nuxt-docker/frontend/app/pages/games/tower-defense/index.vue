@@ -320,6 +320,51 @@ const sessionLoading = ref(true);
 const sessionSaving = ref(false);
 const sessionSaveQueued = ref(false);
 const sessionFinalized = ref(false);
+const STORY_INTRO_STORAGE_KEY = "tower-defense:story-intro:v1";
+const showStoryIntroduction = ref(false);
+
+/** Mở lại phần dẫn truyện; tạm dừng trận đấu để người chơi có thể đọc an toàn. */
+function openStoryIntroduction() {
+  if ((phase.value === "wave" || phase.value === "between") && !isPaused.value) {
+    setPaused(true);
+  }
+  showStoryIntroduction.value = true;
+}
+
+/** Ghi nhận người chơi đã đọc phần dẫn truyện trên trình duyệt hiện tại. */
+function dismissStoryIntroduction() {
+  showStoryIntroduction.value = false;
+  try {
+    localStorage.setItem(STORY_INTRO_STORAGE_KEY, "seen");
+  } catch {
+    // Trình duyệt chặn storage không được phép làm gián đoạn gameplay.
+  }
+}
+
+function chooseFactionFromStory(faction: TowerFaction) {
+  selectFaction(faction);
+  dismissStoryIntroduction();
+}
+
+let isStoryScrollLocked = false;
+
+function restoreStoryPageScroll() {
+  isStoryScrollLocked = false;
+}
+
+function lockStoryPageScroll() {
+  if (!import.meta.client || isStoryScrollLocked) return;
+  isStoryScrollLocked = true;
+  void nextTick(() => {
+    document
+      .querySelector<HTMLElement>(".defense-story-intro")
+      ?.focus({ preventScroll: true });
+  });
+}
+
+watch(showStoryIntroduction, (isOpen) => {
+  if (isOpen) lockStoryPageScroll();
+}, { flush: "sync" });
 
 /** Nạp phiên active của tài khoản; khách chưa đăng nhập vẫn được chơi bình thường. */
 async function loadSavedSession() {
@@ -470,7 +515,13 @@ function closeTowerPopupOnOutsideClick(event: MouseEvent) {
 
 /** Escape luôn bật/tắt pause trong mọi giai đoạn còn có thể chơi. */
 function handleEscapeKey(event: KeyboardEvent) {
-  if (event.key !== "Escape" || event.repeat || !selectedFaction.value) return;
+  if (event.key !== "Escape" || event.repeat) return;
+  if (showStoryIntroduction.value) {
+    event.preventDefault();
+    dismissStoryIntroduction();
+    return;
+  }
+  if (!selectedFaction.value) return;
   if (phase.value === "completed" || phase.value === "gameover") return;
   event.preventDefault();
 
@@ -585,12 +636,18 @@ function saveSessionWhenHidden() {
 
 onMounted(async () => {
   await loadSavedSession();
+  try {
+    showStoryIntroduction.value = localStorage.getItem(STORY_INTRO_STORAGE_KEY) !== "seen";
+  } catch {
+    showStoryIntroduction.value = true;
+  }
   sessionAutosaveTimer = setInterval(() => void saveGameSession(), 3000);
   document.addEventListener("click", closeTowerPopupOnOutsideClick);
   document.addEventListener("visibilitychange", saveSessionWhenHidden);
   window.addEventListener("keydown", handleEscapeKey);
 });
 onBeforeUnmount(() => {
+  restoreStoryPageScroll();
   if (sessionAutosaveTimer) clearInterval(sessionAutosaveTimer);
   if (bossWaveAnnouncementTimer) clearTimeout(bossWaveAnnouncementTimer);
   void saveGameSession();
@@ -604,14 +661,102 @@ onBeforeUnmount(() => {
   <main class="defense-page">
     <div class="defense-page__grid" aria-hidden="true" />
 
+    <Transition
+      name="defense-story-intro"
+      @after-leave="restoreStoryPageScroll"
+    >
+      <section
+        v-if="showStoryIntroduction"
+        class="defense-story-intro"
+        tabindex="-1"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="defense-story-title"
+      >
+        <div class="defense-story-intro__dialog">
+          <aside class="defense-story-intro__omen" aria-hidden="true">
+            <span class="defense-story-intro__crest"><Skull /></span>
+            <small>HƯ KHÔNG</small>
+            <strong>XÂM LĂNG</strong>
+            <i />
+            <p>Mọi vương quốc đều đang hấp hối</p>
+          </aside>
+
+          <div class="defense-story-intro__content">
+            <div class="defense-story-intro__warning">
+              <span />
+              <small>CHIẾU LỆNH KHẨN CẤP</small>
+              <Crown />
+            </div>
+            <h1 id="defense-story-title">
+              Hư Không đang nuốt chửng <em>các vương quốc</em>
+            </h1>
+            <p class="defense-story-intro__lead">
+              Những cánh cổng Hư Không đã mở ra trên khắp lục địa. Chúng không thuộc về ánh sáng hay bóng tối, mà muốn nuốt chửng cả hai và biến mọi vùng đất thành cõi chết.
+            </p>
+            <div class="defense-story-intro__mission">
+              <span><ShieldCheck /></span>
+              <div>
+                <small>SỨ MỆNH CUỐI CÙNG</small>
+                <strong>Dựng phòng tuyến và bảo vệ lâu đài qua 20 đợt tiến công.</strong>
+                <p>Chỉ huy Liên minh Vương quốc hoặc Hắc Minh Ước, đánh bại các thủ lĩnh Hư Không và giải phóng từng vương quốc.</p>
+              </div>
+            </div>
+            <div class="defense-story-intro__factions">
+              <small>
+                {{ selectedFaction ? "LỰC LƯỢNG ĐÃ TUYÊN THỆ" : "CHỌN LỰC LƯỢNG CỦA BẠN" }}
+              </small>
+              <div>
+                <button
+                  type="button"
+                  class="is-human"
+                  :class="{ 'is-selected': selectedFaction === 'human' }"
+                  :disabled="selectedFaction !== null"
+                  :aria-pressed="selectedFaction === 'human'"
+                  @click.stop="chooseFactionFromStory('human')"
+                >
+                  <ShieldCheck />
+                  <span>
+                    <strong>Liên minh Vương quốc</strong>
+                    <small>Thành lũy, thép và ánh sáng.</small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="is-dark"
+                  :class="{ 'is-selected': selectedFaction === 'dark' }"
+                  :disabled="selectedFaction !== null"
+                  :aria-pressed="selectedFaction === 'dark'"
+                  @click.stop="chooseFactionFromStory('dark')"
+                >
+                  <Swords />
+                  <span>
+                    <strong>Hắc Minh Ước</strong>
+                    <small>Bóng tối chống lại Hư Không.</small>
+                  </span>
+                </button>
+              </div>
+            </div>
+            <button
+              v-if="selectedFaction"
+              type="button"
+              @click.stop="dismissStoryIntroduction"
+            >
+              <Swords /> Trở lại chiến trường
+            </button>
+          </div>
+        </div>
+      </section>
+    </Transition>
+
     <section
       v-if="!sessionLoading && !selectedFaction"
       class="defense-faction-select"
       aria-labelledby="defense-faction-title"
     >
-      <small>CHỌN PHE PHÒNG THỦ</small>
-      <h1 id="defense-faction-title">Tuyên thệ với vương quốc</h1>
-      <p>Phe được chọn sẽ quyết định diện mạo của toàn bộ công trình.</p>
+      <small>CHỌN LỰC LƯỢNG PHÒNG THỦ</small>
+      <h1 id="defense-faction-title">Ai sẽ đáp lại lời cầu cứu?</h1>
+      <p>Cả hai lực lượng đều chống lại Hư Không. Lựa chọn sẽ quyết định diện mạo công trình của bạn.</p>
       <div>
         <button
           type="button"
@@ -619,8 +764,8 @@ onBeforeUnmount(() => {
           @click="selectFaction('human')"
         >
           <span><ShieldCheck /></span>
-          <strong>HUMAN</strong>
-          <small>Thành lũy sáng, kim loại và sắc vàng của vương quốc.</small>
+          <strong>LIÊN MINH VƯƠNG QUỐC</strong>
+          <small>Con người đoàn kết dưới thành lũy, thép và ánh sáng để bảo vệ lục địa.</small>
         </button>
         <button
           type="button"
@@ -628,8 +773,8 @@ onBeforeUnmount(() => {
           @click="selectFaction('dark')"
         >
           <span><Swords /></span>
-          <strong>DARK</strong>
-          <small>Pháo đài hắc ám với giáp tối và năng lượng ma thuật.</small>
+          <strong>HẮC MINH ƯỚC</strong>
+          <small>Những chiến binh bóng tối khước từ Hư Không và chiến đấu để giữ lấy lãnh địa.</small>
         </button>
       </div>
     </section>
@@ -1218,6 +1363,15 @@ onBeforeUnmount(() => {
                 >
                   <Volume2 v-if="soundEnabled" />
                   <VolumeX v-else />
+                </button>
+                <button
+                  type="button"
+                  class="defense-story-toggle"
+                  title="Xem lại cốt truyện"
+                  aria-label="Xem lại cốt truyện"
+                  @click="openStoryIntroduction"
+                >
+                  <Info /> Cốt truyện
                 </button>
                 <button
                   v-if="map.backgroundModel"

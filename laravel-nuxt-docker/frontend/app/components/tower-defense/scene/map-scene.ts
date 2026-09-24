@@ -56,7 +56,9 @@ function addFoundation(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfa
   const materials = Array.isArray(terrainGrid.material) ? terrainGrid.material : [terrainGrid.material];
   for (const material of materials) {
     material.transparent = true;
-    material.opacity = 0.34;
+    // Grid chỉ đóng vai trò định hướng nền; để quá đậm sẽ xuyên qua và lấn át
+    // portal, projectile cùng các quầng sáng additive ở gần mặt đất.
+    material.opacity = 0.14;
     material.depthWrite = false;
   }
   scene.add(terrain, terrainGrid);
@@ -211,6 +213,9 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   const highlightColor = new THREE.Color(isLavaPortal ? 0xffa02c : 0x63b8e8);
   const portals: Array<{
     vortexMaterial: THREE.ShaderMaterial;
+    auraMaterial: THREE.ShaderMaterial;
+    matter: THREE.Points;
+    matterPositions: THREE.BufferAttribute;
     light: THREE.PointLight;
   }> = [];
 
@@ -251,7 +256,42 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
           float filament = pow(spiral, 5.0) * (0.55 + inwardFlow * 0.45);
           vec3 magicColor = mix(uInnerColor, uOuterColor, smoothstep(0.15, 0.92, radius));
           vec3 color = mix(vec3(0.006, 0.004, 0.01), magicColor, filament * 0.9);
-          float alpha = edgeFade * (0.88 + filament * 0.1);
+
+          // Các mảnh vật chất xuất hiện ở vành ngoài, xoắn dần rồi bị hút vào lõi.
+          float matterAlpha = 0.0;
+          vec3 matterLight = vec3(0.0);
+          for (int index = 0; index < 9; index++) {
+            float item = float(index);
+            float seed = fract(sin(item * 91.731 + 17.13) * 43758.5453);
+            float speed = 0.105 + seed * 0.055;
+            float travel = fract(seed - uTime * speed);
+            float particleAngle =
+              item * 2.399963 + travel * 3.2 + sin(uTime * 0.24 + item) * 0.16;
+            vec2 particlePosition =
+              vec2(cos(particleAngle), sin(particleAngle)) * travel * 0.47;
+            float particleSize = mix(0.012, 0.021, 1.0 - travel);
+            float distanceToParticle = distance(point, particlePosition);
+            float particle = 1.0 - smoothstep(
+              particleSize * 0.28,
+              particleSize,
+              distanceToParticle
+            );
+            float glow = 1.0 - smoothstep(
+              particleSize,
+              particleSize * 2.8,
+              distanceToParticle
+            );
+            float life = smoothstep(0.0, 0.08, travel) *
+              (1.0 - smoothstep(0.94, 1.0, travel));
+            vec3 particleColor = mix(uOuterColor, uInnerColor, 1.0 - travel);
+            matterAlpha += particle * life;
+            matterLight += particleColor * (particle * 1.45 + glow * 0.32) * life;
+          }
+
+          color += matterLight;
+          // Lõi portal gần như đặc để hấp thụ grid phía sau; chỉ mép ngoài mờ dần.
+          float alpha = edgeFade * (0.96 + filament * 0.04);
+          alpha = max(alpha, clamp(matterAlpha * 0.92, 0.0, 1.0));
           gl_FragColor = vec4(color, alpha);
         }
       `,
@@ -263,23 +303,130 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
     vortex.name = "spawnPortalVortex";
     portal.rotation.y = Math.PI / 2;
     portal.position.copy(mapWorldPosition(map, -0.78, path[0]!.y));
-    portal.position.y = 0.9;
     portal.scale.setScalar(2);
+    // Circle bán kính 0.61 và portal scale 2 => bán kính thực 1.22.
+    // Đặt tâm ở 1.24 để chân cổng vừa chạm mặt đất thay vì xuyên xuống dưới.
+    portal.position.y = 1.24;
     vortex.position.z = 0.012;
     portal.add(vortex);
-    const light = new THREE.PointLight(portalColor, 1.35, 4.8, 2);
+    const light = new THREE.PointLight(portalColor, 2.1, 7.2, 2);
     light.position.set(0, 0, 0.35);
     portal.add(light);
+
+    // Các mảnh vật chất bên ngoài portal bị kéo theo quỹ đạo xoắn vào tâm.
+    const matterCount = 28;
+    const matterGeometry = new THREE.BufferGeometry();
+    const matterPositions = new THREE.BufferAttribute(
+      new Float32Array(matterCount * 3),
+      3,
+    );
+    matterGeometry.setAttribute("position", matterPositions);
+    const matter = new THREE.Points(
+      matterGeometry,
+      new THREE.PointsMaterial({
+        color: highlightColor,
+        size: 0.045,
+        transparent: true,
+        opacity: 0.88,
+        depthWrite: false,
+        depthTest: true,
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true,
+      }),
+    );
+    matter.name = "spawnPortalMatter";
+    matter.frustumCulled = false;
+    matter.renderOrder = 7;
+    portal.add(matter);
+
+    // Quầng chiếu trên địa hình khiến màu sắc và nhịp portal lan ra môi trường.
+    const auraMaterial = new THREE.ShaderMaterial({
+      depthWrite: false,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+      uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: portalColor },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        uniform vec3 uColor;
+        varying vec2 vUv;
+
+        void main() {
+          float radius = length(vUv - vec2(0.5)) * 2.0;
+          if (radius > 1.0) discard;
+          float fade = 1.0 - smoothstep(0.18, 1.0, radius);
+          float wave = 0.5 + 0.5 * sin(radius * 17.0 - uTime * 3.1);
+          float ring = pow(wave, 5.0) * (1.0 - smoothstep(0.35, 1.0, radius));
+          float alpha = fade * 0.13 + ring * 0.1;
+          gl_FragColor = vec4(uColor * (0.55 + ring), alpha);
+        }
+      `,
+    });
+    const aura = new THREE.Mesh(
+      new THREE.CircleGeometry(2.7, 48),
+      auraMaterial,
+    );
+    aura.name = "spawnPortalGroundAura";
+    aura.rotation.x = -Math.PI / 2;
+    aura.position.copy(portal.position);
+    aura.position.y = 0.025;
+    aura.renderOrder = 3;
+    scene.add(aura);
+
     scene.add(portal);
-    portals.push({ vortexMaterial, light });
+    portals.push({
+      vortexMaterial,
+      auraMaterial,
+      matter,
+      matterPositions,
+      light,
+    });
   }
 
   return (elapsed: number) => {
-    portals.forEach(({ vortexMaterial, light }, index) => {
-      const phase = elapsed + index * 0.65;
-      vortexMaterial.uniforms.uTime!.value = phase;
-      light.intensity = 1.2 + Math.sin(phase * 3.2) * 0.22;
-    });
+    portals.forEach(
+      (
+        { vortexMaterial, auraMaterial, matter, matterPositions, light },
+        index,
+      ) => {
+        const phase = elapsed + index * 0.65;
+        vortexMaterial.uniforms.uTime!.value = phase;
+        auraMaterial.uniforms.uTime!.value = phase;
+        light.intensity = 1.9 + Math.sin(phase * 3.2) * 0.38;
+
+        for (
+          let particleIndex = 0;
+          particleIndex < matterPositions.count;
+          particleIndex++
+        ) {
+          const seed = ((particleIndex * 47 + index * 19) % 97) / 97;
+          const progress = (phase * (0.1 + seed * 0.045) + seed) % 1;
+          const radius = THREE.MathUtils.lerp(1.75, 0.08, progress);
+          const angle =
+            seed * Math.PI * 2 +
+            progress * 3.4 +
+            Math.sin(phase * 0.28 + particleIndex) * 0.13;
+          matterPositions.setXYZ(
+            particleIndex,
+            Math.cos(angle) * radius,
+            Math.sin(angle) * radius * 0.32,
+            Math.sin(seed * 31.7 + phase * 0.7) * 0.08,
+          );
+        }
+        matterPositions.needsUpdate = true;
+        matter.rotation.z = Math.sin(phase * 0.32) * 0.04;
+      },
+    );
   };
 }
 
