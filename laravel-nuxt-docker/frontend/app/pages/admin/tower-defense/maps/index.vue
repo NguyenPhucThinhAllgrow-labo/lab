@@ -20,6 +20,7 @@ import {
   Upload,
   X,
 } from "lucide-vue-next";
+import type { TowerDefenseMapDefinition } from "~/types/games/towerDefense";
 
 type AssetType = "model" | "sound" | "image";
 type AssetPurpose =
@@ -171,6 +172,7 @@ interface MapEditorConfiguration extends Record<string, unknown> {
   rows: number;
   maxTowerCount: number;
   startingCredits: number;
+  spawnPoints?: [MapEditorPoint, MapEditorPoint];
   paths: [MapEditorPoint[], MapEditorPoint[]];
   pathTiles: MapEditorPoint[];
   backgroundMusicUrl?: string;
@@ -188,6 +190,7 @@ interface MapEditorConfiguration extends Record<string, unknown> {
   bossDefinitions?: ManagedEnemyDefinition[];
   castle: {
     modelUrl: string;
+    position?: MapEditorPoint;
     offsetX: number;
     offsetY: number;
     rotationY: number;
@@ -229,6 +232,7 @@ interface EnemyIntelConfiguration {
   weakness: string;
 }
 const mapEditorLane = ref<0 | 1>(0);
+const mapEditorPlacementMode = ref<"path" | "portal-0" | "portal-1" | "castle">("path");
 const mapEditorAnchors = ref<[MapEditorPoint[], MapEditorPoint[]]>([[], []]);
 const mapEditorMessage = ref("");
 
@@ -259,12 +263,16 @@ const minimumMapColumns = computed(() =>
   Math.max(
     4,
     ...(visualMapConfiguration.value?.paths.flat().map((point) => point.x + 1) ?? []),
+    ...(visualMapConfiguration.value?.spawnPoints?.map((point) => point.x + 1) ?? []),
+    (visualMapConfiguration.value?.castle.position?.x ?? -1) + 1,
   ),
 );
 const minimumMapRows = computed(() =>
   Math.max(
     4,
     ...(visualMapConfiguration.value?.paths.flat().map((point) => point.y + 1) ?? []),
+    ...(visualMapConfiguration.value?.spawnPoints?.map((point) => point.y + 1) ?? []),
+    (visualMapConfiguration.value?.castle.position?.y ?? -1) + 1,
   ),
 );
 const mapEditorCells = computed(() =>
@@ -283,6 +291,27 @@ const mapEditorPathKeys = computed<[Set<string>, Set<string>]>(() => {
     new Set(paths[1].map((point) => `${point.x}:${point.y}`)),
   ];
 });
+
+function configuredSpawnPoint(lane: 0 | 1) {
+  const configuration = visualMapConfiguration.value;
+  return configuration?.spawnPoints?.[lane] ?? configuration?.paths[lane]?.[0] ?? null;
+}
+
+function configuredCastlePoint() {
+  const configuration = visualMapConfiguration.value;
+  return configuration?.castle?.position ?? configuration?.paths[0]?.at(-1) ?? null;
+}
+
+function isConfiguredPoint(point: MapEditorPoint, target: MapEditorPoint | null) {
+  return target?.x === point.x && target.y === point.y;
+}
+
+function editorCellContent(point: MapEditorPoint) {
+  if (isConfiguredPoint(point, configuredCastlePoint())) return "♜";
+  if (isConfiguredPoint(point, configuredSpawnPoint(0))) return "G1";
+  if (isConfiguredPoint(point, configuredSpawnPoint(1))) return "G2";
+  return isEditorAnchor(point, 0) || isEditorAnchor(point, 1) ? "◆" : "";
+}
 
 const assetDialog = ref<HTMLDialogElement | null>(null);
 const assetFileInput = ref<HTMLInputElement | null>(null);
@@ -380,6 +409,7 @@ const defaultMapConfiguration = () => {
     maxTowerCount: 12,
     startingCredits: 3000,
     cellSize: 1.5,
+    spawnPoints: [{ x: 0, y: 3 }, { x: 0, y: 10 }] as [MapEditorPoint, MapEditorPoint],
     paths,
     pathTiles: paths.flat(),
     cornerRadius: 0.34,
@@ -415,6 +445,7 @@ const defaultMapConfiguration = () => {
     castle: {
       modelUrl:
         "/api/tower-defense/assets/models/games/tower-defense/castle.glb",
+      position: { x: 17, y: 6 },
       offsetX: 1.5,
       offsetY: -0.22,
       rotationY: 0,
@@ -441,6 +472,50 @@ const defaultMapConfiguration = () => {
     scenery: { trees: [], crystals: [], runes: [] },
   };
 };
+
+const previewMap = computed<TowerDefenseMapDefinition | null>(() => {
+  const configuration = visualMapConfiguration.value;
+  if (!configuration) return null;
+  const defaults = defaultMapConfiguration();
+  return {
+    ...defaults,
+    ...configuration,
+    id: mapForm.id.trim() || "map-preview",
+    name: mapForm.name.trim() || "Map preview",
+    castle: {
+      ...defaults.castle,
+      ...configuration.castle,
+    },
+    camera: {
+      ...defaults.camera,
+      ...(configuration.camera as TowerDefenseMapDefinition["camera"] | undefined),
+    },
+    theme: {
+      ...defaults.theme,
+      ...configuration.theme,
+    },
+    scenery: {
+      ...defaults.scenery,
+      ...(configuration.scenery as TowerDefenseMapDefinition["scenery"] | undefined),
+    },
+  } as TowerDefenseMapDefinition;
+});
+const renderedPreviewMap = shallowRef<TowerDefenseMapDefinition | null>(null);
+const mapPreviewDirty = ref(false);
+
+function refreshMapPreview() {
+  if (!previewMap.value) return;
+  // Preview dùng snapshot riêng để thao tác vẽ lane không kích hoạt việc dựng
+  // lại hàng trăm mesh và tải model sau mỗi lần click.
+  renderedPreviewMap.value = JSON.parse(
+    JSON.stringify(previewMap.value),
+  ) as TowerDefenseMapDefinition;
+  mapPreviewDirty.value = false;
+}
+
+watch(previewMap, () => {
+  if (renderedPreviewMap.value) mapPreviewDirty.value = true;
+});
 
 function compressPath(path: MapEditorPoint[]) {
   if (path.length <= 2) return path.map((point) => ({ ...point }));
@@ -503,6 +578,27 @@ function syncEditorPaths() {
 }
 
 function selectMapEditorCell(point: MapEditorPoint) {
+  if (mapEditorPlacementMode.value !== "path") {
+    updateMapConfiguration((configuration) => {
+      if (mapEditorPlacementMode.value === "castle") {
+        configuration.castle.position = { ...point };
+        return;
+      }
+      const lane = mapEditorPlacementMode.value === "portal-0" ? 0 : 1;
+      const fallback: [MapEditorPoint, MapEditorPoint] = [
+        { ...(configuration.paths[0]?.[0] ?? point) },
+        { ...(configuration.paths[1]?.[0] ?? point) },
+      ];
+      const spawnPoints = configuration.spawnPoints ?? fallback;
+      spawnPoints[lane] = { ...point };
+      configuration.spawnPoints = spawnPoints;
+    });
+    mapEditorMessage.value = mapEditorPlacementMode.value === "castle"
+      ? `Đã đặt điểm cuối path/cổng lâu đài tại ${point.x}, ${point.y}; mặt trước model sẽ nằm sát đường đi.`
+      : `Đã đặt cổng ${mapEditorPlacementMode.value === "portal-0" ? 1 : 2} tại ô ${point.x}, ${point.y}.`;
+    return;
+  }
+
   const anchors = mapEditorAnchors.value[mapEditorLane.value];
   const previous = anchors[anchors.length - 1];
   if (previous && previous.x !== point.x && previous.y !== point.y) {
@@ -788,10 +884,15 @@ function openMapDialog(
     ),
   });
   mapDialog.value?.showModal();
+  if (mode !== "delete") void nextTick(refreshMapPreview);
 }
 
 function closeMapDialog() {
-  if (!savingMap.value) mapDialog.value?.close();
+  if (!savingMap.value) {
+    mapDialog.value?.close();
+    renderedPreviewMap.value = null;
+    mapPreviewDirty.value = false;
+  }
 }
 
 async function submitMap() {
@@ -829,6 +930,8 @@ async function submitMap() {
       );
     }
     mapDialog.value?.close();
+    renderedPreviewMap.value = null;
+    mapPreviewDirty.value = false;
     await loadMaps();
   } catch (error: any) {
     mapFormError.value =
@@ -1107,8 +1210,11 @@ onMounted(() => {
                   <small>Chọn lane rồi click các điểm cùng hàng hoặc cột. JSON được sinh tự động.</small>
                 </div>
                 <div class="td-lane-switcher">
-                  <button type="button" :class="{ 'is-active': mapEditorLane === 0 }" @click="mapEditorLane = 0">Lane 1</button>
-                  <button type="button" :class="{ 'is-active': mapEditorLane === 1 }" @click="mapEditorLane = 1">Lane 2</button>
+                  <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'path' && mapEditorLane === 0 }" @click="mapEditorLane = 0; mapEditorPlacementMode = 'path'">Vẽ lane 1</button>
+                  <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'path' && mapEditorLane === 1 }" @click="mapEditorLane = 1; mapEditorPlacementMode = 'path'">Vẽ lane 2</button>
+                  <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'portal-0' }" @click="mapEditorPlacementMode = 'portal-0'">Đặt cổng 1</button>
+                  <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'portal-1' }" @click="mapEditorPlacementMode = 'portal-1'">Đặt cổng 2</button>
+                  <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'castle' }" @click="mapEditorPlacementMode = 'castle'">Đặt cổng lâu đài</button>
                 </div>
               </header>
 
@@ -1131,9 +1237,12 @@ onMounted(() => {
                       'is-lane-two': mapEditorPathKeys[1].has(`${point.x}:${point.y}`),
                       'is-anchor-one': isEditorAnchor(point, 0),
                       'is-anchor-two': isEditorAnchor(point, 1),
+                      'is-portal-one': isConfiguredPoint(point, configuredSpawnPoint(0)),
+                      'is-portal-two': isConfiguredPoint(point, configuredSpawnPoint(1)),
+                      'is-castle': isConfiguredPoint(point, configuredCastlePoint()),
                     }"
                     @click="selectMapEditorCell(point)"
-                  ><span>{{ isEditorAnchor(point, 0) || isEditorAnchor(point, 1) ? '◆' : '' }}</span></button>
+                  ><span>{{ editorCellContent(point) }}</span></button>
                 </div>
                 <aside>
                   <div class="td-live-legend"><span class="is-one" /> Lane 1 <span class="is-two" /> Lane 2</div>
@@ -1141,6 +1250,9 @@ onMounted(() => {
                     <div><dt>Kích thước</dt><dd>{{ visualMapConfiguration.columns }} × {{ visualMapConfiguration.rows }}</dd></div>
                     <div><dt>Lane 1</dt><dd>{{ visualMapConfiguration.paths[0]?.length ?? 0 }} ô</dd></div>
                     <div><dt>Lane 2</dt><dd>{{ visualMapConfiguration.paths[1]?.length ?? 0 }} ô</dd></div>
+                    <div><dt>Cổng 1</dt><dd>{{ configuredSpawnPoint(0)?.x }}, {{ configuredSpawnPoint(0)?.y }}</dd></div>
+                    <div><dt>Cổng 2</dt><dd>{{ configuredSpawnPoint(1)?.x }}, {{ configuredSpawnPoint(1)?.y }}</dd></div>
+                    <div><dt>Cổng lâu đài</dt><dd>{{ configuredCastlePoint()?.x }}, {{ configuredCastlePoint()?.y }}</dd></div>
                   </dl>
                   <button class="td-editor-action" type="button" :disabled="mapEditorAnchors[mapEditorLane].length === 0" @click="undoMapEditorLane"><Undo2 /> Hoàn tác điểm</button>
                   <button class="td-editor-action is-danger" type="button" :disabled="mapEditorAnchors[mapEditorLane].length === 0" @click="clearMapEditorLane"><Trash2 /> Xóa lane {{ mapEditorLane + 1 }}</button>
@@ -1148,6 +1260,28 @@ onMounted(() => {
               </div>
               <p v-else class="td-live-invalid">JSON chưa hợp lệ nên không thể dựng bản xem trước.</p>
               <p v-if="mapEditorMessage" class="td-editor-message">{{ mapEditorMessage }}</p>
+            </section>
+
+            <section v-if="renderedPreviewMap" class="td-map-preview is-full">
+              <header>
+                <div>
+                  <small>LIVE PREVIEW</small>
+                  <strong>Bản xem trước trong game</strong>
+                  <p>Preview chỉ dựng lại khi bạn yêu cầu để thao tác chỉnh lane luôn mượt.</p>
+                </div>
+                <div class="td-map-preview-actions">
+                  <span v-if="mapPreviewDirty">Có thay đổi chưa hiển thị</span>
+                  <button type="button" :disabled="!previewMap" @click="refreshMapPreview">
+                    <RefreshCw /> {{ mapPreviewDirty ? 'Cập nhật preview' : 'Dựng lại preview' }}
+                  </button>
+                </div>
+              </header>
+              <ClientOnly>
+                <TowerDefenseMapPreview :map="renderedPreviewMap" />
+                <template #fallback>
+                  <div class="td-map-preview-fallback">Đang khởi tạo trình xem 3D…</div>
+                </template>
+              </ClientOnly>
             </section>
 
             <section v-if="visualMapConfiguration" class="td-content-editor is-full">

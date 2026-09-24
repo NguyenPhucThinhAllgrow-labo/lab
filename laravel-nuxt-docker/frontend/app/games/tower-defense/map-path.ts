@@ -11,6 +11,28 @@ export function mapPathPosition(
   lane: TowerDefenseLane = 0,
 ): GridPoint {
   const path = map.paths[lane];
+  const first = path[0]!;
+  const last = path[path.length - 1]!;
+
+  if (progress < 0 && map.spawnPoints?.[lane]) {
+    const spawn = map.spawnPoints[lane];
+    const ratio = Math.max(0, Math.min(1, progress + 1));
+    return {
+      x: spawn.x + (first.x - spawn.x) * ratio,
+      y: spawn.y + (first.y - spawn.y) * ratio,
+    };
+  }
+
+  const lastProgress = path.length - 1;
+  if (progress > lastProgress && map.castle.position) {
+    const endOffset = Math.max(0.001, map.castle.pathEndOffset);
+    const ratio = Math.max(0, Math.min(1, (progress - lastProgress) / endOffset));
+    return {
+      x: last.x + (map.castle.position.x - last.x) * ratio,
+      y: last.y + (map.castle.position.y - last.y) * ratio,
+    };
+  }
+
   const index =
     progress < 0 ? 0 : Math.min(Math.floor(progress), path.length - 2);
   const ratio = progress < 0 ? progress : progress - index;

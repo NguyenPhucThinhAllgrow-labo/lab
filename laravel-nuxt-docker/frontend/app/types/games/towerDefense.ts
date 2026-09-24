@@ -51,6 +51,8 @@ export interface TowerDefenseMapDefinition {
   startingCredits: number;
   /** Khoảng cách world-space giữa tâm hai ô kề nhau. */
   cellSize: number;
+  /** Vị trí hai cổng sinh quái theo tọa độ grid của map. */
+  spawnPoints?: [GridPoint, GridPoint];
   paths: [GridPoint[], GridPoint[]];
   pathTiles: GridPoint[];
   cornerRadius: number;
@@ -76,8 +78,11 @@ export interface TowerDefenseMapDefinition {
   bossDefinitions?: TowerDefenseManagedEnemyDefinition[];
   castle: {
     modelUrl: string;
+    /** Điểm cuối path/cổng lâu đài; mặt trước model tự nằm sát điểm này. */
+    position?: GridPoint;
     offsetX: number;
     offsetY: number;
+    /** Góc hiệu chỉnh thêm sau khi lâu đài tự quay mặt về hướng cuối lane. */
     rotationY: number;
     maxSize: number;
     /** Số ô đi tiếp sau tâm ô path cuối để chạm đúng cổng lâu đài. */

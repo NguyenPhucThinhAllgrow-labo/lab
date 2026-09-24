@@ -43,11 +43,11 @@ import {
   useTowerDefense,
 } from "~/composables/useTowerDefense";
 import type { TowerFaction } from "~/components/tower-defense/scene/tower-models";
-<<<<<<< HEAD
-import type { TowerDefenseGameSnapshot, TowerKind } from "~/types/games/towerDefense";
-=======
-import type { TowerEffectDefinition, TowerKind } from "~/types/games/towerDefense";
->>>>>>> main
+import type {
+  TowerDefenseGameSnapshot,
+  TowerEffectDefinition,
+  TowerKind,
+} from "~/types/games/towerDefense";
 
 useHead({
   title: "Kingdom Defense — Game Lab",
@@ -63,12 +63,8 @@ useHead({
 const route = useRoute();
 const api = useApi();
 const requestedMapId = typeof route.query.map === "string" ? route.query.map : undefined;
-<<<<<<< HEAD
-const availableMaps = ref(await fetchTowerDefenseMaps());
-=======
 const towerCatalog = await fetchTowerDefenseTowers();
-const availableMaps = await fetchTowerDefenseMaps();
->>>>>>> main
+const availableMaps = ref(await fetchTowerDefenseMaps());
 const requestedMap =
   availableMaps.value.find((item) => item.id === requestedMapId && item.isUnlocked !== false) ??
   availableMaps.value.find((item) => item.isUnlocked !== false);
@@ -176,11 +172,8 @@ function replayMap() {
 }
 
 // Dữ liệu trình bày của bảng chọn tháp.
-<<<<<<< HEAD
-const towerKinds = Object.keys(TOWER_DEFINITIONS) as TowerKind[];
-const completionWave = computed(() => map.completionWave ?? 20);
-=======
 const towerKinds = towerCatalog.activeKinds;
+const completionWave = computed(() => map.completionWave ?? 20);
 function effectSummary(effect: TowerEffectDefinition, level: number) {
   const value = towerEffectValue(effect, level);
   if (effect.behavior === "damage_over_time") return `${value.toFixed(1)} damage/s · ${effect.duration ?? 0}s`;
@@ -189,7 +182,6 @@ function effectSummary(effect: TowerEffectDefinition, level: number) {
   if (effect.behavior === "damage_aura" || effect.behavior === "attack_speed_aura") return `+${Math.round(value * 100)}% · bán kính ${effect.radius ?? 0}`;
   return `+${value.toFixed(1)} damage`;
 }
->>>>>>> main
 const phaseLabel = computed(() =>
   isPaused.value
     ? "Đã tạm dừng"

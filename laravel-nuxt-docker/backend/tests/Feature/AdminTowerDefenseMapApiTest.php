@@ -64,6 +64,39 @@ class AdminTowerDefenseMapApiTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_place_spawn_portals_and_castle_anywhere_on_the_map(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+        $this->createEnemy('normal-one', 'normal');
+        $this->createEnemy('boss-one', 'boss');
+        $configuration = $this->configuration(['normal-one'], ['boss-one']);
+        $configuration['spawnPoints'] = [
+            ['x' => 2, 'y' => 3],
+            ['x' => 3, 'y' => 2],
+        ];
+        $configuration['paths'] = [
+            [['x' => 2, 'y' => 2], ['x' => 1, 'y' => 2]],
+            [['x' => 3, 'y' => 1], ['x' => 2, 'y' => 1]],
+        ];
+        $configuration['castle']['position'] = ['x' => 0, 'y' => 3];
+
+        $this->postJson('/api/admin/tower-defense/maps', [
+            'id' => 'custom-structures-map',
+            'name' => 'Custom structures map',
+            'configuration' => $configuration,
+        ])->assertCreated();
+
+        $stored = json_decode(
+            (string) $this->getConnection()->table('tower_defense_maps')
+                ->where('id', 'custom-structures-map')
+                ->value('configuration'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $this->assertSame($configuration['spawnPoints'], $stored['spawnPoints']);
+        $this->assertSame($configuration['castle']['position'], $stored['castle']['position']);
+    }
+
     private function createEnemy(string $id, string $kind): void
     {
         TowerDefenseEnemy::create([

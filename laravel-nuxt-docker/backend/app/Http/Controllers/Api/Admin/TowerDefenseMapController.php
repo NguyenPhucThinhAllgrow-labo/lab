@@ -55,6 +55,9 @@ class TowerDefenseMapController extends Controller
             'configuration.maxTowerCount' => ['required', 'integer', 'between:1,1000'],
             'configuration.startingCredits' => ['sometimes', 'integer', 'between:0,10000000'],
             'configuration.cellSize' => ['required', 'numeric', 'gt:0'],
+            'configuration.spawnPoints' => ['sometimes', 'array', 'size:2'],
+            'configuration.spawnPoints.*.x' => ['required_with:configuration.spawnPoints', 'integer', 'min:0'],
+            'configuration.spawnPoints.*.y' => ['required_with:configuration.spawnPoints', 'integer', 'min:0'],
             'configuration.paths' => ['required', 'array', 'size:2'],
             'configuration.paths.*' => ['required', 'array', 'min:2'],
             'configuration.paths.*.*.x' => ['required', 'integer', 'min:0'],
@@ -84,6 +87,9 @@ class TowerDefenseMapController extends Controller
                 ),
             ],
             'configuration.castle' => ['required', 'array'],
+            'configuration.castle.position' => ['sometimes', 'array'],
+            'configuration.castle.position.x' => ['required_with:configuration.castle.position', 'integer', 'min:0'],
+            'configuration.castle.position.y' => ['required_with:configuration.castle.position', 'integer', 'min:0'],
             'configuration.camera' => ['required', 'array'],
             'configuration.theme' => ['required', 'array'],
             'configuration.scenery' => ['required', 'array'],
@@ -104,6 +110,23 @@ class TowerDefenseMapController extends Controller
         $columns = (int) $configuration['columns'];
         $rows = (int) $configuration['rows'];
         $pathTiles = [];
+
+        foreach ($configuration['spawnPoints'] ?? [] as $laneIndex => $point) {
+            if ((int) $point['x'] >= $columns || (int) $point['y'] >= $rows) {
+                throw ValidationException::withMessages([
+                    "configuration.spawnPoints.{$laneIndex}" => 'Vị trí cổng phải nằm trong kích thước map.',
+                ]);
+            }
+        }
+
+        if (isset($configuration['castle']['position'])) {
+            $castlePosition = $configuration['castle']['position'];
+            if ((int) $castlePosition['x'] >= $columns || (int) $castlePosition['y'] >= $rows) {
+                throw ValidationException::withMessages([
+                    'configuration.castle.position' => 'Vị trí lâu đài phải nằm trong kích thước map.',
+                ]);
+            }
+        }
 
         foreach ($configuration['paths'] as $laneIndex => $path) {
             foreach ($path as $pointIndex => $point) {
@@ -134,7 +157,10 @@ class TowerDefenseMapController extends Controller
         $secondPath = $configuration['paths'][1];
         $firstEnd = end($firstPath);
         $secondEnd = end($secondPath);
-        if ($firstEnd['x'] !== $secondEnd['x'] || $firstEnd['y'] !== $secondEnd['y']) {
+        if (
+            ! isset($configuration['castle']['position']) &&
+            ($firstEnd['x'] !== $secondEnd['x'] || $firstEnd['y'] !== $secondEnd['y'])
+        ) {
             throw ValidationException::withMessages([
                 'configuration.paths' => 'Hai lane phải kết thúc tại cùng một cổng lâu đài.',
             ]);

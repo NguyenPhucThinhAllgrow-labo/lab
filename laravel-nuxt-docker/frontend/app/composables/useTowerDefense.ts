@@ -55,8 +55,15 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   const completionWave = Number.isFinite(map.completionWave)
     ? Math.max(1, Math.floor(map.completionWave ?? 20))
     : 20;
-  const castleGateProgress = (lane: 0 | 1) =>
-    map.paths[lane].length - 1 + map.castle.pathEndOffset;
+  const castleGateProgress = (lane: 0 | 1) => {
+    const path = map.paths[lane];
+    const pathEnd = path.at(-1)!;
+    const castle = map.castle.position;
+    const travelOffset = castle && castle.x === pathEnd.x && castle.y === pathEnd.y
+      ? 0
+      : map.castle.pathEndOffset;
+    return path.length - 1 + travelOffset;
+  };
   // ===== State công khai cho page và scene ==================================
   const credits = ref(startingCredits);
   const castleHealth = ref(20);
@@ -101,6 +108,10 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   const pathKeys = new Set(
     map.pathTiles.map((point) => `${point.x}:${point.y}`),
   );
+  for (const point of map.spawnPoints ?? [])
+    pathKeys.add(`${point.x}:${point.y}`);
+  if (map.castle.position)
+    pathKeys.add(`${map.castle.position.x}:${map.castle.position.y}`);
   const selectedTower = computed(
     () =>
       towers.value.find((tower) => tower.id === selectedTowerId.value) ?? null,
@@ -404,6 +415,13 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         ? maxHp * BOSS_HEALTH_MULTIPLIER
         : maxHp;
     const baseReward = 6 + Math.floor(wave.value * 0.55);
+    const spawnPoint = map.spawnPoints?.[lane];
+    const pathStart = map.paths[lane][0]!;
+    const spawnProgress = spawnPoint
+      ? spawnPoint.x === pathStart.x && spawnPoint.y === pathStart.y
+        ? 0
+        : -1
+      : ENEMY_SPAWN_PROGRESS;
     enemies.value.push({
       id,
       kind: boss?.kind ?? "normal",
@@ -417,7 +435,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       modelKey: managedDefinition?.id,
       bossClass: managedDefinition ? undefined : boss?.bossClass,
       lane,
-      progress: ENEMY_SPAWN_PROGRESS,
+      progress: spawnProgress,
       hp: enemyHp,
       maxHp: enemyHp,
       speed: managedDefinition

@@ -120,8 +120,8 @@ function addRouteLines(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       world.y = 0.105;
       return world;
     };
-    let previous = at(-0.78);
-    for (let progress = -0.78 + sampleStep; progress < routeEndProgress; progress += sampleStep) {
+    let previous = at(-1);
+    for (let progress = -1 + sampleStep; progress < routeEndProgress; progress += sampleStep) {
       const next = at(Math.min(progress, routeEndProgress));
       curve.add(new THREE.LineCurve3(previous.clone(), next.clone()));
       previous = next;
@@ -212,7 +212,6 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   const highlightColor = new THREE.Color(isLavaPortal ? 0xffa02c : 0x63b8e8);
   const portals: Array<{
     vortexMaterial: THREE.ShaderMaterial;
-    auraMaterial: THREE.ShaderMaterial;
     matter: THREE.Points;
     matterPositions: THREE.BufferAttribute;
     matterLife: THREE.BufferAttribute;
@@ -246,7 +245,11 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
         varying vec2 vUv;
 
         void main() {
-          vec2 point = vUv - vec2(0.5);
+          // Tâm xoáy dịch chuyển rất nhẹ để silhouette không cân tuyệt đối.
+          vec2 point = vUv - vec2(0.5) + vec2(
+            sin(uTime * 0.41) * 0.014,
+            cos(uTime * 0.33 + 0.8) * 0.011
+          );
           float radius = length(point) * 2.0;
           float angle = atan(point.y, point.x);
 
@@ -273,26 +276,33 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
             cos(angle * 6.0 - angularDrift * 0.7) * sixLobeWeight +
             cos(angle * 11.0 + angularDrift * 1.3) * manyLobeWeight
           ) / totalShapeWeight;
+          // Các tần số thấp tạo thùy lớn nhỏ lệch nhau; các pha không đồng bộ
+          // giúp cổng giống một vết rách sống thay vì hình hoa đối xứng.
+          float asymmetricBulge =
+            cos(angle - 0.72 + sin(uTime * 0.29) * 0.2) * 0.052 +
+            sin(angle * 2.0 + 1.37 - uTime * 0.17) * 0.032 +
+            cos(angle * 3.0 - 0.48 + uTime * 0.11) * 0.021;
+          float brokenLobes =
+            max(0.0, sin(angle * 4.0 + 0.9 - uTime * 0.23)) * 0.028 -
+            max(0.0, cos(angle * 7.0 - 1.6 + uTime * 0.31)) * 0.018;
           float boundary = 0.875
             + morphShape * 0.075
             + sin(angle * 5.0 - uTime * 1.46) * 0.028
-            + sin(angle * 13.0 + uTime * 2.18) * 0.014;
+            + sin(angle * 13.0 + uTime * 2.18) * 0.014
+            + asymmetricBulge
+            + brokenLobes;
           float shapedRadius = radius / boundary;
           if (shapedRadius > 1.0) discard;
           float edgeFade = 1.0 - smoothstep(0.84, 1.0, shapedRadius);
           float spiral = 0.5 + 0.5 * sin(angle * 5.0 - radius * 18.0 + uTime * 3.0);
           float inwardFlow = 0.5 + 0.5 * sin(radius * 25.0 + uTime * 4.2);
           float filament = pow(spiral, 5.0) * (0.55 + inwardFlow * 0.45);
-          float unstableRim = smoothstep(0.82, 0.94, shapedRadius) *
-            (1.0 - smoothstep(0.94, 1.0, shapedRadius));
           vec3 magicColor = mix(
             uInnerColor,
             uOuterColor,
             smoothstep(0.15, 0.92, shapedRadius)
           );
           vec3 color = mix(vec3(0.006, 0.004, 0.01), magicColor, filament * 0.9);
-          float rimPulse = 0.36 + 0.14 * sin(angle * 5.0 - uTime * 2.6);
-          color += uInnerColor * unstableRim * rimPulse;
 
           // Các mảnh vật chất xuất hiện ở vành ngoài, xoắn dần rồi bị hút vào lõi.
           float matterAlpha = 0.0;
@@ -338,8 +348,29 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       vortexMaterial,
     );
     vortex.name = "spawnPortalVortex";
-    portal.rotation.y = Math.PI / 2;
-    portal.position.copy(mapWorldPosition(map, -0.78, path[0]!.y));
+    const spawnPoint = map.spawnPoints?.[lane] ?? { x: -0.78, y: path[0]!.y };
+    const entranceTarget = path.find(
+      (point) => point.x !== spawnPoint.x || point.y !== spawnPoint.y,
+    ) ?? path[0]!;
+    const entranceDirection = {
+      x: entranceTarget.x - spawnPoint.x,
+      y: entranceTarget.y - spawnPoint.y,
+    };
+    portal.rotation.y = Math.atan2(entranceDirection.x, entranceDirection.y);
+    portal.position.copy(mapWorldPosition(map, spawnPoint.x, spawnPoint.y));
+    const entranceLength = Math.hypot(
+      entranceDirection.x,
+      entranceDirection.y,
+    );
+    if (entranceLength > 0.001) {
+      // Admin vẫn lưu cổng tại đúng ô được chọn. Riêng model trong scene được
+      // lùi về phía sau gần mép ô để không che tâm ô/path nơi quái xuất hiện.
+      const backwardOffset = map.cellSize * 0.42;
+      portal.position.x -=
+        (entranceDirection.x / entranceLength) * backwardOffset;
+      portal.position.z -=
+        (entranceDirection.y / entranceLength) * backwardOffset;
+    }
     portal.scale.setScalar(2);
     // Circle bán kính 0.61 và portal scale 2 => bán kính thực 1.22.
     // Đặt tâm ở 1.24 để chân cổng vừa chạm mặt đất thay vì xuyên xuống dưới.
@@ -351,7 +382,7 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
     portal.add(light);
 
     // Các mảnh vật chất bên ngoài portal bị kéo theo quỹ đạo xoắn vào tâm.
-    const matterCount = 52;
+    const matterCount = 40;
     const matterGeometry = new THREE.BufferGeometry();
     const matterPositions = new THREE.BufferAttribute(
       new Float32Array(matterCount * 3),
@@ -387,7 +418,7 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
               0.85,
               1.5
             );
-            gl_PointSize = mix(3.0, 6.5, aLife) * perspective;
+            gl_PointSize = mix(2.0, 5.2, aLife) * perspective;
           }
         `,
         fragmentShader: `
@@ -399,8 +430,8 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
             if (distanceToCenter > 0.5) discard;
             float core = 1.0 - smoothstep(0.04, 0.2, distanceToCenter);
             float glow = 1.0 - smoothstep(0.08, 0.5, distanceToCenter);
-            float alpha = (glow * 0.28 + core * 0.72) * vLife * 0.82;
-            gl_FragColor = vec4(uColor * (0.65 + core * 1.25), alpha);
+            float alpha = (glow * 0.38 + core * 0.62) * vLife * 0.62;
+            gl_FragColor = vec4(uColor * (0.5 + core * 0.95), alpha);
           }
         `,
       }),
@@ -410,65 +441,9 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
     matter.renderOrder = 7;
     portal.add(matter);
 
-    // Quầng chiếu trên địa hình khiến màu sắc và nhịp portal lan ra môi trường.
-    const auraMaterial = new THREE.ShaderMaterial({
-      depthWrite: false,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      toneMapped: false,
-      uniforms: {
-        uTime: { value: 0 },
-        uColor: { value: portalColor },
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform float uTime;
-        uniform vec3 uColor;
-        varying vec2 vUv;
-
-        void main() {
-          vec2 point = vUv - vec2(0.5);
-          float radius = length(point) * 2.0;
-          if (radius > 1.0) discard;
-          float angle = atan(point.y, point.x);
-          float fade = 1.0 - smoothstep(0.18, 1.0, radius);
-          float wave = 0.5 + 0.5 * sin(radius * 17.0 - uTime * 3.1);
-          float ring = pow(wave, 5.0) * (1.0 - smoothstep(0.35, 1.0, radius));
-          float suction = 0.5 + 0.5 * sin(
-            angle * 7.0 + radius * 24.0 + uTime * 4.0
-          );
-          float filament = pow(suction, 9.0) *
-            smoothstep(0.12, 0.42, radius) *
-            (1.0 - smoothstep(0.7, 1.0, radius));
-          float alpha = fade * 0.075 + ring * 0.065 + filament * 0.1;
-          gl_FragColor = vec4(
-            uColor * (0.42 + ring * 0.8 + filament),
-            alpha
-          );
-        }
-      `,
-    });
-    const aura = new THREE.Mesh(
-      new THREE.CircleGeometry(2.7, 48),
-      auraMaterial,
-    );
-    aura.name = "spawnPortalGroundAura";
-    aura.rotation.x = -Math.PI / 2;
-    aura.position.copy(portal.position);
-    aura.position.y = 0.025;
-    aura.renderOrder = 3;
-    scene.add(aura);
-
     scene.add(portal);
     portals.push({
       vortexMaterial,
-      auraMaterial,
       matter,
       matterPositions,
       matterLife,
@@ -481,7 +456,6 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       (
         {
           vortexMaterial,
-          auraMaterial,
           matter,
           matterPositions,
           matterLife,
@@ -491,7 +465,6 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       ) => {
         const phase = elapsed + index * 0.65;
         vortexMaterial.uniforms.uTime!.value = phase;
-        auraMaterial.uniforms.uTime!.value = phase;
         light.intensity = 1.9 + Math.sin(phase * 3.2) * 0.38;
 
         for (
@@ -501,25 +474,29 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
         ) {
           const seed = ((particleIndex * 47 + index * 19) % 97) / 97;
           const progress = (phase * (0.1 + seed * 0.045) + seed) % 1;
-          const radius = THREE.MathUtils.lerp(2.55, 0.08, progress);
+          // Hạt lơ lửng lâu ở ngoài rồi tăng tốc khi tiến gần tâm hút.
+          const suction = progress ** 1.75;
+          const radius = THREE.MathUtils.lerp(2.35, 0.04, suction);
           const angle =
             seed * Math.PI * 2 +
-            progress * 4.15 +
-            Math.sin(phase * 0.28 + particleIndex) * 0.13;
+            suction * Math.PI * (3.4 + seed * 1.8) +
+            Math.sin(phase * (0.22 + seed * 0.12) + particleIndex) * 0.22;
+          const drift = Math.sin(seed * 29.4 + phase * 0.37) * (1 - suction);
           matterPositions.setXYZ(
             particleIndex,
-            Math.cos(angle) * radius,
-            Math.sin(angle) * radius * 0.5,
-            Math.sin(seed * 31.7 + phase * 0.7) * 0.1,
+            Math.cos(angle) * radius + drift * 0.12,
+            Math.sin(angle) * radius * (0.58 + seed * 0.18),
+            Math.sin(angle * 0.7 + seed * 31.7) * 0.18 * (1 - suction),
           );
-          const fadeIn = THREE.MathUtils.smoothstep(progress, 0, 0.12);
+          const fadeIn = THREE.MathUtils.smoothstep(progress, 0, 0.18);
           const fadeOut =
-            1 - THREE.MathUtils.smoothstep(progress, 0.84, 1);
-          matterLife.setX(particleIndex, fadeIn * fadeOut);
+            1 - THREE.MathUtils.smoothstep(progress, 0.76, 0.98);
+          const flicker = 0.72 + Math.sin(phase * 1.4 + seed * 41) * 0.28;
+          matterLife.setX(particleIndex, fadeIn * fadeOut * flicker);
         }
         matterPositions.needsUpdate = true;
         matterLife.needsUpdate = true;
-        matter.rotation.z = Math.sin(phase * 0.32) * 0.04;
+        matter.rotation.z = Math.sin(phase * 0.21) * 0.025;
       },
     );
   };
@@ -671,9 +648,48 @@ export async function loadTowerDefenseCastle(map: TowerDefenseMapDefinition) {
   container.name = "castleModel";
   container.add(source);
   container.scale.setScalar(modelScale);
-  const castleCell = map.paths[0].at(-1)!;
-  container.position.copy(mapWorldPosition(map, map.columns + map.castle.offsetX, castleCell.y));
+  const castleCell = map.castle.position ?? {
+    x: map.columns + map.castle.offsetX,
+    y: map.paths[0].at(-1)!.y,
+  };
+  const approachPoints = map.paths.map((path) =>
+    [...path].reverse().find(
+      (point) => point.x !== castleCell.x || point.y !== castleCell.y,
+    ) ?? path.at(-1)!,
+  );
+  const approachCenter = approachPoints.reduce(
+    (center, point) => ({ x: center.x + point.x / approachPoints.length, y: center.y + point.y / approachPoints.length }),
+    { x: 0, y: 0 },
+  );
+  let facingDirection = {
+    x: approachCenter.x - castleCell.x,
+    y: approachCenter.y - castleCell.y,
+  };
+  if (Math.hypot(facingDirection.x, facingDirection.y) < 0.001) {
+    facingDirection = {
+      x: approachPoints[0]!.x - castleCell.x,
+      y: approachPoints[0]!.y - castleCell.y,
+    };
+  }
+  // Mặt trước model mặc định theo +Z. Quay nó nhìn về hướng quân địch tiến tới;
+  // rotationY chỉ là góc hiệu chỉnh dành cho GLB có trục trước khác chuẩn.
+  container.rotation.y =
+    Math.atan2(facingDirection.x, facingDirection.y) + map.castle.rotationY;
+  container.position.copy(mapWorldPosition(map, castleCell.x, castleCell.y));
+  if (map.castle.position) {
+    const directionLength = Math.max(
+      0.001,
+      Math.hypot(facingDirection.x, facingDirection.y),
+    );
+    const frontX = facingDirection.x / directionLength;
+    const frontZ = facingDirection.y / directionLength;
+    const modelHalfDepth = size.z * modelScale * 0.5;
+    // `castle.position` là điểm cuối path/cổng. Lùi đúng nửa chiều sâu model
+    // để mặt trước chạm trực tiếp vào path mà phần thân không phủ lên đường.
+    const clearance = modelHalfDepth;
+    container.position.x -= frontX * clearance;
+    container.position.z -= frontZ * clearance;
+  }
   container.position.y = map.castle.offsetY;
-  container.rotation.y = map.castle.rotationY - Math.PI / 2;
   return container;
 }
