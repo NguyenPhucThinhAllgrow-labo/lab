@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\DetectiveCaseController;
 use App\Http\Controllers\Api\DetectiveHistoryController;
 use App\Http\Controllers\Api\DetectiveProgressController;
 use App\Http\Controllers\Api\TowerDefenseAssetController;
+use App\Http\Controllers\Api\TowerDefenseGameSessionController;
 use App\Http\Controllers\Api\TowerDefenseMapController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,6 +45,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
 Route::middleware(['auth:sanctum', 'role:user'])->group(function (): void {
     Route::post('/tower-defense/maps/{map}/progress', [TowerDefenseMapController::class, 'recordProgress']);
+    Route::get('/tower-defense/maps/{map}/session', [TowerDefenseGameSessionController::class, 'active']);
+    Route::put('/tower-defense/maps/{map}/session', [TowerDefenseGameSessionController::class, 'save']);
+    Route::get('/tower-defense/history', [TowerDefenseGameSessionController::class, 'history']);
     Route::prefix('chinese-chess/rooms')->group(function (): void {
         Route::post('/', [ChineseChessRoomController::class, 'create']);
         Route::post('/{code}/join', [ChineseChessRoomController::class, 'join']);

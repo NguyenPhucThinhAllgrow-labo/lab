@@ -225,3 +225,40 @@ export interface Impact {
 }
 
 export type GamePhase = "ready" | "wave" | "between" | "completed" | "gameover";
+
+/** Snapshot đầy đủ để tiếp tục chính xác một phiên sau khi tải lại trang. */
+export interface TowerDefenseGameSnapshot {
+  version: 1;
+  mapId: string;
+  phase: GamePhase;
+  credits: number;
+  castleHealth: number;
+  wave: number;
+  score: number;
+  bestWave: number;
+  speedMultiplier: 0.5 | 1 | 2 | 4;
+  selectedKind: TowerKind | null;
+  selectedTowerId: number | null;
+  towers: Tower[];
+  enemies: Enemy[];
+  projectiles: Projectile[];
+  impacts: Impact[];
+  pendingEnemies: number;
+  nextWaveCountdown: number;
+  undoableTowerIds: number[];
+  pendingEnemiesByLane: [number, number];
+  spawnCooldownByLane: [number, number];
+  pendingBosses: Array<{
+    lane: TowerDefenseLane;
+    kind: "boss";
+    bossClass: BossClass;
+    definitionId?: string;
+  }>;
+  nextTowerId: number;
+  nextEnemyId: number;
+  nextManagedEnemyIndex: number;
+  nextManagedBossIndex: number;
+  nextProjectileId: number;
+  nextImpactId: number;
+  elapsed: number;
+}

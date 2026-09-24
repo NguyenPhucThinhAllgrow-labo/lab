@@ -40,7 +40,7 @@ import {
   useTowerDefense,
 } from "~/composables/useTowerDefense";
 import type { TowerFaction } from "~/components/tower-defense/scene/tower-models";
-import type { TowerKind } from "~/types/games/towerDefense";
+import type { TowerDefenseGameSnapshot, TowerKind } from "~/types/games/towerDefense";
 
 useHead({
   title: "Kingdom Defense — Game Lab",
@@ -97,6 +97,8 @@ const {
   undoSelectedPlacement,
   startWave,
   resetGame,
+  createSnapshot,
+  restoreSnapshot,
   setPaused,
 } = useTowerDefense(requestedMap);
 const {
@@ -158,7 +160,9 @@ function replayMap() {
   completionReported.value = false;
   completionSaving.value = false;
   completionSaveError.value = "";
+  sessionFinalized.value = false;
   resetGame();
+  void saveGameSession();
 }
 
 // Dữ liệu trình bày của bảng chọn tháp.
@@ -301,10 +305,78 @@ const isGameReady = computed(
     selectedFaction.value !== null && sceneReady.value && imagesReady.value,
 );
 
+interface TowerDefenseSessionResponse {
+  data: {
+    id: number;
+    faction: TowerFaction;
+    status: "active" | "completed" | "gameover";
+    lastPlayedAt: string;
+    snapshot: TowerDefenseGameSnapshot;
+  } | null;
+}
+
+const sessionLoading = ref(true);
+const sessionSaving = ref(false);
+const sessionSaveQueued = ref(false);
+const sessionFinalized = ref(false);
+
+/** Nạp phiên active của tài khoản; khách chưa đăng nhập vẫn được chơi bình thường. */
+async function loadSavedSession() {
+  sessionLoading.value = true;
+  try {
+    const response = await api<TowerDefenseSessionResponse>(
+      `/api/tower-defense/maps/${encodeURIComponent(map.id)}/session`,
+    );
+    if (response.data && restoreSnapshot(response.data.snapshot)) {
+      selectedFaction.value = response.data.faction;
+    }
+  } catch (error: any) {
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+    if (status !== 401 && status !== 403)
+      message.value = "Chưa thể tải phiên đã lưu. Bạn vẫn có thể bắt đầu một trận mới.";
+  } finally {
+    sessionLoading.value = false;
+  }
+}
+
+/** Ghi snapshot lên backend; nếu đang có request thì gom thành một lần lưu kế tiếp. */
+async function saveGameSession(force = false) {
+  if (sessionLoading.value || !selectedFaction.value) return;
+  if (!force && sessionFinalized.value && (phase.value === "completed" || phase.value === "gameover"))
+    return;
+  if (sessionSaving.value) {
+    sessionSaveQueued.value = true;
+    return;
+  }
+
+  sessionSaving.value = true;
+  const snapshot = createSnapshot();
+  try {
+    await api(`/api/tower-defense/maps/${encodeURIComponent(map.id)}/session`, {
+      method: "PUT",
+      body: { faction: selectedFaction.value, snapshot },
+    });
+    if (snapshot.phase === "completed" || snapshot.phase === "gameover")
+      sessionFinalized.value = true;
+  } catch (error: any) {
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+    if (status !== 401 && status !== 403)
+      message.value = "Không thể tự động lưu phiên chơi. Hệ thống sẽ thử lại.";
+  } finally {
+    sessionSaving.value = false;
+    if (sessionSaveQueued.value) {
+      sessionSaveQueued.value = false;
+      void saveGameSession();
+    }
+  }
+}
+
+
 /** Chọn phe từ thao tác click đồng thời mở khóa audio theo chính sách trình duyệt. */
 function selectFaction(faction: TowerFaction) {
   selectedFaction.value = faction;
   void startBackgroundMusic();
+  void saveGameSession();
 }
 
 function togglePauseFromHud() {
@@ -395,30 +467,40 @@ function closeTowerPopupOnOutsideClick(event: MouseEvent) {
   selectedTowerId.value = null;
 }
 
-/** Escape bật/tắt pause khi trận đang chạy; ngoài trận chỉ dùng để hủy chọn. */
+/** Escape luôn bật/tắt pause trong mọi giai đoạn còn có thể chơi. */
 function handleEscapeKey(event: KeyboardEvent) {
-  if (event.key !== "Escape" || event.repeat) return;
+  if (event.key !== "Escape" || event.repeat || !selectedFaction.value) return;
+  if (phase.value === "completed" || phase.value === "gameover") return;
   event.preventDefault();
 
-  if (phase.value === "wave" || phase.value === "between") {
-    if (!isPaused.value) clearBoardSelection();
-    togglePauseFromHud();
-    return;
-  }
-
-  if (!selectedKind.value && selectedTowerId.value === null) return;
-  clearBoardSelection();
-  message.value = "Đã hủy lựa chọn.";
+  if (!isPaused.value) clearBoardSelection();
+  togglePauseFromHud();
 }
 
 watch(phase, (currentPhase) => {
   if (currentPhase === "wave" || currentPhase === "gameover" || currentPhase === "completed")
     isMovePlacementMode.value = false;
+  if (currentPhase === "completed" || currentPhase === "gameover")
+    void saveGameSession(true);
+  else if (currentPhase === "wave" || currentPhase === "between")
+    void saveGameSession();
 });
 
 const completionReported = ref(false);
 const completionSaving = ref(false);
 const completionSaveError = ref("");
+const showFinalWaveAnnouncement = ref(false);
+let finalWaveAnnouncementTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Hiện cảnh báo cinematic ngắn khi người chơi bước vào đợt cuối. */
+function announceFinalWave() {
+  if (finalWaveAnnouncementTimer) clearTimeout(finalWaveAnnouncementTimer);
+  showFinalWaveAnnouncement.value = true;
+  finalWaveAnnouncementTimer = setTimeout(() => {
+    showFinalWaveAnnouncement.value = false;
+    finalWaveAnnouncementTimer = null;
+  }, 2800);
+}
 const nextMap = computed(() => {
   const index = availableMaps.value.findIndex((item) => item.id === map.id);
   return index >= 0 ? availableMaps.value[index + 1] ?? null : null;
@@ -471,6 +553,11 @@ async function reportMapCompletion() {
 watch([phase, wave], ([currentPhase, currentWave]) => {
   if (currentPhase === "completed" && currentWave >= completionWave.value)
     void reportMapCompletion();
+  if (
+    !sessionLoading.value &&
+    currentPhase === "wave" &&
+    currentWave === completionWave.value
+  ) announceFinalWave();
 });
 watch(
   [towers, phase, isPaused],
@@ -483,13 +570,25 @@ watch(enemyIntelWave, () => {
   dismissedEnemyIntelIds.value = [];
 });
 
-// Chỉ bỏ loading sau khi cả WebGL scene lẫn ảnh dùng trong sidebar đã sẵn sàng.
-onMounted(() => {
+// Chỉ bỏ loading sau khi đã kiểm tra phiên lưu và tài nguyên scene sẵn sàng.
+let sessionAutosaveTimer: ReturnType<typeof setInterval> | null = null;
+function saveSessionWhenHidden() {
+  if (document.hidden) void saveGameSession();
+}
+
+onMounted(async () => {
+  await loadSavedSession();
+  sessionAutosaveTimer = setInterval(() => void saveGameSession(), 3000);
   document.addEventListener("click", closeTowerPopupOnOutsideClick);
+  document.addEventListener("visibilitychange", saveSessionWhenHidden);
   window.addEventListener("keydown", handleEscapeKey);
 });
 onBeforeUnmount(() => {
+  if (sessionAutosaveTimer) clearInterval(sessionAutosaveTimer);
+  if (finalWaveAnnouncementTimer) clearTimeout(finalWaveAnnouncementTimer);
+  void saveGameSession();
   document.removeEventListener("click", closeTowerPopupOnOutsideClick);
+  document.removeEventListener("visibilitychange", saveSessionWhenHidden);
   window.removeEventListener("keydown", handleEscapeKey);
 });
 </script>
@@ -499,7 +598,7 @@ onBeforeUnmount(() => {
     <div class="defense-page__grid" aria-hidden="true" />
 
     <section
-      v-if="!selectedFaction"
+      v-if="!sessionLoading && !selectedFaction"
       class="defense-faction-select"
       aria-labelledby="defense-faction-title"
     >
@@ -529,7 +628,7 @@ onBeforeUnmount(() => {
     </section>
 
     <section
-      v-if="selectedFaction"
+      v-if="!sessionLoading && selectedFaction"
       class="defense-shell"
       :class="{ 'is-loading': !isGameReady }"
       :aria-hidden="!isGameReady"
@@ -568,9 +667,27 @@ onBeforeUnmount(() => {
               >
             </ClientOnly>
 
+            <Transition name="defense-final-wave">
+              <section
+                v-if="showFinalWaveAnnouncement"
+                class="defense-final-wave-announcement"
+                role="alert"
+                aria-live="assertive"
+              >
+                <div class="defense-final-wave-announcement__line" />
+                <div class="defense-final-wave-announcement__content">
+                  <span><Swords /></span>
+                  <small>THỬ THÁCH CUỐI CÙNG</small>
+                  <strong>ĐỢT CUỐI</strong>
+                  <p>Toàn quân địch đang tiến công — hãy giữ vững lâu đài!</p>
+                </div>
+                <div class="defense-final-wave-announcement__line" />
+              </section>
+            </Transition>
+
             <Transition name="defense-pause-overlay">
               <section
-                v-if="isPaused && (phase === 'wave' || phase === 'between')"
+                v-if="isPaused && phase !== 'completed' && phase !== 'gameover'"
                 class="defense-pause-overlay"
                 role="dialog"
                 aria-modal="true"
@@ -583,9 +700,18 @@ onBeforeUnmount(() => {
                   <p>
                     Mọi chuyển động và thời gian trong trận đấu đang tạm dừng.
                   </p>
-                  <button type="button" autofocus @click="resumeGame">
-                    <Play /> Tiếp tục
-                  </button>
+                  <div class="defense-pause-actions">
+                    <button type="button" autofocus @click="resumeGame">
+                      <Play /> Tiếp tục
+                    </button>
+                    <button
+                      type="button"
+                      class="is-replay"
+                      @click="replayMap"
+                    >
+                      <RotateCcw /> Chơi lại
+                    </button>
+                  </div>
                 </div>
               </section>
             </Transition>
@@ -653,7 +779,7 @@ onBeforeUnmount(() => {
                   <b>{{ enemiesRemaining }} quân địch</b>
                 </div>
                 <button
-                  v-if="phase === 'wave'"
+                  v-if="phase !== 'completed' && phase !== 'gameover'"
                   type="button"
                   class="defense-pause"
                   :class="{ active: isPaused }"
@@ -1110,17 +1236,17 @@ onBeforeUnmount(() => {
     <!-- Loading toàn màn hình tránh lộ scene đang nạp GLB/texture. -->
     <Transition name="defense-loader">
       <section
-        v-if="selectedFaction && !isGameReady"
+        v-if="sessionLoading || (selectedFaction && !isGameReady)"
         class="defense-loading-screen"
         role="status"
         aria-live="polite"
         aria-label="Đang tải trò chơi"
       >
         <div class="defense-loading-screen__crest"><Crown /></div>
-        <span>ĐANG TRIỆU TẬP QUÂN ĐỘI</span>
+        <span>{{ sessionLoading ? "ĐANG KHÔI PHỤC PHIÊN CHƠI" : "ĐANG TRIỆU TẬP QUÂN ĐỘI" }}</span>
         <h1>Kingdom <em>Defense</em></h1>
         <div class="defense-loading-screen__bar"><i /></div>
-        <p>Đang chuẩn bị chiến trường và tài nguyên 3D…</p>
+        <p>{{ sessionLoading ? "Đang kiểm tra dữ liệu đã lưu của bạn…" : "Đang chuẩn bị chiến trường và tài nguyên 3D…" }}</p>
       </section>
     </Transition>
 

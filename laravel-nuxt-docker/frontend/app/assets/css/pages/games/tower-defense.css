@@ -1813,6 +1813,28 @@
   font-weight: 900;
   cursor: pointer;
 }
+.defense-pause-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+.defense-pause-actions button {
+  min-width: 142px;
+  margin-top: 0;
+}
+.defense-pause-actions button.is-replay {
+  border-color: #6d685b;
+  background: linear-gradient(#34342e, #22231e);
+  color: #ddd4c4;
+}
+.defense-pause-actions button.is-replay:hover,
+.defense-pause-actions button.is-replay:focus-visible {
+  border-color: #a99d83;
+  background: linear-gradient(#48483f, #2b2d27);
+  box-shadow: 0 0 0 3px #9d947c25;
+}
 .defense-pause-dialog button:hover,
 .defense-pause-dialog button:focus-visible {
   background: linear-gradient(#98742e, #684e1e);
@@ -2573,4 +2595,122 @@
   .defense-completion-dialog { padding: 26px 18px; }
   .defense-completion-actions { width: 100%; }
   .defense-completion-actions > button { width: 100%; }
+}
+
+/* Cảnh báo cinematic khi đợt cuối bắt đầu. */
+.defense-final-wave-announcement {
+  position: absolute;
+  z-index: 48;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #4b090c55, #05020220 48%, transparent 72%);
+  pointer-events: none;
+}
+.defense-final-wave-announcement::before,
+.defense-final-wave-announcement::after {
+  position: absolute;
+  width: 42vw;
+  height: 42vw;
+  max-width: 520px;
+  max-height: 520px;
+  border: 1px solid #ffb44924;
+  border-radius: 50%;
+  content: "";
+  animation: defense-final-wave-ring 1.4s ease-out both;
+}
+.defense-final-wave-announcement::after {
+  animation-delay: 180ms;
+}
+.defense-final-wave-announcement__content {
+  position: relative;
+  display: grid;
+  min-width: min(520px, calc(100% - 40px));
+  justify-items: center;
+  padding: 20px 34px;
+  background: linear-gradient(90deg, transparent, #130607e8 18%, #25090ce8 50%, #130607e8 82%, transparent);
+  text-align: center;
+  filter: drop-shadow(0 12px 28px #000c);
+  animation: defense-final-wave-content 700ms cubic-bezier(.2, .9, .2, 1.15) both;
+}
+.defense-final-wave-announcement__content > span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  margin-bottom: 6px;
+  border: 1px solid #ffb24999;
+  border-radius: 50%;
+  background: #6b171a;
+  color: #ffd182;
+  box-shadow: 0 0 28px #ef3f2d77;
+}
+.defense-final-wave-announcement__content svg {
+  width: 23px;
+}
+.defense-final-wave-announcement__content small {
+  color: #ffb95d;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .28em;
+}
+.defense-final-wave-announcement__content strong {
+  margin-top: 3px;
+  color: #fff0cf;
+  font: 900 clamp(34px, 5vw, 64px)/1 Georgia, serif;
+  letter-spacing: .06em;
+  text-shadow: 0 0 24px #ff402d88;
+}
+.defense-final-wave-announcement__content p {
+  margin: 9px 0 0;
+  color: #dcc7ad;
+  font-size: 11px;
+  font-weight: 700;
+}
+.defense-final-wave-announcement__line {
+  width: min(720px, calc(100% - 48px));
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ff9e3b, #fff0ac, #ff9e3b, transparent);
+  box-shadow: 0 0 16px #ff493f;
+  animation: defense-final-wave-line 650ms ease-out both;
+}
+.defense-final-wave-enter-active,
+.defense-final-wave-leave-active {
+  transition: opacity 420ms ease;
+}
+.defense-final-wave-enter-from,
+.defense-final-wave-leave-to {
+  opacity: 0;
+}
+@keyframes defense-final-wave-content {
+  from {
+    opacity: 0;
+    transform: scale(.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes defense-final-wave-line {
+  from {
+    opacity: 0;
+    transform: scaleX(.08);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+@keyframes defense-final-wave-ring {
+  from {
+    opacity: .8;
+    transform: scale(.2);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.25);
+  }
 }
