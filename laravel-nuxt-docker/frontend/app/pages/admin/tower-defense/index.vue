@@ -1095,7 +1095,13 @@ onMounted(() => {
                 <label><span>Vàng khởi đầu</span><input :value="visualMapConfiguration.startingCredits ?? 3000" type="number" min="0" max="10000000" step="1" required @change="updateMapNumber('startingCredits', $event)" /><small v-if="mapFieldErrors['configuration.startingCredits']">{{ mapFieldErrors['configuration.startingCredits'][0] }}</small></label>
               </div>
             </section>
-            <section class="td-live-editor is-full">
+            <section
+              class="td-live-editor is-full"
+              :style="{
+                '--lane-one': colorNumber(visualMapConfiguration?.theme?.routeColors?.[0], '#f1c96a'),
+                '--lane-two': colorNumber(visualMapConfiguration?.theme?.routeColors?.[1], '#ff8b76'),
+              }"
+            >
               <header>
                 <div>
                   <strong>Trình dựng đường đi trực tiếp</strong>
@@ -1114,8 +1120,6 @@ onMounted(() => {
                     '--map-columns': mapEditorColumns,
                     '--map-terrain': colorNumber(visualMapConfiguration.theme?.terrain, '#1b211e'),
                     '--map-grid': colorNumber(visualMapConfiguration.theme?.gridLine, '#303832'),
-                    '--lane-one': colorNumber(visualMapConfiguration.theme?.routeColors?.[0], '#f1c96a'),
-                    '--lane-two': colorNumber(visualMapConfiguration.theme?.routeColors?.[1], '#ff8b76'),
                   }"
                 >
                   <button

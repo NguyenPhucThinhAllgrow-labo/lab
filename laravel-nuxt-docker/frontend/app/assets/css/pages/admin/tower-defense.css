@@ -616,13 +616,13 @@
 }
 .td-lane-switcher button:first-child.is-active {
   border-color: color-mix(in srgb, var(--lane-one, #f1c96a) 45%, transparent);
-  background: rgb(245 191 75 / 10%);
-  color: #f1c96a;
+  background: color-mix(in srgb, var(--lane-one, #f1c96a) 12%, transparent);
+  color: var(--lane-one, #f1c96a);
 }
 .td-lane-switcher button:last-child.is-active {
-  border-color: rgb(251 113 133 / 40%);
-  background: rgb(251 113 133 / 10%);
-  color: #fb7185;
+  border-color: color-mix(in srgb, var(--lane-two, #ff8b76) 45%, transparent);
+  background: color-mix(in srgb, var(--lane-two, #ff8b76) 12%, transparent);
+  color: var(--lane-two, #ff8b76);
 }
 .td-live-stage {
   display: grid;
@@ -701,8 +701,12 @@
   height: 9px;
   border-radius: 3px;
 }
-.td-live-legend .is-one { background: #f1c96a; }
-.td-live-legend .is-two { background: #fb7185; }
+.td-live-legend .is-one {
+  background: color-mix(in srgb, var(--lane-one, #f1c96a) 72%, #202126);
+}
+.td-live-legend .is-two {
+  background: color-mix(in srgb, var(--lane-two, #ff8b76) 72%, #202126);
+}
 .td-live-stage dl {
   display: grid;
   gap: 2px;
