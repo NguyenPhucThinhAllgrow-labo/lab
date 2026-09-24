@@ -88,6 +88,7 @@ class TowerDefenseMap extends Model
         $assetUrl = static fn (?string $key): string => $key
             ? '/api/tower-defense/assets/'.str_replace('%2F', '/', rawurlencode($key))
             : '';
+        $display = $this->enemyDisplayConfiguration($enemy);
 
         return [
             'id' => $enemy->id,
@@ -109,6 +110,8 @@ class TowerDefenseMap extends Model
                 'summary' => $enemy->summary ?? '',
                 'resistance' => $enemy->resistance ?? 'Không',
                 'weakness' => $enemy->weakness ?? 'Không',
+                'primaryColor' => $display['primaryColor'],
+                'glowColor' => $display['glowColor'],
             ],
         ];
     }
@@ -135,6 +138,7 @@ class TowerDefenseMap extends Model
         $assetUrl = static fn (?string $key): string => $key
             ? '/api/tower-defense/assets/'.str_replace('%2F', '/', rawurlencode($key))
             : '';
+        $display = $this->enemyDisplayConfiguration($enemy);
         $configuration[$definitionKey] = [
             'id' => $enemy->id,
             'baseHealth' => $enemy->base_health,
@@ -157,6 +161,8 @@ class TowerDefenseMap extends Model
             'summary' => $enemy->summary ?? '',
             'resistance' => $enemy->resistance ?? 'Không',
             'weakness' => $enemy->weakness ?? 'Không',
+            'primaryColor' => $display['primaryColor'],
+            'glowColor' => $display['glowColor'],
         ];
         if ($slot === 'boss') {
             $configuration['bossCombatProfileKey'] = $enemy->id === 'lava-overlord'
@@ -165,5 +171,14 @@ class TowerDefenseMap extends Model
         }
 
         return $configuration;
+    }
+
+    private function enemyDisplayConfiguration(TowerDefenseEnemy $enemy): array
+    {
+        $defaults = $enemy->kind === 'boss'
+            ? ['primaryColor' => '#f59e0b', 'glowColor' => '#ef4444']
+            : ['primaryColor' => '#8b5cf6', 'glowColor' => '#7c3aed'];
+
+        return array_replace($defaults, $enemy->display_configuration ?? []);
     }
 }

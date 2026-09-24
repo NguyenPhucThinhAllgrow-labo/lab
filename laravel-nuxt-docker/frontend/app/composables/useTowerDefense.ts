@@ -84,6 +84,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     lane: 0 | 1;
     kind: "boss";
     bossClass: BossClass;
+    definitionId?: string;
   }> = [];
   let timer: ReturnType<typeof setInterval> | null = null;
   let elapsed = 0;
@@ -306,8 +307,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
 
   // ===== Wave, spawn và boss ===============================================
   /**
-   * Khóa thao tác di chuyển, phân phối quân cho hai lane và lên lịch một boss
-   * class ngẫu nhiên ở mỗi wave chia hết cho 5.
+   * Khóa thao tác di chuyển, phân phối quân cho hai lane và lên lịch toàn bộ
+   * boss được admin chọn ở mỗi wave chia hết cho 5.
    */
   function startWave() {
     if (!canStartWave.value) return;
@@ -320,6 +321,11 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     const waveEnemyCount = 8 + wave.value * 3;
     pendingEnemiesByLane[0] = Math.ceil(waveEnemyCount / 2);
     pendingEnemiesByLane[1] = Math.floor(waveEnemyCount / 2);
+    const managedBosses = map.bossDefinitions?.length
+      ? map.bossDefinitions
+      : map.bossDefinition
+        ? [map.bossDefinition]
+        : [];
     pendingBosses =
       PREVIEW_ALL_BOSSES_ON_FIRST_WAVE && wave.value === 1
         ? BOSS_CLASSES.map((bossClass, index) => ({
@@ -328,7 +334,14 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
             bossClass,
           }))
         : wave.value % 5 === 0
-          ? [
+          ? managedBosses.length
+            ? managedBosses.map((definition, index) => ({
+                lane: (index % 2) as 0 | 1,
+                kind: "boss" as const,
+                bossClass: BOSS_CLASSES[index % BOSS_CLASSES.length]!,
+                definitionId: definition.id,
+              }))
+            : [
               {
                 lane: Math.random() < 0.5 ? 0 : 1,
                 kind: "boss",
@@ -358,12 +371,19 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       60 + wave.value * 18 + Math.floor(wave.value * wave.value * 1.15);
     const id = nextEnemyId++;
     const managedRoster = boss ? map.bossDefinitions : map.enemyDefinitions;
-    const managedDefinition = managedRoster?.length
-      ? managedRoster[
-          boss
-            ? nextManagedBossIndex++ % managedRoster.length
-            : nextManagedEnemyIndex++ % managedRoster.length
-        ]
+    const managedDefinition = boss?.definitionId
+      ? (map.bossDefinitions?.find(
+          (definition) => definition.id === boss.definitionId,
+        ) ??
+        (map.bossDefinition?.id === boss.definitionId
+          ? map.bossDefinition
+          : undefined))
+      : managedRoster?.length
+        ? managedRoster[
+            boss
+              ? nextManagedBossIndex++ % managedRoster.length
+              : nextManagedEnemyIndex++ % managedRoster.length
+          ]
       : boss
         ? map.bossDefinition
         : map.enemyDefinition;

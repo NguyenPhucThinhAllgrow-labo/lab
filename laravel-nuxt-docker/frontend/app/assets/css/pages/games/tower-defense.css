@@ -2413,3 +2413,11 @@
     animation: none !important;
   }
 }
+
+/* Màu hồ sơ kẻ địch lấy từ cấu hình admin. */
+.defense-enemy-intel>article{--enemy-intel-primary:#8b5cf6;--enemy-intel-glow:#7c3aed;border-color:var(--enemy-intel-primary);background:radial-gradient(circle at 12% 30%,color-mix(in srgb,var(--enemy-intel-glow) 24%,transparent),transparent 58%),linear-gradient(135deg,#2630278f,#111a1375);box-shadow:0 10px 28px #0006,0 0 15px color-mix(in srgb,var(--enemy-intel-glow) 22%,transparent)}
+.defense-enemy-intel>article:hover{border-color:color-mix(in srgb,var(--enemy-intel-primary) 78%,white);box-shadow:0 13px 32px #000a,0 0 20px color-mix(in srgb,var(--enemy-intel-glow) 38%,transparent)}
+.defense-enemy-intel>article.is-boss{border-color:var(--enemy-intel-primary);background:radial-gradient(circle at 18% 100%,color-mix(in srgb,var(--enemy-intel-glow) 34%,transparent),transparent 52%),linear-gradient(135deg,#42241f8a,#23151170);box-shadow:0 12px 30px #0008,0 0 12px color-mix(in srgb,var(--enemy-intel-glow) 70%,transparent),0 0 26px color-mix(in srgb,var(--enemy-intel-primary) 30%,transparent)}
+.defense-enemy-intel>article.is-boss::before{background:conic-gradient(from var(--boss-flame-angle,0deg),var(--enemy-intel-glow),color-mix(in srgb,var(--enemy-intel-primary) 65%,white),var(--enemy-intel-primary),color-mix(in srgb,var(--enemy-intel-glow) 58%,black),var(--enemy-intel-glow))}
+.defense-enemy-intel>article>img,.defense-enemy-intel>article.is-boss>img{border-color:var(--enemy-intel-primary);box-shadow:inset 0 0 12px color-mix(in srgb,var(--enemy-intel-glow) 22%,transparent),0 0 12px color-mix(in srgb,var(--enemy-intel-glow) 58%,transparent)}
+.defense-enemy-intel>article .defense-enemy-intel__identity small,.defense-enemy-intel>article.is-boss .defense-enemy-intel__identity small{color:color-mix(in srgb,var(--enemy-intel-primary) 76%,white);text-shadow:0 0 8px var(--enemy-intel-glow)}

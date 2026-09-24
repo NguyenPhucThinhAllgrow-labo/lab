@@ -10,6 +10,7 @@ interface Enemy {
   right_weapon_asset_key: string | null; base_health: number; base_speed: number;
   reward: number; castle_damage: number; summary: string | null;
   resistance: string | null; weakness: string | null; is_active: boolean;
+  display_configuration?: { primaryColor?: string; glowColor?: string } | null;
   model_configuration: { characterScale: number; sceneScale: number; healthBarY: number; animationNames: string[]; removeRootMotion?: boolean; leftWeaponTransform?: TowerDefenseEquipmentTransform; rightWeaponTransform?: TowerDefenseEquipmentTransform };
   combat_profile: { damageMultipliers: Record<string, number>; effectDurationMultipliers: Record<string, number> };
 }
@@ -32,13 +33,16 @@ const editableWeaponTransform = (value?: TowerDefenseEquipmentTransform) => ({
   rotation: (value?.rotation ?? [0, 0, 0]).map((angle) => angle * 180 / Math.PI) as [number, number, number],
   scale: value?.scale ?? 1,
 });
+const displayDefaults = (kind: EnemyKind) => kind === "boss"
+  ? { primaryColor: "#f59e0b", glowColor: "#ef4444" }
+  : { primaryColor: "#8b5cf6", glowColor: "#7c3aed" };
 const requestedKind: EnemyKind = route.query.kind === "boss" ? "boss" : "normal";
 const form = reactive({
   id: "", name: "", kind: requestedKind, modelAssetKey: "", avatarAssetKey: "",
   leftWeaponAssetKey: "", rightWeaponAssetKey: "", leftWeaponTransform: defaultWeaponTransform(), rightWeaponTransform: defaultWeaponTransform(),
   baseHealth: requestedKind === "boss" ? 1000 : 100, baseSpeed: requestedKind === "boss" ? 0.65 : 1,
   reward: requestedKind === "boss" ? 200 : 10, castleDamage: requestedKind === "boss" ? 5 : 1,
-  summary: "", resistance: "Không", weakness: "Không", characterScale: requestedKind === "boss" ? 1 : 2,
+  summary: "", resistance: "Không", weakness: "Không", ...displayDefaults(requestedKind), characterScale: requestedKind === "boss" ? 1 : 2,
   sceneScale: requestedKind === "boss" ? 1 : 0.494, healthBarY: requestedKind === "boss" ? 2.5 : 1.85,
   animationNames: "Walk, Run", removeRootMotion: true, fireMultiplier: 1, waterMultiplier: 1,
   frostMultiplier: 1, thunderMultiplier: 1, archerMultiplier: 1, cannonMultiplier: 1,
@@ -67,7 +71,9 @@ function fillForm(enemy: Enemy) {
     rightWeaponAssetKey: enemy.right_weapon_asset_key ?? "", leftWeaponTransform: editableWeaponTransform(enemy.model_configuration.leftWeaponTransform),
     rightWeaponTransform: editableWeaponTransform(enemy.model_configuration.rightWeaponTransform), baseHealth: enemy.base_health,
     baseSpeed: enemy.base_speed, reward: enemy.reward, castleDamage: enemy.castle_damage, summary: enemy.summary ?? "",
-    resistance: enemy.resistance ?? "", weakness: enemy.weakness ?? "", characterScale: enemy.model_configuration.characterScale,
+    resistance: enemy.resistance ?? "", weakness: enemy.weakness ?? "",
+    primaryColor: enemy.display_configuration?.primaryColor ?? displayDefaults(enemy.kind).primaryColor,
+    glowColor: enemy.display_configuration?.glowColor ?? displayDefaults(enemy.kind).glowColor, characterScale: enemy.model_configuration.characterScale,
     sceneScale: enemy.model_configuration.sceneScale, healthBarY: enemy.model_configuration.healthBarY,
     animationNames: enemy.model_configuration.animationNames.join(", "), removeRootMotion: enemy.model_configuration.removeRootMotion ?? true,
     fireMultiplier: multiplier(enemy.combat_profile, "damageMultipliers", "fire"), waterMultiplier: multiplier(enemy.combat_profile, "damageMultipliers", "water"),
@@ -110,6 +116,7 @@ async function submitForm() {
     right_weapon_asset_key: form.rightWeaponAssetKey || null, base_health: Number(form.baseHealth), base_speed: Number(form.baseSpeed),
     reward: Number(form.reward), castle_damage: Number(form.castleDamage), summary: form.summary || null,
     resistance: form.resistance || null, weakness: form.weakness || null,
+    display_configuration: { primaryColor: form.primaryColor, glowColor: form.glowColor },
     model_configuration: { characterScale: Number(form.characterScale), sceneScale: Number(form.sceneScale), healthBarY: Number(form.healthBarY), animationNames: previewAnimationNames.value, removeRootMotion: form.removeRootMotion, leftWeaponTransform: form.leftWeaponAssetKey ? serializedWeaponTransform(form.leftWeaponTransform) : undefined, rightWeaponTransform: form.rightWeaponAssetKey ? serializedWeaponTransform(form.rightWeaponTransform) : undefined },
     combat_profile: { damageMultipliers: compactMultipliers({ fire: form.fireMultiplier, water: form.waterMultiplier, frost: form.frostMultiplier, thunder: form.thunderMultiplier, archer: form.archerMultiplier, cannon: form.cannonMultiplier }), effectDurationMultipliers: compactMultipliers({ burn: form.burnMultiplier, slow: form.slowMultiplier, freeze: form.freezeMultiplier }) },
     is_active: form.isActive,
@@ -123,7 +130,12 @@ async function submitForm() {
   } finally { saving.value = false }
 }
 
-watch(() => form.kind, () => {
+watch(() => form.kind, (kind, previousKind) => {
+  if (isCreating.value) {
+    const previousColors = displayDefaults(previousKind);
+    if (form.primaryColor === previousColors.primaryColor && form.glowColor === previousColors.glowColor)
+      Object.assign(form, displayDefaults(kind));
+  }
   if (!modelAssets.value.some((asset) => asset.key === form.modelAssetKey)) form.modelAssetKey = "";
   if (!avatarAssets.value.some((asset) => asset.key === form.avatarAssetKey)) form.avatarAssetKey = "";
 });
@@ -143,6 +155,7 @@ onMounted(loadData);
         <header><div><small>{{ isCreating ? 'TẠO MỚI' : 'CHỈNH SỬA' }}</small><h2>{{ form.kind === 'boss' ? 'Hồ sơ boss' : 'Hồ sơ lính thường' }}</h2></div></header>
         <div class="enemy-form">
           <fieldset><legend>Thông tin cơ bản</legend><div class="form-grid"><label><span>Loại</span><select v-model="form.kind"><option value="normal">Lính thường</option><option value="boss">Boss</option></select></label><label><span>Mã định danh</span><input v-model="form.id" :disabled="!isCreating" required placeholder="lava-overlord" /><small v-if="fieldErrors.id">{{ fieldErrors.id[0] }}</small></label><label><span>Tên</span><input v-model="form.name" required /><small v-if="fieldErrors.name">{{ fieldErrors.name[0] }}</small></label><label class="check"><input v-model="form.isActive" type="checkbox" /> Cho phép sử dụng</label><label class="wide"><span>Mô tả</span><textarea v-model="form.summary" rows="2" /></label><label><span>Kháng</span><input v-model="form.resistance" /></label><label><span>Điểm yếu</span><input v-model="form.weakness" /></label></div></fieldset>
+          <fieldset class="enemy-color-fieldset"><legend>Màu hiển thị</legend><p>Áp dụng cho viền và hiệu ứng phát sáng của thẻ hồ sơ ở admin lẫn trong game.</p><div class="enemy-color-grid"><label><span>Màu chủ đạo</span><div><input v-model="form.primaryColor" type="color" aria-label="Chọn màu chủ đạo" /><input v-model="form.primaryColor" type="text" pattern="#[0-9A-Fa-f]{6}" maxlength="7" /></div></label><label><span>Màu phát sáng</span><div><input v-model="form.glowColor" type="color" aria-label="Chọn màu phát sáng" /><input v-model="form.glowColor" type="text" pattern="#[0-9A-Fa-f]{6}" maxlength="7" /></div></label><aside :style="{ '--enemy-primary': form.primaryColor, '--enemy-glow': form.glowColor }"><b>{{ form.kind === 'boss' ? 'BOSS' : 'LÍNH THƯỜNG' }}</b><strong>{{ form.name || 'Tên kẻ địch' }}</strong><small>Xem trước màu hồ sơ</small></aside></div></fieldset>
           <fieldset><legend>Tài nguyên và model</legend><div class="enemy-resource-editor"><div class="form-grid">
             <label class="wide"><span>Model</span><select v-model="form.modelAssetKey" required><option value="">Chọn model…</option><option v-for="asset in modelAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select><small v-if="fieldErrors.model_asset_key">{{ fieldErrors.model_asset_key[0] }}</small></label>
             <label class="wide"><span>Avatar</span><select v-model="form.avatarAssetKey"><option value="">Không có avatar</option><option v-for="asset in avatarAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>

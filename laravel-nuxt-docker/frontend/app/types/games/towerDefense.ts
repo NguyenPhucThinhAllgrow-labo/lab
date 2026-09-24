@@ -111,6 +111,8 @@ export interface TowerDefenseEnemyIntelDefinition {
   summary: string;
   resistance: string;
   weakness: string;
+  primaryColor?: string;
+  glowColor?: string;
 }
 
 export interface TowerDefenseCharacterModelDefinition {

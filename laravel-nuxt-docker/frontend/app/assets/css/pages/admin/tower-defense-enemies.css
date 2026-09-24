@@ -333,3 +333,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Màu nhận diện có thể cấu hình cho từng hồ sơ. */
+.enemy-color-fieldset > p{margin:0 0 12px;color:#71717a;font-size:10px}
+.enemy-color-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) minmax(220px,.8fr);gap:12px;align-items:stretch}
+.enemy-color-grid>label{display:grid;gap:6px;color:#8b8b95;font-size:10px;font-weight:700}
+.enemy-color-grid>label>div{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px}
+.enemy-color-grid input[type=color]{width:44px;height:38px;padding:3px;cursor:pointer}
+.enemy-color-grid input[type=text]{height:38px;padding:0 10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase}
+.enemy-color-grid aside{display:grid;align-content:center;gap:5px;padding:13px 16px;border:1px solid var(--enemy-primary);border-radius:10px;background:radial-gradient(circle at 12% 20%,color-mix(in srgb,var(--enemy-glow) 24%,transparent),transparent 55%),#0b0b11;box-shadow:inset 3px 0 0 var(--enemy-primary),0 0 18px color-mix(in srgb,var(--enemy-glow) 24%,transparent)}
+.enemy-color-grid aside b{color:var(--enemy-primary);font-size:9px;letter-spacing:.12em}
+.enemy-color-grid aside strong{color:#fff;font-size:15px}
+.enemy-color-grid aside small{color:#71717a;font-size:9px}
+.enemy-card{--enemy-primary:#8b5cf6;--enemy-glow:#7c3aed;border-color:color-mix(in srgb,var(--enemy-primary) 48%,transparent);background:radial-gradient(circle at 4% 4%,color-mix(in srgb,var(--enemy-glow) 16%,transparent),transparent 42%),linear-gradient(145deg,#15151f,#0e0e15 72%)}
+.enemy-card:hover{border-color:color-mix(in srgb,var(--enemy-primary) 76%,#fff 12%);box-shadow:0 0 20px color-mix(in srgb,var(--enemy-glow) 15%,transparent),0 16px 34px rgb(0 0 0/.36)}
+.enemy-card.boss{border-color:color-mix(in srgb,var(--enemy-primary) 58%,transparent);background:radial-gradient(circle at 4% 4%,color-mix(in srgb,var(--enemy-glow) 18%,transparent),transparent 40%),linear-gradient(145deg,#1b1717,#100f15 72%)}
+.enemy-card.boss::before{background:linear-gradient(90deg,transparent,var(--enemy-primary),var(--enemy-glow),transparent);box-shadow:0 0 12px color-mix(in srgb,var(--enemy-glow) 68%,transparent)}
+.enemy-card .enemy-avatar{border-color:color-mix(in srgb,var(--enemy-primary) 64%,transparent);box-shadow:0 0 18px color-mix(in srgb,var(--enemy-glow) 22%,transparent)}
+.enemy-card .enemy-card-title span{border-color:color-mix(in srgb,var(--enemy-primary) 34%,transparent);background:color-mix(in srgb,var(--enemy-primary) 12%,transparent);color:color-mix(in srgb,var(--enemy-primary) 78%,#fff)}
+.enemy-card code{border-color:color-mix(in srgb,var(--enemy-primary) 24%,transparent);background:color-mix(in srgb,var(--enemy-primary) 8%,transparent);color:color-mix(in srgb,var(--enemy-primary) 55%,#fff)}
+@media(max-width:800px){.enemy-color-grid{grid-template-columns:1fr}.enemy-color-grid aside{min-height:90px}}

@@ -160,6 +160,8 @@ interface EnemyIntelCard {
   health: string;
   resistance: string;
   weakness: string;
+  primaryColor: string;
+  glowColor: string;
 }
 
 const dismissedEnemyIntelIds = ref<EnemyIntelCard["id"][]>([]);
@@ -191,6 +193,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
         health: `${Math.round(definition.baseHealth * managedWaveScale)} HP`,
         resistance: definition.intel?.resistance ?? "Không",
         weakness: definition.intel?.weakness ?? "Không",
+        primaryColor: definition.intel?.primaryColor ?? "#8b5cf6",
+        glowColor: definition.intel?.glowColor ?? "#7c3aed",
       }))
     : [
         {
@@ -201,6 +205,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
           health: `${legacyNormalHp} HP`,
           resistance: map.enemyIntel?.resistance ?? "Không",
           weakness: map.enemyIntel?.weakness ?? "Không",
+          primaryColor: map.enemyIntel?.primaryColor ?? "#8b5cf6",
+          glowColor: map.enemyIntel?.glowColor ?? "#7c3aed",
         },
       ];
   if (enemyIntelWave.value % 5 === 0) {
@@ -219,6 +225,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
           health: `${Math.round(definition.baseHealth * managedWaveScale)} HP`,
           resistance: definition.intel?.resistance ?? "Không",
           weakness: definition.intel?.weakness ?? "Không",
+          primaryColor: definition.intel?.primaryColor ?? "#f59e0b",
+          glowColor: definition.intel?.glowColor ?? "#ef4444",
         })),
       );
     else {
@@ -231,6 +239,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
         health: `${Math.round(legacyNormalHp * 5.5)} HP`,
         resistance: map.bossIntel?.resistance ?? "Không",
         weakness: map.bossIntel?.weakness ?? "Không",
+        primaryColor: map.bossIntel?.primaryColor ?? "#f59e0b",
+        glowColor: map.bossIntel?.glowColor ?? "#ef4444",
       });
     }
   }
@@ -561,14 +571,15 @@ onBeforeUnmount(() => {
               aria-label="Thông tin quân địch trong đợt hiện tại"
             >
               <article
+                :style="{ '--enemy-intel-primary': enemyIntel.primaryColor, '--enemy-intel-glow': enemyIntel.glowColor }"
                 v-for="enemyIntel in enemyIntelCards"
                 :key="enemyIntel.id"
-                :class="{ 'is-boss': enemyIntel.id === 'boss' }"
+                :class="{ 'is-boss': enemyIntel.id.startsWith('boss') }"
               >
                 <img :src="enemyIntel.avatar" :alt="enemyIntel.name" />
                 <div class="defense-enemy-intel__identity">
                   <small>
-                    {{ enemyIntel.id === "boss" ? "BOSS" : "ĐỢT" }}
+                    {{ enemyIntel.id.startsWith("boss") ? "BOSS" : "ĐỢT" }}
                     {{ enemyIntelWave }}
                   </small>
                   <strong>{{ enemyIntel.name }}</strong>
