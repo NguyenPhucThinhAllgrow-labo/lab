@@ -89,6 +89,7 @@ let visualNow = 0;
 
 // Cache object đang hiển thị theo ID gameplay; template giữ bản gốc để clone.
 const towerModels = new Map<number, THREE.Group>();
+const activeTowerIds = new Set<number>();
 const towerUpgradeEffects = new Map<
   number,
   { group: THREE.Group; bornAt: number; kind: TowerKind }
@@ -2201,13 +2202,8 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   const shouldReduceEffects = performanceMode
     ? props.phase === "wave" || sceneLoad >= 16
     : sceneLoad > 22;
-  if (renderer && shouldReduceEffects !== performanceMode) {
+  if (shouldReduceEffects !== performanceMode) {
     performanceMode = shouldReduceEffects;
-    renderer.shadowMap.enabled = !performanceMode;
-    renderer.shadowMap.needsUpdate = !performanceMode;
-    renderer.setPixelRatio(
-      Math.min(devicePixelRatio, performanceMode ? 1 : 1.5),
-    );
   }
   if (mysticParticles) {
     mysticParticles.visible = !performanceMode;
@@ -2327,9 +2323,10 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       material.opacity = selectedTower ? 0.42 : 0.25;
     }
   }
-  const towerIds = new Set(props.towers.map((item) => item.id));
+  activeTowerIds.clear();
+  for (const tower of props.towers) activeTowerIds.add(tower.id);
   for (const [id, model] of towerModels)
-    if (!towerIds.has(id)) {
+    if (!activeTowerIds.has(id)) {
       disposeTowerModel(model);
       towerModels.delete(id);
     }
@@ -2829,7 +2826,9 @@ async function createWorld() {
       worldPosition,
     });
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    // Giữ độ phân giải render ổn định suốt trận. Đổi pixel ratio giữa wave
+    // khiến WebGL cấp phát lại framebuffer và tạo một nhịp khựng rõ rệt.
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;

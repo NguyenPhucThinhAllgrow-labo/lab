@@ -27,6 +27,7 @@ export function createTowerDefenseProjectileScene(
 ): TowerDefenseProjectileScene {
   const templates = new Map<Projectile["kind"], THREE.Group>();
   const models = new Map<number, { group: THREE.Group; bornAt: number }>();
+  const activeProjectileIds = new Set<number>();
   const projectileDirection = new THREE.Vector3();
   const projectileLookTarget = new THREE.Vector3();
 
@@ -302,9 +303,11 @@ export function createTowerDefenseProjectileScene(
     frameDelta,
     now,
   }: ProjectileSceneSyncOptions) {
-    const projectileIds = new Set(projectiles.map((item) => item.id));
+    activeProjectileIds.clear();
+    for (const projectile of projectiles)
+      activeProjectileIds.add(projectile.id);
     for (const [id, item] of models) {
-      if (projectileIds.has(id)) continue;
+      if (activeProjectileIds.has(id)) continue;
       removeObject(item.group);
       models.delete(id);
     }

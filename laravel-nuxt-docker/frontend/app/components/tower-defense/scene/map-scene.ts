@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { ENEMY_SPAWN_PROGRESS } from "~/games/tower-defense/gameplay-config";
 import { mapPathPosition } from "~/games/tower-defense/map-path";
 import type {
   GridPoint,
@@ -107,6 +108,44 @@ function addCobblestonePath(scene: THREE.Scene, map: TowerDefenseMapDefinition, 
   scene.add(stones);
 }
 
+function spawnPortalPlacement(
+  map: TowerDefenseMapDefinition,
+  lane: 0 | 1,
+) {
+  const path = map.paths[lane];
+  const pathStart = path[0]!;
+  const configuredSpawnPoint = map.spawnPoints?.[lane];
+  const spawnPoint = configuredSpawnPoint ?? pathStart;
+  const entranceTarget = path.find(
+    (point) => point.x !== spawnPoint.x || point.y !== spawnPoint.y,
+  ) ?? pathStart;
+  const direction = {
+    x: entranceTarget.x - spawnPoint.x,
+    y: entranceTarget.y - spawnPoint.y,
+  };
+  const length = Math.hypot(direction.x, direction.y);
+  if (length <= 0.001) {
+    return { position: { ...spawnPoint }, direction };
+  }
+  // Điểm do admin chọn là tâm cổng và cũng là điểm sinh quái chính xác.
+  if (configuredSpawnPoint) {
+    return { position: { ...configuredSpawnPoint }, direction };
+  }
+  // Map seed không có spawnPoints nên đặt cả cổng lẫn điểm sinh quái lùi nhẹ
+  // khỏi đầu lane, tạo cảm giác quân địch bước xuyên qua cổng vào chiến trường.
+  return {
+    position: {
+      x:
+        spawnPoint.x -
+        (direction.x / length) * Math.abs(ENEMY_SPAWN_PROGRESS),
+      y:
+        spawnPoint.y -
+        (direction.y / length) * Math.abs(ENEMY_SPAWN_PROGRESS),
+    },
+    direction,
+  };
+}
+
 function addRouteLines(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   for (const lane of [0, 1] as const) {
     const path = map.paths[lane];
@@ -120,8 +159,15 @@ function addRouteLines(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       world.y = 0.105;
       return world;
     };
-    let previous = at(-1);
-    for (let progress = -1 + sampleStep; progress < routeEndProgress; progress += sampleStep) {
+    const portalPlacement = spawnPortalPlacement(map, lane);
+    let previous = mapWorldPosition(
+      map,
+      portalPlacement.position.x,
+      portalPlacement.position.y,
+    );
+    previous.y = 0.105;
+    const routeStartProgress = map.spawnPoints?.[lane] ? -1 : 0;
+    for (let progress = routeStartProgress; progress < routeEndProgress; progress += sampleStep) {
       const next = at(Math.min(progress, routeEndProgress));
       curve.add(new THREE.LineCurve3(previous.clone(), next.clone()));
       previous = next;
@@ -218,7 +264,7 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
     light: THREE.PointLight;
   }> = [];
 
-  for (const [lane, path] of map.paths.entries()) {
+  for (const lane of [0, 1] as const) {
     const portal = new THREE.Group();
     portal.name = `enemySpawnPortal-${lane}`;
     const vortexMaterial = new THREE.ShaderMaterial({
@@ -291,6 +337,10 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
             + sin(angle * 13.0 + uTime * 2.18) * 0.014
             + asymmetricBulge
             + brokenLobes;
+          // Giữ riêng phần chân cổng gần bán kính đầy đủ để silhouette luôn
+          // chạm đất, còn các vùng khác vẫn được morph tự do.
+          float groundAnchor = pow(max(0.0, -sin(angle)), 10.0);
+          boundary = mix(boundary, 0.985, groundAnchor);
           float shapedRadius = radius / boundary;
           if (shapedRadius > 1.0) discard;
           float edgeFade = 1.0 - smoothstep(0.84, 1.0, shapedRadius);
@@ -348,32 +398,12 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       vortexMaterial,
     );
     vortex.name = "spawnPortalVortex";
-    const pathStart = path[0]!;
-    // Map seed không lưu spawnPoints: dùng đầu lane làm điểm neo. Model được
-    // lùi 0.42 ô ở bước dưới nên vừa nằm ngoài mép mà không bị lùi hai lần.
-    const spawnPoint = map.spawnPoints?.[lane] ?? pathStart;
-    const entranceTarget = path.find(
-      (point) => point.x !== spawnPoint.x || point.y !== spawnPoint.y,
-    ) ?? pathStart;
-    const entranceDirection = {
-      x: entranceTarget.x - spawnPoint.x,
-      y: entranceTarget.y - spawnPoint.y,
-    };
+    const placement = spawnPortalPlacement(map, lane);
+    const entranceDirection = placement.direction;
     portal.rotation.y = Math.atan2(entranceDirection.x, entranceDirection.y);
-    portal.position.copy(mapWorldPosition(map, spawnPoint.x, spawnPoint.y));
-    const entranceLength = Math.hypot(
-      entranceDirection.x,
-      entranceDirection.y,
+    portal.position.copy(
+      mapWorldPosition(map, placement.position.x, placement.position.y),
     );
-    if (entranceLength > 0.001) {
-      // Admin vẫn lưu cổng tại đúng ô được chọn. Riêng model trong scene được
-      // lùi về phía sau gần mép ô để không che tâm ô/path nơi quái xuất hiện.
-      const backwardOffset = map.cellSize * 0.42;
-      portal.position.x -=
-        (entranceDirection.x / entranceLength) * backwardOffset;
-      portal.position.z -=
-        (entranceDirection.y / entranceLength) * backwardOffset;
-    }
     portal.scale.setScalar(2);
     // Circle bán kính 0.61 và portal scale 2 => bán kính thực 1.22.
     // Đặt tâm ở 1.24 để chân cổng vừa chạm mặt đất thay vì xuyên xuống dưới.

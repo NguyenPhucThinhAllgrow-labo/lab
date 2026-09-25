@@ -686,6 +686,21 @@
   box-shadow: 0 0 7px rgb(255 255 255 / 65%);
   content: "";
 }
+.td-live-grid button.is-anchor-draggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.td-live-grid button.is-anchor-draggable:active {
+  cursor: grabbing;
+}
+.td-live-grid button.is-anchor-drop-target {
+  z-index: 4;
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+  filter: brightness(1.55);
+  transform: scale(1.08);
+}
 .td-live-grid button span {
   position: relative;
   z-index: 1;

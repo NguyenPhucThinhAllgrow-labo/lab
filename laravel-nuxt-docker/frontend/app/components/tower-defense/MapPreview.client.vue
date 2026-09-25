@@ -247,7 +247,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .map-preview {
   position: relative;
-  min-height: 420px;
+  height: clamp(520px, 60vh, 680px);
   overflow: hidden;
   background: #08080f;
 }
@@ -332,7 +332,7 @@ onBeforeUnmount(() => {
 .map-preview__toolbar svg { width: 12px; height: 12px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 640px) {
-  .map-preview { min-height: 330px; }
+  .map-preview { height: 380px; }
   .map-preview__toolbar > span { display: none; }
   .map-preview__toolbar { justify-content: flex-end; }
 }
