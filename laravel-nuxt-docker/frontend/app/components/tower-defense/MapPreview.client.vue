@@ -24,12 +24,10 @@ let controls: OrbitControls | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let intersectionObserver: IntersectionObserver | null = null;
 let animationFrame = 0;
-let rebuildTimer: ReturnType<typeof setTimeout> | null = null;
 let rebuildVersion = 0;
 let rendererWidth = 0;
 let rendererHeight = 0;
 let previewIsVisible = true;
-let lastRenderedAt = 0;
 let updatePortal: ((elapsed: number) => void) | null = null;
 const clock = new THREE.Clock();
 const cameraTarget = new THREE.Vector3();
@@ -121,11 +119,6 @@ async function rebuildPreview() {
 
   try {
     scene.background = new THREE.Color(props.map.theme.background);
-    scene.fog = new THREE.Fog(
-      props.map.theme.background,
-      props.map.theme.fogNear,
-      props.map.theme.fogFar,
-    );
     const mapScene = createTowerDefenseMapScene(scene, props.map, null);
     updatePortal = mapScene.updatePortal;
     fitCamera(props.map);
@@ -176,23 +169,17 @@ function clearDetachedObject(object: THREE.Object3D) {
   object.removeFromParent();
 }
 
-function scheduleRebuild() {
-  if (rebuildTimer) clearTimeout(rebuildTimer);
-  rebuildTimer = setTimeout(() => void rebuildPreview(), 220);
-}
-
-function animate(timestamp = 0) {
+function animate() {
   animationFrame = requestAnimationFrame(animate);
-  // Preview trong popup không cần giữ GPU ở 60 FPS. Khi người dùng đang chỉnh
-  // phần form phía trên và canvas nằm ngoài viewport thì dừng render hoàn toàn.
-  if (!previewIsVisible || timestamp - lastRenderedAt < 1000 / 30) return;
-  lastRenderedAt = timestamp;
+  // Render theo tần số quét của màn hình để camera damping và hiệu ứng portal
+  // luôn mượt; khi canvas nằm ngoài viewport thì vẫn dừng hoàn toàn để giảm tải.
+  if (!previewIsVisible) return;
   controls?.update();
   updatePortal?.(clock.getElapsedTime());
   if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
-watch(() => props.map, scheduleRebuild, { deep: true });
+watch(() => props.map, () => void rebuildPreview());
 
 onMounted(() => {
   if (!host.value) return;
@@ -227,7 +214,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   rebuildVersion += 1;
-  if (rebuildTimer) clearTimeout(rebuildTimer);
   cancelAnimationFrame(animationFrame);
   resizeObserver?.disconnect();
   intersectionObserver?.disconnect();

@@ -2797,7 +2797,6 @@ async function createWorld() {
   try {
     surfaceDetail = createSurfaceDetail();
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(props.map.theme.background, props.map.theme.fogNear, props.map.theme.fogFar);
     const archerTemplate = createArcherTower();
     archerTemplate.add(groundShadow(0.42));
     applyTowerMetallicFinish(archerTemplate, 0x8a7658);

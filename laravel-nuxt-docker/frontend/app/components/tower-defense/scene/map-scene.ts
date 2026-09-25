@@ -348,10 +348,13 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       vortexMaterial,
     );
     vortex.name = "spawnPortalVortex";
-    const spawnPoint = map.spawnPoints?.[lane] ?? { x: -0.78, y: path[0]!.y };
+    const pathStart = path[0]!;
+    // Map seed không lưu spawnPoints: dùng đầu lane làm điểm neo. Model được
+    // lùi 0.42 ô ở bước dưới nên vừa nằm ngoài mép mà không bị lùi hai lần.
+    const spawnPoint = map.spawnPoints?.[lane] ?? pathStart;
     const entranceTarget = path.find(
       (point) => point.x !== spawnPoint.x || point.y !== spawnPoint.y,
-    ) ?? path[0]!;
+    ) ?? pathStart;
     const entranceDirection = {
       x: entranceTarget.x - spawnPoint.x,
       y: entranceTarget.y - spawnPoint.y,

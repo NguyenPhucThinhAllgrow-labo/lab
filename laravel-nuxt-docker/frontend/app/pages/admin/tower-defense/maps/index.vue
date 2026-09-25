@@ -478,15 +478,25 @@ const previewMap = computed<TowerDefenseMapDefinition | null>(() => {
   const configuration = visualMapConfiguration.value;
   if (!configuration) return null;
   const defaults = defaultMapConfiguration();
+  const castle = {
+    ...defaults.castle,
+    ...configuration.castle,
+  } as TowerDefenseMapDefinition["castle"];
+  // Các map cũ từ seeder không khai báo vị trí riêng. Gameplay sẽ suy ra cổng
+  // từ đầu lane và lâu đài từ cuối map, nên preview cũng phải giữ hai trường
+  // này là undefined thay vì chèn tọa độ của map mặc định.
+  if (!Object.hasOwn(configuration.castle ?? {}, "position")) {
+    delete castle.position;
+  }
   return {
     ...defaults,
     ...configuration,
     id: mapForm.id.trim() || "map-preview",
     name: mapForm.name.trim() || "Map preview",
-    castle: {
-      ...defaults.castle,
-      ...configuration.castle,
-    },
+    spawnPoints: Object.hasOwn(configuration, "spawnPoints")
+      ? configuration.spawnPoints
+      : undefined,
+    castle,
     camera: {
       ...defaults.camera,
       ...(configuration.camera as TowerDefenseMapDefinition["camera"] | undefined),
