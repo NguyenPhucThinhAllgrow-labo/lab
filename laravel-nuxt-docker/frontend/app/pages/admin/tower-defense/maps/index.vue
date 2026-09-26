@@ -235,6 +235,11 @@ interface EnemyIntelConfiguration {
 const mapEditorLane = ref<0 | 1>(0);
 const mapEditorPlacementMode = ref<"path" | "portal-0" | "portal-1" | "castle">("path");
 const mapEditorAnchors = ref<[MapEditorPoint[], MapEditorPoint[]]>([[], []]);
+const mapEditorGrid = ref<HTMLElement | null>(null);
+const draggedMapAnchor = ref<{ lane: 0 | 1; index: number } | null>(null);
+const draggedMapAnchorTarget = ref<MapEditorPoint | null>(null);
+let mapEditorDragPointerId: number | null = null;
+let ignoreMapEditorClickUntil = 0;
 const mapEditorMessage = ref("");
 
 const visualMapConfiguration = computed<MapEditorConfiguration | null>(() => {
@@ -478,15 +483,25 @@ const previewMap = computed<TowerDefenseMapDefinition | null>(() => {
   const configuration = visualMapConfiguration.value;
   if (!configuration) return null;
   const defaults = defaultMapConfiguration();
+  const castle = {
+    ...defaults.castle,
+    ...configuration.castle,
+  } as TowerDefenseMapDefinition["castle"];
+  // Các map cũ từ seeder không khai báo vị trí riêng. Gameplay sẽ suy ra cổng
+  // từ đầu lane và lâu đài từ cuối map, nên preview cũng phải giữ hai trường
+  // này là undefined thay vì chèn tọa độ của map mặc định.
+  if (!Object.hasOwn(configuration.castle ?? {}, "position")) {
+    delete castle.position;
+  }
   return {
     ...defaults,
     ...configuration,
     id: mapForm.id.trim() || "map-preview",
     name: mapForm.name.trim() || "Map preview",
-    castle: {
-      ...defaults.castle,
-      ...configuration.castle,
-    },
+    spawnPoints: Object.hasOwn(configuration, "spawnPoints")
+      ? configuration.spawnPoints
+      : undefined,
+    castle,
     camera: {
       ...defaults.camera,
       ...(configuration.camera as TowerDefenseMapDefinition["camera"] | undefined),
@@ -551,12 +566,45 @@ function expandEditorPath(anchors: MapEditorPoint[]) {
     const to = anchors[index]!;
     const stepX = Math.sign(to.x - from.x);
     const stepY = Math.sign(to.y - from.y);
-    const distance = Math.abs(to.x - from.x) + Math.abs(to.y - from.y);
-    for (let step = 1; step <= distance; step++) {
-      path.push({ x: from.x + stepX * step, y: from.y + stepY * step });
-    }
+    // Kéo một góc có thể làm hai anchor không còn thẳng hàng. Luôn nối theo
+    // trục X rồi trục Y để path vẫn gồm các đoạn vuông góc hợp lệ.
+    for (
+      let x = from.x + stepX;
+      stepX !== 0 && x !== to.x + stepX;
+      x += stepX
+    )
+      path.push({ x, y: from.y });
+    for (
+      let y = from.y + stepY;
+      stepY !== 0 && y !== to.y + stepY;
+      y += stepY
+    )
+      path.push({ x: to.x, y });
   }
   return path;
+}
+
+function removeEditorPathLoops(path: MapEditorPoint[]) {
+  const route: MapEditorPoint[] = [];
+  const routeIndexes = new Map<string, number>();
+  for (const point of path) {
+    const key = `${point.x}:${point.y}`;
+    const previousIndex = routeIndexes.get(key);
+    if (previousIndex === undefined) {
+      routeIndexes.set(key, route.length);
+      route.push({ ...point });
+      continue;
+    }
+
+    // Nếu tuyến quay lại ô đã đi qua, phần nằm giữa tạo thành vòng lặp/nhánh
+    // thừa. Cắt phần đó để mỗi ô chỉ xuất hiện một lần trên đường tới đích.
+    for (let index = route.length - 1; index > previousIndex; index--) {
+      const removed = route[index]!;
+      routeIndexes.delete(`${removed.x}:${removed.y}`);
+    }
+    route.length = previousIndex + 1;
+  }
+  return route;
 }
 
 function syncEditorPaths() {
@@ -579,6 +627,7 @@ function syncEditorPaths() {
 }
 
 function selectMapEditorCell(point: MapEditorPoint) {
+  if (performance.now() < ignoreMapEditorClickUntil) return;
   if (mapEditorPlacementMode.value !== "path") {
     updateMapConfiguration((configuration) => {
       if (mapEditorPlacementMode.value === "castle") {
@@ -613,7 +662,130 @@ function selectMapEditorCell(point: MapEditorPoint) {
   syncEditorPaths();
 }
 
+function mapAnchorIndex(point: MapEditorPoint, lane: 0 | 1) {
+  return mapEditorAnchors.value[lane].findIndex(
+    (anchor) => anchor.x === point.x && anchor.y === point.y,
+  );
+}
+
+function canDragMapAnchor(point: MapEditorPoint) {
+  return (
+    mapEditorPlacementMode.value === "path" &&
+    mapAnchorIndex(point, mapEditorLane.value) >= 0
+  );
+}
+
+function startMapAnchorDrag(event: PointerEvent, point: MapEditorPoint) {
+  if (!canDragMapAnchor(point)) {
+    return;
+  }
+  event.preventDefault();
+  draggedMapAnchor.value = {
+    lane: mapEditorLane.value,
+    index: mapAnchorIndex(point, mapEditorLane.value),
+  };
+  draggedMapAnchorTarget.value = { ...point };
+  mapEditorDragPointerId = event.pointerId;
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+}
+
+function mapEditorPointFromPointer(event: PointerEvent) {
+  const grid = mapEditorGrid.value;
+  if (!grid) return null;
+  const bounds = grid.getBoundingClientRect();
+  if (!bounds.width || !bounds.height) return null;
+  return {
+    x: Math.max(
+      0,
+      Math.min(
+        mapEditorColumns.value - 1,
+        Math.floor(((event.clientX - bounds.left) / bounds.width) * mapEditorColumns.value),
+      ),
+    ),
+    y: Math.max(
+      0,
+      Math.min(
+        mapEditorRows.value - 1,
+        Math.floor(((event.clientY - bounds.top) / bounds.height) * mapEditorRows.value),
+      ),
+    ),
+  };
+}
+
+function moveMapAnchorDrag(event: PointerEvent) {
+  if (
+    !draggedMapAnchor.value ||
+    event.pointerId !== mapEditorDragPointerId
+  )
+    return;
+  const point = mapEditorPointFromPointer(event);
+  if (point) draggedMapAnchorTarget.value = point;
+}
+
+function finishMapAnchorDrag(event: PointerEvent) {
+  if (
+    !draggedMapAnchor.value ||
+    event.pointerId !== mapEditorDragPointerId
+  )
+    return;
+  const point = mapEditorPointFromPointer(event);
+  if (point) dropMapAnchor(point);
+  else endMapAnchorDrag();
+}
+
+function dropMapAnchor(point: MapEditorPoint) {
+  const dragged = draggedMapAnchor.value;
+  if (!dragged) return;
+  const anchors = mapEditorAnchors.value[dragged.lane];
+  if (!anchors[dragged.index]) return;
+  const spawnPoint = configuredSpawnPoint(dragged.lane);
+  const destination = configuredCastlePoint();
+  anchors[dragged.index] = { ...point };
+
+  // Dù kéo cả điểm đầu/cuối, tuyến vẫn phải bắt đầu tại cổng spawn và kết
+  // thúc ở cổng lâu đài. Điểm vừa kéo sẽ trở thành một góc trung gian.
+  if (
+    spawnPoint &&
+    (anchors[0]?.x !== spawnPoint.x || anchors[0]?.y !== spawnPoint.y)
+  )
+    anchors.unshift({ ...spawnPoint });
+  const lastAnchor = anchors.at(-1);
+  if (
+    destination &&
+    (lastAnchor?.x !== destination.x || lastAnchor?.y !== destination.y)
+  )
+    anchors.push({ ...destination });
+
+  // Tính lại toàn bộ lane từ spawn đến đích, lấp khoảng cách bằng các đoạn
+  // ngang/dọc, bỏ vòng lặp/nhánh thừa rồi nén lại thành các điểm góc.
+  mapEditorAnchors.value[dragged.lane] = compressPath(
+    removeEditorPathLoops(expandEditorPath(anchors)),
+  );
+  mapEditorLane.value = dragged.lane;
+  mapEditorMessage.value =
+    `Đã di chuyển điểm góc và tính lại lane ${dragged.lane + 1} từ cổng spawn đến đích.`;
+  ignoreMapEditorClickUntil = performance.now() + 250;
+  draggedMapAnchor.value = null;
+  draggedMapAnchorTarget.value = null;
+  mapEditorDragPointerId = null;
+  syncEditorPaths();
+}
+
+function endMapAnchorDrag() {
+  draggedMapAnchor.value = null;
+  draggedMapAnchorTarget.value = null;
+  mapEditorDragPointerId = null;
+}
+
+function isMapAnchorDropTarget(point: MapEditorPoint) {
+  return (
+    draggedMapAnchorTarget.value?.x === point.x &&
+    draggedMapAnchorTarget.value.y === point.y
+  );
+}
+
 function undoMapEditorLane() {
+  if (mapEditorPlacementMode.value !== "path") return;
   mapEditorAnchors.value[mapEditorLane.value].pop();
   mapEditorMessage.value = "Đã hoàn tác điểm gần nhất.";
   syncEditorPaths();
@@ -1219,6 +1391,35 @@ onMounted(() => {
                 <label><span>Vàng khởi đầu</span><input :value="visualMapConfiguration.startingCredits ?? 3000" type="number" min="0" max="10000000" step="1" required @change="updateMapNumber('startingCredits', $event)" /><small v-if="mapFieldErrors['configuration.startingCredits']">{{ mapFieldErrors['configuration.startingCredits'][0] }}</small></label>
               </div>
             </section>
+
+            <section v-if="visualMapConfiguration" class="td-content-editor is-full">
+              <header>
+                <div><strong>Nội dung riêng của map</strong><small>Chọn trực tiếp từ tài nguyên backend.</small></div>
+              </header>
+              <div class="td-content-grid">
+                <fieldset>
+                  <legend>Công trình và không gian</legend>
+                  <label><span>Model lâu đài</span><select :value="configuredAssetKey(visualMapConfiguration.castle?.modelUrl)" @change="selectCastleModel"><option value="">Chọn model…</option><option v-for="asset in selectableCastleAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>
+                  <label><span>Model nền 3D</span><select :value="configuredAssetKey(visualMapConfiguration.backgroundModel?.url)" @change="selectSimpleAsset('backgroundModel', $event)"><option value="">Không dùng model nền</option><option v-for="asset in selectableMapModelAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>
+                  <label><span>Nhạc nền</span><select :value="configuredAssetKey(visualMapConfiguration.backgroundMusicUrl)" @change="selectSimpleAsset('backgroundMusicUrl', $event)"><option value="">Không phát nhạc</option><option v-for="asset in selectableMusicAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>
+                </fieldset>
+
+                <fieldset>
+                  <legend>Lính thường</legend>
+                  <div class="td-roster-heading"><span>Chọn một hoặc nhiều loại lính xuất hiện trên map.</span><b>{{ managedEnemyIds('normal').length }} đã chọn</b></div>
+                  <div class="td-roster-options"><label v-for="enemy in selectableNormalEnemies" :key="enemy.id" class="td-roster-option" :class="{ 'is-selected': isManagedEnemySelected('normal', enemy.id) }"><input type="checkbox" :checked="isManagedEnemySelected('normal', enemy.id)" @change="toggleManagedEnemy('normal', enemy, $event)" /><img v-if="enemy.avatar_asset_key" :src="assetPath(enemy.avatar_asset_key)" alt="" /><Skull v-else /><span><strong>{{ enemy.name }}</strong><code>{{ enemy.id }}</code><small>HP {{ enemy.base_health }} · Tốc độ {{ enemy.base_speed }}</small></span></label></div>
+                  <NuxtLink class="td-manage-enemy-link" to="/admin/tower-defense/enemies">Quản lý hồ sơ lính →</NuxtLink>
+                </fieldset>
+
+                <fieldset>
+                  <legend>Boss</legend>
+                  <div class="td-roster-heading is-boss"><span>Boss đã chọn sẽ được luân phiên ở các đợt boss.</span><b>{{ managedEnemyIds('boss').length }} đã chọn</b></div>
+                  <div class="td-roster-options"><label v-for="enemy in selectableBosses" :key="enemy.id" class="td-roster-option is-boss" :class="{ 'is-selected': isManagedEnemySelected('boss', enemy.id) }"><input type="checkbox" :checked="isManagedEnemySelected('boss', enemy.id)" @change="toggleManagedEnemy('boss', enemy, $event)" /><img v-if="enemy.avatar_asset_key" :src="assetPath(enemy.avatar_asset_key)" alt="" /><Crown v-else /><span><strong>{{ enemy.name }}</strong><code>{{ enemy.id }}</code><small>HP {{ enemy.base_health }} · Mất {{ enemy.castle_damage }} máu</small></span></label></div>
+                  <NuxtLink class="td-manage-enemy-link" to="/admin/tower-defense/enemies">Quản lý hồ sơ boss →</NuxtLink>
+                </fieldset>
+              </div>
+            </section>
+
             <section
               class="td-live-editor is-full"
               :style="{
@@ -1229,7 +1430,7 @@ onMounted(() => {
               <header>
                 <div>
                   <strong>Trình dựng đường đi trực tiếp</strong>
-                  <small>Chọn lane rồi click các điểm cùng hàng hoặc cột. JSON được sinh tự động.</small>
+                  <small>Chọn lane rồi click để thêm điểm; kéo thả điểm góc để đổi vị trí. JSON được sinh tự động.</small>
                 </div>
                 <div class="td-lane-switcher">
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'path' && mapEditorLane === 0 }" @click="mapEditorLane = 0; mapEditorPlacementMode = 'path'">Vẽ lane 1</button>
@@ -1242,12 +1443,16 @@ onMounted(() => {
 
               <div v-if="visualMapConfiguration" class="td-live-stage">
                 <div
+                  ref="mapEditorGrid"
                   class="td-live-grid"
                   :style="{
                     '--map-columns': mapEditorColumns,
                     '--map-terrain': colorNumber(visualMapConfiguration.theme?.terrain, '#1b211e'),
                     '--map-grid': colorNumber(visualMapConfiguration.theme?.gridLine, '#303832'),
                   }"
+                  @pointermove="moveMapAnchorDrag"
+                  @pointerup="finishMapAnchorDrag"
+                  @pointercancel="endMapAnchorDrag"
                 >
                   <button
                     v-for="point in mapEditorCells"
@@ -1262,7 +1467,10 @@ onMounted(() => {
                       'is-portal-one': isConfiguredPoint(point, configuredSpawnPoint(0)),
                       'is-portal-two': isConfiguredPoint(point, configuredSpawnPoint(1)),
                       'is-castle': isConfiguredPoint(point, configuredCastlePoint()),
+                      'is-anchor-draggable': canDragMapAnchor(point),
+                      'is-anchor-drop-target': isMapAnchorDropTarget(point),
                     }"
+                    @pointerdown="startMapAnchorDrag($event, point)"
                     @click="selectMapEditorCell(point)"
                   ><span>{{ editorCellContent(point) }}</span></button>
                 </div>
@@ -1276,7 +1484,7 @@ onMounted(() => {
                     <div><dt>Cổng 2</dt><dd>{{ configuredSpawnPoint(1)?.x }}, {{ configuredSpawnPoint(1)?.y }}</dd></div>
                     <div><dt>Cổng lâu đài</dt><dd>{{ configuredCastlePoint()?.x }}, {{ configuredCastlePoint()?.y }}</dd></div>
                   </dl>
-                  <button class="td-editor-action" type="button" :disabled="mapEditorAnchors[mapEditorLane].length === 0" @click="undoMapEditorLane"><Undo2 /> Hoàn tác điểm</button>
+                  <button class="td-editor-action" type="button" :disabled="mapEditorPlacementMode !== 'path' || mapEditorAnchors[mapEditorLane].length === 0" @click="undoMapEditorLane"><Undo2 /> Hoàn tác điểm</button>
                   <button class="td-editor-action is-danger" type="button" :disabled="mapEditorAnchors[mapEditorLane].length === 0" @click="clearMapEditorLane"><Trash2 /> Xóa lane {{ mapEditorLane + 1 }}</button>
                   <button class="td-editor-action is-reset" type="button" @click="resetMapEditorLayout"><RotateCcw /> Đặt lại mặc định</button>
                 </aside>
@@ -1305,34 +1513,6 @@ onMounted(() => {
                   <div class="td-map-preview-fallback">Đang khởi tạo trình xem 3D…</div>
                 </template>
               </ClientOnly>
-            </section>
-
-            <section v-if="visualMapConfiguration" class="td-content-editor is-full">
-              <header>
-                <div><strong>Nội dung riêng của map</strong><small>Chọn trực tiếp từ tài nguyên backend.</small></div>
-              </header>
-              <div class="td-content-grid">
-                <fieldset>
-                  <legend>Công trình và không gian</legend>
-                  <label><span>Model lâu đài</span><select :value="configuredAssetKey(visualMapConfiguration.castle?.modelUrl)" @change="selectCastleModel"><option value="">Chọn model…</option><option v-for="asset in selectableCastleAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>
-                  <label><span>Model nền 3D</span><select :value="configuredAssetKey(visualMapConfiguration.backgroundModel?.url)" @change="selectSimpleAsset('backgroundModel', $event)"><option value="">Không dùng model nền</option><option v-for="asset in selectableMapModelAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>
-                  <label><span>Nhạc nền</span><select :value="configuredAssetKey(visualMapConfiguration.backgroundMusicUrl)" @change="selectSimpleAsset('backgroundMusicUrl', $event)"><option value="">Không phát nhạc</option><option v-for="asset in selectableMusicAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>
-                </fieldset>
-
-                <fieldset>
-                  <legend>Lính thường</legend>
-                  <div class="td-roster-heading"><span>Chọn một hoặc nhiều loại lính xuất hiện trên map.</span><b>{{ managedEnemyIds('normal').length }} đã chọn</b></div>
-                  <div class="td-roster-options"><label v-for="enemy in selectableNormalEnemies" :key="enemy.id" class="td-roster-option" :class="{ 'is-selected': isManagedEnemySelected('normal', enemy.id) }"><input type="checkbox" :checked="isManagedEnemySelected('normal', enemy.id)" @change="toggleManagedEnemy('normal', enemy, $event)" /><img v-if="enemy.avatar_asset_key" :src="assetPath(enemy.avatar_asset_key)" alt="" /><Skull v-else /><span><strong>{{ enemy.name }}</strong><code>{{ enemy.id }}</code><small>HP {{ enemy.base_health }} · Tốc độ {{ enemy.base_speed }}</small></span></label></div>
-                  <NuxtLink class="td-manage-enemy-link" to="/admin/tower-defense/enemies">Quản lý hồ sơ lính →</NuxtLink>
-                </fieldset>
-
-                <fieldset>
-                  <legend>Boss</legend>
-                  <div class="td-roster-heading is-boss"><span>Boss đã chọn sẽ được luân phiên ở các đợt boss.</span><b>{{ managedEnemyIds('boss').length }} đã chọn</b></div>
-                  <div class="td-roster-options"><label v-for="enemy in selectableBosses" :key="enemy.id" class="td-roster-option is-boss" :class="{ 'is-selected': isManagedEnemySelected('boss', enemy.id) }"><input type="checkbox" :checked="isManagedEnemySelected('boss', enemy.id)" @change="toggleManagedEnemy('boss', enemy, $event)" /><img v-if="enemy.avatar_asset_key" :src="assetPath(enemy.avatar_asset_key)" alt="" /><Crown v-else /><span><strong>{{ enemy.name }}</strong><code>{{ enemy.id }}</code><small>HP {{ enemy.base_health }} · Mất {{ enemy.castle_damage }} máu</small></span></label></div>
-                  <NuxtLink class="td-manage-enemy-link" to="/admin/tower-defense/enemies">Quản lý hồ sơ boss →</NuxtLink>
-                </fieldset>
-              </div>
             </section>
 
             <details class="td-json-editor is-full">

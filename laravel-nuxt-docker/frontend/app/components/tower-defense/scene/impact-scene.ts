@@ -24,6 +24,7 @@ export function createTowerDefenseImpactScene(
   { cellSize, worldPosition }: ImpactSceneOptions,
 ): TowerDefenseImpactScene {
   const models = new Map<number, THREE.Group>();
+  const activeImpactIds = new Set<number>();
   let frostWaveTexture: THREE.CanvasTexture | null = null;
   let fireWaveTexture: THREE.CanvasTexture | null = null;
 
@@ -417,9 +418,10 @@ export function createTowerDefenseImpactScene(
     speedMultiplier,
   }: ImpactSceneSyncOptions) {
     // Impact: giữ object sống đúng lifetime do gameplay cấp và animate theo tuổi.
-    const impactIds = new Set(impacts.map((item) => item.id));
+    activeImpactIds.clear();
+    for (const impact of impacts) activeImpactIds.add(impact.id);
     for (const [id, model] of models)
-      if (!impactIds.has(id)) {
+      if (!activeImpactIds.has(id)) {
         disposeObject(model);
         models.delete(id);
       }

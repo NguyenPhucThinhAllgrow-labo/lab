@@ -7,7 +7,8 @@ export const WATER_SLOW_DURATION_SECONDS = 2;
 export const MAX_TOWER_LEVEL = 3;
 export const TOWER_RANGE_LEVEL_BONUS = 0.22;
 export const ENEMY_HIT_RADIUS = 0.28;
-export const ENEMY_SPAWN_PROGRESS = -0.85;
+// Khớp với độ lùi model cổng trong scene: quái xuất hiện ngay tại mặt cổng.
+export const ENEMY_SPAWN_PROGRESS = -0.42;
 export const BETWEEN_WAVE_DELAY_SECONDS = 30;
 export const STARTING_CREDITS = 3000;
 export const WAVE_BASE_REWARD = 30;

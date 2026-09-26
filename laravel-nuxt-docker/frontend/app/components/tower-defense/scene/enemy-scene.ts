@@ -170,6 +170,7 @@ export function createTowerDefenseEnemyScene(
   options: TowerDefenseEnemySceneOptions = {},
 ): TowerDefenseEnemyScene {
   const models = new Map<number, THREE.Group>();
+  const activeEnemyIds = new Set<number>();
   const modelPool = new Map<string, THREE.Group[]>();
   const statusBadgeTextures = new Map<EnemyStatusKind, THREE.CanvasTexture>();
   const bossTemplates = new Map<BossClass, THREE.Group>();
@@ -845,9 +846,10 @@ export function createTowerDefenseEnemyScene(
   }: EnemySceneSyncOptions) {
     if (lavaBossGlowMaterial)
       lavaBossGlowMaterial.uniforms.uTime!.value = elapsed;
-    const enemyIds = new Set(enemies.map((enemy) => enemy.id));
+    activeEnemyIds.clear();
+    for (const enemy of enemies) activeEnemyIds.add(enemy.id);
     for (const [id, model] of models)
-      if (!enemyIds.has(id)) {
+      if (!activeEnemyIds.has(id)) {
         recycleModel(model);
         models.delete(id);
       }
