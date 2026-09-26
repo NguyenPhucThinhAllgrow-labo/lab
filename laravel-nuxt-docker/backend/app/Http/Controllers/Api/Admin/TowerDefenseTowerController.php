@@ -50,7 +50,7 @@ class TowerDefenseTowerController extends Controller
     private function validatedData(Request $request, ?TowerDefenseTower $tower = null): array
     {
         $data = $request->validate([
-            'id' => [$tower ? 'sometimes' : 'required', 'string', Rule::in(['archer', 'cannon', 'frost', 'fire', 'thunder', 'water', 'speed', 'damage']), Rule::unique('tower_defense_towers')->ignore($tower?->id)],
+            'id' => [$tower ? 'sometimes' : 'required', 'string', Rule::in(['archer', 'cannon', 'frost', 'fire', 'thunder', 'water', 'support']), Rule::unique('tower_defense_towers')->ignore($tower?->id)],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'role' => ['required', Rule::in(['damage', 'buff'])],
@@ -139,6 +139,8 @@ class TowerDefenseTowerController extends Controller
         $data['cost'] = $data['level_stats'][1]['upgradeCost'];
         $data['range'] = $data['level_stats'][1]['range'];
         $data['fire_rate'] = $data['level_stats'][1]['fireRate'];
+        $kind = $tower?->id ?? $data['id'];
+        $data['role'] = $kind === 'support' ? 'buff' : 'damage';
         if ($tower) {
             unset($data['id']);
         }

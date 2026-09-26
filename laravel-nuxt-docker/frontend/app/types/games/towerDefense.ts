@@ -1,5 +1,5 @@
 export type TowerKind =
-  "archer" | "cannon" | "frost" | "fire" | "thunder" | "water" | "speed" | "damage";
+  "archer" | "cannon" | "frost" | "fire" | "thunder" | "water" | "support";
 export type EnemyKind = "normal" | "boss";
 export type BossClass = "barbarian" | "knight" | "mage" | "ranger" | "rogue";
 export type EnemyCombatProfileKey = "normal" | "lava-boss";

@@ -1103,10 +1103,10 @@ function syncTowerBuffBadges(group: THREE.Group, tower: Tower) {
       if (!canTowerReceiveSupportBuff(tower.kind, kind)) continue;
 
       const receivesBuff = props.towers.some((support) => {
-        if (support.kind !== kind || support.id === tower.id) return false;
+        if (support.kind !== "support" || support.id === tower.id) return false;
         return (
           Math.hypot(support.x - tower.x, support.y - tower.y) <=
-          TOWER_DEFINITIONS[kind].range
+          TOWER_DEFINITIONS.support.range
         );
       });
       if (receivesBuff) buffs.push(kind);
@@ -1220,8 +1220,7 @@ function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
     fire: 0xff5438,
     thunder: 0x9b7cff,
     water: 0x38bdf8,
-    speed: 0x22c55e,
-    damage: 0xef4444,
+    support: 0xa855f7,
   };
   const accentColors: Record<TowerKind, number> = {
     archer: 0xeaffb8,
@@ -1230,8 +1229,7 @@ function applyTowerLevelAppearance(group: THREE.Group, tower: Tower) {
     fire: 0xffd45c,
     thunder: 0xe9ddff,
     water: 0xe0f7ff,
-    speed: 0xbbf7d0,
-    damage: 0xfecaca,
+    support: 0xe9d5ff,
   };
   const effectMaterial = (opacity: number) =>
     new THREE.MeshBasicMaterial({
@@ -1805,8 +1803,7 @@ function createTowerUpgradeEffect(tower: Tower, now: number) {
     fire: 0xff593d,
     thunder: 0xa78bfa,
     water: 0x38bdf8,
-    speed: 0x22c55e,
-    damage: 0xef4444,
+    support: 0xa855f7,
   };
   const material = (opacity = 0.9) =>
     new THREE.MeshBasicMaterial({
@@ -1976,7 +1973,7 @@ function createTowerUpgradeEffect(tower: Tower, now: number) {
       );
       group.add(crystal);
     }
-  } else if (tower.kind === "speed" || tower.kind === "damage") {
+  } else if (tower.kind === "support") {
     for (let index = 0; index < 3; index++) {
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(0.3 + index * 0.11, 0.016, 6, 40),
@@ -2814,8 +2811,7 @@ async function createWorld() {
     towerTemplates.set("fire", createFireTowerTemplate(frostPlaceholder));
     towerTemplates.set("thunder", createFireTowerTemplate(frostPlaceholder));
     towerTemplates.set("water", createFireTowerTemplate(frostPlaceholder));
-    towerTemplates.set("speed", createFireTowerTemplate(frostPlaceholder));
-    towerTemplates.set("damage", createFireTowerTemplate(frostPlaceholder));
+    towerTemplates.set("support", createFireTowerTemplate(frostPlaceholder));
     projectileScene = createTowerDefenseProjectileScene(scene, {
       surfaceDetail,
       worldPosition,

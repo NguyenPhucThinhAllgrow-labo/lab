@@ -18,7 +18,7 @@ class AdminTowerDefenseTowerApiTest extends TestCase
     {
         $this->seed(TowerDefenseTowerSeeder::class);
 
-        $this->assertDatabaseCount('tower_defense_towers', 8);
+        $this->assertDatabaseCount('tower_defense_towers', 7);
         $this->assertDatabaseHas('tower_defense_towers', [
             'id' => 'fire',
             'cost' => 150,
@@ -27,6 +27,10 @@ class AdminTowerDefenseTowerApiTest extends TestCase
         $this->assertSame(
             'models/games/tower-defense/towers/water/human/level3.glb',
             \App\Models\TowerDefenseTower::findOrFail('water')->model_asset_keys['human3'],
+        );
+        $this->assertCount(
+            2,
+            \App\Models\TowerDefenseTower::findOrFail('support')->effects['items'],
         );
     }
 
@@ -55,7 +59,8 @@ class AdminTowerDefenseTowerApiTest extends TestCase
             'id' => 'fire',
             'name' => 'Tháp lửa',
             'description' => 'Gây sát thương thiêu đốt.',
-            'role' => 'damage',
+            // API phải tự chuẩn hóa: mọi tower chiến đấu luôn thuộc nhóm damage.
+            'role' => 'buff',
             'cost' => 150,
             'damage' => 10,
             'damage_by_level' => ['1' => 10, '2' => 18, '3' => 30],
@@ -92,6 +97,7 @@ class AdminTowerDefenseTowerApiTest extends TestCase
         $this->postJson('/api/admin/tower-defense/towers', $payload)
             ->assertCreated()
             ->assertJsonPath('data.id', 'fire')
+            ->assertJsonPath('data.role', 'damage')
             ->assertJsonPath('data.damage_by_level.3', 30)
             ->assertJsonPath('data.level_stats.2.range', 3)
             ->assertJsonPath('data.effects.burnDuration', 4)

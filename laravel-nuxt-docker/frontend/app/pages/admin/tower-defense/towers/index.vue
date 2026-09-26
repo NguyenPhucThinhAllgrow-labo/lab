@@ -38,8 +38,10 @@ const editingId = ref<string | null>(null);
 const towerKindOptions = [
   ["archer", "Tháp cung"], ["cannon", "Tháp pháo"], ["frost", "Tháp băng"],
   ["fire", "Tháp lửa"], ["thunder", "Tháp sét"], ["water", "Tháp nước"],
-  ["speed", "Trụ tốc độ"], ["damage", "Trụ sát thương"],
+  ["support", "Trụ hỗ trợ"],
 ] as const;
+const towerRoleForKind = (kind: string): TowerRole => kind === "support" ? "buff" : "damage";
+const towerRoleLabel = (role: TowerRole) => role === "buff" ? "Trụ hỗ trợ" : "Trụ gây sát thương";
 
 const blankForm = () => ({
   id: "", name: "", description: "", role: "damage" as TowerRole, maxLevel: 3,
@@ -120,7 +122,7 @@ function clearTowerImage() {
 function openEdit(tower: Tower) {
   editingId.value = tower.id;
   Object.assign(form, blankForm(), {
-    id: tower.id, name: tower.name, description: tower.description ?? "", role: tower.role ?? "damage",
+    id: tower.id, name: tower.name, description: tower.description ?? "", role: towerRoleForKind(tower.id),
     maxLevel: tower.max_level ?? 3,
     levelStats: Object.fromEntries(Array.from({ length: tower.max_level ?? 3 }, (_, index) => {
       const level = index + 1;
@@ -194,6 +196,9 @@ async function submitForm() {
 watch(() => form.role, () => {
   form.effectItems = form.effectItems.filter(effect => effectTypes.value.find(option => option.id === effect.type)?.role === form.role);
 });
+watch(() => form.id, (kind) => {
+  form.role = towerRoleForKind(kind);
+});
 watch(() => form.maxLevel, (maxLevel) => {
   const maximum = Math.max(1, Number(maxLevel) || 1);
   for (let level = 1; level <= maximum; level++) {
@@ -238,7 +243,7 @@ onMounted(loadData);
       <article v-for="tower in filteredTowers" :key="tower.id" class="tower-card" :class="{ inactive: !tower.is_active }">
         <header><span class="tower-card-image" :style="{ '--tower-color': tower.color }"><img v-if="tower.image_asset_key" :src="assetUrl(tower.image_asset_key)" :alt="tower.name" /><Castle v-else /></span><div><small>{{ tower.id }}</small><h2>{{ tower.name }}</h2></div><span class="status">{{ tower.is_active ? 'Đang dùng' : 'Tạm ẩn' }}</span></header>
         <p>{{ tower.description || "Chưa có mô tả." }}</p>
-        <dl><div><dt>Giá xây</dt><dd>{{ tower.level_stats?.['1']?.upgradeCost ?? tower.cost }}</dd></div><div><dt>Số cấp</dt><dd>{{ tower.max_level ?? 3 }} level</dd></div><div><dt>Damage đầu → cuối</dt><dd>{{ tower.level_stats?.['1']?.damage ?? tower.damage }} → {{ tower.level_stats?.[String(tower.max_level)]?.damage ?? tower.damage }}</dd></div><div><dt>Tầm đầu → cuối</dt><dd>{{ tower.level_stats?.['1']?.range ?? tower.range }} → {{ tower.level_stats?.[String(tower.max_level)]?.range ?? tower.range }}</dd></div></dl>
+        <dl><div><dt>Loại tower</dt><dd>{{ towerRoleLabel(tower.role) }}</dd></div><div><dt>Số cấp</dt><dd>{{ tower.max_level ?? 3 }} level</dd></div><div><dt>Damage đầu → cuối</dt><dd>{{ tower.level_stats?.['1']?.damage ?? tower.damage }} → {{ tower.level_stats?.[String(tower.max_level)]?.damage ?? tower.damage }}</dd></div><div><dt>Tầm đầu → cuối</dt><dd>{{ tower.level_stats?.['1']?.range ?? tower.range }} → {{ tower.level_stats?.[String(tower.max_level)]?.range ?? tower.range }}</dd></div></dl>
         <footer><span>{{ modelCount(tower) }} model đã gắn</span><div><button title="Chỉnh sửa" @click="openEdit(tower)"><Pencil /></button><button class="danger" title="Xóa" @click="removeTower(tower)"><Trash2 /></button></div></footer>
       </article>
     </section>
@@ -249,8 +254,8 @@ onMounted(loadData);
         <header class="tower-dialog__hero"><div class="tower-dialog__identity"><span class="tower-dialog__icon" :style="{ '--tower-accent': form.color }"><Castle /></span><div><small>{{ editingId ? 'CHỈNH SỬA TOWER' : 'TOWER MỚI' }}</small><h2>{{ form.name || 'Thiết lập tower' }}</h2><p>Cấu hình sức mạnh, hiệu ứng và hình ảnh hiển thị trong trận đấu.</p></div></div><button class="icon-button" type="button" aria-label="Đóng" @click="dialog?.close()"><X /></button></header>
         <div class="tower-form">
           <fieldset><legend><span class="section-icon"><Castle /></span><span>Thông tin cơ bản<small>Tên gọi và trạng thái sử dụng</small></span></legend><div class="form-grid">
-            <label><span>Loại tower</span><input v-if="editingId" v-model="form.id" disabled /><select v-else v-model="form.id" required><option value="">Chọn loại tower…</option><option v-for="option in towerKindOptions" :key="option[0]" :value="option[0]">{{ option[1] }}</option></select><small v-if="fieldErrors.id">{{ fieldErrors.id[0] }}</small></label>
-            <label><span>Vai trò</span><select v-model="form.role"><option value="damage">Gây sát thương</option><option value="buff">Hỗ trợ / Buff</option></select></label>
+            <label><span>Mẫu tower</span><input v-if="editingId" v-model="form.id" disabled /><select v-else v-model="form.id" required><option value="">Chọn mẫu tower…</option><optgroup label="Trụ gây sát thương"><option v-for="option in towerKindOptions.filter(item => item[0] !== 'support')" :key="option[0]" :value="option[0]">{{ option[1] }}</option></optgroup><optgroup label="Trụ hỗ trợ"><option value="support">Trụ hỗ trợ</option></optgroup></select><small v-if="fieldErrors.id">{{ fieldErrors.id[0] }}</small></label>
+            <label><span>Loại tower</span><input :value="towerRoleLabel(form.role)" disabled /></label>
             <label><span>Tên tower</span><input v-model="form.name" required /></label>
             <label><span>Màu nhận diện</span><input v-model="form.color" type="color" /></label>
             <label><span>Thứ tự</span><input v-model.number="form.sortOrder" type="number" min="0" step="1" /></label>

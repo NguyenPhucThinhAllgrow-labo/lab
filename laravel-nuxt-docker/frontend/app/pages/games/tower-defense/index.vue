@@ -1152,7 +1152,7 @@ onBeforeUnmount(() => {
                 ><b>{{ selectedTower.invested }} vàng</b>
               </div>
               <div v-if="isSupportTowerKind(selectedTower.kind) && !TOWER_DEFINITIONS[selectedTower.kind].effects?.length" class="is-damage">
-                <span>{{ selectedTower.kind === "speed" ? "Tốc độ" : "Sát thương" }}</span
+                <span>Hỗ trợ</span
                 ><b>+{{ Math.round(towerSupportBonus(selectedTower.level) * 100) }}%</b>
               </div>
               <div v-else-if="!isSupportTowerKind(selectedTower.kind)" class="is-damage">

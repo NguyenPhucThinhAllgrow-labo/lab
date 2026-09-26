@@ -104,14 +104,14 @@ class TowerDefenseTowerSeeder extends Seeder
                 'model_configuration' => ['targetHeight' => 2],
             ],
             [
-                'id' => 'speed',
-                'name' => 'Trụ tốc độ',
-                'description' => 'Tăng tốc đánh cho các tháp trong phạm vi.',
-                'cost' => 165,
+                'id' => 'support',
+                'name' => 'Trụ hỗ trợ',
+                'description' => 'Tăng tốc đánh và sát thương cho các tháp trong phạm vi.',
+                'cost' => 175,
                 'damage' => 0,
                 'range' => 2.5,
                 'fire_rate' => 0,
-                'color' => '#22c55e',
+                'color' => '#a855f7',
                 'effects' => [],
                 'model_asset_keys' => [
                     'dark1' => 'models/games/tower-defense/towers/supports/enemy/speed.glb',
@@ -120,27 +120,10 @@ class TowerDefenseTowerSeeder extends Seeder
                 ],
                 'model_configuration' => ['targetHeight' => 2],
             ],
-            [
-                'id' => 'damage',
-                'name' => 'Trụ sát thương',
-                'description' => 'Tăng sát thương cho các tháp trong phạm vi.',
-                'cost' => 175,
-                'damage' => 0,
-                'range' => 2.5,
-                'fire_rate' => 0,
-                'color' => '#ef4444',
-                'effects' => [],
-                'model_asset_keys' => [
-                    'dark1' => 'models/games/tower-defense/towers/supports/enemy/damage/level1.glb',
-                    'dark2' => 'models/games/tower-defense/towers/supports/enemy/damage/level2.glb',
-                    'dark3' => 'models/games/tower-defense/towers/supports/enemy/damage/level3.glb',
-                ],
-                'model_configuration' => ['targetHeight' => 2],
-            ],
         ];
 
         foreach ($towers as $sortOrder => $tower) {
-            $tower['role'] = in_array($tower['id'], ['speed', 'damage'], true) ? 'buff' : 'damage';
+            $tower['role'] = $tower['id'] === 'support' ? 'buff' : 'damage';
             $tower['effects']['items'] = $this->effectItems($tower['id']);
             $levelMultiplier = $tower['id'] === 'thunder' ? [1, 1.42, 1.84] : [1, 1.55, 2.1];
             $tower['damage_by_level'] = [
@@ -151,7 +134,7 @@ class TowerDefenseTowerSeeder extends Seeder
             $tower['max_level'] = 3;
             $tower['model_configuration']['targetHeightByLevel'] = array_fill(1, $tower['max_level'], $tower['model_configuration']['targetHeight']);
             $tower['level_stats'] = collect(range(1, $tower['max_level']))->mapWithKeys(function (int $level) use ($tower): array {
-                $rangeGrowth = in_array($tower['id'], ['frost', 'speed', 'damage'], true) ? 0 : ($level - 1) * 0.22;
+                $rangeGrowth = in_array($tower['id'], ['frost', 'support'], true) ? 0 : ($level - 1) * 0.22;
                 $fireRateGrowth = $tower['id'] === 'archer' ? 0.35 : 0.18;
 
                 return [(string) $level => [
@@ -166,6 +149,8 @@ class TowerDefenseTowerSeeder extends Seeder
                 [...$tower, 'sort_order' => $sortOrder, 'is_active' => true],
             );
         }
+
+        TowerDefenseTower::query()->whereIn('id', ['speed', 'damage'])->delete();
     }
 
     /** @return array<int, array<string, int|float|string>> */
@@ -181,8 +166,10 @@ class TowerDefenseTowerSeeder extends Seeder
                 ['id' => 'water-slow', 'type' => 'slow', 'behavior' => 'slow', 'name' => 'Dòng nước chậm', 'value' => 0.25, 'duration' => 2, 'perLevel' => 0, 'color' => '#38bdf8'],
                 ['id' => 'water-splash', 'type' => 'splash-damage', 'behavior' => 'splash_damage', 'name' => 'Nước lan', 'value' => 0, 'radius' => 0.85, 'ratio' => 0.6, 'perLevel' => 0, 'color' => '#0ea5e9'],
             ],
-            'speed' => [['id' => 'speed-aura', 'type' => 'attack-speed-aura', 'behavior' => 'attack_speed_aura', 'name' => 'Hào quang tốc độ', 'value' => 0.1, 'perLevel' => 0.2, 'radius' => 2.5, 'color' => '#22c55e']],
-            'damage' => [['id' => 'damage-aura', 'type' => 'damage-aura', 'behavior' => 'damage_aura', 'name' => 'Hào quang sát thương', 'value' => 0.1, 'perLevel' => 0.2, 'radius' => 2.5, 'color' => '#ef4444']],
+            'support' => [
+                ['id' => 'support-speed-aura', 'type' => 'attack-speed-aura', 'behavior' => 'attack_speed_aura', 'name' => 'Hào quang tốc độ', 'value' => 0.1, 'perLevel' => 0.2, 'radius' => 2.5, 'color' => '#22c55e'],
+                ['id' => 'support-damage-aura', 'type' => 'damage-aura', 'behavior' => 'damage_aura', 'name' => 'Hào quang sát thương', 'value' => 0.1, 'perLevel' => 0.2, 'radius' => 2.5, 'color' => '#ef4444'],
+            ],
             default => [],
         };
     }

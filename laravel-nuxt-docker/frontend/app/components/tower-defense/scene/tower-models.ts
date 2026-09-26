@@ -73,23 +73,13 @@ const LEVELLED_TOWER_MODELS: TowerModelDefinition[] = [
     },
   },
   {
-    kind: "speed",
-    modelName: "SpeedSupportTower3D",
+    kind: "support",
+    modelName: "SupportTower3D",
     targetHeight: 2,
     urls: {
       1: "/api/tower-defense/assets/models/games/tower-defense/towers/supports/enemy/speed.glb",
       2: "/api/tower-defense/assets/models/games/tower-defense/towers/supports/enemy/speed.glb",
       3: "/api/tower-defense/assets/models/games/tower-defense/towers/supports/enemy/speed.glb",
-    },
-  },
-  {
-    kind: "damage",
-    modelName: "DamageSupportTower3D",
-    targetHeight: 2,
-    urls: {
-      1: "/api/tower-defense/assets/models/games/tower-defense/towers/supports/enemy/damage/level1.glb",
-      2: "/api/tower-defense/assets/models/games/tower-defense/towers/supports/enemy/damage/level2.glb",
-      3: "/api/tower-defense/assets/models/games/tower-defense/towers/supports/enemy/damage/level3.glb",
     },
   },
 ];

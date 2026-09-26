@@ -32,12 +32,19 @@ export const TOWER_DEFINITIONS: Record<TowerKind, TowerDefinition> = {
   fire: { kind: "fire", name: "Tháp lửa", description: "Cầu lửa nổ lan và thiêu đốt trong 4 giây.", cost: 150, damage: 10, range: 2.7, fireRate: 1.1, burnDuration: 4, burnDamagePerSecond: 4, splashRadius: 1.05, splashDamageRatio: 0.55, color: "#dc2626" },
   thunder: { kind: "thunder", name: "Tháp sét", description: "Tia điện liên tục, nối chuỗi qua nhiều mục tiêu.", cost: 175, damage: 16, range: 3.05, fireRate: 0, color: "#7c3aed" },
   water: { kind: "water", name: "Tháp nước", description: "Phun dòng nước gây sát thương lan và làm chậm cả nhóm.", cost: 135, damage: 12, range: 2.85, fireRate: 0.85, slow: 0.25, slowDuration: WATER_SLOW_DURATION_SECONDS, splashRadius: 0.85, splashDamageRatio: 0.6, color: "#0284c7" },
-  speed: { kind: "speed", name: "Trụ tốc độ", description: "Tăng tốc đánh cho các tháp trong phạm vi.", cost: 165, damage: 0, range: 2.5, fireRate: 0, color: "#22c55e" },
-  damage: { kind: "damage", name: "Trụ sát thương", description: "Tăng sát thương cho các tháp trong phạm vi.", cost: 175, damage: 0, range: 2.5, fireRate: 0, color: "#ef4444" },
+  support: {
+    kind: "support", role: "buff", name: "Trụ hỗ trợ",
+    description: "Tăng tốc đánh và sát thương cho các tháp trong phạm vi.",
+    cost: 175, damage: 0, range: 2.5, fireRate: 0, color: "#a855f7",
+    effects: [
+      { id: "support-speed-aura", type: "attack-speed-aura", behavior: "attack_speed_aura", name: "Hào quang tốc độ", value: 0.1, perLevel: 0.2, radius: 2.5, color: "#22c55e" },
+      { id: "support-damage-aura", type: "damage-aura", behavior: "damage_aura", name: "Hào quang sát thương", value: 0.1, perLevel: 0.2, radius: 2.5, color: "#ef4444" },
+    ],
+  },
 };
 
 export function isSupportTowerKind(kind: TowerKind | null | undefined) {
-  return kind ? TOWER_DEFINITIONS[kind].role === "buff" || kind === "speed" || kind === "damage" : false;
+  return kind ? TOWER_DEFINITIONS[kind].role === "buff" : false;
 }
 
 export function towerEffectValue(effect: { value: number; perLevel?: number }, level: number) {
