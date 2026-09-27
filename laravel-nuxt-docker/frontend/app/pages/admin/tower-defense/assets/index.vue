@@ -86,15 +86,33 @@ const fieldErrors = ref<Record<string, string[]>>({});
 const form = reactive({ key: "", type: "model" as AssetType, purpose: "enemy-model" as AssetPurpose, file: null as File | null });
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
 
-const purposeOptions = computed(() => ASSET_PURPOSE_OPTIONS[type.value || "model"]);
-const uploadPurposeOptions = computed(() => ASSET_PURPOSE_OPTIONS[form.type]);
+const allPurposeOptions = Object.values(ASSET_PURPOSE_OPTIONS)
+  .flat()
+  .filter((option, index, options) => options.findIndex(item => item.value === option.value) === index);
+const towerImagePurpose = ASSET_PURPOSE_OPTIONS.image.find(option => option.value === "tower-image")!;
+const purposeOptions = computed(() => type.value ? ASSET_PURPOSE_OPTIONS[type.value] : allPurposeOptions);
+const uploadPurposeOptions = computed(() => {
+  const options = ASSET_PURPOSE_OPTIONS[form.type];
+  return options.some(option => option.value === "tower-image") ? options : [...options, towerImagePurpose];
+});
 const totalSize = computed(() => assets.value.reduce((sum, asset) => sum + asset.size, 0));
+const resolvedUploadKey = computed(() => {
+  const key = form.key.trim().replace(/^\/+|\/+$/g, "");
+  if (!key || !form.file) return key;
+  const lastSegment = key.split("/").pop() ?? "";
+  return lastSegment.includes(".") ? key : `${key}/${form.file.name}`;
+});
 
 watch(type, () => {
-  if (purpose.value && !ASSET_PURPOSE_OPTIONS[type.value || "model"].some(option => option.value === purpose.value)) purpose.value = "";
+  if (type.value && purpose.value && !ASSET_PURPOSE_OPTIONS[type.value].some(option => option.value === purpose.value)) purpose.value = "";
 });
 watch(() => form.type, () => {
-  form.purpose = ASSET_PURPOSE_OPTIONS[form.type][0]?.value ?? "other";
+  if (!ASSET_PURPOSE_OPTIONS[form.type].some(option => option.value === form.purpose)) {
+    form.purpose = ASSET_PURPOSE_OPTIONS[form.type][0]?.value ?? "other";
+  }
+});
+watch(() => form.purpose, (nextPurpose) => {
+  if (nextPurpose === "tower-image") form.type = "image";
 });
 watch([search, type, purpose], () => {
   clearTimeout(filterTimer);
@@ -140,7 +158,7 @@ async function uploadAsset() {
   formError.value = "";
   fieldErrors.value = {};
   const body = new FormData();
-  body.append("key", form.key.trim());
+  body.append("key", resolvedUploadKey.value);
   body.append("type", form.type);
   body.append("purpose", form.purpose);
   body.append("file", form.file);
@@ -230,7 +248,7 @@ onMounted(() => loadAssets());
       <AdminPagination :page="page" :last-page="lastPage" :total="total" :loading="loading" item-label="tài nguyên" @change="loadAssets" />
     </section>
 
-    <Teleport to="body"><dialog ref="dialog" class="td-dialog is-small" @cancel.prevent="!uploading && dialog?.close()"><form method="dialog" @submit.prevent="uploadAsset"><header><div><small>ASSET STORAGE</small><h2>Upload tài nguyên</h2></div><button type="button" @click="dialog?.close()"><X /></button></header><div class="td-form-grid is-single"><label><span>Loại tài nguyên</span><select v-model="form.type"><option value="model">Model</option><option value="sound">Âm thanh</option><option value="image">Hình ảnh</option></select></label><label><span>Mục đích sử dụng</span><select v-model="form.purpose"><option v-for="option in uploadPurposeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select><small v-if="fieldErrors.purpose">{{ fieldErrors.purpose[0] }}</small></label><label><span>Key / đường dẫn lưu</span><input v-model="form.key" required placeholder="models/games/tower-defense/.../model.glb" /><small v-if="fieldErrors.key">{{ fieldErrors.key[0] }}</small></label><label><span>File</span><input ref="fileInput" type="file" required @change="selectFile" /><small v-if="form.file">{{ form.file.name }} · {{ formatBytes(form.file.size) }}</small><small v-if="fieldErrors.file">{{ fieldErrors.file[0] }}</small></label></div><p v-if="formError" class="td-form-error">{{ formError }}</p><footer><button class="td-button is-ghost" type="button" @click="dialog?.close()">Hủy</button><button class="td-button is-primary" type="submit" :disabled="uploading || !form.file"><Upload /> {{ uploading ? 'Đang upload…' : 'Upload' }}</button></footer></form></dialog></Teleport>
+    <Teleport to="body"><dialog ref="dialog" class="td-dialog is-small" @cancel.prevent="!uploading && dialog?.close()"><form method="dialog" @submit.prevent="uploadAsset"><header><div><small>ASSET STORAGE</small><h2>Upload tài nguyên</h2></div><button type="button" @click="dialog?.close()"><X /></button></header><div class="td-form-grid is-single"><label><span>Loại tài nguyên</span><select v-model="form.type"><option value="model">Model</option><option value="sound">Âm thanh</option><option value="image">Hình ảnh</option></select></label><label><span>Mục đích sử dụng</span><select v-model="form.purpose"><option v-for="option in uploadPurposeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select><small v-if="fieldErrors.purpose">{{ fieldErrors.purpose[0] }}</small></label><label><span>Key / đường dẫn lưu</span><input v-model="form.key" required placeholder="images/games/tower-defense/towers" /><small v-if="resolvedUploadKey">Sẽ lưu tại: <code>{{ resolvedUploadKey }}</code></small><small v-if="fieldErrors.key">{{ fieldErrors.key[0] }}</small></label><label><span>File</span><input ref="fileInput" type="file" required @change="selectFile" /><small v-if="form.file">{{ form.file.name }} · {{ formatBytes(form.file.size) }}</small><small v-if="fieldErrors.file">{{ fieldErrors.file[0] }}</small></label></div><p v-if="formError" class="td-form-error">{{ formError }}</p><footer><button class="td-button is-ghost" type="button" @click="dialog?.close()">Hủy</button><button class="td-button is-primary" type="submit" :disabled="uploading || !form.file"><Upload /> {{ uploading ? 'Đang upload…' : 'Upload' }}</button></footer></form></dialog></Teleport>
   </main>
 </template>
 

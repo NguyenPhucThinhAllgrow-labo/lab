@@ -1,4 +1,5 @@
 import type { Tower, TowerKind } from "~/types/games/towerDefense";
+import { towerTemplateKind } from "~/games/tower-defense/gameplay-config";
 
 type TowerSoundKind = Extract<
   TowerKind,
@@ -136,9 +137,10 @@ export function useTowerDefenseAudio(
     const now = performance.now();
     let thunderFiring = false;
     for (const tower of towers) {
+      const soundKind = towerTemplateKind(tower.kind);
       const previousSequence = lastShotSequence.get(tower.id);
       lastShotSequence.set(tower.id, tower.shotSequence);
-      if (tower.kind === "thunder") {
+      if (soundKind === "thunder") {
         if (
           combatActive &&
           soundEnabled.value &&
@@ -150,14 +152,14 @@ export function useTowerDefenseAudio(
       if (
         !combatActive ||
         !soundEnabled.value ||
-        !hasTowerShotSound(tower.kind)
+        !hasTowerShotSound(soundKind)
       )
         continue;
       if (
         previousSequence !== undefined &&
         tower.shotSequence !== previousSequence
       )
-        playEffect(tower.kind, now);
+        playEffect(soundKind, now);
     }
     setThunderFiring(thunderFiring);
   }

@@ -11,7 +11,7 @@ class TowerDefenseTower extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'id', 'name', 'description', 'role', 'cost', 'damage', 'damage_by_level', 'max_level', 'level_stats', 'range', 'fire_rate',
+        'id', 'template_key', 'name', 'description', 'role', 'cost', 'damage', 'damage_by_level', 'max_level', 'level_stats', 'range', 'fire_rate',
         'color', 'image_asset_key', 'effects', 'model_asset_keys', 'model_configuration',
         'sort_order', 'is_active',
     ];

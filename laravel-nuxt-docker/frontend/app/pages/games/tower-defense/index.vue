@@ -40,6 +40,7 @@ import {
   towerMaxLevel,
   towerRangeAtLevel,
   towerSupportBonus,
+  towerTemplateKind,
   useTowerDefense,
 } from "~/composables/useTowerDefense";
 import type { TowerFaction } from "~/components/tower-defense/scene/tower-models";
@@ -122,7 +123,7 @@ const selectedTowerEffectiveDamage = computed(() => {
   if (!tower || isSupportTowerKind(tower.kind)) return 0;
   const baseDamage = towerDamageAtLevel(TOWER_DEFINITIONS[tower.kind], tower.level);
   const speedMultiplier =
-    tower.kind === "thunder" ? 1 + selectedTowerSupportBonuses.value.speed : 1;
+    towerTemplateKind(tower.kind) === "thunder" ? 1 + selectedTowerSupportBonuses.value.speed : 1;
   return Math.round(
     baseDamage *
       (1 + selectedTowerSupportBonuses.value.damage) *
@@ -132,7 +133,7 @@ const selectedTowerEffectiveDamage = computed(() => {
 
 const selectedTowerEffectiveFireInterval = computed(() => {
   const tower = selectedTower.value;
-  if (!tower || isSupportTowerKind(tower.kind) || tower.kind === "thunder")
+  if (!tower || isSupportTowerKind(tower.kind) || towerTemplateKind(tower.kind) === "thunder")
     return 0;
   return (
     towerFireInterval(tower.kind, tower.level) /

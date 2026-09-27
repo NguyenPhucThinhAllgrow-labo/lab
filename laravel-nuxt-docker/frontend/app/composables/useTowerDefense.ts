@@ -37,6 +37,7 @@ import {
   towerRangeAtLevel,
   towerUpgradeCost,
   towerSupportBonus,
+  towerTemplateKind,
 } from "~/games/tower-defense/gameplay-config";
 import { mapPathPosition } from "~/games/tower-defense/map-path";
 import {
@@ -44,7 +45,7 @@ import {
   enemyEffectDuration,
 } from "~/games/tower-defense/enemy-combat";
 
-export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS, canTowerReceiveSupportBuff, isSupportTowerKind, towerDamageAtLevel, towerEffectValue, towerFireInterval, towerMaxLevel, towerRangeAtLevel, towerSupportBonus } from "~/games/tower-defense/gameplay-config";
+export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWER_DEFINITIONS, TOWER_RANGE_LEVEL_BONUS, WATER_SLOW_DURATION_SECONDS, canTowerReceiveSupportBuff, isSupportTowerKind, towerDamageAtLevel, towerEffectValue, towerFireInterval, towerMaxLevel, towerRangeAtLevel, towerSupportBonus, towerTemplateKind } from "~/games/tower-defense/gameplay-config";
 
 /** Cung cấp state, command và simulation loop độc lập với lớp render Three.js. */
 export function useTowerDefense(map: TowerDefenseMapDefinition) {
@@ -620,6 +621,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
 
     for (const tower of towers.value) {
       const definition = TOWER_DEFINITIONS[tower.kind];
+      const combatKind = towerTemplateKind(tower.kind);
       if (isSupportTowerKind(tower.kind)) {
         tower.beamTargetIds = [];
         tower.cooldown = 0;
@@ -631,13 +633,13 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       const target = targetsByProgress.find((enemy) => {
         if (enemy.hp <= 0) return false;
         const position = enemyPositions.get(enemy.id)!;
-        const hitRadius = tower.kind === "frost" ? ENEMY_HIT_RADIUS : 0;
+        const hitRadius = combatKind === "frost" ? ENEMY_HIT_RADIUS : 0;
         return (
           Math.hypot(position.x - tower.x, position.y - tower.y) <=
           effectiveRange + hitRadius
         );
       });
-      if (tower.kind === "thunder") {
+      if (combatKind === "thunder") {
         tower.beamTargetIds = [];
         if (!target) continue;
         const chainTargets: Enemy[] = [target];
@@ -693,7 +695,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         Math.PI;
       tower.firingUntil = elapsed + 0.22;
       tower.shotSequence++;
-      if (tower.kind === "frost") {
+      if (combatKind === "frost") {
         const frostRadius = FROST_EFFECT_RADIUS;
         for (const enemy of enemies.value) {
           if (enemy.hp <= 0 || enemy.progress < 0) continue;
@@ -728,7 +730,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         continue;
       }
       const shotDuration =
-        tower.kind === "fire" ? 0.55 : tower.kind === "water" ? 0.28 : 0.34;
+        combatKind === "fire" ? 0.55 : combatKind === "water" ? 0.28 : 0.34;
       const levelMultiplier = 1 + (tower.level - 1) * 0.55;
       const bonusDamage = (definition.effects ?? [])
         .filter((effect) => effect.behavior === "bonus_damage")
@@ -737,7 +739,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       const burnEffect = definition.effects?.find((effect) => effect.behavior === "damage_over_time");
       const splashEffect = definition.effects?.find((effect) => effect.behavior === "splash_damage");
       const shotTargets =
-        tower.kind === "archer"
+        combatKind === "archer"
           ? targetsByProgress
               .filter((enemy) => {
                 const position = enemyPositions.get(enemy.id)!;
@@ -753,7 +755,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         // space rồi hiệu chỉnh điểm xuất phát theo đầu nòng hoặc glow của tháp.
         projectiles.value.push({
           id: nextProjectileId++,
-          kind: tower.kind,
+          kind: combatKind,
           from: { x: tower.x, y: tower.y },
           to: positionFor(shotTarget),
           life: shotDuration,

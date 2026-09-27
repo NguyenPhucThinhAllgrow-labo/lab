@@ -47,6 +47,11 @@ export function isSupportTowerKind(kind: TowerKind | null | undefined) {
   return kind ? TOWER_DEFINITIONS[kind].role === "buff" : false;
 }
 
+/** Trả về mẫu hành vi gốc của tower, kể cả khi tower là một biến thể CMS. */
+export function towerTemplateKind(kind: TowerKind) {
+  return TOWER_DEFINITIONS[kind]?.templateKind ?? kind;
+}
+
 export function towerEffectValue(effect: { value: number; perLevel?: number }, level: number) {
   return effect.value + Math.max(0, level - 1) * (effect.perLevel ?? 0);
 }
@@ -57,7 +62,7 @@ export function towerDamageAtLevel(definition: TowerDefinition, level: number) {
   if (levelStat) return levelStat.damage;
   const configured = definition.damageByLevel?.[normalizedLevel];
   if (configured !== undefined) return configured;
-  const growth = definition.kind === "thunder" ? 0.42 : 0.55;
+  const growth = towerTemplateKind(definition.kind) === "thunder" ? 0.42 : 0.55;
   return definition.damage * (1 + (normalizedLevel - 1) * growth);
 }
 
@@ -65,7 +70,7 @@ export function towerRangeAtLevel(definition: TowerDefinition, level: number) {
   const normalizedLevel = Math.max(1, Math.min(definition.maxLevel ?? MAX_TOWER_LEVEL, Math.round(level)));
   const configured = definition.levelStats?.[normalizedLevel]?.range;
   if (configured !== undefined) return configured;
-  if (definition.kind === "frost" || isSupportTowerKind(definition.kind)) return definition.range;
+  if (towerTemplateKind(definition.kind) === "frost" || isSupportTowerKind(definition.kind)) return definition.range;
   return definition.range + (normalizedLevel - 1) * TOWER_RANGE_LEVEL_BONUS;
 }
 
@@ -92,7 +97,7 @@ export function canTowerReceiveSupportBuff(
   supportKind: "speed" | "damage",
 ) {
   if (isSupportTowerKind(towerKind)) return false;
-  return !(towerKind === "frost" && supportKind === "damage");
+  return !(towerTemplateKind(towerKind) === "frost" && supportKind === "damage");
 }
 
 export function towerSupportBonus(level: number) {
@@ -104,7 +109,7 @@ export function towerFireInterval(kind: TowerKind, level: number) {
   const configured = TOWER_DEFINITIONS[kind].levelStats?.[level]?.fireRate;
   if (configured !== undefined) return configured;
   const levelBonus =
-    kind === "archer"
+    towerTemplateKind(kind) === "archer"
       ? ARCHER_FIRE_RATE_LEVEL_BONUS
       : DEFAULT_FIRE_RATE_LEVEL_BONUS;
   return TOWER_DEFINITIONS[kind].fireRate / (1 + (level - 1) * levelBonus);

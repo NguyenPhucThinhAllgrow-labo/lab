@@ -44,6 +44,13 @@ class TowerDefenseAssetController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $key = trim((string) $request->input('key'), " /\t\n\r\0\x0B");
+        $uploadedFile = $request->file('file');
+        if ($key !== '' && $uploadedFile && pathinfo(basename($key), PATHINFO_EXTENSION) === '') {
+            $key .= '/'.basename($uploadedFile->getClientOriginalName());
+        }
+        $request->merge(['key' => $key]);
+
         $data = $request->validate([
             'key' => ['required', 'string', 'max:500', 'regex:/^(models|sounds|images)\/[A-Za-z0-9_().\/-]+$/', 'not_regex:/\.\./', Rule::unique('tower_defense_assets')],
             'type' => ['required', Rule::in(['model', 'sound', 'image'])],

@@ -50,7 +50,8 @@ class TowerDefenseTowerController extends Controller
     private function validatedData(Request $request, ?TowerDefenseTower $tower = null): array
     {
         $data = $request->validate([
-            'id' => [$tower ? 'sometimes' : 'required', 'string', Rule::in(['archer', 'cannon', 'frost', 'fire', 'thunder', 'water', 'support']), Rule::unique('tower_defense_towers')->ignore($tower?->id)],
+            'id' => [$tower ? 'sometimes' : 'required', 'string', 'max:100', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('tower_defense_towers')->ignore($tower?->id)],
+            'template_key' => ['required', Rule::in(['archer', 'cannon', 'frost', 'fire', 'thunder', 'water', 'support'])],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'role' => ['required', Rule::in(['damage', 'buff'])],
@@ -92,7 +93,6 @@ class TowerDefenseTowerController extends Controller
             'model_configuration.targetHeight' => ['required', 'numeric', 'between:0.01,100'],
             'model_configuration.targetHeightByLevel' => ['required', 'array'],
             'model_configuration.targetHeightByLevel.*' => ['required', 'numeric', 'between:0.01,100'],
-            'sort_order' => ['sometimes', 'integer', 'between:0,100000'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
@@ -139,8 +139,7 @@ class TowerDefenseTowerController extends Controller
         $data['cost'] = $data['level_stats'][1]['upgradeCost'];
         $data['range'] = $data['level_stats'][1]['range'];
         $data['fire_rate'] = $data['level_stats'][1]['fireRate'];
-        $kind = $tower?->id ?? $data['id'];
-        $data['role'] = $kind === 'support' ? 'buff' : 'damage';
+        $data['sort_order'] = ((int) TowerDefenseTower::query()->max('sort_order')) + 1;
         if ($tower) {
             unset($data['id']);
         }

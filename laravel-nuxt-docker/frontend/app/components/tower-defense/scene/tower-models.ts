@@ -13,6 +13,7 @@ interface TowerModelDefinition {
 }
 
 export interface ManagedTowerModelDefinition {
+  templateKind: TowerKind;
   targetHeight: number;
   targetHeightByLevel?: Record<number, number>;
   dark: Record<number, string>;
@@ -194,8 +195,19 @@ export function createTowerModelLibrary({
 
   async function load() {
     const loader = new GLTFLoader();
-    const requests = LEVELLED_TOWER_MODELS.flatMap((definition) => {
+    const modelDefinitions = [
+      ...LEVELLED_TOWER_MODELS,
+      ...Object.entries(managedModels ?? {})
+        .filter(([kind]) => !LEVELLED_TOWER_MODELS.some((definition) => definition.kind === kind))
+        .map(([kind, managed]) => {
+          const base = LEVELLED_TOWER_MODELS.find((definition) => definition.kind === managed?.templateKind)
+            ?? LEVELLED_TOWER_MODELS[0]!;
+          return { ...base, kind: kind as TowerKind, modelName: `${base.modelName}-${kind}` };
+        }),
+    ];
+    const requests = modelDefinitions.flatMap((definition) => {
       const managed = managedModels?.[definition.kind];
+      const baseDefinition = LEVELLED_TOWER_MODELS.find((item) => item.kind === managed?.templateKind) ?? definition;
       const levels = [...new Set([
         ...Object.keys(definition.urls),
         ...Object.keys(managed?.dark ?? {}),
@@ -203,13 +215,14 @@ export function createTowerModelLibrary({
       ].map(Number))].filter((level) => Number.isInteger(level) && level > 0);
       return levels.map(async (level) => {
         try {
-          const hasHumanModel = definition.kind === "water";
+          const visualKind = managed?.templateKind ?? definition.kind;
+          const hasHumanModel = visualKind === "water";
           const modelUrl =
             managed?.[faction]?.[level] ??
             managed?.dark[level] ??
             (faction === "human" && hasHumanModel
               ? `/api/tower-defense/assets/models/games/tower-defense/towers/water/human/level${level}.glb`
-              : definition.urls[level]);
+              : baseDefinition.urls[level]);
           if (!modelUrl) return;
           const gltf = await loader.loadAsync(modelUrl);
           if (disposed) return;
@@ -224,10 +237,10 @@ export function createTowerModelLibrary({
           template.name = `${definition.modelName}Level${level}`;
           template.userData.kind = definition.kind;
           template.userData.level = level;
-          if (definition.kind === "frost")
+          if (visualKind === "frost")
             template.userData.frostEffectCenterY = 1.77;
           template.add(gltf.scene);
-          decorate(template, definition.kind, Math.min(3, level) as 1 | 2 | 3);
+          decorate(template, visualKind, Math.min(3, level) as 1 | 2 | 3);
           templates.set(templateKey(definition.kind, level), template);
         } catch (error) {
           console.warn(

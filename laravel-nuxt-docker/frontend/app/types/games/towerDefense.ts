@@ -148,6 +148,8 @@ export interface TowerDefenseEquipmentTransform {
 
 export interface TowerDefinition {
   kind: TowerKind;
+  /** Mẫu gameplay gốc; cho phép nhiều tower riêng biệt dùng chung hành vi. */
+  templateKind?: TowerKind;
   role?: "damage" | "buff";
   name: string;
   description: string;

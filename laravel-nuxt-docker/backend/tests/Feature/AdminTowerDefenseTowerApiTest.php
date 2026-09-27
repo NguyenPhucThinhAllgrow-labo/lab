@@ -21,6 +21,7 @@ class AdminTowerDefenseTowerApiTest extends TestCase
         $this->assertDatabaseCount('tower_defense_towers', 7);
         $this->assertDatabaseHas('tower_defense_towers', [
             'id' => 'fire',
+            'template_key' => 'fire',
             'cost' => 150,
             'color' => '#dc2626',
         ]);
@@ -57,10 +58,11 @@ class AdminTowerDefenseTowerApiTest extends TestCase
 
         $payload = [
             'id' => 'fire',
+            'template_key' => 'fire',
             'name' => 'Tháp lửa',
             'description' => 'Gây sát thương thiêu đốt.',
-            // API phải tự chuẩn hóa: mọi tower chiến đấu luôn thuộc nhóm damage.
-            'role' => 'buff',
+            // Loại tower là phân loại chung, độc lập với mã cấu hình cụ thể.
+            'role' => 'damage',
             'cost' => 150,
             'damage' => 10,
             'damage_by_level' => ['1' => 10, '2' => 18, '3' => 30],
@@ -97,6 +99,8 @@ class AdminTowerDefenseTowerApiTest extends TestCase
         $this->postJson('/api/admin/tower-defense/towers', $payload)
             ->assertCreated()
             ->assertJsonPath('data.id', 'fire')
+            ->assertJsonPath('data.template_key', 'fire')
+            ->assertJsonPath('data.sort_order', 1)
             ->assertJsonPath('data.role', 'damage')
             ->assertJsonPath('data.damage_by_level.3', 30)
             ->assertJsonPath('data.level_stats.2.range', 3)
@@ -104,6 +108,20 @@ class AdminTowerDefenseTowerApiTest extends TestCase
             ->assertJsonPath('data.effects.items.0.type', 'damage-over-time')
             ->assertJsonPath('data.image_asset_key', 'images/games/tower-defense/towers/fire.png')
             ->assertJsonPath('data.model_asset_keys.dark1', 'models/towers/fire-level-1.glb');
+
+        $this->postJson('/api/admin/tower-defense/towers', [
+            ...$payload,
+            'id' => 'fire-elite',
+            'name' => 'Tháp lửa tinh nhuệ',
+        ])->assertCreated()
+            ->assertJsonPath('data.id', 'fire-elite')
+            ->assertJsonPath('data.template_key', 'fire')
+            ->assertJsonPath('data.sort_order', 2);
+        $this->deleteJson('/api/admin/tower-defense/towers/fire-elite')->assertOk();
+
+        $this->putJson('/api/admin/tower-defense/towers/fire', [...$payload, 'role' => 'buff'])
+            ->assertOk()
+            ->assertJsonPath('data.role', 'buff');
 
         $this->putJson('/api/admin/tower-defense/towers/fire', [
             ...$payload,
@@ -121,6 +139,7 @@ class AdminTowerDefenseTowerApiTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('data.cost', 175)
+            ->assertJsonPath('data.sort_order', 3)
             ->assertJsonPath('data.max_level', 5)
             ->assertJsonPath('data.damage_by_level.5', 65)
             ->assertJsonPath('data.level_stats.5.upgradeCost', 275)
@@ -159,7 +178,7 @@ class AdminTowerDefenseTowerApiTest extends TestCase
         ]);
 
         $this->postJson('/api/admin/tower-defense/towers', [
-            'id' => 'frost', 'name' => 'Invalid', 'role' => 'damage', 'cost' => 10, 'damage' => 1,
+            'id' => 'frost', 'template_key' => 'frost', 'name' => 'Invalid', 'role' => 'damage', 'cost' => 10, 'damage' => 1,
             'damage_by_level' => ['1' => 1, '2' => 2, '3' => 3],
             'max_level' => 3,
             'level_stats' => [

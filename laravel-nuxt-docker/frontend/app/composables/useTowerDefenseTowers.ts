@@ -7,6 +7,7 @@ import type {
 
 interface ManagedTower {
   id: string;
+  template_key: string;
   name: string;
   description: string | null;
   role: "damage" | "buff";
@@ -24,7 +25,7 @@ interface ManagedTower {
   model_configuration: { targetHeight?: number; targetHeightByLevel?: Record<string, number> } | null;
 }
 
-const knownTowerKinds = new Set(Object.keys(TOWER_DEFINITIONS));
+const builtInDefinitions = { ...TOWER_DEFINITIONS };
 
 /** Ghi đè cấu hình mặc định bằng các hồ sơ đang bật trong CMS. */
 export interface TowerDefenseTowerCatalog {
@@ -44,13 +45,16 @@ export async function fetchTowerDefenseTowers(): Promise<TowerDefenseTowerCatalo
     const activeKinds: TowerKind[] = [];
     const managedModels: TowerDefenseTowerCatalog["managedModels"] = {};
     for (const tower of response.data) {
-      if (!knownTowerKinds.has(tower.id)) continue;
       const kind = tower.id as TowerKind;
+      const templateKind = tower.template_key as TowerKind;
+      const template = builtInDefinitions[templateKind];
+      if (!template) continue;
       activeKinds.push(kind);
       TOWER_DEFINITIONS[kind] = {
-        ...TOWER_DEFINITIONS[kind],
+        ...template,
         ...(tower.effects ?? {}),
         kind,
+        templateKind,
         role: tower.role,
         name: tower.name,
         description: tower.description ?? "",
@@ -83,6 +87,7 @@ export async function fetchTowerDefenseTowers(): Promise<TowerDefenseTowerCatalo
           .filter(([level]) => Number.isInteger(level) && Number(level) > 0),
       );
       managedModels[levelledKind] = {
+        templateKind,
         targetHeight: tower.model_configuration?.targetHeight ?? 2,
         targetHeightByLevel: tower.model_configuration?.targetHeightByLevel
           ? Object.fromEntries(Object.entries(tower.model_configuration.targetHeightByLevel).map(([level, height]) => [Number(level), Number(height)]))
