@@ -518,7 +518,8 @@ function syncSupportPulseEffect(
     const waveIndex = Number(wave.userData.waveIndex);
     wave.visible = !performanceMode || waveIndex === 0;
     if (!wave.visible) continue;
-    const duration = effect.behavior === "attack_speed_aura" ? 3.2 : 4;
+    // Sóng hỗ trợ lan chậm để người chơi nhìn rõ vùng buff mà không gây rối mắt.
+    const duration = effect.behavior === "attack_speed_aura" ? 5 : 6;
     const phase = (elapsed / duration + Number(wave.userData.phaseOffset)) % 1;
     const radius =
       (effect.radius ?? towerRangeAtLevel(definition, tower.level)) *

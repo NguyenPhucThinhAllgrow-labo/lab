@@ -70,15 +70,32 @@ export function useTowerDefenseAudio(
   }
 
   async function startBackgroundMusic() {
-    if (!soundEnabled.value || !import.meta.client) return;
+    if (!soundEnabled.value || !import.meta.client) return false;
     prepareAudio();
-    if (!backgroundMusic || !backgroundMusic.paused) return;
+    if (!backgroundMusic) return false;
+    if (!backgroundMusic.paused) return true;
 
     try {
       await backgroundMusic.play();
+      return true;
     } catch {
-      // Trình duyệt có thể chặn autoplay; nút loa sẽ thử lại từ thao tác người dùng.
+      // Tương tác người dùng hoặc lúc tab hoạt động lại sẽ tự thử phát lần nữa.
+      return false;
     }
+  }
+
+  /**
+   * Chrome/Safari có thể chặn lần phát đầu hoặc đình chỉ media khi đổi tab.
+   * Giữ listener trong vòng đời trang để mọi tương tác hợp lệ đều có thể mở
+   * khóa và khôi phục nhạc, kể cả khi game được nạp thẳng từ phiên đã lưu.
+   */
+  function retryBackgroundMusic() {
+    if (!soundEnabled.value || !backgroundMusic?.paused) return;
+    void startBackgroundMusic();
+  }
+
+  function resumeBackgroundMusicWhenVisible() {
+    if (document.visibilityState === "visible") retryBackgroundMusic();
   }
 
   function stopActiveEffects() {
@@ -180,9 +197,24 @@ export function useTowerDefenseAudio(
   onMounted(() => {
     soundEnabled.value = localStorage.getItem(STORAGE_KEY) !== "false";
     prepareAudio();
+    document.addEventListener("pointerdown", retryBackgroundMusic, true);
+    document.addEventListener("keydown", retryBackgroundMusic, true);
+    document.addEventListener(
+      "visibilitychange",
+      resumeBackgroundMusicWhenVisible,
+    );
+    window.addEventListener("focus", retryBackgroundMusic);
+    void startBackgroundMusic();
   });
 
   onBeforeUnmount(() => {
+    document.removeEventListener("pointerdown", retryBackgroundMusic, true);
+    document.removeEventListener("keydown", retryBackgroundMusic, true);
+    document.removeEventListener(
+      "visibilitychange",
+      resumeBackgroundMusicWhenVisible,
+    );
+    window.removeEventListener("focus", retryBackgroundMusic);
     backgroundMusic?.pause();
     backgroundMusic = null;
     stopActiveEffects();
