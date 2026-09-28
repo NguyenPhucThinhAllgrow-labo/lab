@@ -159,7 +159,15 @@
 
 /* Cho phép control co theo cột grid, tránh select dài tràn ra ngoài dialog. */
 .form-grid label {
+  align-content: start;
   min-width: 0;
+}
+.form-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.form-grid label > span {
+  min-height: 14px;
+  line-height: 14px;
 }
 .form-grid input,
 .form-grid select,
@@ -333,6 +341,18 @@
     grid-template-columns: 1fr;
   }
 }
+@media (max-width: 800px) {
+  .form-grid.three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .form-grid,
+  .form-grid.three,
+  .form-grid.six {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* Màu nhận diện có thể cấu hình cho từng hồ sơ. */
 .enemy-color-fieldset > p{margin:0 0 12px;color:#71717a;font-size:10px}
@@ -352,4 +372,29 @@
 .enemy-card .enemy-avatar{border-color:color-mix(in srgb,var(--enemy-primary) 64%,transparent);box-shadow:0 0 18px color-mix(in srgb,var(--enemy-glow) 22%,transparent)}
 .enemy-card .enemy-card-title span{border-color:color-mix(in srgb,var(--enemy-primary) 34%,transparent);background:color-mix(in srgb,var(--enemy-primary) 12%,transparent);color:color-mix(in srgb,var(--enemy-primary) 78%,#fff)}
 .enemy-card code{border-color:color-mix(in srgb,var(--enemy-primary) 24%,transparent);background:color-mix(in srgb,var(--enemy-primary) 8%,transparent);color:color-mix(in srgb,var(--enemy-primary) 55%,#fff)}
+.enemy-card dl{grid-template-columns:repeat(3,1fr)}
+.enemy-card dt{display:flex;align-items:center;gap:3px}
+.enemy-card dt svg{width:11px;height:11px}
+.enemy-card dl .is-health{background:rgb(34 197 94/.08)}
+.enemy-card dl .is-health dt,.enemy-card dl .is-health dd{color:#86efac}
+.enemy-card dl .is-armor{background:rgb(59 130 246/.08)}
+.enemy-card dl .is-armor dt,.enemy-card dl .is-armor dd{color:#93c5fd}
+.enemy-card dl .is-magic-resistance{background:rgb(168 85 247/.09)}
+.enemy-card dl .is-magic-resistance dt,.enemy-card dl .is-magic-resistance dd{color:#d8b4fe}
+.enemy-card dl .is-speed{background:rgb(6 182 212/.08)}
+.enemy-card dl .is-speed dt,.enemy-card dl .is-speed dd{color:#67e8f9}
+.enemy-card dl .is-reward{background:rgb(245 158 11/.08)}
+.enemy-card dl .is-reward dt,.enemy-card dl .is-reward dd{color:#fcd34d}
+.enemy-card dl .is-castle{background:rgb(244 63 94/.08)}
+.enemy-card dl .is-castle dt,.enemy-card dl .is-castle dd{color:#fda4af}
+.enemy-defense-field>span{display:flex;align-items:center;gap:5px;color:#93c5fd!important}
+.enemy-defense-field.is-magic>span{color:#d8b4fe!important}
+.enemy-defense-field>span svg{width:13px;height:13px}
+.enemy-defense-field>small{color:#71717a!important;line-height:1.35}
+.enemy-gameplay-field>span{display:flex;align-items:center;gap:5px!important}
+.enemy-gameplay-field>span svg{width:13px;height:13px;flex:0 0 auto}
+.enemy-gameplay-field.is-health>span{color:#86efac!important}
+.enemy-gameplay-field.is-speed>span{color:#67e8f9!important}
+.enemy-gameplay-field.is-reward>span{color:#fcd34d!important}
+.enemy-gameplay-field.is-castle>span{color:#fda4af!important}
 @media(max-width:800px){.enemy-color-grid{grid-template-columns:1fr}.enemy-color-grid aside{min-height:90px}}

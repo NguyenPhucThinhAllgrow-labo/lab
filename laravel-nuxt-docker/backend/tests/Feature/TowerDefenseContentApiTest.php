@@ -89,6 +89,8 @@ class TowerDefenseContentApiTest extends TestCase
             'left_weapon_asset_key' => null,
             'right_weapon_asset_key' => 'models/sword.gltf',
             'base_health' => 175,
+            'armor' => 30,
+            'magic_resistance' => 45,
             'base_speed' => 1.15,
             'reward' => 20,
             'castle_damage' => 2,
@@ -113,6 +115,8 @@ class TowerDefenseContentApiTest extends TestCase
             'kind' => 'normal',
             'model_asset_key' => 'models/enemy-two.glb',
             'base_health' => 225,
+            'armor' => 12,
+            'magic_resistance' => 18,
             'base_speed' => 0.9,
             'reward' => 30,
             'castle_damage' => 2,
@@ -144,6 +148,8 @@ class TowerDefenseContentApiTest extends TestCase
         $this->getJson('/api/tower-defense/maps/managed-map')
             ->assertOk()
             ->assertJsonPath('data.enemyDefinition.baseHealth', 175)
+            ->assertJsonPath('data.enemyDefinition.armor', 30)
+            ->assertJsonPath('data.enemyDefinition.magicResistance', 45)
             ->assertJsonCount(2, 'data.enemyDefinitions')
             ->assertJsonPath('data.enemyDefinitions.1.id', 'managed-enemy-two')
             ->assertJsonPath('data.enemyIntel.name', 'Managed Enemy')

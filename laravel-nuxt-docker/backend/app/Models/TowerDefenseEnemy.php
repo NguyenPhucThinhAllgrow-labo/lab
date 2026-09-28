@@ -19,6 +19,8 @@ class TowerDefenseEnemy extends Model
         'left_weapon_asset_key',
         'right_weapon_asset_key',
         'base_health',
+        'armor',
+        'magic_resistance',
         'base_speed',
         'reward',
         'castle_damage',
@@ -35,6 +37,8 @@ class TowerDefenseEnemy extends Model
     {
         return [
             'base_health' => 'integer',
+            'armor' => 'integer',
+            'magic_resistance' => 'integer',
             'base_speed' => 'float',
             'reward' => 'integer',
             'castle_damage' => 'integer',

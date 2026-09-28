@@ -61,6 +61,8 @@ class TowerDefenseEnemyController extends Controller
             'left_weapon_asset_key' => ['nullable', 'string', Rule::exists('tower_defense_assets', 'key')],
             'right_weapon_asset_key' => ['nullable', 'string', Rule::exists('tower_defense_assets', 'key')],
             'base_health' => ['required', 'integer', 'between:1,100000000'],
+            'armor' => ['required', 'integer', 'between:0,1000000'],
+            'magic_resistance' => ['required', 'integer', 'between:0,1000000'],
             'base_speed' => ['required', 'numeric', 'between:0.01,100'],
             'reward' => ['required', 'integer', 'between:0,100000000'],
             'castle_damage' => ['required', 'integer', 'between:1,1000'],

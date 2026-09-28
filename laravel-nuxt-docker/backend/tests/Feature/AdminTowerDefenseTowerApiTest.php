@@ -22,6 +22,7 @@ class AdminTowerDefenseTowerApiTest extends TestCase
         $this->assertDatabaseHas('tower_defense_towers', [
             'id' => 'fire',
             'template_key' => 'fire',
+            'damage_type' => 'magic',
             'cost' => 150,
             'color' => '#dc2626',
         ]);
@@ -63,6 +64,7 @@ class AdminTowerDefenseTowerApiTest extends TestCase
             'description' => 'Gây sát thương thiêu đốt.',
             // Loại tower là phân loại chung, độc lập với mã cấu hình cụ thể.
             'role' => 'damage',
+            'damage_type' => 'magic',
             'cost' => 150,
             'damage' => 10,
             'damage_by_level' => ['1' => 10, '2' => 18, '3' => 30],
@@ -102,6 +104,7 @@ class AdminTowerDefenseTowerApiTest extends TestCase
             ->assertJsonPath('data.template_key', 'fire')
             ->assertJsonPath('data.sort_order', 1)
             ->assertJsonPath('data.role', 'damage')
+            ->assertJsonPath('data.damage_type', 'magic')
             ->assertJsonPath('data.damage_by_level.3', 30)
             ->assertJsonPath('data.level_stats.2.range', 3)
             ->assertJsonPath('data.effects.burnDuration', 4)
@@ -119,9 +122,10 @@ class AdminTowerDefenseTowerApiTest extends TestCase
             ->assertJsonPath('data.sort_order', 2);
         $this->deleteJson('/api/admin/tower-defense/towers/fire-elite')->assertOk();
 
-        $this->putJson('/api/admin/tower-defense/towers/fire', [...$payload, 'role' => 'buff'])
+        $this->putJson('/api/admin/tower-defense/towers/fire', [...$payload, 'role' => 'buff', 'damage_type' => 'none'])
             ->assertOk()
-            ->assertJsonPath('data.role', 'buff');
+            ->assertJsonPath('data.role', 'buff')
+            ->assertJsonPath('data.damage_type', 'none');
 
         $this->putJson('/api/admin/tower-defense/towers/fire', [
             ...$payload,
@@ -139,7 +143,7 @@ class AdminTowerDefenseTowerApiTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('data.cost', 175)
-            ->assertJsonPath('data.sort_order', 3)
+            ->assertJsonPath('data.sort_order', 1)
             ->assertJsonPath('data.max_level', 5)
             ->assertJsonPath('data.damage_by_level.5', 65)
             ->assertJsonPath('data.level_stats.5.upgradeCost', 275)
@@ -178,7 +182,7 @@ class AdminTowerDefenseTowerApiTest extends TestCase
         ]);
 
         $this->postJson('/api/admin/tower-defense/towers', [
-            'id' => 'frost', 'template_key' => 'frost', 'name' => 'Invalid', 'role' => 'damage', 'cost' => 10, 'damage' => 1,
+            'id' => 'frost', 'template_key' => 'frost', 'name' => 'Invalid', 'role' => 'damage', 'damage_type' => 'magic', 'cost' => 10, 'damage' => 1,
             'damage_by_level' => ['1' => 1, '2' => 2, '3' => 3],
             'max_level' => 3,
             'level_stats' => [

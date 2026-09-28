@@ -972,8 +972,16 @@
   font-size: 10px;
 }
 .defense-tower-tooltip dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: #333;
   font-weight: 750;
+}
+.defense-tower-tooltip dt svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
 }
 .defense-tower-tooltip dd {
   color: #000;
@@ -992,6 +1000,20 @@
 .defense-tower-tooltip dl .is-damage dt,
 .defense-tower-tooltip dl .is-damage dd {
   color: #b91c1c;
+}
+.defense-tower-tooltip dl .is-damage-type.is-physical {
+  background: #eff6ff;
+}
+.defense-tower-tooltip dl .is-damage-type.is-physical dt,
+.defense-tower-tooltip dl .is-damage-type.is-physical dd {
+  color: #1d4ed8;
+}
+.defense-tower-tooltip dl .is-damage-type.is-magic {
+  background: #faf5ff;
+}
+.defense-tower-tooltip dl .is-damage-type.is-magic dt,
+.defense-tower-tooltip dl .is-damage-type.is-magic dd {
+  color: #7e22ce;
 }
 .defense-tower-tooltip dl .is-range {
   background: #eff6ff;
@@ -1086,8 +1108,9 @@
 .defense-upgrade--floating {
   position: absolute;
   z-index: 15;
-  width: 340px;
-  padding: 11px;
+  display: flex;
+  width: clamp(286px, 23vw, 320px);
+  padding: 0;
   border: 1px solid #7aa788;
   border-radius: 12px;
   background: linear-gradient(155deg, #f8fff9f7, #eef8f1f7);
@@ -1099,66 +1122,154 @@
   pointer-events: auto;
   transform: translate(12px, -50%);
   backdrop-filter: blur(10px);
-  max-height: calc(100% - 20px);
-  overflow-y: auto;
+  max-height: min(610px, calc(100% - 16px));
+  flex-direction: column;
+  overflow: hidden;
 }
-.defense-upgrade--floating > small {
+.defense-upgrade__heading {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 11px 8px;
+  border-bottom: 1px solid #b8d1bf;
+  background: linear-gradient(135deg, #f7fff9, #e4f3e8);
+}
+.defense-upgrade__heading > div {
+  min-width: 0;
+}
+.defense-upgrade__heading small {
   color: #1d6538;
+  font-size: 8px;
   font-weight: 900;
+  letter-spacing: .12em;
 }
 .defense-upgrade--floating h3,
-.defense-upgrade--floating > p,
-.defense-upgrade--floating > div,
-.defense-upgrade--floating > div b {
+.defense-upgrade__body,
+.defense-upgrade__body b {
   color: #111;
 }
 .defense-upgrade--floating h3 {
+  margin: 2px 0 0;
   color: #173d24;
+  font-size: 15px;
   font-weight: 850;
 }
-.defense-upgrade--floating > p {
+.defense-upgrade--floating > .defense-upgrade__body {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
   padding: 7px 8px;
+  border: 0;
+  box-sizing: border-box;
+  color: #111;
+  font-size: 11px;
+  justify-content: initial;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #8ab298 transparent;
+}
+.defense-upgrade__body > p {
+  margin: 5px 0;
+  padding: 5px 7px;
   border-radius: 7px;
   background: #dceee1;
   color: #345b40;
   font-weight: 650;
 }
-.defense-upgrade--floating > p.defense-upgrade__description {
+.defense-upgrade__body > p.defense-upgrade__description {
   margin-bottom: 7px;
   background: #e8f4eb;
   color: #214b30;
 }
-.defense-upgrade--floating > div {
-  margin: 3px 0;
-  padding: 7px 8px;
-  border: 0;
-  border-radius: 7px;
+.defense-upgrade--floating .defense-upgrade__groups {
+  display: grid;
+  gap: 7px;
+  margin: 7px 0;
+  padding: 0;
+  background: transparent;
 }
-.defense-upgrade--floating > .defense-upgrade__stats {
+.defense-upgrade__group {
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid #bfd2c4;
+  border-radius: 9px;
+  background: #ffffff85;
+}
+.defense-upgrade__group > header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  color: #326044;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.defense-upgrade__group > header::after {
+  height: 1px;
+  flex: 1;
+  background: currentColor;
+  content: "";
+  opacity: .2;
+}
+.defense-upgrade__group > header svg {
+  width: 13px;
+  height: 13px;
+}
+.defense-upgrade__group.is-buffs {
+  border-color: #a8d8c1;
+  background: #f3fcf788;
+}
+.defense-upgrade__group.is-buffs > header {
+  color: #23734b;
+}
+.defense-upgrade__group.is-effects {
+  border-color: #e7c799;
+  background: #fffaf188;
+}
+.defense-upgrade__group.is-effects > header {
+  color: #a45b12;
+}
+.defense-upgrade--floating .defense-upgrade__stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
   margin: 0;
   padding: 0;
   background: transparent;
 }
-.defense-upgrade--floating > .defense-upgrade__stats > div {
+.defense-upgrade--floating .defense-upgrade__stats > div {
   display: flex;
   min-width: 0;
-  min-height: 48px;
+  min-height: 42px;
   flex-direction: column;
   justify-content: center;
   gap: 3px;
   margin: 0;
-  padding: 8px 9px;
+  padding: 6px 7px;
   border: 0;
   border-radius: 7px;
   font-size: 10px;
 }
-.defense-upgrade--floating > .defense-upgrade__stats > div span {
+.defense-upgrade--floating .defense-upgrade__stats > div span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   opacity: .82;
 }
-.defense-upgrade--floating > .defense-upgrade__stats > div b {
+.defense-upgrade--floating .defense-upgrade__stats > div span svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+.defense-upgrade--floating .defense-upgrade__stats > div b {
   overflow-wrap: anywhere;
   font-size: 11px;
   font-weight: 900;
@@ -1179,6 +1290,33 @@
 }
 .defense-upgrade--floating .defense-upgrade__stats > div.is-damage b {
   color: #a43f20;
+}
+.defense-upgrade--floating .defense-upgrade__stats > div.is-damage-type b {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.defense-upgrade--floating .defense-upgrade__stats > div.is-damage-type svg {
+  width: 13px;
+  height: 13px;
+}
+.defense-upgrade--floating .defense-upgrade__stats > div.is-damage-type.is-physical {
+  border: 1px solid #fb923c;
+  background: linear-gradient(135deg, #fff1e6, #ffdfc7);
+  color: #9a3412;
+  box-shadow: inset 3px 0 #ea580c;
+}
+.defense-upgrade--floating .defense-upgrade__stats > div.is-damage-type.is-physical b {
+  color: #c2410c;
+}
+.defense-upgrade--floating .defense-upgrade__stats > div.is-damage-type.is-magic {
+  border: 1px solid #a78bfa;
+  background: linear-gradient(135deg, #f4edff, #e7dcff);
+  color: #6d28d9;
+  box-shadow: inset 3px 0 #7c3aed;
+}
+.defense-upgrade--floating .defense-upgrade__stats > div.is-damage-type.is-magic b {
+  color: #6d28d9;
 }
 .defense-upgrade--floating .defense-upgrade__stats > div.is-range {
   background: #e6f2ff;
@@ -1247,49 +1385,68 @@
 .defense-upgrade--floating .defense-upgrade__stats > div.is-effect b {
   color: color-mix(in srgb, var(--effect-color, #8b5cf6) 76%, #111827);
 }
-.defense-upgrade--floating > button:not(.defense-upgrade__close) {
+.defense-upgrade__actions {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid #b8d1bf;
+  background: #f4faf5f2;
+}
+.defense-upgrade__actions > button {
+  min-height: 34px;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 10px;
+}
+.defense-upgrade--floating .defense-upgrade__actions > button {
+  margin: 0;
+}
+.defense-upgrade__actions > button:first-child,
+.defense-upgrade__actions > button.is-undo {
+  grid-column: 1 / -1;
+}
+.defense-upgrade__actions > button:not(.defense-upgrade__close) {
   border-color: #b48529;
   background: #fff4d7;
   color: #704b05;
   font-weight: 850;
 }
 .defense-upgrade--floating
-  > button:not(.defense-upgrade__close):hover:not(:disabled) {
+  .defense-upgrade__actions > button:not(.defense-upgrade__close):hover:not(:disabled) {
   background: #ffe9ad;
 }
-.defense-upgrade--floating > button.is-move {
-  margin-top: 6px;
+.defense-upgrade--floating .defense-upgrade__actions > button.is-move {
   border-color: #4c86a8;
   background: #edf8ff;
   color: #24597a;
 }
-.defense-upgrade--floating > button.is-move:hover:not(:disabled) {
+.defense-upgrade--floating .defense-upgrade__actions > button.is-move:hover:not(:disabled) {
   background: #d9f0ff;
 }
-.defense-upgrade--floating > button.is-move svg {
+.defense-upgrade--floating .defense-upgrade__actions > button.is-move svg {
   width: 14px;
 }
-.defense-upgrade--floating > button.is-undo {
-  margin-top: 6px;
+.defense-upgrade--floating .defense-upgrade__actions > button.is-undo {
   border-color: #3c8b68;
   background: #effcf5;
   color: #176044;
 }
-.defense-upgrade--floating > button.is-undo:hover:not(:disabled) {
+.defense-upgrade--floating .defense-upgrade__actions > button.is-undo:hover:not(:disabled) {
   background: #d9f8e8;
 }
-.defense-upgrade--floating > button.is-undo svg {
+.defense-upgrade--floating .defense-upgrade__actions > button.is-undo svg {
   width: 14px;
 }
-.defense-upgrade--floating > button.is-sell {
+.defense-upgrade--floating .defense-upgrade__actions > button.is-sell {
   border-color: #a84d43;
   background: #fff5f3;
   color: #762d26;
 }
 .defense-upgrade .defense-upgrade__close {
-  position: absolute;
-  top: 7px;
-  right: 7px;
+  position: static;
+  flex: 0 0 auto;
   width: 25px;
   min-height: 25px;
   margin: 0;
@@ -1735,9 +1892,17 @@
   border-top: 1px solid #5d55452e;
 }
 .defense-enemy-intel__actions section dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   color: #a79b83;
   font-size: 11px;
   font-weight: 700;
+}
+.defense-enemy-intel__actions section dt svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
 }
 .defense-enemy-intel__actions section dd {
   margin: 0;
@@ -1752,6 +1917,55 @@
   padding: 9px;
   border: 1px solid transparent;
   border-radius: 8px;
+}
+.defense-enemy-intel__actions section dl .is-health,
+.defense-enemy-intel__actions section dl .is-armor,
+.defense-enemy-intel__actions section dl .is-magic-resistance {
+  grid-template-columns: 86px minmax(0, 1fr);
+  align-items: center;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.defense-enemy-intel__actions section dl .is-health {
+  border-color: #22c55e55;
+  background: linear-gradient(135deg, #14532d52, #14261b8f);
+  box-shadow: inset 3px 0 #4ade80;
+}
+.defense-enemy-intel__actions section dl .is-health dt,
+.defense-enemy-intel__actions section dl .is-health dd {
+  color: #86efac;
+}
+.defense-enemy-intel__actions section dl .is-armor {
+  border-color: #4b8fd366;
+  background: linear-gradient(135deg, #173c6266, #1423348f);
+  box-shadow: inset 3px 0 #60a5fa;
+}
+.defense-enemy-intel__actions section dl .is-magic-resistance {
+  border-color: #a855f766;
+  background: linear-gradient(135deg, #4b1d7166, #2715328f);
+  box-shadow: inset 3px 0 #c084fc;
+}
+.defense-enemy-intel__actions section dl .is-armor dt,
+.defense-enemy-intel__actions section dl .is-magic-resistance dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 900;
+}
+.defense-enemy-intel__actions section dl .is-armor dt,
+.defense-enemy-intel__actions section dl .is-armor dd {
+  color: #93c5fd;
+}
+.defense-enemy-intel__actions section dl .is-magic-resistance dt,
+.defense-enemy-intel__actions section dl .is-magic-resistance dd {
+  color: #d8b4fe;
+}
+.defense-enemy-intel__actions section dl .is-armor svg,
+.defense-enemy-intel__actions section dl .is-magic-resistance svg {
+  width: 13px;
+  height: 13px;
 }
 .defense-enemy-intel__actions section dl .is-strength {
   border-color: #d96e4c66;
@@ -3649,5 +3863,17 @@
   to {
     opacity: 0;
     transform: scale(1.25);
+  }
+}
+
+@media (max-width: 680px) {
+  .defense-upgrade--floating {
+    right: auto;
+    bottom: 8px;
+    left: 50% !important;
+    top: auto !important;
+    width: min(330px, calc(100% - 16px));
+    max-height: calc(100% - 16px);
+    transform: translateX(-50%);
   }
 }

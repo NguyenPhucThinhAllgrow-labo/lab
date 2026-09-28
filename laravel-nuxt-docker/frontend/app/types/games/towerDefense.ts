@@ -4,6 +4,7 @@ export type EnemyKind = "normal" | "boss";
 export type BossClass = "barbarian" | "knight" | "mage" | "ranger" | "rogue";
 export type EnemyCombatProfileKey = "normal" | "lava-boss";
 export type EnemyStatusEffect = "burn" | "slow" | "freeze";
+export type TowerDamageType = "physical" | "magic" | "none";
 
 export interface EnemyCombatProfile {
   damageMultipliers: Partial<Record<TowerKind, number>>;
@@ -109,6 +110,8 @@ export interface TowerDefenseManagedEnemyDefinition {
   name?: string;
   kind?: EnemyKind;
   baseHealth: number;
+  armor: number;
+  magicResistance: number;
   baseSpeed: number;
   reward: number;
   castleDamage: number;
@@ -121,6 +124,8 @@ export interface TowerDefenseEnemyIntelDefinition {
   name: string;
   avatarUrl: string;
   summary: string;
+  armor: number;
+  magicResistance: number;
   resistance: string;
   weakness: string;
   primaryColor?: string;
@@ -153,6 +158,7 @@ export interface TowerDefinition {
   /** Mẫu gameplay gốc; cho phép nhiều tower riêng biệt dùng chung hành vi. */
   templateKind?: TowerKind;
   role?: "damage" | "buff";
+  damageType?: TowerDamageType;
   name: string;
   description: string;
   cost: number;
@@ -236,6 +242,8 @@ export interface Enemy {
   progress: number;
   hp: number;
   maxHp: number;
+  armor: number;
+  magicResistance: number;
   speed: number;
   reward: number;
   castleDamage: number;

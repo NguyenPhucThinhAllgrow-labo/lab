@@ -1,5 +1,5 @@
 import { TOWER_DEFINITIONS } from "~/games/tower-defense/gameplay-config";
-import type { TowerDefinition, TowerEffectDefinition, TowerKind, TowerLevelStats } from "~/types/games/towerDefense";
+import type { TowerDamageType, TowerDefinition, TowerEffectDefinition, TowerKind, TowerLevelStats } from "~/types/games/towerDefense";
 import type {
   LevelledTowerKind,
   ManagedTowerModelDefinition,
@@ -11,6 +11,7 @@ interface ManagedTower {
   name: string;
   description: string | null;
   role: "damage" | "buff";
+  damage_type: TowerDamageType;
   cost: number;
   damage: number;
   damage_by_level: Record<string, number> | null;
@@ -56,6 +57,7 @@ export async function fetchTowerDefenseTowers(): Promise<TowerDefenseTowerCatalo
         kind,
         templateKind,
         role: tower.role,
+        damageType: tower.damage_type,
         name: tower.name,
         description: tower.description ?? "",
         cost: tower.cost,

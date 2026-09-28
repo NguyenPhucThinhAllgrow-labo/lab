@@ -49,6 +49,7 @@ import type {
   TowerEffectDefinition,
   TowerKind,
 } from "~/types/games/towerDefense";
+import { towerDamageType } from "~/games/tower-defense/enemy-combat";
 
 useHead({
   title: "Kingdom Defense — Game Lab",
@@ -209,6 +210,8 @@ interface EnemyIntelCard {
   avatar: string;
   summary: string;
   health: string;
+  armor: number;
+  magicResistance: number;
   resistance: string;
   weakness: string;
   primaryColor: string;
@@ -242,6 +245,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
         avatar: definition.intel?.avatarUrl ?? "",
         summary: definition.intel?.summary ?? "",
         health: `${Math.round(definition.baseHealth * managedWaveScale)} HP`,
+        armor: definition.armor ?? 0,
+        magicResistance: definition.magicResistance ?? 0,
         resistance: definition.intel?.resistance ?? "Không",
         weakness: definition.intel?.weakness ?? "Không",
         primaryColor: definition.intel?.primaryColor ?? "#8b5cf6",
@@ -254,6 +259,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
           avatar: map.enemyIntel?.avatarUrl ?? "/api/tower-defense/assets/images/games/tower-defense/military/dark/normal.png",
           summary: map.enemyIntel?.summary ?? "Lính tiền tuyến cân bằng, không có kháng hay điểm yếu đặc biệt.",
           health: `${legacyNormalHp} HP`,
+          armor: map.enemyIntel?.armor ?? 0,
+          magicResistance: map.enemyIntel?.magicResistance ?? 0,
           resistance: map.enemyIntel?.resistance ?? "Không",
           weakness: map.enemyIntel?.weakness ?? "Không",
           primaryColor: map.enemyIntel?.primaryColor ?? "#8b5cf6",
@@ -274,6 +281,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
           avatar: definition.intel?.avatarUrl ?? "",
           summary: definition.intel?.summary ?? "",
           health: `${Math.round(definition.baseHealth * managedWaveScale)} HP`,
+          armor: definition.armor ?? 0,
+          magicResistance: definition.magicResistance ?? 0,
           resistance: definition.intel?.resistance ?? "Không",
           weakness: definition.intel?.weakness ?? "Không",
           primaryColor: definition.intel?.primaryColor ?? "#f59e0b",
@@ -288,6 +297,8 @@ const enemyIntelCards = computed<EnemyIntelCard[]>(() => {
         avatar: map.bossIntel?.avatarUrl ?? "/api/tower-defense/assets/images/games/tower-defense/military/dark/lava/boss.png",
         summary: map.bossIntel?.summary ?? "Kẻ địch tinh nhuệ có lượng máu cao.",
         health: `${Math.round(legacyNormalHp * 5.5)} HP`,
+        armor: map.bossIntel?.armor ?? 0,
+        magicResistance: map.bossIntel?.magicResistance ?? 0,
         resistance: map.bossIntel?.resistance ?? "Không",
         weakness: map.bossIntel?.weakness ?? "Không",
         primaryColor: map.bossIntel?.primaryColor ?? "#f59e0b",
@@ -313,6 +324,9 @@ const towerTooltipPosition = ref({ x: 0, y: 0 });
 const hoveredTowerDefinition = computed(() =>
   hoveredTowerKind.value ? TOWER_DEFINITIONS[hoveredTowerKind.value] : null,
 );
+const hoveredTowerDamageType = computed(() => {
+  return hoveredTowerKind.value ? towerDamageType(hoveredTowerKind.value) : "none";
+});
 const sceneReady = ref(false);
 const imagesReady = ref(true);
 const showBrickBackground = ref(false);
@@ -1095,7 +1109,18 @@ onBeforeUnmount(() => {
                       <h3>{{ enemyIntel.name }}</h3>
                       <p>{{ enemyIntel.summary }}</p>
                       <dl>
-                        <div><dt>Sinh lực</dt><dd>{{ enemyIntel.health }}</dd></div>
+                        <div class="is-health">
+                          <dt><HeartPulse />Sinh lực</dt>
+                          <dd>{{ enemyIntel.health }}</dd>
+                        </div>
+                        <div class="is-armor">
+                          <dt><ShieldCheck />Giáp</dt>
+                          <dd>{{ enemyIntel.armor }}</dd>
+                        </div>
+                        <div class="is-magic-resistance">
+                          <dt><Sparkles />Kháng phép</dt>
+                          <dd>{{ enemyIntel.magicResistance }}</dd>
+                        </div>
                         <div class="is-strength">
                           <dt><ShieldCheck />Điểm mạnh</dt>
                           <dd>{{ enemyIntel.resistance }}</dd>
@@ -1123,21 +1148,26 @@ onBeforeUnmount(() => {
                 top: `${selectedTowerAnchor.y}px`,
               }"
             >
-              <button
-                type="button"
-                class="defense-upgrade__close"
-                aria-label="Đóng thông tin tháp"
-                title="Đóng"
-                @click.stop="selectedTowerId = null"
-              >
-                ×
-              </button>
-              <small>THÁP ĐANG CHỌN</small>
-              <h3>
-                {{ TOWER_DEFINITIONS[selectedTower.kind].name }} · LV.{{
-                  selectedTower.level
-                }}
-              </h3>
+              <header class="defense-upgrade__heading">
+                <div>
+                  <small>THÁP ĐANG CHỌN</small>
+                  <h3>
+                    {{ TOWER_DEFINITIONS[selectedTower.kind].name }} · LV.{{
+                      selectedTower.level
+                    }}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  class="defense-upgrade__close"
+                  aria-label="Đóng thông tin tháp"
+                  title="Đóng"
+                  @click.stop="selectedTowerId = null"
+                >
+                  ×
+                </button>
+              </header>
+              <div class="defense-upgrade__body">
               <p class="defense-upgrade__description">
                 {{ TOWER_DEFINITIONS[selectedTower.kind].description }}
               </p>
@@ -1152,27 +1182,45 @@ onBeforeUnmount(() => {
                         : "Không thể di chuyển tháp khi round đang diễn ra."
                 }}
               </p>
+              <div class="defense-upgrade__groups">
+              <section class="defense-upgrade__group is-basic">
+              <header><Gauge /><span>Thông tin cơ bản</span></header>
               <div class="defense-upgrade__stats">
               <div class="is-price">
-                <span>{{
+                <span><Coins />{{
                   selectedTower.level > 1 ? "Tổng đầu tư" : "Giá xây"
                 }}</span
                 ><b>{{ selectedTower.invested }} vàng</b>
               </div>
               <div v-if="isSupportTowerKind(selectedTower.kind) && !TOWER_DEFINITIONS[selectedTower.kind].effects?.length" class="is-damage">
-                <span>Hỗ trợ</span
+                <span><Sparkles />Hỗ trợ</span
                 ><b>+{{ Math.round(towerSupportBonus(selectedTower.level) * 100) }}%</b>
               </div>
               <div v-else-if="!isSupportTowerKind(selectedTower.kind)" class="is-damage">
-                <span>{{
+                <span><Swords />{{
                   selectedTower.kind === "thunder"
                     ? "Sát thương/giây hiện tại"
                     : "Sát thương hiện tại"
                 }}</span
                 ><b>{{ selectedTowerEffectiveDamage }}</b>
               </div>
+              <div
+                v-if="!isSupportTowerKind(selectedTower.kind)"
+                class="is-damage-type"
+                :class="{
+                  'is-physical': towerDamageType(selectedTower.kind) === 'physical',
+                  'is-magic': towerDamageType(selectedTower.kind) === 'magic',
+                }"
+              >
+                <span><ShieldCheck v-if="towerDamageType(selectedTower.kind) === 'physical'" /><Sparkles v-else />Loại sát thương</span>
+                <b v-if="towerDamageType(selectedTower.kind) === 'physical'">
+                  <ShieldCheck />Vật lý
+                </b>
+                <b v-else-if="towerDamageType(selectedTower.kind) === 'magic'"><Sparkles />Phép</b>
+                <b v-else>Không gây sát thương</b>
+              </div>
               <div class="is-range">
-                <span>{{
+                <span><Crosshair />{{
                   isSupportTowerKind(selectedTower.kind)
                     ? "Phạm vi buff"
                     : selectedTower.kind === "frost"
@@ -1184,7 +1232,7 @@ onBeforeUnmount(() => {
                 }}</b>
               </div>
               <div v-if="!isSupportTowerKind(selectedTower.kind)" class="is-rate">
-                <span>{{
+                <span><Gauge />{{
                   selectedTower.kind === "thunder"
                     ? "Tấn công"
                     : "Tốc độ hiện tại"
@@ -1195,12 +1243,20 @@ onBeforeUnmount(() => {
                     : `${selectedTowerEffectiveFireInterval.toFixed(2)} giây`
                 }}</b>
               </div>
+              </div>
+              </section>
+              <section
+                v-if="!isSupportTowerKind(selectedTower.kind) || TOWER_DEFINITIONS[selectedTower.kind].effects?.length"
+                class="defense-upgrade__group is-buffs"
+              >
+              <header><HeartPulse /><span>Thông tin buff</span></header>
+              <div class="defense-upgrade__stats">
               <div
                 v-if="!isSupportTowerKind(selectedTower.kind)"
                 class="is-buff-damage"
                 :class="{ 'is-active': selectedTowerSupportBonuses.damage > 0 }"
               >
-                <span>Buff sát thương</span
+                <span><Swords />Buff sát thương</span
                 ><b>+{{ Math.round(selectedTowerSupportBonuses.damage * 100) }}%</b>
               </div>
               <div
@@ -1208,23 +1264,39 @@ onBeforeUnmount(() => {
                 class="is-buff-speed"
                 :class="{ 'is-active': selectedTowerSupportBonuses.speed > 0 }"
               >
-                <span>Buff tốc độ</span
+                <span><Gauge />Buff tốc độ</span
                 ><b>+{{ Math.round(selectedTowerSupportBonuses.speed * 100) }}%</b>
               </div>
+              <div
+                v-for="effect in isSupportTowerKind(selectedTower.kind) ? (TOWER_DEFINITIONS[selectedTower.kind].effects ?? []) : []"
+                :key="`buff-${effect.id}`"
+                class="is-effect is-buff-effect"
+                :style="{ '--effect-color': effect.color ?? TOWER_DEFINITIONS[selectedTower.kind].color }"
+              >
+                <span><Sparkles />{{ effect.name }}</span><b>{{ effectSummary(effect, selectedTower.level) }}</b>
+              </div>
+              </div>
+              </section>
+              <section
+                v-if="!isSupportTowerKind(selectedTower.kind) && ((TOWER_DEFINITIONS[selectedTower.kind].effects?.length ?? 0) > 0 || ['frost', 'water', 'fire', 'cannon'].includes(selectedTower.kind))"
+                class="defense-upgrade__group is-effects"
+              >
+              <header><Zap /><span>Thông tin hiệu ứng</span></header>
+              <div class="defense-upgrade__stats">
               <div
                 v-for="effect in TOWER_DEFINITIONS[selectedTower.kind].effects ?? []"
                 :key="effect.id"
                 class="is-effect"
                 :style="{ '--effect-color': effect.color ?? TOWER_DEFINITIONS[selectedTower.kind].color }"
               >
-                <span>{{ effect.name }}</span><b>{{ effectSummary(effect, selectedTower.level) }}</b>
+                <span><Sparkles />{{ effect.name }}</span><b>{{ effectSummary(effect, selectedTower.level) }}</b>
               </div>
               <div v-if="selectedTower.kind === 'frost'" class="is-slow">
-                <span>Đóng băng</span
+                <span><Snowflake />Đóng băng</span
                 ><b>100% · {{ FROST_SLOW_DURATION_SECONDS }} giây</b>
               </div>
               <div v-if="selectedTower.kind === 'water' && !TOWER_DEFINITIONS[selectedTower.kind].effects?.length" class="is-slow">
-                <span>Làm chậm</span
+                <span><Snowflake />Làm chậm</span
                 ><b
                   >{{ Math.round((TOWER_DEFINITIONS.water.slow ?? 0) * 100) }}%
                   · {{ WATER_SLOW_DURATION_SECONDS }} giây</b
@@ -1238,11 +1310,11 @@ onBeforeUnmount(() => {
                 "
                 class="is-splash"
               >
-                <span>Bán kính lan</span
+                <span><Bomb />Bán kính lan</span
                 ><b>{{ TOWER_DEFINITIONS[selectedTower.kind].splashRadius }}</b>
               </div>
               <div v-if="selectedTower.kind === 'fire' && !TOWER_DEFINITIONS[selectedTower.kind].effects?.length" class="is-burn">
-                <span>Thiêu đốt</span
+                <span><Flame />Thiêu đốt</span
                 ><b
                   >{{
                     (
@@ -1253,6 +1325,10 @@ onBeforeUnmount(() => {
                 >
               </div>
               </div>
+              </section>
+              </div>
+              </div>
+              <footer class="defense-upgrade__actions">
               <button
                 type="button"
                 :disabled="
@@ -1279,6 +1355,9 @@ onBeforeUnmount(() => {
                   selectedTower.canRelocate ? "Đang chọn vị trí" : "Di chuyển"
                 }}
               </button>
+              <button type="button" class="is-sell" @click="sellSelected">
+                Bán · {{ Math.floor(selectedTower.invested * 0.7) }}
+              </button>
               <button
                 v-if="canUndoSelectedPlacement"
                 type="button"
@@ -1288,9 +1367,7 @@ onBeforeUnmount(() => {
               >
                 <Undo2 />Hoàn tác đặt tháp · {{ selectedTower.invested }}
               </button>
-              <button type="button" class="is-sell" @click="sellSelected">
-                Bán · {{ Math.floor(selectedTower.invested * 0.7) }}
-              </button>
+              </footer>
             </section>
 
             <!-- Sidebar xây tháp và điều khiển wave. -->
@@ -1505,15 +1582,16 @@ onBeforeUnmount(() => {
         <p>{{ hoveredTowerDefinition.description }}</p>
         <dl>
           <div class="is-price">
-            <dt>Giá xây</dt>
+            <dt><Coins />Giá xây</dt>
             <dd>{{ hoveredTowerDefinition.cost }} vàng</dd>
           </div>
           <div v-if="isSupportTowerKind(hoveredTowerKind) && !hoveredTowerDefinition.effects?.length" class="is-damage">
-            <dt>Buff theo cấp</dt>
+            <dt><Sparkles />Buff theo cấp</dt>
             <dd>10% · 30% · 50%</dd>
           </div>
           <div v-else class="is-damage">
             <dt>
+              <Swords />
               {{
                 hoveredTowerKind === "thunder"
                   ? "Sát thương/giây"
@@ -1522,14 +1600,20 @@ onBeforeUnmount(() => {
             </dt>
             <dd>{{ hoveredTowerDefinition.damage }}</dd>
           </div>
+          <div v-if="hoveredTowerDamageType !== 'none'" class="is-damage-type" :class="`is-${hoveredTowerDamageType}`">
+            <dt><ShieldCheck v-if="hoveredTowerDamageType === 'physical'" /><Sparkles v-else />Loại sát thương</dt>
+            <dd>{{ hoveredTowerDamageType === 'physical' ? 'Vật lý' : 'Phép' }}</dd>
+          </div>
           <div class="is-range">
             <dt>
+              <Crosshair />
               {{ isSupportTowerKind(hoveredTowerKind) ? "Phạm vi buff" : hoveredTowerKind === "frost" ? "Bán kính vùng" : "Tầm bắn" }}
             </dt>
             <dd>{{ hoveredTowerDefinition.range.toFixed(1) }}</dd>
           </div>
           <div v-if="!isSupportTowerKind(hoveredTowerKind)" class="is-rate">
             <dt>
+              <Gauge />
               {{ hoveredTowerKind === "thunder" ? "Tấn công" : "Tốc độ" }}
             </dt>
             <dd>
@@ -1545,15 +1629,15 @@ onBeforeUnmount(() => {
             :key="effect.id"
             class="is-effect"
           >
-            <dt>{{ effect.name }}</dt>
+            <dt><Sparkles />{{ effect.name }}</dt>
             <dd>{{ effectSummary(effect, 1) }}</dd>
           </div>
           <div v-if="hoveredTowerKind === 'frost'" class="is-slow">
-            <dt>Đóng băng</dt>
+            <dt><Snowflake />Đóng băng</dt>
             <dd>100% · {{ FROST_SLOW_DURATION_SECONDS }} giây</dd>
           </div>
           <div v-if="hoveredTowerKind === 'water' && !hoveredTowerDefinition.effects?.length" class="is-slow">
-            <dt>Làm chậm</dt>
+            <dt><Snowflake />Làm chậm</dt>
             <dd>
               {{ Math.round((hoveredTowerDefinition.slow ?? 0) * 100) }}% ·
               {{ WATER_SLOW_DURATION_SECONDS }} giây
@@ -1567,11 +1651,11 @@ onBeforeUnmount(() => {
             "
             class="is-splash"
           >
-            <dt>Bán kính lan</dt>
+            <dt><Bomb />Bán kính lan</dt>
             <dd>{{ hoveredTowerDefinition.splashRadius }}</dd>
           </div>
           <div v-if="hoveredTowerKind === 'fire' && !hoveredTowerDefinition.effects?.length" class="is-burn">
-            <dt>Thiêu đốt</dt>
+            <dt><Flame />Thiêu đốt</dt>
             <dd>
               {{ hoveredTowerDefinition.burnDamagePerSecond }}/s ·
               {{ hoveredTowerDefinition.burnDuration }}s

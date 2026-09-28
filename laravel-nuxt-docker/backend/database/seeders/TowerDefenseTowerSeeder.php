@@ -125,6 +125,9 @@ class TowerDefenseTowerSeeder extends Seeder
         foreach ($towers as $sortOrder => $tower) {
             $tower['template_key'] = $tower['id'];
             $tower['role'] = $tower['id'] === 'support' ? 'buff' : 'damage';
+            $tower['damage_type'] = $tower['id'] === 'support'
+                ? 'none'
+                : (in_array($tower['id'], ['archer', 'cannon'], true) ? 'physical' : 'magic');
             $tower['effects']['items'] = $this->effectItems($tower['id']);
             $levelMultiplier = $tower['id'] === 'thunder' ? [1, 1.42, 1.84] : [1, 1.55, 2.1];
             $tower['damage_by_level'] = [

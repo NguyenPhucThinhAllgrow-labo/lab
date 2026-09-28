@@ -449,6 +449,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       progress: spawnProgress,
       hp: enemyHp,
       maxHp: enemyHp,
+      armor: managedDefinition?.armor ?? 0,
+      magicResistance: managedDefinition?.magicResistance ?? 0,
       speed: managedDefinition
         ? managedDefinition.baseSpeed *
           (1 + Math.min(Math.max(0, wave.value - 1) * 0.02, 0.3))
@@ -1149,7 +1151,11 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       ? restored.selectedTowerId
       : null;
     towers.value = restored.towers;
-    enemies.value = restored.enemies;
+    enemies.value = restored.enemies.map((enemy) => ({
+      ...enemy,
+      armor: Math.max(0, Number(enemy.armor) || 0),
+      magicResistance: Math.max(0, Number(enemy.magicResistance) || 0),
+    }));
     projectiles.value = Array.isArray(restored.projectiles) ? restored.projectiles : [];
     impacts.value = Array.isArray(restored.impacts) ? restored.impacts : [];
     damageNumbers.value = [];

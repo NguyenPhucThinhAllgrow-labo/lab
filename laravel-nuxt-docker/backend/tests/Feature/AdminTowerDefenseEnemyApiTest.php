@@ -41,6 +41,8 @@ class AdminTowerDefenseEnemyApiTest extends TestCase
             'left_weapon_asset_key' => null,
             'right_weapon_asset_key' => 'models/sword.gltf',
             'base_health' => 150,
+            'armor' => 25,
+            'magic_resistance' => 40,
             'base_speed' => 1.2,
             'reward' => 12,
             'castle_damage' => 1,
@@ -78,6 +80,8 @@ class AdminTowerDefenseEnemyApiTest extends TestCase
             ->assertJsonPath('data.model_configuration.rightWeaponTransform.scale', 0.8)
             ->assertJsonPath('data.display_configuration.primaryColor', '#8b5cf6')
             ->assertJsonPath('data.display_configuration.glowColor', '#2563eb')
+            ->assertJsonPath('data.armor', 25)
+            ->assertJsonPath('data.magic_resistance', 40)
             ->assertJsonPath('data.combat_profile.damageMultipliers.water', 1.25);
 
         $this->putJson('/api/admin/tower-defense/enemies/test-enemy', [
@@ -109,6 +113,8 @@ class AdminTowerDefenseEnemyApiTest extends TestCase
             'kind' => 'normal',
             'model_asset_key' => 'models/boss.glb',
             'base_health' => 100,
+            'armor' => 0,
+            'magic_resistance' => 0,
             'base_speed' => 1,
             'reward' => 10,
             'castle_damage' => 1,

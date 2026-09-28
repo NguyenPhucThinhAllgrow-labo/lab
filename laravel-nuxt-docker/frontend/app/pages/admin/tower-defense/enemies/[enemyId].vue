@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Save } from "lucide-vue-next";
+import { ArrowLeft, Castle, Coins, Gauge, HeartPulse, Save, Shield, Sparkles } from "lucide-vue-next";
 import type { TowerDefenseEquipmentTransform } from "~/types/games/towerDefense";
 
 type EnemyKind = "normal" | "boss";
@@ -7,7 +7,8 @@ interface Asset { id: number; key: string; type: "model" | "image" | "sound"; pu
 interface Enemy {
   id: string; name: string; kind: EnemyKind; model_asset_key: string;
   avatar_asset_key: string | null; left_weapon_asset_key: string | null;
-  right_weapon_asset_key: string | null; base_health: number; base_speed: number;
+  right_weapon_asset_key: string | null; base_health: number; armor: number;
+  magic_resistance: number; base_speed: number;
   reward: number; castle_damage: number; summary: string | null;
   resistance: string | null; weakness: string | null; is_active: boolean;
   display_configuration?: { primaryColor?: string; glowColor?: string } | null;
@@ -40,7 +41,8 @@ const requestedKind: EnemyKind = route.query.kind === "boss" ? "boss" : "normal"
 const form = reactive({
   id: "", name: "", kind: requestedKind, modelAssetKey: "", avatarAssetKey: "",
   leftWeaponAssetKey: "", rightWeaponAssetKey: "", leftWeaponTransform: defaultWeaponTransform(), rightWeaponTransform: defaultWeaponTransform(),
-  baseHealth: requestedKind === "boss" ? 1000 : 100, baseSpeed: requestedKind === "boss" ? 0.65 : 1,
+  baseHealth: requestedKind === "boss" ? 1000 : 100, armor: 0, magicResistance: 0,
+  baseSpeed: requestedKind === "boss" ? 0.65 : 1,
   reward: requestedKind === "boss" ? 200 : 10, castleDamage: requestedKind === "boss" ? 5 : 1,
   summary: "", resistance: "Không", weakness: "Không", ...displayDefaults(requestedKind), characterScale: requestedKind === "boss" ? 1 : 2,
   sceneScale: requestedKind === "boss" ? 1 : 0.494, healthBarY: requestedKind === "boss" ? 2.5 : 1.85,
@@ -70,6 +72,7 @@ function fillForm(enemy: Enemy) {
     avatarAssetKey: enemy.avatar_asset_key ?? "", leftWeaponAssetKey: enemy.left_weapon_asset_key ?? "",
     rightWeaponAssetKey: enemy.right_weapon_asset_key ?? "", leftWeaponTransform: editableWeaponTransform(enemy.model_configuration.leftWeaponTransform),
     rightWeaponTransform: editableWeaponTransform(enemy.model_configuration.rightWeaponTransform), baseHealth: enemy.base_health,
+    armor: enemy.armor ?? 0, magicResistance: enemy.magic_resistance ?? 0,
     baseSpeed: enemy.base_speed, reward: enemy.reward, castleDamage: enemy.castle_damage, summary: enemy.summary ?? "",
     resistance: enemy.resistance ?? "", weakness: enemy.weakness ?? "",
     primaryColor: enemy.display_configuration?.primaryColor ?? displayDefaults(enemy.kind).primaryColor,
@@ -113,7 +116,8 @@ async function submitForm() {
   const payload = {
     id: form.id, name: form.name, kind: form.kind, model_asset_key: form.modelAssetKey,
     avatar_asset_key: form.avatarAssetKey || null, left_weapon_asset_key: form.leftWeaponAssetKey || null,
-    right_weapon_asset_key: form.rightWeaponAssetKey || null, base_health: Number(form.baseHealth), base_speed: Number(form.baseSpeed),
+    right_weapon_asset_key: form.rightWeaponAssetKey || null, base_health: Number(form.baseHealth),
+    armor: Number(form.armor), magic_resistance: Number(form.magicResistance), base_speed: Number(form.baseSpeed),
     reward: Number(form.reward), castle_damage: Number(form.castleDamage), summary: form.summary || null,
     resistance: form.resistance || null, weakness: form.weakness || null,
     display_configuration: { primaryColor: form.primaryColor, glowColor: form.glowColor },
@@ -167,9 +171,9 @@ onMounted(loadData);
             </div>
             <label><span>Character scale</span><input v-model.number="form.characterScale" type="number" min="0.01" step="0.01" /></label><label><span>Scene scale</span><input v-model.number="form.sceneScale" type="number" min="0.01" step="0.001" /></label><label><span>Độ cao thanh máu</span><input v-model.number="form.healthBarY" type="number" step="0.05" /></label><label><span>Animation</span><input v-model="form.animationNames" /></label><label class="check"><input v-model="form.removeRootMotion" type="checkbox" /> Loại bỏ root motion</label>
           </div><ClientOnly><TowerDefenseEnemyModelPreview :model-url="assetUrl(form.modelAssetKey)" :avatar-url="assetUrl(form.avatarAssetKey)" :left-weapon-url="assetUrl(form.leftWeaponAssetKey)" :right-weapon-url="assetUrl(form.rightWeaponAssetKey)" :left-weapon-transform="leftWeaponPreviewTransform" :right-weapon-transform="rightWeaponPreviewTransform" :animation-names="previewAnimationNames" :character-scale="form.characterScale" :scene-scale="form.sceneScale" :remove-root-motion="form.removeRootMotion" /><template #fallback><div class="enemy-preview-fallback">Đang khởi tạo preview 3D…</div></template></ClientOnly></div></fieldset>
-          <fieldset><legend>Chỉ số gameplay</legend><div class="form-grid four"><label><span>Máu cơ bản</span><input v-model.number="form.baseHealth" type="number" min="1" /></label><label><span>Tốc độ</span><input v-model.number="form.baseSpeed" type="number" min="0.01" step="0.01" /></label><label><span>Vàng thưởng</span><input v-model.number="form.reward" type="number" min="0" /></label><label><span>Sát thương lâu đài</span><input v-model.number="form.castleDamage" type="number" min="1" /></label></div></fieldset>
+          <fieldset><legend>Chỉ số gameplay</legend><div class="form-grid six"><label class="enemy-gameplay-field is-health"><span><HeartPulse />Máu cơ bản</span><input v-model.number="form.baseHealth" type="number" min="1" /></label><label class="enemy-defense-field"><span><Shield />Giáp vật lý</span><input v-model.number="form.armor" type="number" min="0" step="1" /><small>Giảm sát thương từ cung và pháo.</small></label><label class="enemy-defense-field is-magic"><span><Sparkles />Kháng phép</span><input v-model.number="form.magicResistance" type="number" min="0" step="1" /><small>Giảm sát thương từ băng, lửa, sét và nước.</small></label><label class="enemy-gameplay-field is-speed"><span><Gauge />Tốc độ</span><input v-model.number="form.baseSpeed" type="number" min="0.01" step="0.01" /></label><label class="enemy-gameplay-field is-reward"><span><Coins />Vàng thưởng</span><input v-model.number="form.reward" type="number" min="0" /></label><label class="enemy-gameplay-field is-castle"><span><Castle />Sát thương lâu đài</span><input v-model.number="form.castleDamage" type="number" min="1" /></label></div></fieldset>
           <fieldset><legend>Hệ số sát thương nhận vào — 1 là bình thường</legend><div class="form-grid six"><label><span>Lửa</span><input v-model.number="form.fireMultiplier" type="number" min="0" max="10" step="0.05" /></label><label><span>Nước</span><input v-model.number="form.waterMultiplier" type="number" min="0" max="10" step="0.05" /></label><label><span>Băng</span><input v-model.number="form.frostMultiplier" type="number" min="0" max="10" step="0.05" /></label><label><span>Sét</span><input v-model.number="form.thunderMultiplier" type="number" min="0" max="10" step="0.05" /></label><label><span>Cung</span><input v-model.number="form.archerMultiplier" type="number" min="0" max="10" step="0.05" /></label><label><span>Pháo</span><input v-model.number="form.cannonMultiplier" type="number" min="0" max="10" step="0.05" /></label></div></fieldset>
-          <fieldset><legend>Hệ số thời lượng hiệu ứng — 0 là miễn nhiễm</legend><div class="form-grid"><label><span>Thiêu đốt</span><input v-model.number="form.burnMultiplier" type="number" min="0" max="10" step="0.05" /></label><label><span>Làm chậm</span><input v-model.number="form.slowMultiplier" type="number" min="0" max="10" step="0.05" /></label><label><span>Đóng băng</span><input v-model.number="form.freezeMultiplier" type="number" min="0" max="10" step="0.05" /></label></div></fieldset>
+          <fieldset><legend>Hệ số thời lượng hiệu ứng — 0 là miễn nhiễm</legend><div class="form-grid three"><label><span>Thiêu đốt</span><input v-model.number="form.burnMultiplier" type="number" min="0" max="10" step="0.05" /></label><label><span>Làm chậm</span><input v-model.number="form.slowMultiplier" type="number" min="0" max="10" step="0.05" /></label><label><span>Đóng băng</span><input v-model.number="form.freezeMultiplier" type="number" min="0" max="10" step="0.05" /></label></div></fieldset>
         </div>
         <p v-if="formError" class="enemy-alert">{{ formError }}</p>
         <footer><NuxtLink to="/admin/tower-defense/enemies">Hủy</NuxtLink><button class="primary" type="submit" :disabled="saving"><Save /> {{ saving ? 'Đang lưu…' : 'Lưu hồ sơ' }}</button></footer>

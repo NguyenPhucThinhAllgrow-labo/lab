@@ -117,6 +117,8 @@ interface ManagedEnemy {
   left_weapon_asset_key: string | null;
   right_weapon_asset_key: string | null;
   base_health: number;
+  armor: number;
+  magic_resistance: number;
   base_speed: number;
   reward: number;
   castle_damage: number;
@@ -207,6 +209,8 @@ interface MapEditorConfiguration extends Record<string, unknown> {
 interface ManagedEnemyDefinition {
   id: string;
   baseHealth: number;
+  armor: number;
+  magicResistance: number;
   baseSpeed: number;
   reward: number;
   castleDamage: number;
@@ -229,6 +233,8 @@ interface EnemyIntelConfiguration {
   name: string;
   avatarUrl: string;
   summary: string;
+  armor: number;
+  magicResistance: number;
   resistance: string;
   weakness: string;
 }
@@ -891,6 +897,8 @@ function managedEnemyDefinition(enemy: ManagedEnemy): ManagedEnemyDefinition {
   return {
       id: enemy.id,
       baseHealth: enemy.base_health,
+      armor: enemy.armor ?? 0,
+      magicResistance: enemy.magic_resistance ?? 0,
       baseSpeed: enemy.base_speed,
       reward: enemy.reward,
       castleDamage: enemy.castle_damage,
@@ -918,6 +926,8 @@ function applyPrimaryManagedEnemy(
       name: enemy.name,
       avatarUrl: enemy.avatar_asset_key ? assetPath(enemy.avatar_asset_key) : "",
       summary: enemy.summary ?? "",
+      armor: enemy.armor ?? 0,
+      magicResistance: enemy.magic_resistance ?? 0,
       resistance: enemy.resistance ?? "Không",
       weakness: enemy.weakness ?? "Không",
     };

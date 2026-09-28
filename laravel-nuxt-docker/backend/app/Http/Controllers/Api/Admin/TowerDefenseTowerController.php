@@ -55,6 +55,7 @@ class TowerDefenseTowerController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'role' => ['required', Rule::in(['damage', 'buff'])],
+            'damage_type' => ['required', Rule::in(['physical', 'magic', 'none'])],
             'cost' => ['required', 'integer', 'between:0,100000000'],
             'damage' => ['required', 'numeric', 'between:0,100000000'],
             'damage_by_level' => ['required', 'array'],

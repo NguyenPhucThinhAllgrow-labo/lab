@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Box, Castle, Gauge, ImageIcon, Pencil, Plus, RefreshCw, Save, Search, Sparkles, Trash2, X } from "lucide-vue-next";
+import { Box, Castle, Gauge, ImageIcon, Pencil, Plus, RefreshCw, Save, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-vue-next";
 
 type TowerRole = "damage" | "buff";
 type EffectBehavior = "bonus_damage" | "critical_hit" | "damage_over_time" | "slow" | "splash_damage" | "damage_aura" | "attack_speed_aura";
@@ -14,7 +14,7 @@ interface Tower {
   damage_by_level: Record<string, number> | null;
   max_level: number;
   level_stats: Record<string, Omit<LevelStatsForm, "targetHeight">> | null;
-  role: TowerRole; range: number; fire_rate: number; color: string; effects: Record<string, any>;
+  role: TowerRole; damage_type: TowerDamageCategory; range: number; fire_rate: number; color: string; effects: Record<string, any>;
   image_asset_key: string | null;
   model_asset_keys: Record<string, string>; model_configuration: { targetHeight: number; targetHeightByLevel?: Record<string, number> };
   is_active: boolean;
@@ -41,9 +41,24 @@ const towerKindOptions = [
   ["support", "Trụ hỗ trợ"],
 ] as const;
 const towerRoleLabel = (role: TowerRole) => role === "buff" ? "Trụ hỗ trợ" : "Trụ gây sát thương";
+type TowerDamageCategory = "physical" | "magic" | "none";
+const towerDamageCategory = (value: string | null | undefined): TowerDamageCategory =>
+  value === "physical" || value === "magic" || value === "none" ? value : "magic";
+const towerDamageCategoryLabel = (value: string | null | undefined) => {
+  const category = towerDamageCategory(value);
+  return category === "physical" ? "Sát thương vật lý" : category === "magic" ? "Sát thương phép" : "Không gây sát thương";
+};
+const towerDamageCategoryHelp = (value: string | null | undefined) => {
+  const category = towerDamageCategory(value);
+  return category === "physical"
+    ? "Bị giảm bởi chỉ số Giáp của quái và boss."
+    : category === "magic"
+      ? "Bị giảm bởi chỉ số Kháng phép của quái và boss."
+      : "Trụ này tập trung hỗ trợ và không có loại sát thương cơ bản.";
+};
 
 const blankForm = () => ({
-  id: "", templateKey: "archer", name: "", description: "", role: "damage" as TowerRole, maxLevel: 3,
+  id: "", templateKey: "archer", name: "", description: "", role: "damage" as TowerRole, damageType: "physical" as TowerDamageCategory, maxLevel: 3,
   levelStats: {
     1: { damage: 10, range: 3, fireRate: 1, upgradeCost: 100, targetHeight: 2, chainTargets: 3, chainRange: 1.65, chainDamageRatio: 0.72 },
     2: { damage: 15.5, range: 3.22, fireRate: 0.85, upgradeCost: 75, targetHeight: 2, chainTargets: 4, chainRange: 1.77, chainDamageRatio: 0.72 },
@@ -132,6 +147,7 @@ function openEdit(tower: Tower) {
   editingId.value = tower.id;
   Object.assign(form, blankForm(), {
     id: tower.id, templateKey: tower.template_key ?? tower.id, name: tower.name, description: tower.description ?? "", role: tower.role,
+    damageType: tower.damage_type ?? (tower.role === "buff" ? "none" : (["archer", "cannon"].includes(tower.template_key) ? "physical" : "magic")),
     maxLevel: tower.max_level ?? 3,
     levelStats: Object.fromEntries(Array.from({ length: tower.max_level ?? 3 }, (_, index) => {
       const level = index + 1;
@@ -180,7 +196,7 @@ async function submitForm() {
   if (saving.value) return;
   saving.value = true; formError.value = ""; fieldErrors.value = {};
   const payload = {
-    id: form.id, template_key: form.templateKey, name: form.name, description: form.description || null, role: form.role,
+    id: form.id, template_key: form.templateKey, name: form.name, description: form.description || null, role: form.role, damage_type: form.damageType,
     cost: Number(form.levelStats[1]?.upgradeCost ?? 0), damage: Number(form.levelStats[1]?.damage ?? 0), max_level: Number(form.maxLevel),
     damage_by_level: Object.fromEntries(towerLevels.value.map(level => [level, Number(form.levelStats[level]?.damage ?? 0)])),
     level_stats: Object.fromEntries(towerLevels.value.map(level => [level, {
@@ -261,7 +277,7 @@ onMounted(loadData);
       <article v-for="tower in filteredTowers" :key="tower.id" class="tower-card" :class="{ inactive: !tower.is_active }">
         <header><span class="tower-card-image" :style="{ '--tower-color': tower.color }"><img v-if="tower.image_asset_key" :src="assetUrl(tower.image_asset_key)" :alt="tower.name" /><Castle v-else /></span><div><small>{{ tower.id }}</small><h2>{{ tower.name }}</h2></div><span class="status">{{ tower.is_active ? 'Đang dùng' : 'Tạm ẩn' }}</span></header>
         <p>{{ tower.description || "Chưa có mô tả." }}</p>
-        <dl><div><dt>Loại tower</dt><dd>{{ towerRoleLabel(tower.role) }}</dd></div><div><dt>Số cấp</dt><dd>{{ tower.max_level ?? 3 }} level</dd></div><div><dt>Damage đầu → cuối</dt><dd>{{ tower.level_stats?.['1']?.damage ?? tower.damage }} → {{ tower.level_stats?.[String(tower.max_level)]?.damage ?? tower.damage }}</dd></div><div><dt>Tầm đầu → cuối</dt><dd>{{ tower.level_stats?.['1']?.range ?? tower.range }} → {{ tower.level_stats?.[String(tower.max_level)]?.range ?? tower.range }}</dd></div></dl>
+        <dl><div><dt>Loại tower</dt><dd>{{ towerRoleLabel(tower.role) }}</dd></div><div><dt>Số cấp</dt><dd>{{ tower.max_level ?? 3 }} level</dd></div><div class="tower-damage-category" :class="`is-${towerDamageCategory(tower.damage_type)}`"><dt>Loại sát thương</dt><dd><ShieldCheck v-if="towerDamageCategory(tower.damage_type) === 'physical'" /><Sparkles v-else-if="towerDamageCategory(tower.damage_type) === 'magic'" /><Box v-else />{{ towerDamageCategoryLabel(tower.damage_type) }}</dd></div><div><dt>Damage đầu → cuối</dt><dd>{{ tower.level_stats?.['1']?.damage ?? tower.damage }} → {{ tower.level_stats?.[String(tower.max_level)]?.damage ?? tower.damage }}</dd></div><div><dt>Tầm đầu → cuối</dt><dd>{{ tower.level_stats?.['1']?.range ?? tower.range }} → {{ tower.level_stats?.[String(tower.max_level)]?.range ?? tower.range }}</dd></div></dl>
         <footer><span>{{ modelCount(tower) }} model đã gắn</span><div><button title="Chỉnh sửa" @click="openEdit(tower)"><Pencil /></button><button class="danger" title="Xóa" @click="removeTower(tower)"><Trash2 /></button></div></footer>
       </article>
     </section>
@@ -275,6 +291,8 @@ onMounted(loadData);
             <label><span>Mã tower</span><input v-model.trim="form.id" :disabled="!!editingId" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="VD: fire-elite" /><small>Mỗi tower cần một mã riêng: chữ thường, số và dấu gạch ngang.</small><small v-if="fieldErrors.id">{{ fieldErrors.id[0] }}</small></label>
             <label><span>Hình dáng đạn</span><select v-model="form.templateKey" required><option v-for="option in towerKindOptions" :key="option[0]" :value="option[0]">{{ option[1] }} ({{ option[0] }})</option></select><small>Nhiều tower được phép dùng chung mẫu này.</small><small v-if="fieldErrors.template_key">{{ fieldErrors.template_key[0] }}</small></label>
             <label><span>Loại tower</span><select v-model="form.role" required><option value="damage">Trụ gây sát thương</option><option value="buff">Trụ hỗ trợ</option></select><small>Mọi tower tấn công đều dùng chung loại “Trụ gây sát thương”.</small><small v-if="fieldErrors.role">{{ fieldErrors.role[0] }}</small></label>
+            <label><span>Loại sát thương</span><select v-model="form.damageType" required><option value="physical">Vật lý — giảm bởi Giáp</option><option value="magic">Phép — giảm bởi Kháng phép</option><option value="none">Không gây sát thương</option></select><small>Áp dụng cho toàn bộ sát thương mà tower gây ra.</small><small v-if="fieldErrors.damage_type">{{ fieldErrors.damage_type[0] }}</small></label>
+            <aside class="tower-damage-summary wide" :class="`is-${towerDamageCategory(form.damageType)}`"><ShieldCheck v-if="towerDamageCategory(form.damageType) === 'physical'" /><Sparkles v-else-if="towerDamageCategory(form.damageType) === 'magic'" /><Box v-else /><div><small>LOẠI SÁT THƯƠNG ĐÃ CHỌN</small><strong>{{ towerDamageCategoryLabel(form.damageType) }}</strong><p>{{ towerDamageCategoryHelp(form.damageType) }}</p></div></aside>
             <label><span>Tên tower</span><input v-model="form.name" required /></label>
             <label><span>Màu nhận diện</span><input v-model="form.color" type="color" /></label>
             <label class="wide"><span>Mô tả</span><textarea v-model="form.description" rows="2" /></label>
