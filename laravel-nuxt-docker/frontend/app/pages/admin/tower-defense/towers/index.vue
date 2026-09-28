@@ -2,10 +2,10 @@
 import { Box, Castle, Gauge, ImageIcon, Pencil, Plus, RefreshCw, Save, Search, Sparkles, Trash2, X } from "lucide-vue-next";
 
 type TowerRole = "damage" | "buff";
-type EffectBehavior = "bonus_damage" | "damage_over_time" | "slow" | "splash_damage" | "damage_aura" | "attack_speed_aura";
+type EffectBehavior = "bonus_damage" | "critical_hit" | "damage_over_time" | "slow" | "splash_damage" | "damage_aura" | "attack_speed_aura";
 interface EffectTypeOption { id: string; name: string; role: TowerRole; behavior: EffectBehavior; description: string | null; color: string; is_active: boolean }
-interface EffectForm { id: string; type: string; behavior: EffectBehavior; name: string; value: number; duration: number; radius: number; ratio: number; perLevel: number; color: string }
-interface LevelStatsForm { damage: number; range: number; fireRate: number; upgradeCost: number; targetHeight: number }
+interface EffectForm { id: string; type: string; behavior: EffectBehavior; name: string; value: number; duration: number; radius: number; ratio: number; multiplier: number; perLevel: number; color: string }
+interface LevelStatsForm { damage: number; range: number; fireRate: number; upgradeCost: number; targetHeight: number; chainTargets: number; chainRange: number; chainDamageRatio: number }
 
 interface Asset { id: number; key: string; type: string; purpose: string; isActive?: boolean }
 interface Paginated<T> { data: T[]; current_page: number; last_page: number; total: number }
@@ -45,9 +45,9 @@ const towerRoleLabel = (role: TowerRole) => role === "buff" ? "Trụ hỗ trợ"
 const blankForm = () => ({
   id: "", templateKey: "archer", name: "", description: "", role: "damage" as TowerRole, maxLevel: 3,
   levelStats: {
-    1: { damage: 10, range: 3, fireRate: 1, upgradeCost: 100, targetHeight: 2 },
-    2: { damage: 15.5, range: 3.22, fireRate: 0.85, upgradeCost: 75, targetHeight: 2 },
-    3: { damage: 21, range: 3.44, fireRate: 0.74, upgradeCost: 110, targetHeight: 2 },
+    1: { damage: 10, range: 3, fireRate: 1, upgradeCost: 100, targetHeight: 2, chainTargets: 3, chainRange: 1.65, chainDamageRatio: 0.72 },
+    2: { damage: 15.5, range: 3.22, fireRate: 0.85, upgradeCost: 75, targetHeight: 2, chainTargets: 4, chainRange: 1.77, chainDamageRatio: 0.72 },
+    3: { damage: 21, range: 3.44, fireRate: 0.74, upgradeCost: 110, targetHeight: 2, chainTargets: 5, chainRange: 1.89, chainDamageRatio: 0.72 },
   } as Record<number, LevelStatsForm>,
   color: "#64748b", isActive: true,
   imageAssetKey: "", imagePreview: "",
@@ -64,6 +64,11 @@ const filteredTowers = computed(() => {
 const modelCount = (tower: Tower) => Object.values(tower.model_asset_keys ?? {}).filter(Boolean).length;
 const assetUrl = (key: string) => `/api/tower-defense/assets/${key.split("/").map(encodeURIComponent).join("/")}`;
 const towerLevels = computed(() => Array.from({ length: Math.max(1, Number(form.maxLevel) || 1) }, (_, index) => index + 1));
+function levelStatsFor(level: number): LevelStatsForm {
+  const stats = form.levelStats[level] ?? form.levelStats[1];
+  if (!stats) throw new Error("Thiếu cấu hình level 1 của tower.");
+  return stats;
+}
 function addTowerLevel() {
   form.maxLevel = Math.max(1, Number(form.maxLevel) || 1) + 1;
 }
@@ -80,12 +85,13 @@ const effectHelp = (type: string) => effectTypes.value.find(option => option.id 
 const needsDuration = (behavior: EffectBehavior) => behavior === "damage_over_time" || behavior === "slow";
 const needsRadius = (behavior: EffectBehavior) => behavior === "splash_damage" || behavior.endsWith("_aura");
 const needsRatio = (behavior: EffectBehavior) => behavior === "splash_damage";
-const effectValueLabel = (behavior: EffectBehavior) => behavior === "slow" || behavior.endsWith("_aura") ? "Mức hiệu ứng (0–1)" : behavior === "damage_over_time" ? "Sát thương / giây" : "Giá trị";
+const needsMultiplier = (behavior: EffectBehavior) => behavior === "critical_hit";
+const effectValueLabel = (behavior: EffectBehavior) => behavior === "critical_hit" ? "Tỷ lệ chí mạng (0–1)" : behavior === "slow" || behavior.endsWith("_aura") ? "Mức hiệu ứng (0–1)" : behavior === "damage_over_time" ? "Sát thương / giây" : "Giá trị";
 
 function createEffect(type = availableEffectOptions.value[0]?.id ?? "bonus-damage"): EffectForm {
   const option = effectTypes.value.find(item => item.id === type);
   const behavior = option?.behavior ?? "bonus_damage";
-  return { id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type, behavior, name: option?.name ?? "Hiệu ứng", value: behavior.endsWith("_aura") ? 0.1 : 0, duration: 0, radius: form.levelStats[1]?.range ?? 3, ratio: 0.5, perLevel: 0, color: option?.color ?? form.color };
+  return { id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type, behavior, name: option?.name ?? "Hiệu ứng", value: behavior === "critical_hit" ? 0.15 : behavior.endsWith("_aura") ? 0.1 : 0, duration: 0, radius: form.levelStats[1]?.range ?? 3, ratio: 0.5, multiplier: 2, perLevel: 0, color: option?.color ?? form.color };
 }
 function addEffect() { form.effectItems.push(createEffect()) }
 function removeEffect(index: number) { form.effectItems.splice(index, 1) }
@@ -95,6 +101,10 @@ function selectEffectType(effect: EffectForm) {
   effect.behavior = option.behavior;
   effect.name = option.name;
   effect.color = option.color;
+  if (option.behavior === "critical_hit") {
+    effect.value = effect.value > 0 && effect.value <= 1 ? effect.value : 0.15;
+    effect.multiplier = Math.max(1, effect.multiplier || 2);
+  }
 }
 function normalizeEffects(effects: Record<string, any>): EffectForm[] {
   if (Array.isArray(effects?.items)) return effects.items.map((effect: Partial<EffectForm>) => ({ ...createEffect(effect.type), ...effect }));
@@ -126,14 +136,20 @@ function openEdit(tower: Tower) {
     levelStats: Object.fromEntries(Array.from({ length: tower.max_level ?? 3 }, (_, index) => {
       const level = index + 1;
       const stats = tower.level_stats?.[String(level)] ?? {
-        damage: tower.damage_by_level?.[String(level)] ?? tower.damage * (1 + (level - 1) * (tower.id === "thunder" ? 0.42 : 0.55)),
+        damage: tower.damage_by_level?.[String(level)] ?? tower.damage * (1 + (level - 1) * (tower.template_key === "thunder" ? 0.42 : 0.55)),
         range: tower.range + (level - 1) * 0.22,
-        fireRate: tower.fire_rate / (1 + (level - 1) * (tower.id === "archer" ? 0.35 : 0.18)),
+        fireRate: tower.fire_rate / (1 + (level - 1) * (tower.template_key === "archer" ? 0.35 : 0.18)),
+        chainTargets: 2 + level,
+        chainRange: 1.65 + (level - 1) * 0.12,
+        chainDamageRatio: 0.72,
         upgradeCost: level === 1 ? tower.cost : Math.round(tower.cost * (0.75 + (level - 2) * 0.35) / 5) * 5,
         targetHeight: tower.model_configuration?.targetHeight ?? 2,
       };
       return [level, {
         ...stats,
+        chainTargets: stats.chainTargets ?? 2 + level,
+        chainRange: stats.chainRange ?? 1.65 + (level - 1) * 0.12,
+        chainDamageRatio: stats.chainDamageRatio ?? 0.72,
         targetHeight: tower.model_configuration?.targetHeightByLevel?.[String(level)] ?? tower.model_configuration?.targetHeight ?? 2,
       }];
     })),
@@ -169,12 +185,16 @@ async function submitForm() {
     damage_by_level: Object.fromEntries(towerLevels.value.map(level => [level, Number(form.levelStats[level]?.damage ?? 0)])),
     level_stats: Object.fromEntries(towerLevels.value.map(level => [level, {
       damage: Number(form.levelStats[level]?.damage ?? 0), range: Number(form.levelStats[level]?.range ?? 0),
-      fireRate: Number(form.levelStats[level]?.fireRate ?? 0), upgradeCost: Number(form.levelStats[level]?.upgradeCost ?? 0),
+      fireRate: Number(form.levelStats[level]?.fireRate ?? 0),
+      chainTargets: Number(form.levelStats[level]?.chainTargets ?? 2 + level),
+      chainRange: Number(form.levelStats[level]?.chainRange ?? 1.65 + (level - 1) * 0.12),
+      chainDamageRatio: Number(form.levelStats[level]?.chainDamageRatio ?? 0.72),
+      upgradeCost: Number(form.levelStats[level]?.upgradeCost ?? 0),
     }])),
     range: Number(form.levelStats[1]?.range ?? 0),
     fire_rate: Number(form.levelStats[1]?.fireRate ?? 0), color: form.color,
     image_asset_key: form.imageAssetKey || null,
-    effects: { items: form.effectItems.map(effect => ({ ...effect, value: Number(effect.value), duration: Number(effect.duration), radius: Number(effect.radius), ratio: Number(effect.ratio), perLevel: Number(effect.perLevel) })) },
+    effects: { items: form.effectItems.map(effect => ({ ...effect, value: Number(effect.value), duration: Number(effect.duration), radius: Number(effect.radius), ratio: Number(effect.ratio), multiplier: Number(effect.multiplier), perLevel: Number(effect.perLevel) })) },
     model_asset_keys: Object.fromEntries(towerLevels.value.flatMap(level => [[`dark${level}`, form.darkModels[level] || null], [`human${level}`, form.humanModels[level] || null]])),
     model_configuration: {
       targetHeight: Number(form.levelStats[1]?.targetHeight ?? 2),
@@ -203,6 +223,9 @@ watch(() => form.maxLevel, (maxLevel) => {
         damage: previous?.damage ?? 0,
         range: previous?.range ?? 1,
         fireRate: previous?.fireRate ?? 0,
+        chainTargets: (previous?.chainTargets ?? 2 + level - 1) + 1,
+        chainRange: (previous?.chainRange ?? 1.65 + (level - 2) * 0.12) + 0.12,
+        chainDamageRatio: previous?.chainDamageRatio ?? 0.72,
         upgradeCost: previous?.upgradeCost ?? 0,
         targetHeight: previous?.targetHeight ?? 2,
       };
@@ -250,7 +273,7 @@ onMounted(loadData);
         <div class="tower-form">
           <fieldset><legend><span class="section-icon"><Castle /></span><span>Thông tin cơ bản<small>Tên gọi và trạng thái sử dụng</small></span></legend><div class="form-grid">
             <label><span>Mã tower</span><input v-model.trim="form.id" :disabled="!!editingId" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="VD: fire-elite" /><small>Mỗi tower cần một mã riêng: chữ thường, số và dấu gạch ngang.</small><small v-if="fieldErrors.id">{{ fieldErrors.id[0] }}</small></label>
-            <label><span>Mẫu gameplay</span><select v-model="form.templateKey" required><option v-for="option in towerKindOptions" :key="option[0]" :value="option[0]">{{ option[1] }} ({{ option[0] }})</option></select><small>Nhiều tower được phép dùng chung mẫu này.</small><small v-if="fieldErrors.template_key">{{ fieldErrors.template_key[0] }}</small></label>
+            <label><span>Hình dáng đạn</span><select v-model="form.templateKey" required><option v-for="option in towerKindOptions" :key="option[0]" :value="option[0]">{{ option[1] }} ({{ option[0] }})</option></select><small>Nhiều tower được phép dùng chung mẫu này.</small><small v-if="fieldErrors.template_key">{{ fieldErrors.template_key[0] }}</small></label>
             <label><span>Loại tower</span><select v-model="form.role" required><option value="damage">Trụ gây sát thương</option><option value="buff">Trụ hỗ trợ</option></select><small>Mọi tower tấn công đều dùng chung loại “Trụ gây sát thương”.</small><small v-if="fieldErrors.role">{{ fieldErrors.role[0] }}</small></label>
             <label><span>Tên tower</span><input v-model="form.name" required /></label>
             <label><span>Màu nhận diện</span><input v-model="form.color" type="color" /></label>
@@ -260,9 +283,9 @@ onMounted(loadData);
           </div></fieldset>
           <fieldset><legend><span class="section-icon"><Gauge /></span><span>Chỉ số gameplay theo level<small>Mỗi cấp có bộ chỉ số và giá nâng cấp riêng</small></span></legend><div class="level-stats-builder">
             <div class="level-manager"><div><span>Tổng số level</span><strong>{{ form.maxLevel }} level</strong></div><div><button type="button" :disabled="form.maxLevel <= 1" @click="removeTowerLevel">− Xóa level cuối</button><button type="button" class="primary" @click="addTowerLevel"><Plus /> Thêm level {{ form.maxLevel + 1 }}</button></div></div>
-            <div class="level-stats-list"><article v-for="level in towerLevels" :key="`stats-${level}`" class="level-stat-card"><header><span>LV</span><strong>{{ level }}</strong><div><b>{{ level === 1 ? 'Chỉ số khi xây' : `Nâng cấp lên level ${level}` }}</b><small>{{ level === 1 ? 'Giá level 1 là giá đặt tower' : 'Tất cả giá trị áp dụng ngay sau nâng cấp' }}</small></div></header><div class="form-grid two level-stat-fields"><label><span>{{ form.role === 'buff' ? 'Sát thương (nếu có)' : 'Sát thương' }}</span><input v-model.number="form.levelStats[level].damage" type="number" min="0" step="any" required /></label><label><span>{{ form.role === 'buff' ? 'Phạm vi hỗ trợ' : 'Tầm đánh' }}</span><input v-model.number="form.levelStats[level].range" type="number" min="0.01" step="any" required /></label><label><span>Thời gian giữa đòn</span><div class="input-suffix"><input v-model.number="form.levelStats[level].fireRate" type="number" min="0" step="any" required /><span>giây</span></div></label><label><span>{{ level === 1 ? 'Giá xây' : `Giá nâng lên LV.${level}` }}</span><input v-model.number="form.levelStats[level].upgradeCost" type="number" min="0" step="1" required /></label><label class="wide"><span>Độ cao model LV.{{ level }}</span><input v-model.number="form.levelStats[level].targetHeight" type="number" min="0.01" step="any" required /></label></div></article></div>
+            <div class="level-stats-list"><article v-for="level in towerLevels" :key="`stats-${level}`" class="level-stat-card"><header><span>LV</span><strong>{{ level }}</strong><div><b>{{ level === 1 ? 'Chỉ số khi xây' : `Nâng cấp lên level ${level}` }}</b><small>{{ level === 1 ? 'Giá level 1 là giá đặt tower' : 'Tất cả giá trị áp dụng ngay sau nâng cấp' }}</small></div></header><div class="form-grid two level-stat-fields"><label><span>{{ form.role === 'buff' ? 'Sát thương (nếu có)' : 'Sát thương' }}</span><input v-model.number="levelStatsFor(level).damage" type="number" min="0" step="any" required /></label><label><span>{{ form.role === 'buff' ? 'Phạm vi hỗ trợ' : 'Tầm đánh' }}</span><input v-model.number="levelStatsFor(level).range" type="number" min="0.01" step="any" required /></label><label><span>Thời gian giữa đòn</span><div class="input-suffix"><input v-model.number="levelStatsFor(level).fireRate" type="number" min="0" step="any" required /><span>giây</span></div></label><label><span>{{ level === 1 ? 'Giá xây' : `Giá nâng lên LV.${level}` }}</span><input v-model.number="levelStatsFor(level).upgradeCost" type="number" min="0" step="1" required /></label><label v-if="form.templateKey === 'thunder'"><span>Số mục tiêu tia sét</span><input v-model.number="levelStatsFor(level).chainTargets" type="number" min="1" max="100" step="1" required /></label><label v-if="form.templateKey === 'thunder'"><span>Khoảng cách tia lan</span><input v-model.number="levelStatsFor(level).chainRange" type="number" min="0.01" max="100" step="any" required /></label><label v-if="form.templateKey === 'thunder'"><span>Tỷ lệ damage mỗi lần lan</span><input v-model.number="levelStatsFor(level).chainDamageRatio" type="number" min="0" max="1" step="0.01" required /><small>0.72 tương đương giữ lại 72% damage.</small></label><label class="wide"><span>Độ cao model LV.{{ level }}</span><input v-model.number="levelStatsFor(level).targetHeight" type="number" min="0.01" step="any" required /></label></div></article></div>
           </div></fieldset>
-          <fieldset><legend><span class="section-icon"><Sparkles /></span><span>Hiệu ứng đặc biệt<small>Frontend tự dựng UI và thực thi từ cấu hình này</small></span></legend><div class="effect-builder"><div v-if="!form.effectItems.length" class="effect-empty"><Sparkles /><span>Chưa có hiệu ứng cho tower này.</span></div><article v-for="(effect, index) in form.effectItems" :key="effect.id" class="effect-card"><header><div><span class="effect-color" :style="{ background: effect.color }" /><div><b>{{ effect.name || 'Hiệu ứng mới' }}</b><small>{{ effectHelp(effect.type) }}</small></div></div><button type="button" class="danger" title="Xóa hiệu ứng" @click="removeEffect(index)"><Trash2 /></button></header><div class="form-grid three"><label><span>Loại hiệu ứng</span><select v-model="effect.type" @change="selectEffectType(effect)"><option v-for="option in availableEffectOptions" :key="option.id" :value="option.id">{{ option.name }}</option></select></label><label><span>Tên hiển thị</span><input v-model="effect.name" required /></label><label><span>Màu hiệu ứng</span><input v-model="effect.color" type="color" /></label><label><span>{{ effectValueLabel(effect.behavior) }}</span><input v-model.number="effect.value" type="number" min="0" :max="effect.behavior === 'slow' || effect.behavior.endsWith('_aura') ? 1 : undefined" step="any" /></label><label><span>Tăng thêm mỗi cấp</span><input v-model.number="effect.perLevel" type="number" min="0" step="any" /></label><label v-if="needsDuration(effect.behavior)"><span>Thời lượng (giây)</span><input v-model.number="effect.duration" type="number" min="0" step="any" /></label><label v-if="needsRadius(effect.behavior)"><span>Bán kính</span><input v-model.number="effect.radius" type="number" min="0" step="any" /></label><label v-if="needsRatio(effect.behavior)"><span>Damage tại rìa (0–1)</span><input v-model.number="effect.ratio" type="number" min="0" max="1" step="any" /></label></div></article><button type="button" class="effect-add" :disabled="!availableEffectOptions.length" @click="addEffect"><Plus /> Thêm hiệu ứng {{ form.role === 'buff' ? 'buff' : 'sát thương' }}</button><NuxtLink class="effect-manage-link" to="/admin/tower-defense/effect-types">Quản lý loại hiệu ứng</NuxtLink></div><small v-if="fieldErrors['effects.items']">{{ fieldErrors['effects.items'][0] }}</small></fieldset>
+          <fieldset><legend><span class="section-icon"><Sparkles /></span><span>Hiệu ứng đặc biệt<small>Frontend tự dựng UI và thực thi từ cấu hình này</small></span></legend><div class="effect-builder"><div v-if="!form.effectItems.length" class="effect-empty"><Sparkles /><span>Chưa có hiệu ứng cho tower này.</span></div><article v-for="(effect, index) in form.effectItems" :key="effect.id" class="effect-card"><header><div><span class="effect-color" :style="{ background: effect.color }" /><div><b>{{ effect.name || 'Hiệu ứng mới' }}</b><small>{{ effectHelp(effect.type) }}</small></div></div><button type="button" class="danger" title="Xóa hiệu ứng" @click="removeEffect(index)"><Trash2 /></button></header><div class="form-grid three"><label><span>Loại hiệu ứng</span><select v-model="effect.type" @change="selectEffectType(effect)"><option v-for="option in availableEffectOptions" :key="option.id" :value="option.id">{{ option.name }}</option></select></label><label><span>Tên hiển thị</span><input v-model="effect.name" required /></label><label><span>Màu hiệu ứng</span><input v-model="effect.color" type="color" /></label><label><span>{{ effectValueLabel(effect.behavior) }}</span><input v-model.number="effect.value" type="number" min="0" :max="effect.behavior === 'slow' || effect.behavior === 'critical_hit' || effect.behavior.endsWith('_aura') ? 1 : undefined" step="any" /></label><label><span>Tăng thêm mỗi cấp</span><input v-model.number="effect.perLevel" type="number" min="0" step="any" /></label><label v-if="needsDuration(effect.behavior)"><span>Thời lượng (giây)</span><input v-model.number="effect.duration" type="number" min="0" step="any" /></label><label v-if="needsRadius(effect.behavior)"><span>Bán kính</span><input v-model.number="effect.radius" type="number" min="0" step="any" /></label><label v-if="needsRatio(effect.behavior)"><span>Damage tại rìa (0–1)</span><input v-model.number="effect.ratio" type="number" min="0" max="1" step="any" /></label><label v-if="needsMultiplier(effect.behavior)"><span>Hệ số sát thương chí mạng</span><input v-model.number="effect.multiplier" type="number" min="1" max="100" step="any" /></label></div></article><button type="button" class="effect-add" :disabled="!availableEffectOptions.length" @click="addEffect"><Plus /> Thêm hiệu ứng {{ form.role === 'buff' ? 'buff' : 'sát thương' }}</button><NuxtLink class="effect-manage-link" to="/admin/tower-defense/effect-types">Quản lý loại hiệu ứng</NuxtLink></div><small v-if="fieldErrors['effects.items']">{{ fieldErrors['effects.items'][0] }}</small></fieldset>
           <fieldset><legend><span class="section-icon"><Box /></span><span>Model theo cấp độ<small>GLB/GLTF được tải cho từng phe</small></span></legend><div class="model-factions"><section><header><span class="faction-dot dark" /><div><b>Phe bóng tối</b><small>Model mặc định của quân Dark</small></div></header><label v-for="level in towerLevels" :key="`dark${level}`"><span><b>LV.{{ level }}</b> Cấp {{ level }}</span><select v-model="form.darkModels[level]"><option value="">Không gắn model</option><option v-for="asset in modelAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label></section><section><header><span class="faction-dot human" /><div><b>Phe con người</b><small>Để trống sẽ dùng model Dark</small></div></header><label v-for="level in towerLevels" :key="`human${level}`"><span><b>LV.{{ level }}</b> Cấp {{ level }}</span><select v-model="form.humanModels[level]"><option value="">Không gắn model</option><option v-for="asset in modelAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label></section></div><small v-if="fieldErrors.model_asset_keys">{{ fieldErrors.model_asset_keys[0] }}</small></fieldset>
         </div>
         <p v-if="formError" class="tower-alert">{{ formError }}</p>

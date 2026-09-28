@@ -11,6 +11,7 @@ class TowerDefenseEffectTypeSeeder extends Seeder
     {
         $types = [
             ['id' => 'bonus-damage', 'name' => 'Sát thương cộng thêm', 'role' => 'damage', 'behavior' => 'bonus_damage', 'description' => 'Cộng trực tiếp vào sát thương mỗi đòn.', 'color' => '#ef4444'],
+            ['id' => 'critical-hit', 'name' => 'Chí mạng', 'role' => 'damage', 'behavior' => 'critical_hit', 'description' => 'Mỗi đòn có xác suất nhân sát thương theo hệ số cấu hình.', 'color' => '#facc15'],
             ['id' => 'damage-over-time', 'name' => 'Sát thương theo thời gian', 'role' => 'damage', 'behavior' => 'damage_over_time', 'description' => 'Gây sát thương mỗi giây trong một khoảng thời gian.', 'color' => '#f97316'],
             ['id' => 'slow', 'name' => 'Làm chậm', 'role' => 'damage', 'behavior' => 'slow', 'description' => 'Giảm tốc độ di chuyển của mục tiêu.', 'color' => '#38bdf8'],
             ['id' => 'splash-damage', 'name' => 'Sát thương lan', 'role' => 'damage', 'behavior' => 'splash_damage', 'description' => 'Lan sát thương quanh mục tiêu chính.', 'color' => '#f59e0b'],

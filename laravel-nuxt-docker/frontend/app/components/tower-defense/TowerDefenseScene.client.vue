@@ -6,6 +6,7 @@ import {
   canTowerReceiveSupportBuff,
   isSupportTowerKind,
   towerRangeAtLevel,
+  towerTemplateKind,
 } from "~/composables/useTowerDefense";
 import { mapPathPosition } from "~/games/tower-defense/map-path";
 import {
@@ -28,6 +29,10 @@ import {
   type TowerDefenseImpactScene,
 } from "~/components/tower-defense/scene/impact-scene";
 import {
+  createTowerDefenseDamageNumberScene,
+  type TowerDefenseDamageNumberScene,
+} from "~/components/tower-defense/scene/damage-number-scene";
+import {
   createTowerModelLibrary,
   type LevelledTowerKind,
   type ManagedTowerModelDefinition,
@@ -35,6 +40,7 @@ import {
   type TowerModelLibrary,
 } from "~/components/tower-defense/scene/tower-models";
 import type {
+  DamageNumber,
   Enemy,
   GamePhase,
   Impact,
@@ -50,6 +56,7 @@ const props = defineProps<{
   enemies: Enemy[];
   projectiles: Projectile[];
   impacts: Impact[];
+  damageNumbers: DamageNumber[];
   selectedTowerId: number | null;
   selectedKind: TowerKind | null;
   phase: GamePhase;
@@ -77,6 +84,7 @@ let scene: THREE.Scene | null = null;
 let camera: THREE.PerspectiveCamera | null = null;
 let controls: OrbitControls | null = null;
 let mapBackgroundLayer: TowerDefenseBackgroundLayer | null = null;
+let mapBackgroundLoadPromise: Promise<void> | null = null;
 let animationFrame = 0;
 let resizeObserver: ResizeObserver | null = null;
 let surfaceDetail: THREE.DataTexture | null = null;
@@ -97,6 +105,7 @@ const towerUpgradeEffects = new Map<
 let enemyScene: TowerDefenseEnemyScene | null = null;
 let projectileScene: TowerDefenseProjectileScene | null = null;
 let impactScene: TowerDefenseImpactScene | null = null;
+let damageNumberScene: TowerDefenseDamageNumberScene | null = null;
 const towerTemplates = new Map<Tower["kind"], THREE.Group>();
 let towerModelLibrary: TowerModelLibrary | null = null;
 let towerPreviewModel: THREE.Group | null = null;
@@ -112,12 +121,21 @@ const cameraMapSpan = Math.max(
   props.map.rows * props.map.cellSize,
   8,
 );
-const defaultCameraPosition = new THREE.Vector3(
-  cameraMapSpan * 0.58,
-  cameraMapSpan * 0.82,
-  cameraMapSpan * 0.68,
-);
-const defaultCameraTarget = new THREE.Vector3(0, 0, 0);
+const configuredCameraPosition = props.map.camera?.position;
+const configuredCameraTarget = props.map.camera?.target;
+const defaultCameraPosition = configuredCameraPosition?.every(Number.isFinite)
+  ? new THREE.Vector3(...configuredCameraPosition)
+  : new THREE.Vector3(
+      cameraMapSpan * 0.58,
+      cameraMapSpan * 0.82,
+      cameraMapSpan * 0.68,
+    );
+const defaultCameraTarget = configuredCameraTarget?.every(Number.isFinite)
+  ? new THREE.Vector3(...configuredCameraTarget)
+  : new THREE.Vector3(0, 0, 0);
+const defaultCameraZoom = Number.isFinite(props.map.camera?.zoom)
+  ? THREE.MathUtils.clamp(props.map.camera.zoom, 0.1, 4)
+  : 1;
 const towerScreenPosition = new THREE.Vector3();
 const thunderStartWorld = new THREE.Vector3();
 const thunderEndWorld = new THREE.Vector3();
@@ -141,7 +159,13 @@ let performanceMode = false;
 
 watch(
   () => props.showBrickBackground,
-  (visible) => mapBackgroundLayer?.setVisible(visible),
+  (visible) => {
+    if (mapBackgroundLayer) {
+      mapBackgroundLayer.setVisible(visible);
+      return;
+    }
+    if (visible) void loadMapBackgroundModel();
+  },
 );
 
 // ===== Helpers tọa độ, geometry và giải phóng GPU ===========================
@@ -1679,23 +1703,33 @@ function animateTowerLevelAppearance(
   });
 }
 
+function thunderBeamSegmentCapacity(tower: Tower) {
+  const stats = TOWER_DEFINITIONS[tower.kind]?.levelStats?.[tower.level];
+  return THREE.MathUtils.clamp(
+    Math.round(stats?.chainTargets ?? 2 + tower.level),
+    1,
+    100,
+  );
+}
+
 /** Tạo tia điện nhiều lớp; level cao có thêm lớp để tia dày rõ trên WebGL. */
-function createThunderBeamEffect(level: number) {
+function createThunderBeamEffect(level: number, segmentCapacity: number) {
   const effect = new THREE.Group();
   effect.name = "thunderBeamEffect";
   effect.visible = false;
+  effect.userData.segmentCapacity = segmentCapacity;
   effect.userData.targets = [] as THREE.Group[];
   effect.userData.segmentStarts = Array.from(
-    { length: 5 },
+    { length: segmentCapacity },
     () => new THREE.Vector3(),
   );
   effect.userData.segmentEnds = Array.from(
-    { length: 5 },
+    { length: segmentCapacity },
     () => new THREE.Vector3(),
   );
   const layerRadius = THREE.MathUtils.clamp(Math.round(level) + 1, 2, 4);
   const layerSpacing = level === 1 ? 0.019 : level === 2 ? 0.021 : 0.023;
-  for (let segmentIndex = 0; segmentIndex < 5; segmentIndex++) {
+  for (let segmentIndex = 0; segmentIndex < segmentCapacity; segmentIndex++) {
     for (let lane = -layerRadius; lane <= layerRadius; lane++) {
       const positions = new Float32Array(10 * 3);
       const geometry = new THREE.BufferGeometry();
@@ -1764,8 +1798,10 @@ function createTowerModel(tower: Tower) {
   applyTowerLevelAppearance(group, tower);
   syncTowerLevelLabel(group, tower.level);
   syncTowerBuffBadges(group, tower);
-  if (tower.kind === "thunder")
-    group.add(createThunderBeamEffect(tower.level));
+  if (towerTemplateKind(tower.kind) === "thunder")
+    group.add(
+      createThunderBeamEffect(tower.level, thunderBeamSegmentCapacity(tower)),
+    );
   group.position.copy(worldPosition(tower.x, tower.y));
   group.position.y = 0.05;
   group.userData.shotSequence = tower.shotSequence;
@@ -2171,15 +2207,30 @@ async function loadCastleModel() {
 
 /** Tải layer nền tùy chọn và đồng bộ trạng thái bật/tắt từ HUD. */
 async function loadMapBackgroundModel() {
-  if (!scene) return;
-  const layer = await loadTowerDefenseBackgroundModel(
-    scene,
-    props.map,
-    tileMeshes,
-  );
-  if (!layer || !host.value?.isConnected) return;
-  mapBackgroundLayer = layer;
-  layer.setVisible(props.showBrickBackground);
+  if (mapBackgroundLayer) {
+    mapBackgroundLayer.setVisible(props.showBrickBackground);
+    return;
+  }
+  if (mapBackgroundLoadPromise) return mapBackgroundLoadPromise;
+  const targetScene = scene;
+  if (!targetScene) return;
+  mapBackgroundLoadPromise = (async () => {
+    const layer = await loadTowerDefenseBackgroundModel(
+      targetScene,
+      props.map,
+      tileMeshes,
+    );
+    if (!layer) return;
+    if (!host.value?.isConnected || scene !== targetScene) {
+      disposeObject(layer.group);
+      return;
+    }
+    mapBackgroundLayer = layer;
+    layer.setVisible(props.showBrickBackground);
+  })().finally(() => {
+    mapBackgroundLoadPromise = null;
+  });
+  return mapBackgroundLoadPromise;
 }
 
 // ===== Đồng bộ state gameplay sang Three.js mỗi frame =======================
@@ -2328,6 +2379,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       towerModels.delete(id);
     }
   for (const tower of props.towers) {
+    const templateKind = towerTemplateKind(tower.kind);
     let model = towerModels.get(tower.id) ?? createTowerModel(tower);
     towerModels.set(tower.id, model);
     const renderedLevel = Number(model.userData.level);
@@ -2449,7 +2501,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     }
     const flag = model.userData.flag as THREE.Mesh | undefined;
     if (flag) flag.rotation.z = Math.sin(elapsed * 2.4 + tower.id) * 0.08;
-    if (tower.kind === "frost" || tower.kind === "fire") {
+    if (templateKind === "frost" || templateKind === "fire") {
       const pulse = 0.5 + Math.sin(elapsed * 3.2 + tower.id) * 0.5;
       const glows = model.userData.frostGlows as THREE.Object3D[];
       glows.forEach((glow) => {
@@ -2485,9 +2537,9 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       });
     }
     if (
-      tower.kind === "fire" ||
-      tower.kind === "thunder" ||
-      tower.kind === "water"
+      templateKind === "fire" ||
+      templateKind === "thunder" ||
+      templateKind === "water"
     ) {
       const elementalGlow = model.getObjectByName(
         "elementalTowerGlow",
@@ -2496,29 +2548,55 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
         const pulse =
           1 +
           Math.sin(
-            elapsed * (tower.kind === "thunder" ? 8.5 : 5.2) + tower.id,
+            elapsed * (templateKind === "thunder" ? 8.5 : 5.2) + tower.id,
           ) *
             0.12;
         elementalGlow.scale.setScalar(pulse);
         const ring = elementalGlow.getObjectByName("elementalTowerGlowRing");
         if (ring) {
-          const direction = tower.kind === "water" ? -1 : 1;
-          ring.rotation.z = elapsed * (tower.kind === "thunder" ? 2.8 : 1.25) * direction;
+          const direction = templateKind === "water" ? -1 : 1;
+          ring.rotation.z =
+            elapsed *
+            (templateKind === "thunder" ? 2.8 : 1.25) *
+            direction;
         }
       }
     }
-    if (tower.kind === "thunder") {
-      const beamEffect = model.getObjectByName("thunderBeamEffect") as
+    if (templateKind === "thunder") {
+      const segmentCapacity = thunderBeamSegmentCapacity(tower);
+      let beamEffect = model.getObjectByName("thunderBeamEffect") as
         THREE.Group | undefined;
+      if (
+        !beamEffect ||
+        Number(beamEffect.userData.segmentCapacity) !== segmentCapacity
+      ) {
+        if (beamEffect) disposeObject(beamEffect);
+        beamEffect = createThunderBeamEffect(tower.level, segmentCapacity);
+        model.add(beamEffect);
+      }
       if (beamEffect) {
         const targets = beamEffect.userData.targets as THREE.Group[];
         targets.length = 0;
         for (const id of tower.beamTargetIds) {
+          if (targets.length >= segmentCapacity) break;
           const targetModel = enemyScene?.models.get(id);
           if (targetModel) targets.push(targetModel);
         }
         beamEffect.visible = targets.length > 0;
         if (!targets.length) continue;
+        const flickerFrame = Math.floor(
+          elapsed * (performanceMode ? 18 : 26),
+        );
+        const targetSignature =
+          (performanceMode ? "low:" : "high:") +
+          tower.beamTargetIds.join(":");
+        if (
+          Number(beamEffect.userData.flickerFrame) === flickerFrame &&
+          String(beamEffect.userData.targetSignature) === targetSignature
+        )
+          continue;
+        beamEffect.userData.flickerFrame = flickerFrame;
+        beamEffect.userData.targetSignature = targetSignature;
         model.updateMatrixWorld(true);
         const segmentStarts = beamEffect.userData
           .segmentStarts as THREE.Vector3[];
@@ -2546,7 +2624,6 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
           model.worldToLocal(segmentStarts[segmentIndex]!);
           model.worldToLocal(segmentEnds[segmentIndex]!);
         }
-        const flickerFrame = Math.floor(elapsed * 26);
         const random = (
           segmentIndex: number,
           pointIndex: number,
@@ -2570,8 +2647,13 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
           const layerSpacing = Number(beam.userData.layerSpacing) || 0.019;
           const branchIndex = Number(beam.userData.branchIndex);
           const targetModel = targets[segmentIndex];
-          beam.visible = Boolean(targetModel);
-          if (!targetModel) return;
+          const hiddenForPerformance =
+            performanceMode &&
+            (child.name === "thunderBranchBeam"
+              ? branchIndex > 0
+              : Math.abs(lane) > 1);
+          beam.visible = Boolean(targetModel) && !hiddenForPerformance;
+          if (!beam.visible) return;
           const start = segmentStarts[segmentIndex]!;
           const end = segmentEnds[segmentIndex]!;
           const position = beam.geometry.getAttribute(
@@ -2714,6 +2796,10 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     }
   }
 
+  damageNumberScene?.sync({
+    damageNumbers: props.damageNumbers,
+    frameDelta: props.isPaused ? 0 : frameDelta,
+  });
   enemyScene?.sync({
     enemies: props.enemies,
     elapsed,
@@ -2721,6 +2807,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     now,
     speedMultiplier: props.speedMultiplier,
     worldUnitsPerCell: DEFENSE_CELL_SIZE,
+    reducedEffects: performanceMode,
     pathPosition,
   });
   projectileScene?.sync({
@@ -2745,14 +2832,19 @@ function updateCameraReturn(frameDelta: number) {
   const easing = 1 - Math.exp(-frameDelta * 6.5);
   camera.position.lerp(defaultCameraPosition, easing);
   controls.target.lerp(defaultCameraTarget, easing);
+  camera.zoom = THREE.MathUtils.lerp(camera.zoom, defaultCameraZoom, easing);
+  camera.updateProjectionMatrix();
   camera.lookAt(controls.target);
 
   if (
     camera.position.distanceToSquared(defaultCameraPosition) < 0.0004 &&
-    controls.target.distanceToSquared(defaultCameraTarget) < 0.0004
+    controls.target.distanceToSquared(defaultCameraTarget) < 0.0004 &&
+    Math.abs(camera.zoom - defaultCameraZoom) < 0.001
   ) {
     camera.position.copy(defaultCameraPosition);
     controls.target.copy(defaultCameraTarget);
+    camera.zoom = defaultCameraZoom;
+    camera.updateProjectionMatrix();
     camera.lookAt(controls.target);
     cameraReturning = false;
     controls.enabled = true;
@@ -2841,6 +2933,7 @@ async function createWorld() {
     const cameraFar = Math.max(250, cameraMapSpan * 10);
     camera = new THREE.PerspectiveCamera(38, 1, 0.1, cameraFar);
     camera.position.copy(defaultCameraPosition);
+    camera.zoom = defaultCameraZoom;
     camera.lookAt(defaultCameraTarget);
     camera.updateProjectionMatrix();
     enemyScene = createTowerDefenseEnemyScene(scene, camera, {
@@ -2856,6 +2949,10 @@ async function createWorld() {
           .filter((definition) => definition.model)
           .map((definition) => [definition.id, definition.model!]),
       ),
+    });
+    damageNumberScene = createTowerDefenseDamageNumberScene(scene, {
+      enemyModels: enemyScene.models,
+      worldPosition: (point) => worldPosition(point.x, point.y),
     });
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.copy(defaultCameraTarget);
@@ -3046,7 +3143,9 @@ async function createWorld() {
     await Promise.allSettled([
       towerModelLibrary.load(),
       enemyScene.load(),
-      loadMapBackgroundModel(),
+      props.showBrickBackground
+        ? loadMapBackgroundModel()
+        : Promise.resolve(),
       loadCastleModel(),
     ]);
     if (!renderer || !scene || !camera || !host.value?.isConnected) return;
@@ -3089,6 +3188,8 @@ onBeforeUnmount(() => {
   projectileScene = null;
   impactScene?.dispose();
   impactScene = null;
+  damageNumberScene?.dispose();
+  damageNumberScene = null;
   enemyScene?.dispose();
   enemyScene = null;
   mapBackgroundLayer = null;

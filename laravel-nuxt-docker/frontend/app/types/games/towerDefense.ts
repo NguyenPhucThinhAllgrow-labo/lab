@@ -43,6 +43,8 @@ export interface TowerDefenseMapScenery {
 export interface TowerDefenseMapDefinition {
   id: string;
   name: string;
+  /** Hash cấu hình dùng để không khôi phục snapshot thuộc phiên bản map cũ. */
+  configurationVersion: string;
   columns: number;
   rows: number;
   /** Số tháp tối đa người chơi được xây trên map. */
@@ -175,12 +177,16 @@ export interface TowerLevelStats {
   damage: number;
   range: number;
   fireRate: number;
+  chainTargets?: number;
+  chainRange?: number;
+  chainDamageRatio?: number;
   /** Cấp 1 là giá xây; từ cấp 2 trở đi là giá nâng lên cấp đó. */
   upgradeCost: number;
 }
 
 export type TowerEffectBehavior =
   | "bonus_damage"
+  | "critical_hit"
   | "damage_over_time"
   | "slow"
   | "splash_damage"
@@ -196,6 +202,7 @@ export interface TowerEffectDefinition {
   duration?: number;
   radius?: number;
   ratio?: number;
+  multiplier?: number;
   perLevel?: number;
   color?: string;
 }
@@ -210,6 +217,8 @@ export interface Tower extends GridPoint {
   aimAngle: number;
   shotSequence: number;
   beamTargetIds: number[];
+  lastAttackCritical?: boolean;
+  criticalDamageMultiplier?: number;
   canRelocate: boolean;
 }
 
@@ -237,6 +246,7 @@ export interface Enemy {
   isFrozen: boolean;
   burnRemaining: number;
   burnDamagePerSecond: number;
+  burnDamageColor?: string;
 }
 
 export interface Projectile {
@@ -248,6 +258,8 @@ export interface Projectile {
   duration: number;
   targetId: number;
   damage: number;
+  critical?: boolean;
+  color?: string;
   level: number;
   slow?: number;
   slowDuration?: number;
@@ -266,12 +278,26 @@ export interface Impact {
   radius?: number;
 }
 
+/** Số sát thương nổi chỉ tồn tại tạm thời ở lớp trình bày, không lưu vào snapshot. */
+export interface DamageNumber {
+  id: number;
+  enemyId: number;
+  kind: TowerKind;
+  position: GridPoint;
+  amount: number;
+  critical?: boolean;
+  color: string;
+  life: number;
+  duration: number;
+}
+
 export type GamePhase = "ready" | "wave" | "between" | "completed" | "gameover";
 
 /** Snapshot đầy đủ để tiếp tục chính xác một phiên sau khi tải lại trang. */
 export interface TowerDefenseGameSnapshot {
   version: 1;
   mapId: string;
+  mapConfigurationVersion: string;
   phase: GamePhase;
   credits: number;
   castleHealth: number;

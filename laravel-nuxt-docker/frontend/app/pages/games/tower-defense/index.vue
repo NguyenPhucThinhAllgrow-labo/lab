@@ -92,6 +92,7 @@ const {
   enemies,
   projectiles,
   impacts,
+  damageNumbers,
   pendingEnemies,
   nextWaveCountdown,
   message,
@@ -177,6 +178,8 @@ const towerKinds = towerCatalog.activeKinds;
 const completionWave = computed(() => map.completionWave ?? 20);
 function effectSummary(effect: TowerEffectDefinition, level: number) {
   const value = towerEffectValue(effect, level);
+  if (effect.behavior === "critical_hit")
+    return Math.round(value * 100) + "% chí mạng · x" + (effect.multiplier ?? 2).toFixed(1);
   if (effect.behavior === "damage_over_time") return `${value.toFixed(1)} damage/s · ${effect.duration ?? 0}s`;
   if (effect.behavior === "slow") return `${Math.round(value * 100)}% · ${effect.duration ?? 0}s`;
   if (effect.behavior === "splash_damage") return `Bán kính ${effect.radius ?? 0} · ${Math.round((effect.ratio ?? 1) * 100)}% tại rìa`;
@@ -387,8 +390,11 @@ async function loadSavedSession() {
     const response = await api<TowerDefenseSessionResponse>(
       `/api/tower-defense/maps/${encodeURIComponent(map.id)}/session`,
     );
-    if (response.data && restoreSnapshot(response.data.snapshot)) {
+    if (response.data) {
       selectedFaction.value = response.data.faction;
+      if (!restoreSnapshot(response.data.snapshot))
+        message.value =
+          "Cấu hình map đã thay đổi. Đã bắt đầu trận mới với thông số hiện tại.";
     }
   } catch (error: any) {
     const status = error?.statusCode ?? error?.status ?? error?.response?.status;
@@ -842,6 +848,7 @@ onBeforeUnmount(() => {
                 :enemies="enemies"
                 :projectiles="projectiles"
                 :impacts="impacts"
+                :damage-numbers="damageNumbers"
                 :selected-tower-id="selectedTowerId"
                 :selected-kind="selectedKind"
                 :phase="phase"
@@ -1345,7 +1352,7 @@ onBeforeUnmount(() => {
                       aria-hidden="true"
                     >
                       <img v-if="TOWER_DEFINITIONS[kind].imageUrl" :src="TOWER_DEFINITIONS[kind].imageUrl" :alt="TOWER_DEFINITIONS[kind].name" />
-                      <template v-else><Crosshair v-if="kind === 'archer'" /><Bomb v-else-if="kind === 'cannon'" /><Snowflake v-else-if="kind === 'frost'" /><Flame v-else-if="kind === 'fire'" /><Zap v-else-if="kind === 'thunder'" /><Waves v-else-if="kind === 'water'" /><Gauge v-else-if="kind === 'speed'" /><Swords v-else /></template>
+                      <template v-else><Crosshair v-if="kind === 'archer'" /><Bomb v-else-if="kind === 'cannon'" /><Snowflake v-else-if="kind === 'frost'" /><Flame v-else-if="kind === 'fire'" /><Zap v-else-if="kind === 'thunder'" /><Waves v-else-if="kind === 'water'" /><Gauge v-else-if="kind === 'support'" /><Swords v-else /></template>
                     </span>
                     <div>
                       <strong>{{ TOWER_DEFINITIONS[kind].name }}</strong

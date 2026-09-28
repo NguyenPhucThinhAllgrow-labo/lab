@@ -1,11 +1,13 @@
 import type {
   BossClass,
+  DamageNumber,
   Enemy,
   GamePhase,
   GridPoint,
   Impact,
   Projectile,
   Tower,
+  TowerDefinition,
   TowerKind,
   TowerDefenseMapDefinition,
   TowerDefenseGameSnapshot,
@@ -82,6 +84,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   const enemies = shallowRef<Enemy[]>([]);
   const projectiles = shallowRef<Projectile[]>([]);
   const impacts = shallowRef<Impact[]>([]);
+  const damageNumbers = shallowRef<DamageNumber[]>([]);
+  const damageNumbersByEnemyId = new Map<number, DamageNumber>();
   const undoableTowerIds = ref<number[]>([]);
   const pendingEnemies = ref(0);
   const nextWaveCountdown = ref(0);
@@ -92,6 +96,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   let nextManagedBossIndex = 0;
   let nextProjectileId = 1;
   let nextImpactId = 1;
+  let nextDamageNumberId = 1;
   const pendingEnemiesByLane: [number, number] = [0, 0];
   const spawnCooldownByLane: [number, number] = [0, 0];
   let pendingBosses: Array<{
@@ -156,8 +161,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       const supportDefinition = TOWER_DEFINITIONS[support.kind];
       const effectType = supportKind === "speed" ? "attack_speed_aura" : "damage_aura";
       const effect = supportDefinition.effects?.find((item) => item.behavior === effectType);
-      if (!effect && support.kind !== supportKind) return strongest;
-      const range = towerRangeAtLevel(supportDefinition, support.level);
+      if (!effect) return strongest;
+      const range = effect.radius ?? towerRangeAtLevel(supportDefinition, support.level);
       if (Math.hypot(support.x - tower.x, support.y - tower.y) > range)
         return strongest;
       return Math.max(
@@ -467,6 +472,99 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     return mapPathPosition(map, enemy.progress, enemy.lane);
   }
 
+  /** Roll một lần cho mỗi đòn; tỷ lệ được giới hạn trong khoảng 0–100%. */
+  function rollCriticalHit(definition: TowerDefinition, level: number) {
+    const effect = definition.effects?.find(
+      (item) => item.behavior === "critical_hit",
+    );
+    if (!effect) return { isCritical: false, multiplier: 1 };
+    const chance = Math.min(1, Math.max(0, towerEffectValue(effect, level)));
+    const isCritical = Math.random() < chance;
+    return {
+      isCritical,
+      multiplier: isCritical ? Math.max(1, effect.multiplier ?? 2) : 1,
+    };
+  }
+
+  /** Áp dụng kháng và gom các tick gần nhau để tránh tạo quá nhiều texture. */
+  function applyDamage(
+    enemy: Enemy,
+    kind: TowerKind,
+    rawDamage: number,
+    color = TOWER_DEFINITIONS[kind]?.color ?? "#ffffff",
+    critical = false,
+  ) {
+    const hpBefore = Math.max(0, enemy.hp);
+    const resolvedDamage = damageEnemy(enemy, kind, rawDamage);
+    const healthLost = Math.min(hpBefore, Math.max(0, resolvedDamage));
+    if (healthLost <= 0) return;
+
+    const playbackSpeed = speedMultiplier.value;
+    const duration = 0.82 * playbackSpeed;
+    const mergeLifeThreshold = duration - 0.2 * playbackSpeed;
+    const current = damageNumbersByEnemyId.get(enemy.id);
+    if (current) {
+      if (current.life >= mergeLifeThreshold) {
+        current.amount += healthLost;
+      } else {
+        current.id = nextDamageNumberId++;
+        current.amount = healthLost;
+        current.life = duration;
+        current.duration = duration;
+        current.critical = false;
+      }
+      current.kind = kind;
+      current.color = color;
+      current.critical = current.critical || critical;
+      current.position = positionFor(enemy);
+      return;
+    }
+
+    const damageNumber: DamageNumber = {
+      id: nextDamageNumberId++,
+      enemyId: enemy.id,
+      kind,
+      position: positionFor(enemy),
+      amount: healthLost,
+      critical,
+      color,
+      life: duration,
+      duration,
+    };
+    damageNumbers.value.push(damageNumber);
+    damageNumbersByEnemyId.set(enemy.id, damageNumber);
+    const overflow = damageNumbers.value.length - 72;
+    if (overflow > 0) {
+      const removed = damageNumbers.value.splice(0, overflow);
+      for (const item of removed) damageNumbersByEnemyId.delete(item.enemyId);
+    }
+  }
+
+  function applySlowToEnemy(enemy: Enemy, amount?: number, baseDuration?: number) {
+    if (!amount || !baseDuration) return;
+    const duration = enemyEffectDuration(enemy, "slow", baseDuration);
+    if (duration <= 0) return;
+    enemy.slowUntil = Math.max(enemy.slowUntil, elapsed + duration);
+    enemy.slowAmount = Math.max(enemy.slowAmount, amount);
+    enemy.isSlowed = true;
+  }
+
+  function applyBurnToEnemy(
+    enemy: Enemy,
+    damagePerSecond?: number,
+    baseDuration?: number,
+    color?: string,
+  ) {
+    if (!damagePerSecond || !baseDuration) return;
+    const duration = enemyEffectDuration(enemy, "burn", baseDuration);
+    if (duration <= 0) return;
+    enemy.burnRemaining = Math.max(enemy.burnRemaining, duration);
+    if (damagePerSecond >= enemy.burnDamagePerSecond) {
+      enemy.burnDamagePerSecond = damagePerSecond;
+      enemy.burnDamageColor = color;
+    }
+  }
+
   // ===== Simulation chiến đấu ==============================================
   // Một bước mô phỏng xử lý đạn đến đích, hiệu ứng trạng thái, di chuyển quái,
   // chọn mục tiêu, tháp khai hỏa và điều kiện kết thúc wave/game.
@@ -476,13 +574,16 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     elapsed += dt;
     const enemyById = new Map(enemies.value.map((enemy) => [enemy.id, enemy]));
     const arrived: Projectile[] = [];
-    projectiles.value = projectiles.value.filter((projectile) => {
+    let activeProjectileCount = 0;
+    for (const projectile of projectiles.value) {
       const target = enemyById.get(projectile.targetId);
       if (target) projectile.to = positionFor(target);
       projectile.life -= dt;
-      if (projectile.life <= 0) arrived.push(projectile);
-      return projectile.life > 0 && Boolean(target);
-    });
+      if (projectile.life <= 0 && target) arrived.push(projectile);
+      if (projectile.life <= 0 || !target) continue;
+      projectiles.value[activeProjectileCount++] = projectile;
+    }
+    projectiles.value.length = activeProjectileCount;
     for (const projectile of arrived) {
       const target = enemyById.get(projectile.targetId);
       if (!target) continue;
@@ -510,40 +611,24 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
           splashExtent > 0 ? Math.min(1, distanceFromCenter / splashExtent) : 0;
         const edgeDamageRatio = projectile.splashDamageRatio ?? 1;
         const damageRatio = 1 - distanceRatio * (1 - edgeDamageRatio);
-        damageEnemy(
+        applyDamage(
           affectedEnemy,
           projectile.kind,
           projectile.damage * damageRatio,
+          projectile.color,
+          projectile.critical,
         );
-        if (projectile.slow) {
-          const slowDuration = enemyEffectDuration(
-            affectedEnemy,
-            "slow",
-            projectile.slowDuration ?? WATER_SLOW_DURATION_SECONDS,
-          );
-          if (slowDuration > 0) {
-            affectedEnemy.slowUntil = elapsed + slowDuration;
-            affectedEnemy.slowAmount = Math.max(
-              affectedEnemy.slowAmount,
-              projectile.slow,
-            );
-            affectedEnemy.isSlowed = true;
-          }
-        }
-        if (projectile.burnDuration && projectile.burnDamagePerSecond) {
-          const burnDuration = enemyEffectDuration(
-            affectedEnemy,
-            "burn",
-            projectile.burnDuration,
-          );
-          if (burnDuration > 0) {
-            affectedEnemy.burnRemaining = burnDuration;
-            affectedEnemy.burnDamagePerSecond = Math.max(
-              affectedEnemy.burnDamagePerSecond,
-              projectile.burnDamagePerSecond,
-            );
-          }
-        }
+        applySlowToEnemy(
+          affectedEnemy,
+          projectile.slow,
+          projectile.slowDuration ?? WATER_SLOW_DURATION_SECONDS,
+        );
+        applyBurnToEnemy(
+          affectedEnemy,
+          projectile.burnDamagePerSecond,
+          projectile.burnDuration,
+          projectile.color,
+        );
       }
       impacts.value.push({
         id: nextImpactId++,
@@ -561,10 +646,18 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         level: projectile.level,
       });
     }
-    impacts.value = impacts.value.filter((impact) => {
+    for (let index = impacts.value.length - 1; index >= 0; index--) {
+      const impact = impacts.value[index]!;
       impact.life -= dt;
-      return impact.life > 0;
-    });
+      if (impact.life <= 0) impacts.value.splice(index, 1);
+    }
+    for (let index = damageNumbers.value.length - 1; index >= 0; index--) {
+      const damageNumber = damageNumbers.value[index]!;
+      damageNumber.life -= dt;
+      if (damageNumber.life > 0) continue;
+      damageNumbers.value.splice(index, 1);
+      damageNumbersByEnemyId.delete(damageNumber.enemyId);
+    }
     const baseSpawnInterval = Math.max(0.45, 1.15 - wave.value * 0.025);
     for (const lane of [0, 1] as const) {
       spawnCooldownByLane[lane] -= dt;
@@ -581,9 +674,17 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
 
     for (const enemy of enemies.value) {
       if (enemy.burnRemaining > 0) {
-        damageEnemy(enemy, "fire", enemy.burnDamagePerSecond * dt);
+        applyDamage(
+          enemy,
+          "fire",
+          enemy.burnDamagePerSecond * dt,
+          enemy.burnDamageColor,
+        );
         enemy.burnRemaining = Math.max(0, enemy.burnRemaining - dt);
-        if (enemy.burnRemaining === 0) enemy.burnDamagePerSecond = 0;
+        if (enemy.burnRemaining === 0) {
+          enemy.burnDamagePerSecond = 0;
+          enemy.burnDamageColor = undefined;
+        }
       }
       const frozen = enemy.frozenUntil > elapsed;
       const slowed = enemy.slowUntil > elapsed;
@@ -630,52 +731,128 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       const damageMultiplier = 1 + supportBonusFor(tower, "damage");
       const attackSpeedMultiplier = 1 + supportBonusFor(tower, "speed");
       const effectiveRange = towerRangeAtLevel(definition, tower.level);
+      const levelMultiplier = 1 + (tower.level - 1) * 0.55;
+      const bonusDamage = (definition.effects ?? [])
+        .filter((effect) => effect.behavior === "bonus_damage")
+        .reduce((total, effect) => total + towerEffectValue(effect, tower.level), 0);
+      const slowEffect = definition.effects?.find((effect) => effect.behavior === "slow");
+      const burnEffect = definition.effects?.find((effect) => effect.behavior === "damage_over_time");
+      const splashEffect = definition.effects?.find((effect) => effect.behavior === "splash_damage");
+      const targetingRange = combatKind === "frost"
+        ? Math.max(effectiveRange, splashEffect?.radius ?? 0)
+        : effectiveRange;
       const target = targetsByProgress.find((enemy) => {
         if (enemy.hp <= 0) return false;
         const position = enemyPositions.get(enemy.id)!;
         const hitRadius = combatKind === "frost" ? ENEMY_HIT_RADIUS : 0;
         return (
           Math.hypot(position.x - tower.x, position.y - tower.y) <=
-          effectiveRange + hitRadius
+          targetingRange + hitRadius
         );
       });
       if (combatKind === "thunder") {
         tower.beamTargetIds = [];
+        tower.cooldown -= dt;
         if (!target) continue;
+        if (tower.cooldown <= 0) {
+          const criticalHit = rollCriticalHit(definition, tower.level);
+          tower.lastAttackCritical = criticalHit.isCritical;
+          tower.criticalDamageMultiplier = criticalHit.multiplier;
+          tower.cooldown = 0.35 / attackSpeedMultiplier;
+        }
         const chainTargets: Enemy[] = [target];
-        const maxTargets = 2 + tower.level;
-        const chainRange = 1.65 + (tower.level - 1) * 0.12;
+        const chainedTargetIds = new Set([target.id]);
+        const lightningStats = definition.levelStats?.[tower.level];
+        const maxTargets = Math.max(
+          1,
+          Math.round(lightningStats?.chainTargets ?? 2 + tower.level),
+        );
+        const chainRange = Math.max(
+          0.01,
+          lightningStats?.chainRange ?? 1.65 + (tower.level - 1) * 0.12,
+        );
+        const chainDamageRatio = Math.min(
+          1,
+          Math.max(0, lightningStats?.chainDamageRatio ?? 0.72),
+        );
         while (chainTargets.length < maxTargets) {
           const previous = chainTargets[chainTargets.length - 1]!;
           const previousPosition = enemyPositions.get(previous.id)!;
-          const next = targetsByProgress.find((enemy) => {
-            if (
-              enemy.hp <= 0 ||
-              chainTargets.some((item) => item.id === enemy.id)
-            )
-              return false;
+          let next: Enemy | undefined;
+          let nearestDistance = Number.POSITIVE_INFINITY;
+          for (const enemy of targetsByProgress) {
+            if (enemy.hp <= 0 || chainedTargetIds.has(enemy.id)) continue;
             const position = enemyPositions.get(enemy.id)!;
-            return (
-              Math.hypot(
-                position.x - previousPosition.x,
-                position.y - previousPosition.y,
-              ) <= chainRange
+            const distance = Math.hypot(
+              position.x - previousPosition.x,
+              position.y - previousPosition.y,
             );
-          });
+            if (distance > chainRange || distance >= nearestDistance) continue;
+            next = enemy;
+            nearestDistance = distance;
+          }
           if (!next) break;
           chainTargets.push(next);
+          chainedTargetIds.add(next.id);
         }
-        chainTargets.forEach((enemy, index) => {
-          damageEnemy(
+        const affectedByThunder = new Map<number, { enemy: Enemy; damageScale: number }>();
+        chainTargets.forEach((chainTarget, index) => {
+          const chainScale = Math.pow(chainDamageRatio, index);
+          const center = enemyPositions.get(chainTarget.id)!;
+          const candidates = splashEffect ? targetsByProgress : [chainTarget];
+          for (const enemy of candidates) {
+            const position = enemyPositions.get(enemy.id)!;
+            const splashExtent = (splashEffect?.radius ?? 0) + ENEMY_HIT_RADIUS;
+            const distance = Math.hypot(
+              position.x - center.x,
+              position.y - center.y,
+            );
+            if (splashEffect && distance > splashExtent) continue;
+            const distanceRatio = splashExtent > 0
+              ? Math.min(1, distance / splashExtent)
+              : 0;
+            const splashScale = 1 -
+              distanceRatio * (1 - (splashEffect?.ratio ?? 1));
+            const damageScale = chainScale * splashScale;
+            const current = affectedByThunder.get(enemy.id);
+            if (!current || damageScale > current.damageScale)
+              affectedByThunder.set(enemy.id, { enemy, damageScale });
+          }
+        });
+        const thunderBurnDamage = burnEffect
+          ? towerEffectValue(burnEffect, tower.level) * damageMultiplier
+          : definition.burnDamagePerSecond
+            ? definition.burnDamagePerSecond * levelMultiplier * damageMultiplier
+            : undefined;
+        const thunderCritical = {
+          isCritical: Boolean(tower.lastAttackCritical),
+          multiplier: tower.criticalDamageMultiplier ?? 1,
+        };
+        for (const { enemy, damageScale } of affectedByThunder.values()) {
+          applyDamage(
             enemy,
             "thunder",
-            towerDamageAtLevel(definition, tower.level) *
+            (towerDamageAtLevel(definition, tower.level) + bonusDamage) *
               damageMultiplier *
               attackSpeedMultiplier *
-              Math.pow(0.72, index) *
-              dt,
+              damageScale *
+              dt *
+              thunderCritical.multiplier,
+            definition.color,
+            thunderCritical.isCritical,
           );
-        });
+          applySlowToEnemy(
+            enemy,
+            slowEffect ? towerEffectValue(slowEffect, tower.level) : definition.slow,
+            slowEffect?.duration ?? definition.slowDuration,
+          );
+          applyBurnToEnemy(
+            enemy,
+            thunderBurnDamage,
+            burnEffect?.duration ?? definition.burnDuration,
+            definition.color,
+          );
+        }
         tower.beamTargetIds = chainTargets.map((enemy) => enemy.id);
         const targetPosition = enemyPositions.get(target.id)!;
         tower.aimAngle =
@@ -696,33 +873,70 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       tower.firingUntil = elapsed + 0.22;
       tower.shotSequence++;
       if (combatKind === "frost") {
-        const frostRadius = FROST_EFFECT_RADIUS;
+        const frostRadius = effectiveRange;
+        const effectRadius = Math.max(frostRadius, splashEffect?.radius ?? 0);
+        const effectExtent = effectRadius + ENEMY_HIT_RADIUS;
+        const frostBurnDamage = burnEffect
+          ? towerEffectValue(burnEffect, tower.level) * damageMultiplier
+          : definition.burnDamagePerSecond
+            ? definition.burnDamagePerSecond * levelMultiplier * damageMultiplier
+            : undefined;
+        const frostCritical = rollCriticalHit(definition, tower.level);
         for (const enemy of enemies.value) {
           if (enemy.hp <= 0 || enemy.progress < 0) continue;
           const position = enemyPositions.get(enemy.id)!;
-          // Tính cả thân quái khi chạm mép vùng, thay vì yêu cầu tâm quái phải
-          // lọt tuyệt đối vào bán kính. Nhờ vậy tick 100 ms không bỏ sót sát thương.
-          if (
-            Math.hypot(position.x - tower.x, position.y - tower.y) >
-            frostRadius + ENEMY_HIT_RADIUS
-          )
-            continue;
-          const freezeDuration = enemyEffectDuration(
-            enemy,
-            "freeze",
-            FROST_SLOW_DURATION_SECONDS,
+          const distance = Math.hypot(
+            position.x - tower.x,
+            position.y - tower.y,
           );
-          if (freezeDuration > 0) {
-            enemy.frozenUntil = elapsed + freezeDuration;
-            enemy.isFrozen = true;
+          if (distance > effectExtent) continue;
+
+          if (distance <= frostRadius + ENEMY_HIT_RADIUS) {
+            const freezeDuration = enemyEffectDuration(
+              enemy,
+              "freeze",
+              FROST_SLOW_DURATION_SECONDS,
+            );
+            if (freezeDuration > 0) {
+              enemy.frozenUntil = elapsed + freezeDuration;
+              enemy.isFrozen = true;
+            }
           }
+
+          const distanceRatio = effectExtent > 0
+            ? Math.min(1, distance / effectExtent)
+            : 0;
+          const damageRatio = splashEffect
+            ? 1 - distanceRatio * (1 - (splashEffect.ratio ?? 1))
+            : 1;
+          applyDamage(
+            enemy,
+            "frost",
+            (towerDamageAtLevel(definition, tower.level) + bonusDamage) *
+              damageMultiplier *
+              damageRatio *
+              frostCritical.multiplier,
+            definition.color,
+            frostCritical.isCritical,
+          );
+          applySlowToEnemy(
+            enemy,
+            slowEffect ? towerEffectValue(slowEffect, tower.level) : definition.slow,
+            slowEffect?.duration ?? definition.slowDuration,
+          );
+          applyBurnToEnemy(
+            enemy,
+            frostBurnDamage,
+            burnEffect?.duration ?? definition.burnDuration,
+            definition.color,
+          );
         }
         impacts.value.push({
           id: nextImpactId++,
           kind: "frost",
           position: { x: tower.x, y: tower.y },
           life: 1.05,
-          radius: frostRadius,
+          radius: effectRadius,
           level: tower.level,
         });
         tower.cooldown =
@@ -731,13 +945,6 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       }
       const shotDuration =
         combatKind === "fire" ? 0.55 : combatKind === "water" ? 0.28 : 0.34;
-      const levelMultiplier = 1 + (tower.level - 1) * 0.55;
-      const bonusDamage = (definition.effects ?? [])
-        .filter((effect) => effect.behavior === "bonus_damage")
-        .reduce((total, effect) => total + towerEffectValue(effect, tower.level), 0);
-      const slowEffect = definition.effects?.find((effect) => effect.behavior === "slow");
-      const burnEffect = definition.effects?.find((effect) => effect.behavior === "damage_over_time");
-      const splashEffect = definition.effects?.find((effect) => effect.behavior === "splash_damage");
       const shotTargets =
         combatKind === "archer"
           ? targetsByProgress
@@ -751,6 +958,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
               .slice(0, 1 + (tower.level - 1) * 2)
           : [target];
       for (const shotTarget of shotTargets) {
+        const criticalHit = rollCriticalHit(definition, tower.level);
         // Gameplay chỉ lưu ô xuất phát/đích. Scene 3D sẽ đổi chúng sang world
         // space rồi hiệu chỉnh điểm xuất phát theo đầu nòng hoặc glow của tháp.
         projectiles.value.push({
@@ -761,7 +969,12 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
           life: shotDuration,
           duration: shotDuration / speedMultiplier.value,
           targetId: shotTarget.id,
-          damage: (towerDamageAtLevel(definition, tower.level) + bonusDamage) * damageMultiplier,
+          damage:
+            (towerDamageAtLevel(definition, tower.level) + bonusDamage) *
+            damageMultiplier *
+            criticalHit.multiplier,
+          critical: criticalHit.isCritical,
+          color: definition.color,
           level: tower.level,
           slow: slowEffect ? towerEffectValue(slowEffect, tower.level) : definition.slow,
           slowDuration: slowEffect?.duration ?? definition.slowDuration,
@@ -814,6 +1027,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     triggerRef(enemies);
     triggerRef(projectiles);
     triggerRef(impacts);
+    triggerRef(damageNumbers);
   }
 
   // Đồng hồ thực được chia thành bước nhỏ để gameplay ổn định khi đổi tốc độ.
@@ -868,6 +1082,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     return JSON.parse(JSON.stringify({
       version: 1,
       mapId: map.id,
+      mapConfigurationVersion: map.configurationVersion,
       phase: phase.value,
       credits: credits.value,
       castleHealth: castleHealth.value,
@@ -902,6 +1117,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     if (
       snapshot?.version !== 1 ||
       snapshot.mapId !== map.id ||
+      snapshot.mapConfigurationVersion !== map.configurationVersion ||
       !Array.isArray(snapshot.towers) ||
       !Array.isArray(snapshot.enemies)
     ) return false;
@@ -932,6 +1148,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     enemies.value = restored.enemies;
     projectiles.value = Array.isArray(restored.projectiles) ? restored.projectiles : [];
     impacts.value = Array.isArray(restored.impacts) ? restored.impacts : [];
+    damageNumbers.value = [];
+    damageNumbersByEnemyId.clear();
     pendingEnemies.value = Math.max(0, Math.floor(Number(restored.pendingEnemies) || 0));
     nextWaveCountdown.value = Math.max(0, Number(restored.nextWaveCountdown) || 0);
     undoableTowerIds.value = Array.isArray(restored.undoableTowerIds)
@@ -990,6 +1208,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     enemies.value = [];
     projectiles.value = [];
     impacts.value = [];
+    damageNumbers.value = [];
+    damageNumbersByEnemyId.clear();
     pendingEnemies.value = 0;
     nextWaveCountdown.value = 0;
     selectedKind.value = null;
@@ -1000,6 +1220,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     nextManagedBossIndex = 0;
     nextProjectileId = 1;
     nextImpactId = 1;
+    nextDamageNumberId = 1;
     elapsed = 0;
     undoableTowerIds.value = [];
     pendingEnemiesByLane[0] = 0;
@@ -1069,6 +1290,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     enemies,
     projectiles,
     impacts,
+    damageNumbers,
     pendingEnemies,
     nextWaveCountdown,
     message,

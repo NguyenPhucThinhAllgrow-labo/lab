@@ -69,6 +69,9 @@ export async function fetchTowerDefenseTowers(): Promise<TowerDefenseTowerCatalo
               damage: Number(stats.damage),
               range: Number(stats.range),
               fireRate: Number(stats.fireRate),
+              chainTargets: stats.chainTargets === undefined ? undefined : Number(stats.chainTargets),
+              chainRange: stats.chainRange === undefined ? undefined : Number(stats.chainRange),
+              chainDamageRatio: stats.chainDamageRatio === undefined ? undefined : Number(stats.chainDamageRatio),
               upgradeCost: Number(stats.upgradeCost),
             }]))
           : undefined,

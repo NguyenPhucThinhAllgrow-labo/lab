@@ -64,6 +64,9 @@ class TowerDefenseTowerController extends Controller
             'level_stats.*.damage' => ['required', 'numeric', 'between:0,100000000'],
             'level_stats.*.range' => ['required', 'numeric', 'between:0.01,100'],
             'level_stats.*.fireRate' => ['required', 'numeric', 'between:0,100'],
+            'level_stats.*.chainTargets' => ['sometimes', 'integer', 'between:1,100'],
+            'level_stats.*.chainRange' => ['sometimes', 'numeric', 'between:0.01,100'],
+            'level_stats.*.chainDamageRatio' => ['sometimes', 'numeric', 'between:0,1'],
             'level_stats.*.upgradeCost' => ['required', 'integer', 'between:0,100000000'],
             'range' => ['required', 'numeric', 'between:0.01,100'],
             'fire_rate' => ['required', 'numeric', 'between:0,100'],
@@ -79,12 +82,13 @@ class TowerDefenseTowerController extends Controller
             'effects.items' => ['sometimes', 'array', 'max:20'],
             'effects.items.*.id' => ['required', 'string', 'max:100'],
             'effects.items.*.type' => ['required', 'string', Rule::exists('tower_defense_effect_types', 'id')],
-            'effects.items.*.behavior' => ['required', Rule::in(['bonus_damage', 'damage_over_time', 'slow', 'splash_damage', 'damage_aura', 'attack_speed_aura'])],
+            'effects.items.*.behavior' => ['required', Rule::in(['bonus_damage', 'critical_hit', 'damage_over_time', 'slow', 'splash_damage', 'damage_aura', 'attack_speed_aura'])],
             'effects.items.*.name' => ['required', 'string', 'max:100'],
             'effects.items.*.value' => ['required', 'numeric', 'between:0,1000000'],
             'effects.items.*.duration' => ['sometimes', 'numeric', 'between:0,1000'],
             'effects.items.*.radius' => ['sometimes', 'numeric', 'between:0,100'],
             'effects.items.*.ratio' => ['sometimes', 'numeric', 'between:0,1'],
+            'effects.items.*.multiplier' => ['sometimes', 'numeric', 'between:1,100'],
             'effects.items.*.perLevel' => ['sometimes', 'numeric', 'between:0,1000000'],
             'effects.items.*.color' => ['sometimes', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'model_asset_keys' => ['present', 'array'],
@@ -139,9 +143,10 @@ class TowerDefenseTowerController extends Controller
         $data['cost'] = $data['level_stats'][1]['upgradeCost'];
         $data['range'] = $data['level_stats'][1]['range'];
         $data['fire_rate'] = $data['level_stats'][1]['fireRate'];
-        $data['sort_order'] = ((int) TowerDefenseTower::query()->max('sort_order')) + 1;
         if ($tower) {
             unset($data['id']);
+        } else {
+            $data['sort_order'] = ((int) TowerDefenseTower::query()->max('sort_order')) + 1;
         }
 
         return $data;

@@ -40,6 +40,10 @@ class TowerDefenseMap extends Model
         return array_replace($configuration, [
             'id' => $this->id,
             'name' => $this->name,
+            'configurationVersion' => hash(
+                'sha256',
+                json_encode($configuration, JSON_THROW_ON_ERROR),
+            ),
         ]);
     }
 

@@ -59,7 +59,7 @@ class TowerDefenseEffectTypeController extends Controller
             'id' => [$effectType ? 'sometimes' : 'required', 'string', 'max:100', 'regex:/^[a-z0-9-]+$/', Rule::unique('tower_defense_effect_types')->ignore($effectType?->id)],
             'name' => ['required', 'string', 'max:100'],
             'role' => ['required', Rule::in(['damage', 'buff'])],
-            'behavior' => ['required', Rule::in(['bonus_damage', 'damage_over_time', 'slow', 'splash_damage', 'damage_aura', 'attack_speed_aura'])],
+            'behavior' => ['required', Rule::in(['bonus_damage', 'critical_hit', 'damage_over_time', 'slow', 'splash_damage', 'damage_aura', 'attack_speed_aura'])],
             'description' => ['nullable', 'string', 'max:500'],
             'color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'sort_order' => ['sometimes', 'integer', 'between:0,100000'],

@@ -35,7 +35,10 @@ class TowerDefenseContentApiTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', 'test-map')
             ->assertJsonPath('data.0.columns', 18)
-            ->assertJsonPath('data.0.startingCredits', 3000);
+            ->assertJsonPath('data.0.startingCredits', 3000)
+            ->assertJson(fn (\Illuminate\Testing\Fluent\AssertableJson $json) =>
+                $json->whereType('data.0.configurationVersion', 'string')->etc(),
+            );
     }
 
     public function test_it_streams_an_active_asset_from_backend_storage(): void

@@ -90,9 +90,18 @@ function fitCamera(map: TowerDefenseMapDefinition) {
   const width = Math.max(map.columns * map.cellSize, 8);
   const depth = Math.max(map.rows * map.cellSize, 8);
   const span = Math.max(width, depth);
-  cameraTarget.set(0, 0, 0);
-  cameraPosition.set(span * 0.58, span * 0.82, span * 0.68);
+  const configuredPosition = map.camera?.position;
+  const configuredTarget = map.camera?.target;
+  if (configuredTarget?.every(Number.isFinite))
+    cameraTarget.fromArray(configuredTarget);
+  else cameraTarget.set(0, 0, 0);
+  if (configuredPosition?.every(Number.isFinite))
+    cameraPosition.fromArray(configuredPosition);
+  else cameraPosition.set(span * 0.58, span * 0.82, span * 0.68);
   camera.position.copy(cameraPosition);
+  camera.zoom = Number.isFinite(map.camera?.zoom)
+    ? THREE.MathUtils.clamp(map.camera.zoom, 0.1, 4)
+    : 1;
   camera.near = 0.1;
   camera.far = Math.max(250, span * 10);
   camera.updateProjectionMatrix();

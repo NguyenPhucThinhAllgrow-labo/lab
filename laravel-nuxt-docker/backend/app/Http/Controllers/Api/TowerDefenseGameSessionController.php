@@ -33,11 +33,13 @@ class TowerDefenseGameSessionController extends Controller
     public function save(Request $request, TowerDefenseMap $map): JsonResponse
     {
         abort_unless($map->is_active, 404);
+        $configurationVersion = $map->definition()['configurationVersion'];
         $validated = $request->validate([
             'faction' => ['required', Rule::in(['human', 'dark'])],
             'snapshot' => ['required', 'array'],
             'snapshot.version' => ['required', 'integer', Rule::in([1])],
             'snapshot.mapId' => ['required', 'string', Rule::in([$map->id])],
+            'snapshot.mapConfigurationVersion' => ['required', 'string', Rule::in([$configurationVersion])],
             'snapshot.phase' => ['required', Rule::in(['ready', 'wave', 'between', 'completed', 'gameover'])],
             'snapshot.wave' => ['required', 'integer', 'between:0,10000'],
             'snapshot.score' => ['required', 'integer', 'min:0'],

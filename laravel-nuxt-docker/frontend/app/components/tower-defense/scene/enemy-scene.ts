@@ -29,6 +29,7 @@ export interface EnemySceneSyncOptions {
   now: number;
   speedMultiplier: number;
   worldUnitsPerCell: number;
+  reducedEffects: boolean;
   pathPosition: (progress: number, lane: 0 | 1) => THREE.Vector3;
 }
 
@@ -842,6 +843,7 @@ export function createTowerDefenseEnemyScene(
     now,
     speedMultiplier,
     worldUnitsPerCell,
+    reducedEffects,
     pathPosition,
   }: EnemySceneSyncOptions) {
     if (lavaBossGlowMaterial)
@@ -959,7 +961,8 @@ export function createTowerDefenseEnemyScene(
         mixer.update(frameDelta);
       }
       const lavaFlames = model.getObjectByName("lavaBossFlames");
-      if (lavaFlames) {
+      if (lavaFlames) lavaFlames.visible = !reducedEffects;
+      if (lavaFlames?.visible) {
         const sceneScale = Number(model.userData.sceneScale) || 1;
         for (const child of lavaFlames.children) {
           const flame = child as THREE.Sprite;

@@ -29,12 +29,12 @@ class TowerDefenseGameSessionApiTest extends TestCase
 
         $this->putJson("/api/tower-defense/maps/{$map->id}/session", [
             'faction' => 'human',
-            'snapshot' => $this->snapshot($map->id, wave: 4, score: 800),
+            'snapshot' => $this->snapshot($map, wave: 4, score: 800),
         ])->assertOk()->assertJsonPath('data.status', 'active');
 
         $this->putJson("/api/tower-defense/maps/{$map->id}/session", [
             'faction' => 'human',
-            'snapshot' => $this->snapshot($map->id, wave: 5, score: 1200),
+            'snapshot' => $this->snapshot($map, wave: 5, score: 1200),
         ])->assertOk()->assertJsonPath('data.currentWave', 5);
 
         $this->assertDatabaseCount('tower_defense_game_sessions', 1);
@@ -54,7 +54,7 @@ class TowerDefenseGameSessionApiTest extends TestCase
 
         $this->putJson("/api/tower-defense/maps/{$map->id}/session", [
             'faction' => 'dark',
-            'snapshot' => $this->snapshot($map->id, wave: 20, score: 9000, phase: 'completed'),
+            'snapshot' => $this->snapshot($map, wave: 20, score: 9000, phase: 'completed'),
         ])->assertOk()->assertJsonPath('data.status', 'completed');
 
         $this->getJson("/api/tower-defense/maps/{$map->id}/session")
@@ -68,7 +68,7 @@ class TowerDefenseGameSessionApiTest extends TestCase
 
         $this->putJson("/api/tower-defense/maps/{$map->id}/session", [
             'faction' => 'dark',
-            'snapshot' => $this->snapshot($map->id),
+            'snapshot' => $this->snapshot($map),
         ])->assertOk()->assertJsonPath('data.status', 'active');
 
         $this->assertDatabaseCount('tower_defense_game_sessions', 2);
@@ -88,14 +88,15 @@ class TowerDefenseGameSessionApiTest extends TestCase
     }
 
     private function snapshot(
-        string $mapId,
+        TowerDefenseMap $map,
         int $wave = 0,
         int $score = 0,
         string $phase = 'ready',
     ): array {
         return [
             'version' => 1,
-            'mapId' => $mapId,
+            'mapId' => $map->id,
+            'mapConfigurationVersion' => $map->definition()['configurationVersion'],
             'phase' => $phase,
             'wave' => $wave,
             'score' => $score,

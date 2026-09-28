@@ -142,6 +142,11 @@ class TowerDefenseTowerSeeder extends Seeder
                     'damage' => $tower['damage_by_level'][(string) $level],
                     'range' => round($tower['range'] + $rangeGrowth, 2),
                     'fireRate' => round($tower['fire_rate'] / (1 + ($level - 1) * $fireRateGrowth), 3),
+                    ...($tower['id'] === 'thunder' ? [
+                        'chainTargets' => 2 + $level,
+                        'chainRange' => round(1.65 + ($level - 1) * 0.12, 2),
+                        'chainDamageRatio' => 0.72,
+                    ] : []),
                     'upgradeCost' => $level === 1 ? $tower['cost'] : (int) round($tower['cost'] * (0.75 + ($level - 2) * 0.35) / 5) * 5,
                 ]];
             })->all();

@@ -635,7 +635,7 @@ export async function loadTowerDefenseBackgroundModel(
     instances.instanceMatrix.setUsage(THREE.StaticDrawUsage);
     instances.instanceMatrix.needsUpdate = true;
     instances.castShadow = false;
-    instances.receiveShadow = true;
+    instances.receiveShadow = false;
     background.add(instances);
   });
   scene.add(background);
