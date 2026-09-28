@@ -317,7 +317,6 @@ function dismissEnemyIntel(id: EnemyIntelCard["id"]) {
 }
 
 // Trạng thái UI cục bộ không thuộc gameplay: popup, tooltip và màn hình loading.
-const selectedTowerAnchor = ref({ x: 0, y: 0, visible: false });
 const isMovePlacementMode = ref(false);
 const hoveredTowerKind = ref<TowerKind | null>(null);
 const towerTooltipPosition = ref({ x: 0, y: 0 });
@@ -494,11 +493,6 @@ function showTowerTooltip(kind: TowerKind, event: MouseEvent | FocusEvent) {
 /** Đóng tooltip khi pointer/focus rời khỏi nút tower. */
 function hideTowerTooltip() {
   hoveredTowerKind.value = null;
-}
-
-/** Nhận tọa độ màn hình do scene chiếu từ vị trí 3D của tower đang chọn. */
-function updateSelectedTowerAnchor(x: number, y: number, visible: boolean) {
-  selectedTowerAnchor.value = { x, y, visible };
 }
 
 // Scene phát tọa độ grid; composable quyết định chọn, đặt mới hay di chuyển tháp.
@@ -872,7 +866,6 @@ onBeforeUnmount(() => {
                 :managed-tower-models="towerCatalog.managedModels"
                 @cell-select="handleCellSelect"
                 @background-select="clearBoardSelection"
-                @selected-tower-position="updateSelectedTowerAnchor"
                 @ready="sceneReady = true"
               />
               <template #fallback
@@ -1137,16 +1130,8 @@ onBeforeUnmount(() => {
             </aside>
 
             <section
-              v-if="
-                selectedTower &&
-                selectedTowerAnchor.visible &&
-                !isMovePlacementMode
-              "
+              v-if="selectedTower && !isMovePlacementMode"
               class="defense-upgrade defense-upgrade--floating"
-              :style="{
-                left: `${selectedTowerAnchor.x}px`,
-                top: `${selectedTowerAnchor.y}px`,
-              }"
             >
               <header class="defense-upgrade__heading">
                 <div>
