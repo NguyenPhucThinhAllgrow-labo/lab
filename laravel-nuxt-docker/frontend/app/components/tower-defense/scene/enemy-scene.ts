@@ -47,6 +47,16 @@ export interface TowerDefenseEnemyScene {
   dispose: () => void;
 }
 
+type EnemyModelSeed = Pick<
+  Enemy,
+  | "kind"
+  | "modelKey"
+  | "bossClass"
+  | "combatProfileKey"
+  | "speed"
+  | "progress"
+>;
+
 export interface TowerDefenseEnemySceneOptions {
   enemyModel?: TowerDefenseCharacterModelDefinition;
   bossModel?: TowerDefenseCharacterModelDefinition;
@@ -212,6 +222,7 @@ export function createTowerDefenseEnemyScene(
   } = {};
   let bossAnimations: THREE.AnimationClip[] = [];
   let disposed = false;
+  let reducedAnimationTime = 0;
 
   function getLavaBossGlowMaterial() {
     if (lavaBossGlowMaterial) return lavaBossGlowMaterial;
@@ -448,7 +459,7 @@ export function createTowerDefenseEnemyScene(
     slot.add(item);
   }
 
-  function createModel(enemy: Enemy) {
+  function createModel(enemy: EnemyModelSeed) {
     const modelKey = enemy.modelKey ?? DEFAULT_ENEMY_MODEL_KEY;
     const poolKey =
       enemy.kind === "boss" ? `boss:${modelKey}` : `enemy:${modelKey}`;
@@ -649,6 +660,30 @@ export function createTowerDefenseEnemyScene(
     } else disposeModel(model);
   }
 
+  /**
+   * Clone trước model trong màn loading. Nhờ vậy wave đầu lấy object từ pool
+   * thay vì clone skeleton + khởi tạo AnimationMixer ngay tại frame spawn.
+   */
+  function prewarmEnemyPool() {
+    const modelKeys = [...enemyTemplates.keys()];
+    if (!modelKeys.length) return;
+    const totalTarget = Math.min(18, Math.max(10, modelKeys.length * 5));
+    const countPerModel = Math.max(2, Math.ceil(totalTarget / modelKeys.length));
+    for (const modelKey of modelKeys) {
+      const warmedModels: THREE.Group[] = [];
+      for (let index = 0; index < countPerModel; index++) {
+        warmedModels.push(createModel({
+          kind: "normal",
+          modelKey,
+          combatProfileKey: "normal",
+          speed: 1,
+          progress: 0,
+        }));
+      }
+      warmedModels.forEach(recycleModel);
+    }
+  }
+
   async function loadEnemyModels() {
     const loader = new GLTFLoader();
     const definitions = {
@@ -834,6 +869,7 @@ export function createTowerDefenseEnemyScene(
     for (const result of results)
       if (result.status === "rejected")
         console.error("[Kingdom Defense] Không thể tải model quái.", result.reason);
+    if (!disposed) prewarmEnemyPool();
   }
 
   function sync({
@@ -846,6 +882,10 @@ export function createTowerDefenseEnemyScene(
     reducedEffects,
     pathPosition,
   }: EnemySceneSyncOptions) {
+    reducedAnimationTime += frameDelta;
+    const updateMixers = !reducedEffects || reducedAnimationTime >= 1 / 30;
+    const mixerDelta = reducedEffects ? reducedAnimationTime : frameDelta;
+    if (updateMixers) reducedAnimationTime = 0;
     if (lavaBossGlowMaterial)
       lavaBossGlowMaterial.uniforms.uTime!.value = elapsed;
     activeEnemyIds.clear();
@@ -859,6 +899,20 @@ export function createTowerDefenseEnemyScene(
     for (const enemy of enemies) {
       const model = models.get(enemy.id) ?? createModel(enemy);
       models.set(enemy.id, model);
+      if (model.userData.reducedEffects !== reducedEffects) {
+        model.userData.reducedEffects = reducedEffects;
+        model.traverse((child) => {
+          if (!(child instanceof THREE.Mesh) || child.name === "enemyGroundShadow")
+            return;
+          if (child.userData.fullQualityCastShadow === undefined)
+            child.userData.fullQualityCastShadow = child.castShadow;
+          child.castShadow = enemy.kind === "boss"
+            ? Boolean(child.userData.fullQualityCastShadow)
+            : reducedEffects
+              ? false
+              : Boolean(child.userData.fullQualityCastShadow);
+        });
+      }
       const frozen = enemy.isFrozen;
       const previousObserved = Number(model.userData.observedProgress);
       if (!Number.isFinite(previousObserved)) {
@@ -956,9 +1010,9 @@ export function createTowerDefenseEnemyScene(
       }
       model.scale.setScalar(Number(model.userData.sceneScale));
       const mixer = model.userData.mixer as THREE.AnimationMixer | undefined;
-      if (mixer) {
+      if (mixer && updateMixers) {
         mixer.timeScale = frozen ? 0 : animationTimeScale;
-        mixer.update(frameDelta);
+        mixer.update(mixerDelta);
       }
       const lavaFlames = model.getObjectByName("lavaBossFlames");
       if (lavaFlames) lavaFlames.visible = !reducedEffects;

@@ -453,6 +453,84 @@ function createTowerAura(color: number) {
   return aura;
 }
 
+/** Tạo các vòng sóng lan theo bán kính và màu buff cấu hình từ backend. */
+function createSupportPulseEffect(tower: Tower) {
+  if (!isSupportTowerKind(tower.kind)) return null;
+  const definition = TOWER_DEFINITIONS[tower.kind];
+  const auraEffects = (definition.effects ?? []).filter(
+    (effect) =>
+      effect.behavior === "damage_aura" ||
+      effect.behavior === "attack_speed_aura",
+  );
+  if (!auraEffects.length) return null;
+
+  const group = new THREE.Group();
+  group.name = "towerSupportPulse";
+  auraEffects.forEach((effect, effectIndex) => {
+    const color = new THREE.Color(effect.color ?? definition.color);
+    for (let waveIndex = 0; waveIndex < 2; waveIndex++) {
+      const wave = new THREE.Mesh(
+        new THREE.RingGeometry(0.965, 1, 64),
+        new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          toneMapped: false,
+        }),
+      );
+      wave.name = "towerSupportPulseWave";
+      wave.rotation.x = -Math.PI / 2;
+      wave.renderOrder = 5;
+      wave.userData.effectId = effect.id;
+      wave.userData.effectIndex = effectIndex;
+      wave.userData.waveIndex = waveIndex;
+      wave.userData.phaseOffset =
+        waveIndex / 2 + effectIndex / Math.max(1, auraEffects.length * 2);
+      group.add(wave);
+    }
+  });
+  return group;
+}
+
+/** Đồng bộ bán kính gameplay sang world-space và animate sóng từ tâm ra rìa. */
+function syncSupportPulseEffect(
+  model: THREE.Group,
+  tower: Tower,
+  elapsed: number,
+) {
+  const group = model.userData.supportPulse as THREE.Group | undefined;
+  if (!group) return;
+  const definition = TOWER_DEFINITIONS[tower.kind];
+  const modelScale = Math.max(model.scale.x, 0.001);
+  group.position.y = 0.035 / modelScale;
+  for (const child of group.children) {
+    const wave = child as THREE.Mesh;
+    const effect = definition.effects?.find(
+      (item) => item.id === wave.userData.effectId,
+    );
+    if (!effect) {
+      wave.visible = false;
+      continue;
+    }
+    const waveIndex = Number(wave.userData.waveIndex);
+    wave.visible = !performanceMode || waveIndex === 0;
+    if (!wave.visible) continue;
+    const duration = effect.behavior === "attack_speed_aura" ? 3.2 : 4;
+    const phase = (elapsed / duration + Number(wave.userData.phaseOffset)) % 1;
+    const radius =
+      (effect.radius ?? towerRangeAtLevel(definition, tower.level)) *
+      DEFENSE_CELL_SIZE;
+    const worldScale = (radius * (0.1 + phase * 0.9)) / modelScale;
+    wave.scale.setScalar(worldScale);
+    const material = wave.material as THREE.MeshBasicMaterial;
+    material.opacity =
+      (performanceMode ? 0.22 : 0.34) * Math.pow(1 - phase, 0.72);
+  }
+}
+
 /** Tạo lazy radial texture cho ánh sáng băng và cache để mọi instance dùng chung. */
 function getFrostGlowTexture() {
   if (frostGlowTexture) return frostGlowTexture;
@@ -1798,6 +1876,11 @@ function createTowerModel(tower: Tower) {
   applyTowerLevelAppearance(group, tower);
   syncTowerLevelLabel(group, tower.level);
   syncTowerBuffBadges(group, tower);
+  const supportPulse = createSupportPulseEffect(tower);
+  if (supportPulse) {
+    group.userData.supportPulse = supportPulse;
+    group.add(supportPulse);
+  }
   if (towerTemplateKind(tower.kind) === "thunder")
     group.add(
       createThunderBeamEffect(tower.level, thunderBeamSegmentCapacity(tower)),
@@ -1818,6 +1901,7 @@ function disposeTowerModel(model: THREE.Group) {
     "thunderBeamEffect",
     "towerLevelLabel",
     "towerBuffBadges",
+    "towerSupportPulse",
   ]) {
     const ownedEffect = model.getObjectByName(name);
     if (ownedEffect) disposeObject(ownedEffect);
@@ -2410,6 +2494,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     const towerPosition = worldPosition(tower.x, tower.y);
     model.position.set(towerPosition.x, 0.05, towerPosition.z);
     setTowerScale(model, tower.level);
+    syncSupportPulseEffect(model, tower, elapsed);
     syncTowerLevelLabel(model, tower.level);
     syncTowerBuffBadges(model, tower);
     animateTowerLevelAppearance(model, tower, elapsed);

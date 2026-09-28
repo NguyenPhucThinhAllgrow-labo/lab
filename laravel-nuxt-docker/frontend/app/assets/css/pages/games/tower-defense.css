@@ -2203,7 +2203,7 @@
   bottom: 10px;
   left: 10px;
   display: flex;
-  width: min(480px, calc(100% - 300px));
+  width: auto;
   padding: 6px 8px;
   border: 1px solid #665b43aa;
   border-radius: 11px;

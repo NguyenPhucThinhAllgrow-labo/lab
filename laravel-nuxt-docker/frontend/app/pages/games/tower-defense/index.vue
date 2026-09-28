@@ -1401,7 +1401,6 @@ onBeforeUnmount(() => {
             </aside>
 
             <footer class="defense-board-footer">
-              <p><span>CHỈ HUY</span>{{ message }}</p>
               <div>
                 <button
                   type="button"

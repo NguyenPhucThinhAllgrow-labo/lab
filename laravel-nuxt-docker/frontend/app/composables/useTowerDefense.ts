@@ -51,6 +51,11 @@ export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWE
 
 /** Cung cấp state, command và simulation loop độc lập với lớp render Three.js. */
 export function useTowerDefense(map: TowerDefenseMapDefinition) {
+  const distanceSquared = (a: GridPoint, b: GridPoint) => {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return dx * dx + dy * dy;
+  };
   const storageKey = `${TOWER_DEFENSE_STORAGE_KEY}:${map.id}`;
   const startingCredits = Number.isFinite(map.startingCredits)
     ? Math.max(0, Math.floor(map.startingCredits))
@@ -163,7 +168,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       const effect = supportDefinition.effects?.find((item) => item.behavior === effectType);
       if (!effect) return strongest;
       const range = effect.radius ?? towerRangeAtLevel(supportDefinition, support.level);
-      if (Math.hypot(support.x - tower.x, support.y - tower.y) > range)
+      if (distanceSquared(support, tower) > range * range)
         return strongest;
       return Math.max(
         strongest,
@@ -591,12 +596,10 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       const affectedEnemies = projectile.splashRadius
         ? enemies.value.filter((enemy) => {
             const enemyPosition = positionFor(enemy);
+            const splashExtent = projectile.splashRadius! + ENEMY_HIT_RADIUS;
             return (
-              Math.hypot(
-                enemyPosition.x - position.x,
-                enemyPosition.y - position.y,
-              ) <=
-              projectile.splashRadius! + ENEMY_HIT_RADIUS
+              distanceSquared(enemyPosition, position) <=
+              splashExtent * splashExtent
             );
           })
         : [target];
@@ -745,10 +748,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         if (enemy.hp <= 0) return false;
         const position = enemyPositions.get(enemy.id)!;
         const hitRadius = combatKind === "frost" ? ENEMY_HIT_RADIUS : 0;
-        return (
-          Math.hypot(position.x - tower.x, position.y - tower.y) <=
-          targetingRange + hitRadius
-        );
+        const range = targetingRange + hitRadius;
+        return distanceSquared(position, tower) <= range * range;
       });
       if (combatKind === "thunder") {
         tower.beamTargetIds = [];
@@ -779,17 +780,20 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
           const previous = chainTargets[chainTargets.length - 1]!;
           const previousPosition = enemyPositions.get(previous.id)!;
           let next: Enemy | undefined;
-          let nearestDistance = Number.POSITIVE_INFINITY;
+          let nearestDistanceSquared = Number.POSITIVE_INFINITY;
           for (const enemy of targetsByProgress) {
             if (enemy.hp <= 0 || chainedTargetIds.has(enemy.id)) continue;
             const position = enemyPositions.get(enemy.id)!;
-            const distance = Math.hypot(
-              position.x - previousPosition.x,
-              position.y - previousPosition.y,
+            const candidateDistanceSquared = distanceSquared(
+              position,
+              previousPosition,
             );
-            if (distance > chainRange || distance >= nearestDistance) continue;
+            if (
+              candidateDistanceSquared > chainRange * chainRange ||
+              candidateDistanceSquared >= nearestDistanceSquared
+            ) continue;
             next = enemy;
-            nearestDistance = distance;
+            nearestDistanceSquared = candidateDistanceSquared;
           }
           if (!next) break;
           chainTargets.push(next);
@@ -803,11 +807,13 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
           for (const enemy of candidates) {
             const position = enemyPositions.get(enemy.id)!;
             const splashExtent = (splashEffect?.radius ?? 0) + ENEMY_HIT_RADIUS;
-            const distance = Math.hypot(
-              position.x - center.x,
-              position.y - center.y,
-            );
-            if (splashEffect && distance > splashExtent) continue;
+            const candidateDistanceSquared = distanceSquared(position, center);
+            if (
+              splashEffect &&
+              candidateDistanceSquared > splashExtent * splashExtent
+            )
+              continue;
+            const distance = Math.sqrt(candidateDistanceSquared);
             const distanceRatio = splashExtent > 0
               ? Math.min(1, distance / splashExtent)
               : 0;
@@ -885,11 +891,9 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         for (const enemy of enemies.value) {
           if (enemy.hp <= 0 || enemy.progress < 0) continue;
           const position = enemyPositions.get(enemy.id)!;
-          const distance = Math.hypot(
-            position.x - tower.x,
-            position.y - tower.y,
-          );
-          if (distance > effectExtent) continue;
+          const candidateDistanceSquared = distanceSquared(position, tower);
+          if (candidateDistanceSquared > effectExtent * effectExtent) continue;
+          const distance = Math.sqrt(candidateDistanceSquared);
 
           if (distance <= frostRadius + ENEMY_HIT_RADIUS) {
             const freezeDuration = enemyEffectDuration(
@@ -951,8 +955,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
               .filter((enemy) => {
                 const position = enemyPositions.get(enemy.id)!;
                 return (
-                  Math.hypot(position.x - tower.x, position.y - tower.y) <=
-                  effectiveRange
+                  distanceSquared(position, tower) <=
+                  effectiveRange * effectiveRange
                 );
               })
               .slice(0, 1 + (tower.level - 1) * 2)

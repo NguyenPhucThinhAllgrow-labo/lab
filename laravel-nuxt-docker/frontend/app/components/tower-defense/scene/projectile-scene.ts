@@ -27,6 +27,7 @@ export function createTowerDefenseProjectileScene(
 ): TowerDefenseProjectileScene {
   const templates = new Map<Projectile["kind"], THREE.Group>();
   const models = new Map<number, { group: THREE.Group; bornAt: number }>();
+  const modelPool = new Map<string, THREE.Group[]>();
   const activeProjectileIds = new Set<number>();
   const projectileDirection = new THREE.Vector3();
   const projectileLookTarget = new THREE.Vector3();
@@ -242,10 +243,19 @@ export function createTowerDefenseProjectileScene(
 
   /** Clone projectile render-side; `sync` sẽ đặt nó tại điểm bắn ngay trong frame hiện tại. */
   function createProjectile(projectile: Projectile, now: number) {
+    const poolKey = `${projectile.kind}:${projectile.level}`;
+    const pooled = modelPool.get(poolKey)?.pop();
+    if (pooled) {
+      pooled.visible = true;
+      pooled.quaternion.identity();
+      scene.add(pooled);
+      return { group: pooled, bornAt: now };
+    }
     const template = templates.get(projectile.kind);
     if (!template)
       throw new Error(`Missing projectile template: ${projectile.kind}`);
     const group = template.clone(true);
+    group.userData.poolKey = poolKey;
     const levelScale = 1 + (projectile.level - 1) * 0.2;
     group.scale.setScalar(levelScale);
     group.userData.levelScale = levelScale;
@@ -287,6 +297,17 @@ export function createTowerDefenseProjectileScene(
     return { group, bornAt: now };
   }
 
+  function recycleProjectile(group: THREE.Group) {
+    group.removeFromParent();
+    group.visible = false;
+    const poolKey = String(group.userData.poolKey);
+    const pool = modelPool.get(poolKey) ?? [];
+    // Giữ lại high-water mark của từng loại/cấp. Các clone dùng chung GPU
+    // resource với template nên tái sử dụng an toàn hơn dispose giữa trận.
+    pool.push(group);
+    modelPool.set(poolKey, pool);
+  }
+
   /** Scale dùng để đặt đầu nòng procedural đúng với kích thước tower từng level. */
   function towerScaleForLevel(level: number) {
     const levelScale = level === 1 ? 1 : level === 2 ? 1.13 : 1.27;
@@ -308,7 +329,7 @@ export function createTowerDefenseProjectileScene(
       activeProjectileIds.add(projectile.id);
     for (const [id, item] of models) {
       if (activeProjectileIds.has(id)) continue;
-      removeObject(item.group);
+      recycleProjectile(item.group);
       models.delete(id);
     }
 
@@ -493,6 +514,10 @@ export function createTowerDefenseProjectileScene(
   function dispose() {
     models.forEach((item) => removeObject(item.group, true));
     models.clear();
+    modelPool.forEach((pool) =>
+      pool.forEach((group) => removeObject(group, true)),
+    );
+    modelPool.clear();
     templates.forEach((template) => removeObject(template, true));
     templates.clear();
   }
