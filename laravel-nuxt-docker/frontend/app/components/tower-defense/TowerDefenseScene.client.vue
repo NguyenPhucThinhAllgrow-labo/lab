@@ -2892,7 +2892,6 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     frameDelta,
     now,
     speedMultiplier: props.speedMultiplier,
-    worldUnitsPerCell: DEFENSE_CELL_SIZE,
     reducedEffects: performanceMode,
     pathPosition,
   });
