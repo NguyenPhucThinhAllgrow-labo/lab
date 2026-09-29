@@ -103,7 +103,6 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::get('/tower-defense/towers', [TowerDefenseTowerController::class, 'index']);
     Route::post('/tower-defense/towers', [TowerDefenseTowerController::class, 'store']);
     Route::put('/tower-defense/towers/{tower}', [TowerDefenseTowerController::class, 'update']);
-    Route::put('/tower-defense/towers/{tower}/visual-effects', [TowerDefenseTowerController::class, 'updateVisualEffects']);
     Route::delete('/tower-defense/towers/{tower}', [TowerDefenseTowerController::class, 'destroy']);
     Route::get('/tower-defense/effect-types', [TowerDefenseEffectTypeController::class, 'index']);
     Route::post('/tower-defense/effect-types', [TowerDefenseEffectTypeController::class, 'store']);

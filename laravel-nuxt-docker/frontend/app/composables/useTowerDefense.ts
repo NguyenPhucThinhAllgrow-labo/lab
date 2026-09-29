@@ -349,7 +349,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     for (const tower of towers.value) tower.canRelocate = false;
     triggerRef(towers);
     wave.value++;
-    const waveEnemyCount = 8 + wave.value * 3;
+    const bossOnly = map.bossOnly === true;
+    const waveEnemyCount = bossOnly ? 0 : 8 + wave.value * 3;
     pendingEnemiesByLane[0] = Math.ceil(waveEnemyCount / 2);
     pendingEnemiesByLane[1] = Math.floor(waveEnemyCount / 2);
     const managedBosses = map.bossDefinitions?.length
@@ -364,7 +365,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
             kind: "boss" as const,
             bossClass,
           }))
-        : wave.value % 5 === 0
+        : bossOnly || wave.value % 5 === 0
           ? managedBosses.length
             ? managedBosses.map((definition, index) => ({
                 lane: (index % 2) as 0 | 1,
@@ -390,7 +391,9 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     spawnCooldownByLane[0] = 0;
     spawnCooldownByLane[1] = 0.28;
     phase.value = "wave";
-    message.value = `Đợt ${wave.value}: quân địch đang tiến vào vương quốc.`;
+    message.value = bossOnly
+      ? `Đợt ${wave.value}: các boss đang tiến vào vương quốc.`
+      : `Đợt ${wave.value}: quân địch đang tiến vào vương quốc.`;
   }
 
   /** Tạo enemy kế tiếp của lane, ưu tiên boss đã lên lịch và áp multiplier riêng. */
@@ -512,17 +515,24 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     const current = damageNumbersByEnemyId.get(enemy.id);
     if (current) {
       if (current.life >= mergeLifeThreshold) {
+        const alreadyCritical = Boolean(current.critical);
         current.amount += healthLost;
+        // Một hit thường đến sau không được đổi màu của hit chí mạng đang hiện.
+        // Nếu hit mới cũng chí mạng thì màu mới chính là tower crit gần nhất.
+        if (critical || !alreadyCritical) {
+          current.kind = kind;
+          current.color = color;
+        }
+        current.critical = alreadyCritical || critical;
       } else {
         current.id = nextDamageNumberId++;
         current.amount = healthLost;
         current.life = duration;
         current.duration = duration;
-        current.critical = false;
+        current.kind = kind;
+        current.color = color;
+        current.critical = critical;
       }
-      current.kind = kind;
-      current.color = color;
-      current.critical = current.critical || critical;
       current.position = positionFor(enemy);
       return;
     }
@@ -970,6 +980,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         projectiles.value.push({
           id: nextProjectileId++,
           kind: combatKind,
+          sourceTowerKind: tower.kind,
           from: { x: tower.x, y: tower.y },
           to: positionFor(shotTarget),
           life: shotDuration,

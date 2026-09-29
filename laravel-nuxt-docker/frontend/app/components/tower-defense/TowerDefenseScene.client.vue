@@ -68,6 +68,7 @@ const props = defineProps<{
 }>();
 const DEFENSE_PATH_TILES = props.map.pathTiles;
 const DEFENSE_CELL_SIZE = props.map.cellSize;
+const isDarkEnvironment = props.map.environmentMode === "dark";
 const emit = defineEmits<{
   cellSelect: [x: number, y: number];
   backgroundSelect: [];
@@ -2499,6 +2500,16 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     syncTowerLevelLabel(model, tower.level);
     syncTowerBuffBadges(model, tower);
     animateTowerLevelAppearance(model, tower, elapsed);
+    const configuredVisualEffects = model.getObjectByName("managedTowerVisualEffects");
+    configuredVisualEffects?.children.forEach((effect) => {
+      const baseScale = Number(effect.userData.baseScale) || 1;
+      const speed = Number(effect.userData.pulseSpeed) || 0;
+      const phase = Number(effect.userData.phase) || 0;
+      const pulse = speed > 0 ? 1 + Math.sin(elapsed * speed + phase) * 0.12 : 1;
+      effect.scale.setScalar(pulse);
+      const sprite = effect.children[0] as THREE.Sprite | undefined;
+      if (sprite) sprite.scale.setScalar(baseScale);
+    });
     const aura = model.userData.aura as THREE.Group | undefined;
     if (aura) {
       aura.rotation.y = elapsed * (0.18 + (tower.id % 3) * 0.035);
@@ -2649,6 +2660,14 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       }
     }
     if (templateKind === "thunder") {
+      const configuredProjectileEffect = props.managedTowerModels?.[tower.kind]?.visualEffects?.find(
+        (effect) => effect.type === "projectile" && effect.enabled && (!effect.level || effect.level === tower.level),
+      );
+      const configuredCoreColor = configuredProjectileEffect?.color;
+      const configuredGlowColor = configuredProjectileEffect?.glowColor ?? configuredCoreColor;
+      const configuredOpacity = configuredProjectileEffect?.opacity ?? 1;
+      const configuredSize = THREE.MathUtils.clamp(configuredProjectileEffect?.size ?? 1, 0.35, 2.5);
+      const configuredPulseSpeed = configuredProjectileEffect?.pulseSpeed ?? 0;
       const segmentCapacity = thunderBeamSegmentCapacity(tower);
       let beamEffect = model.getObjectByName("thunderBeamEffect") as
         THREE.Group | undefined;
@@ -2671,7 +2690,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
         beamEffect.visible = targets.length > 0;
         if (!targets.length) continue;
         const flickerFrame = Math.floor(
-          elapsed * (performanceMode ? 18 : 26),
+          elapsed * ((performanceMode ? 18 : 26) + configuredPulseSpeed * 0.5),
         );
         const targetSignature =
           (performanceMode ? "low:" : "high:") +
@@ -2786,9 +2805,11 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
               );
             }
             position.needsUpdate = true;
-            (beam.material as THREE.LineBasicMaterial).opacity = Math.max(
+            const branchMaterial = beam.material as THREE.LineBasicMaterial;
+            if (configuredGlowColor) branchMaterial.color.set(configuredGlowColor);
+            branchMaterial.opacity = Math.max(
               0,
-              0.25 + random(segmentIndex, branchIndex, 61) * 0.22,
+              (0.25 + random(segmentIndex, branchIndex, 61) * 0.22) * configuredOpacity,
             );
             return;
           }
@@ -2797,7 +2818,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
             const edge = Math.sin(ratio * Math.PI);
             const zigzag =
               random(segmentIndex, pointIndex, 3) *
-              (0.065 +
+              configuredSize * (0.065 +
                 Math.abs(random(segmentIndex, pointIndex, 11)) * 0.065) *
               edge;
             const layerOffset = lane * layerSpacing * edge;
@@ -2818,14 +2839,17 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
           const core = lane === 0;
           const innerGlow = Math.abs(lane) === 1;
           const levelOpacityBoost = (tower.level - 1) * 0.06;
-          (beam.material as THREE.LineBasicMaterial).opacity =
+          const beamMaterial = beam.material as THREE.LineBasicMaterial;
+          if (core && configuredCoreColor) beamMaterial.color.set(configuredCoreColor);
+          else if (configuredGlowColor) beamMaterial.color.set(configuredGlowColor);
+          beamMaterial.opacity =
             THREE.MathUtils.clamp(
-              (core
+              ((core
                 ? 0.92
                 : innerGlow
                   ? 0.5 + levelOpacityBoost
                   : 0.26 + levelOpacityBoost) +
-                random(segmentIndex, lane, 97) * (core ? 0.08 : 0.12),
+                random(segmentIndex, lane, 97) * (core ? 0.08 : 0.12)) * configuredOpacity,
               0.1,
               1,
             );
@@ -2994,6 +3018,7 @@ async function createWorld() {
       surfaceDetail,
       worldPosition,
       towerModels,
+      managedTowerModels: props.managedTowerModels,
     });
     impactScene = createTowerDefenseImpactScene(scene, {
       cellSize: DEFENSE_CELL_SIZE,
@@ -3007,7 +3032,7 @@ async function createWorld() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NeutralToneMapping;
-    renderer.toneMappingExposure = 1.12;
+    renderer.toneMappingExposure = isDarkEnvironment ? 0.94 : 1.12;
     towerModelLibrary = createTowerModelLibrary({
       renderer,
       faction: props.faction,
@@ -3015,7 +3040,9 @@ async function createWorld() {
       decorate: decorateLoadedTowerModel,
     });
     target.appendChild(renderer.domElement);
-    renderer.setClearColor(props.map.theme.background, 1);
+    const clearColor = new THREE.Color(props.map.theme.background);
+    if (isDarkEnvironment) clearColor.lerp(new THREE.Color(0x11101f), 0.34);
+    renderer.setClearColor(clearColor, 1);
     const cameraFar = Math.max(250, cameraMapSpan * 10);
     camera = new THREE.PerspectiveCamera(38, 1, 0.1, cameraFar);
     camera.position.copy(defaultCameraPosition);
@@ -3051,9 +3078,23 @@ async function createWorld() {
     controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
     controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
     controls.update();
-    scene.add(new THREE.AmbientLight(0xffffff, 0.72));
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x64706a, 1.45));
-    const sun = new THREE.DirectionalLight(0xffffff, 2.85);
+    scene.add(
+      new THREE.AmbientLight(
+        isDarkEnvironment ? 0xb9b6d4 : 0xffffff,
+        isDarkEnvironment ? 0.52 : 0.72,
+      ),
+    );
+    scene.add(
+      new THREE.HemisphereLight(
+        isDarkEnvironment ? 0xaab7e8 : 0xffffff,
+        isDarkEnvironment ? 0x21182e : 0x64706a,
+        isDarkEnvironment ? 1.12 : 1.45,
+      ),
+    );
+    const sun = new THREE.DirectionalLight(
+      isDarkEnvironment ? 0xd9ddff : 0xffffff,
+      isDarkEnvironment ? 2.35 : 2.85,
+    );
     sun.position.set(-6, 12, 7);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -3064,7 +3105,10 @@ async function createWorld() {
     sun.shadow.camera.top = 7 * DEFENSE_CELL_SIZE;
     sun.shadow.camera.bottom = -7 * DEFENSE_CELL_SIZE;
     scene.add(sun);
-    const fill = new THREE.DirectionalLight(0xdbeafe, 0.58);
+    const fill = new THREE.DirectionalLight(
+      isDarkEnvironment ? 0x8066c7 : 0xdbeafe,
+      isDarkEnvironment ? 0.42 : 0.58,
+    );
     fill.position.set(7, 6, -8);
     scene.add(fill);
     const mapScene = createTowerDefenseMapScene(scene, props.map, surfaceDetail);
@@ -3318,6 +3362,7 @@ onBeforeUnmount(() => {
   <div
     ref="host"
     class="tower-defense-scene"
+    :class="{ 'is-dark-environment': isDarkEnvironment }"
     role="application"
     aria-label="Bản đồ phòng thủ 3D"
   >
@@ -3343,6 +3388,22 @@ onBeforeUnmount(() => {
   display: block;
   width: 100%;
   height: 100%;
+}
+.tower-defense-scene.is-dark-environment {
+  background: linear-gradient(#55556f 0 45%, #302f47 45% 100%);
+}
+.tower-defense-scene.is-dark-environment::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 44%,
+    transparent 42%,
+    rgb(13 9 27 / 18%) 72%,
+    rgb(7 5 17 / 34%) 100%
+  );
+  content: "";
+  pointer-events: none;
 }
 .tower-defense-scene__error {
   position: absolute;

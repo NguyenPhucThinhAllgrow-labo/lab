@@ -40,35 +40,6 @@ class TowerDefenseTowerController extends Controller
         return response()->json(['data' => $tower->fresh(), 'message' => 'Đã cập nhật tower.']);
     }
 
-    public function updateVisualEffects(Request $request, TowerDefenseTower $tower): JsonResponse
-    {
-        $data = $request->validate([
-            'visual_effects' => ['present', 'array', 'max:12'],
-            'visual_effects.*.id' => ['required', 'string', 'max:100'],
-            'visual_effects.*.type' => ['required', Rule::in(['glow', 'projectile'])],
-            'visual_effects.*.enabled' => ['required', 'boolean'],
-            'visual_effects.*.level' => ['required', 'integer', 'between:0,100'],
-            'visual_effects.*.color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
-            'visual_effects.*.heightRatio' => ['sometimes', 'numeric', 'between:0,2'],
-            'visual_effects.*.glowColor' => ['sometimes', 'regex:/^#[0-9a-fA-F]{6}$/'],
-            'visual_effects.*.trailLength' => ['sometimes', 'numeric', 'between:0,5'],
-            'visual_effects.*.trailOpacity' => ['sometimes', 'numeric', 'between:0,1'],
-            'visual_effects.*.projectileKind' => ['sometimes', Rule::in(['archer', 'cannon', 'frost', 'fire', 'thunder', 'water'])],
-            'visual_effects.*.size' => ['required', 'numeric', 'between:0.05,5'],
-            'visual_effects.*.opacity' => ['required', 'numeric', 'between:0,1'],
-            'visual_effects.*.pulseSpeed' => ['required', 'numeric', 'between:0,20'],
-        ]);
-
-        $configuration = $tower->model_configuration ?? [];
-        $configuration['visualEffects'] = $data['visual_effects'];
-        $tower->update(['model_configuration' => $configuration]);
-
-        return response()->json([
-            'data' => $tower->fresh(),
-            'message' => 'Đã cập nhật hiệu ứng hiển thị của tower.',
-        ]);
-    }
-
     public function destroy(TowerDefenseTower $tower): JsonResponse
     {
         $tower->delete();
@@ -127,20 +98,6 @@ class TowerDefenseTowerController extends Controller
             'model_configuration.targetHeight' => ['required', 'numeric', 'between:0.01,100'],
             'model_configuration.targetHeightByLevel' => ['required', 'array'],
             'model_configuration.targetHeightByLevel.*' => ['required', 'numeric', 'between:0.01,100'],
-            'model_configuration.visualEffects' => ['sometimes', 'array', 'max:12'],
-            'model_configuration.visualEffects.*.id' => ['required', 'string', 'max:100'],
-            'model_configuration.visualEffects.*.type' => ['required', Rule::in(['glow', 'projectile'])],
-            'model_configuration.visualEffects.*.enabled' => ['required', 'boolean'],
-            'model_configuration.visualEffects.*.level' => ['required', 'integer', 'between:0,100'],
-            'model_configuration.visualEffects.*.color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
-            'model_configuration.visualEffects.*.heightRatio' => ['sometimes', 'numeric', 'between:0,2'],
-            'model_configuration.visualEffects.*.glowColor' => ['sometimes', 'regex:/^#[0-9a-fA-F]{6}$/'],
-            'model_configuration.visualEffects.*.trailLength' => ['sometimes', 'numeric', 'between:0,5'],
-            'model_configuration.visualEffects.*.trailOpacity' => ['sometimes', 'numeric', 'between:0,1'],
-            'model_configuration.visualEffects.*.projectileKind' => ['sometimes', Rule::in(['archer', 'cannon', 'frost', 'fire', 'thunder', 'water'])],
-            'model_configuration.visualEffects.*.size' => ['required', 'numeric', 'between:0.05,5'],
-            'model_configuration.visualEffects.*.opacity' => ['required', 'numeric', 'between:0,1'],
-            'model_configuration.visualEffects.*.pulseSpeed' => ['required', 'numeric', 'between:0,20'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
@@ -182,9 +139,6 @@ class TowerDefenseTowerController extends Controller
             $data['model_configuration']['targetHeightByLevel'],
             array_flip(range(1, $data['max_level'])),
         );
-        if ($tower && ! array_key_exists('visualEffects', $data['model_configuration'])) {
-            $data['model_configuration']['visualEffects'] = $tower->model_configuration['visualEffects'] ?? [];
-        }
         $data['model_configuration']['targetHeight'] = $data['model_configuration']['targetHeightByLevel'][1];
         $data['damage'] = $data['level_stats'][1]['damage'];
         $data['cost'] = $data['level_stats'][1]['upgradeCost'];

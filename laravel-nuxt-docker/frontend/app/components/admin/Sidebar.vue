@@ -18,6 +18,7 @@ import {
   BetweenHorizonalEnd,
   Code,
   CircleDot,
+  CirclePlus,
   X,
   ArrowDownUp,
   Brush,
@@ -75,10 +76,11 @@ const towerDefenseMenuItems = [
   { label: "Quái & Boss", to: "/admin/tower-defense/enemies", icon: Skull },
   { label: "Quản lý Tower", to: "/admin/tower-defense/towers", icon: Crosshair },
   { label: "Loại hiệu ứng", to: "/admin/tower-defense/effect-types", icon: Sparkles },
+  { label: "Hiệu ứng hiển thị", to: "/admin/tower-defense/tower-visual-effects", icon: CirclePlus },
 ];
 
 function isTowerDefenseItemActive(item: (typeof towerDefenseMenuItems)[number]) {
-  return route.path === item.to || route.path.startsWith(`${item.to}/`);
+  return route.path === item.to || route.path.startsWith(item.to + "/");
 }
 
 watch(() => route.path, (path) => {

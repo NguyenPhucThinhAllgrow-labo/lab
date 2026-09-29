@@ -32,7 +32,7 @@ class AdminTowerDefenseEffectTypeApiTest extends TestCase
 
         $this->getJson('/api/tower-defense/effect-types')
             ->assertOk()
-            ->assertJsonPath('data.0.name', 'Độc tố');
+            ->assertJsonFragment(['id' => 'poison', 'name' => 'Độc tố']);
 
         $this->putJson('/api/admin/tower-defense/effect-types/poison', [...$payload, 'name' => 'Kịch độc'])
             ->assertOk()

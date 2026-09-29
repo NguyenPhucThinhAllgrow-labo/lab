@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\TowerDefenseMap;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -14,7 +15,10 @@ class TowerDefenseMapController extends Controller
     public function index(Request $request): JsonResponse
     {
         return response()->json(
-            TowerDefenseMap::query()->orderBy('sort_order')->paginate($this->perPage($request)),
+            TowerDefenseMap::query()
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->paginate($this->perPage($request)),
         );
     }
 
@@ -25,7 +29,18 @@ class TowerDefenseMapController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $map = TowerDefenseMap::create($this->validatedData($request));
+        $data = $this->validatedData($request);
+        $map = DB::transaction(function () use ($data): TowerDefenseMap {
+            $lastSortOrder = TowerDefenseMap::query()
+                ->orderByDesc('sort_order')
+                ->lockForUpdate()
+                ->value('sort_order');
+            $data['sort_order'] = $lastSortOrder === null
+                ? 0
+                : (int) $lastSortOrder + 1;
+
+            return TowerDefenseMap::create($data);
+        });
 
         return response()->json(['data' => $map, 'message' => 'Đã tạo map.'], 201);
     }
@@ -54,6 +69,8 @@ class TowerDefenseMapController extends Controller
             'configuration.rows' => ['required', 'integer', 'between:4,100'],
             'configuration.maxTowerCount' => ['required', 'integer', 'between:1,1000'],
             'configuration.startingCredits' => ['sometimes', 'integer', 'between:0,10000000'],
+            'configuration.bossOnly' => ['sometimes', 'boolean'],
+            'configuration.environmentMode' => ['sometimes', Rule::in(['normal', 'dark'])],
             'configuration.cellSize' => ['required', 'numeric', 'gt:0'],
             'configuration.spawnPoints' => ['sometimes', 'array', 'size:2'],
             'configuration.spawnPoints.*.x' => ['required_with:configuration.spawnPoints', 'integer', 'min:0'],
@@ -93,7 +110,6 @@ class TowerDefenseMapController extends Controller
             'configuration.camera' => ['required', 'array'],
             'configuration.theme' => ['required', 'array'],
             'configuration.scenery' => ['required', 'array'],
-            'sort_order' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

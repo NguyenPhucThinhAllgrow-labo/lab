@@ -63,26 +63,54 @@ function drawDamageTexture(
         : 32;
   const textY = damageNumber.critical ? 39 : 31;
   if (damageNumber.critical) {
-    context.font = "900 13px system-ui, sans-serif";
+    context.font = "900 12px system-ui, sans-serif";
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.strokeStyle = "rgba(69, 26, 3, 0.98)";
-    context.lineWidth = 5;
-    context.strokeText("CRIT!", 64, 11);
-    context.fillStyle = "#fde047";
-    context.fillText("CRIT!", 64, 11);
+    context.lineJoin = "round";
+    context.strokeStyle = "rgba(67, 31, 8, 0.92)";
+    context.lineWidth = 3.5;
+    context.strokeText("✦ CRIT", 64, 11);
+    context.fillStyle = "#fff3b0";
+    context.fillText("✦ CRIT", 64, 11);
   }
   context.font = "900 " + fontSize + "px system-ui, sans-serif";
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.lineJoin = "round";
   context.strokeStyle = damageNumber.critical
-    ? "rgba(113, 63, 18, 0.98)"
+    ? "rgba(18, 16, 24, 0.94)"
     : "rgba(39, 8, 8, 0.95)";
-  context.lineWidth = 7;
+  context.lineWidth = damageNumber.critical ? 5 : 7;
   context.strokeText(text, 64, textY);
-  context.fillStyle = damageNumber.color;
+  if (damageNumber.critical) {
+    const towerColor = new THREE.Color(damageNumber.color);
+    const highlightColor = towerColor
+      .clone()
+      .lerp(new THREE.Color(0xffffff), 0.72)
+      .getStyle();
+    const brightTowerColor = towerColor
+      .clone()
+      .lerp(new THREE.Color(0xffffff), 0.2)
+      .getStyle();
+    const deepTowerColor = towerColor
+      .clone()
+      .lerp(new THREE.Color(0x080808), 0.12)
+      .getStyle();
+    const gradient = context.createLinearGradient(
+      0,
+      textY - fontSize / 2,
+      0,
+      textY + fontSize / 2,
+    );
+    gradient.addColorStop(0, highlightColor);
+    gradient.addColorStop(0.4, brightTowerColor);
+    gradient.addColorStop(1, deepTowerColor);
+    context.fillStyle = gradient;
+    context.shadowColor = towerColor.getStyle();
+    context.shadowBlur = 6;
+  } else context.fillStyle = damageNumber.color;
   context.fillText(text, 64, textY);
+  context.shadowBlur = 0;
   texture.needsUpdate = true;
 }
 

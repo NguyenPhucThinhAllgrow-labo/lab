@@ -1,0 +1,294 @@
+import * as THREE from "three";
+import type {
+  ProjectileVisualKind,
+  TowerVisualEffectDefinition,
+} from "./tower-models";
+
+function projectileMesh(
+  geometry: THREE.BufferGeometry,
+  color: number,
+  surfaceDetail: THREE.DataTexture | null,
+  options: { roughness?: number; metalness?: number; emissive?: number } = {},
+) {
+  const roughness = options.roughness ?? 0.72;
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    roughness,
+    metalness: options.metalness ?? 0.05,
+    emissive: options.emissive ?? 0,
+    emissiveIntensity: options.emissive ? 1.35 : 1,
+    bumpMap: roughness > 0.5 ? surfaceDetail : null,
+    bumpScale: roughness > 0.5 ? 0.012 : 0,
+  });
+  const item = new THREE.Mesh(geometry, material);
+  item.castShadow = true;
+  item.receiveShadow = true;
+  return item;
+}
+
+/** Các model đạn procedural dùng chung giữa gameplay và màn hình admin. */
+export function createTowerDefenseProjectileTemplate(
+  kind: ProjectileVisualKind,
+  surfaceDetail: THREE.DataTexture | null = null,
+) {
+  const group = new THREE.Group();
+  let shot: THREE.Object3D;
+  const mesh = (
+    geometry: THREE.BufferGeometry,
+    color: number,
+    options: { roughness?: number; metalness?: number; emissive?: number } = {},
+  ) => projectileMesh(geometry, color, surfaceDetail, options);
+
+  if (kind === "archer") {
+    shot = mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.42, 7), 0xc99a58);
+    shot.rotation.x = Math.PI / 2;
+    const arrowHead = mesh(
+      new THREE.ConeGeometry(0.055, 0.13, 6),
+      0xd8dde0,
+      { metalness: 0.7, roughness: 0.28 },
+    );
+    arrowHead.rotation.x = Math.PI / 2;
+    arrowHead.position.z = 0.265;
+    group.add(arrowHead);
+    for (const rotation of [0, Math.PI / 2]) {
+      const feather = mesh(
+        new THREE.BoxGeometry(0.055, 0.012, 0.11),
+        0x7d342f,
+        { roughness: 0.85 },
+      );
+      feather.position.z = -0.19;
+      feather.rotation.z = rotation;
+      group.add(feather);
+    }
+  } else if (kind === "cannon") {
+    shot = mesh(new THREE.SphereGeometry(0.11, 9, 7), 0x332b25, {
+      metalness: 0.7,
+    });
+  } else if (kind === "fire") {
+    shot = mesh(new THREE.SphereGeometry(0.105, 14, 10), 0xffd052, {
+      emissive: 0xe8380b,
+      roughness: 0.18,
+    });
+    shot.name = "fireballCore";
+    shot.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.185, 14, 10),
+        new THREE.MeshBasicMaterial({
+          color: 0xff4a18,
+          transparent: true,
+          opacity: 0.34,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        }),
+      ),
+    );
+  } else if (kind === "thunder") {
+    const bolt = new THREE.Group();
+    bolt.name = "thunderBoltCore";
+    for (const lane of [-1, 0, 1]) {
+      const positions = new Float32Array(9 * 3);
+      for (let index = 0; index < 9; index++) {
+        const ratio = index / 8;
+        positions[index * 3] =
+          index === 0 || index === 8
+            ? 0
+            : Math.sin(index * 8.17) * 0.045 + lane * 0.012;
+        positions[index * 3 + 1] =
+          index === 0 || index === 8 ? 0 : Math.cos(index * 5.73) * 0.04;
+        positions[index * 3 + 2] = THREE.MathUtils.lerp(-0.38, 0.38, ratio);
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      const line = new THREE.Line(
+        geometry,
+        new THREE.LineBasicMaterial({
+          color: lane === 0 ? 0xffffff : lane < 0 ? 0xc4b5fd : 0x7c3aed,
+          transparent: true,
+          opacity: lane === 0 ? 1 : 0.46,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          toneMapped: false,
+        }),
+      );
+      line.name = "thunderBoltLine";
+      line.userData.lane = lane;
+      bolt.add(line);
+    }
+    shot = bolt;
+  } else if (kind === "water") {
+    shot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.13, 18, 12),
+      new THREE.MeshPhysicalMaterial({
+        color: 0x7dd3fc,
+        emissive: 0x075985,
+        emissiveIntensity: 0.75,
+        roughness: 0.08,
+        metalness: 0,
+        transmission: 0.5,
+        transparent: true,
+        opacity: 0.88,
+      }),
+    );
+    shot.name = "waterShotCore";
+    shot.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 14, 10),
+        new THREE.MeshBasicMaterial({
+          color: 0x38bdf8,
+          transparent: true,
+          opacity: 0.24,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          toneMapped: false,
+        }),
+      ),
+    );
+    for (let index = 0; index < 7; index++) {
+      const droplet = new THREE.Mesh(
+        new THREE.SphereGeometry(0.038 + (index % 3) * 0.007, 9, 7),
+        new THREE.MeshBasicMaterial({
+          color: index % 2 ? 0xbae6fd : 0x38bdf8,
+          transparent: true,
+          opacity: 0.72,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          toneMapped: false,
+        }),
+      );
+      const angle = (index / 7) * Math.PI * 2;
+      droplet.name = "waterShotDroplet";
+      droplet.userData.index = index;
+      droplet.userData.angle = angle;
+      droplet.position.set(Math.cos(angle) * 0.17, Math.sin(angle) * 0.12, 0);
+      group.add(droplet);
+    }
+  } else {
+    shot = mesh(new THREE.OctahedronGeometry(0.12), 0x74e8ff, {
+      emissive: 0x2389a0,
+    });
+    shot.name = "frostShotCore";
+  }
+
+  group.add(shot);
+  return group;
+}
+
+export function configureTowerDefenseThunderVisual(
+  group: THREE.Group,
+  definition: TowerVisualEffectDefinition,
+) {
+  const bolt = group.getObjectByName("thunderBoltCore");
+  bolt?.children.forEach((child) => {
+    if (!(child instanceof THREE.Line)) return;
+    const material = (child.material as THREE.LineBasicMaterial).clone();
+    const lane = Number(child.userData.lane);
+    material.color.set(lane === 0 ? definition.color : definition.glowColor ?? definition.color);
+    material.opacity = THREE.MathUtils.clamp(
+      definition.opacity * (lane === 0 ? 1 : 0.48),
+      0,
+      1,
+    );
+    child.material = material;
+    child.userData.baseOpacity = material.opacity;
+  });
+  if (bolt) {
+    bolt.userData.pulseSpeed = Math.max(0, definition.pulseSpeed);
+    bolt.userData.baseScale = Math.max(0.05, definition.size);
+  }
+}
+
+export function decorateTowerDefenseProjectileLevel(
+  group: THREE.Group,
+  kind: ProjectileVisualKind,
+  level: number,
+) {
+  if (kind === "archer" && level >= 2) {
+    const trail = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.008, 0.018, 0.2 + level * 0.035, 6),
+      new THREE.MeshBasicMaterial({
+        color: level >= 3 ? 0xa8e878 : 0xffdfa0,
+        transparent: true,
+        opacity: level >= 3 ? 0.34 : 0.22,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    );
+    trail.name = "arrowTrail";
+    trail.rotation.x = Math.PI / 2;
+    trail.position.z = -0.34;
+    group.add(trail);
+  } else if (kind === "cannon" && level >= 2) {
+    const glow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.15 + level * 0.025, 10, 8),
+      new THREE.MeshBasicMaterial({
+        color: level >= 3 ? 0xff5a24 : 0xffa43d,
+        transparent: true,
+        opacity: 0.22 + level * 0.06,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    );
+    glow.name = "cannonShotGlow";
+    group.add(glow);
+  }
+}
+
+export function decorateTowerDefenseProjectileVisual(
+  group: THREE.Group,
+  definition: TowerVisualEffectDefinition,
+) {
+  const visual = new THREE.Group();
+  visual.name = "managedProjectileVisual";
+  visual.userData.baseScale = Math.max(0.05, definition.size);
+  visual.userData.pulseSpeed = Math.max(0, definition.pulseSpeed);
+
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(0.105, 12, 9),
+    new THREE.MeshBasicMaterial({
+      color: new THREE.Color(definition.color),
+      transparent: true,
+      opacity: THREE.MathUtils.clamp(definition.opacity, 0, 1),
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+  );
+  core.name = "managedProjectileCore";
+  visual.add(core);
+
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.17, 12, 9),
+    new THREE.MeshBasicMaterial({
+      color: new THREE.Color(definition.glowColor ?? definition.color),
+      transparent: true,
+      opacity: THREE.MathUtils.clamp(definition.opacity * 0.38, 0, 1),
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+  );
+  glow.name = "managedProjectileGlow";
+  visual.add(glow);
+
+  const trailLength = Math.max(0, definition.trailLength ?? 0);
+  if (trailLength > 0) {
+    const trail = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.012, 0.055, trailLength, 8),
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(definition.glowColor ?? definition.color),
+        transparent: true,
+        opacity: THREE.MathUtils.clamp(definition.trailOpacity ?? 0.45, 0, 1),
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      }),
+    );
+    trail.name = "managedProjectileTrail";
+    trail.rotation.x = Math.PI / 2;
+    trail.position.z = -(trailLength / 2 + 0.08);
+    visual.add(trail);
+  }
+
+  visual.scale.setScalar(visual.userData.baseScale);
+  group.add(visual);
+}

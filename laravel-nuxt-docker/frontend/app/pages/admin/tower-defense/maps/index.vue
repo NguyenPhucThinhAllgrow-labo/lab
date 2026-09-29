@@ -162,7 +162,6 @@ const mapFieldErrors = ref<Record<string, string[]>>({});
 const mapForm = reactive({
   id: "",
   name: "",
-  sortOrder: 0,
   isActive: true,
   configuration: "",
 });
@@ -175,6 +174,8 @@ interface MapEditorConfiguration extends Record<string, unknown> {
   rows: number;
   maxTowerCount: number;
   startingCredits: number;
+  bossOnly?: boolean;
+  environmentMode?: "normal" | "dark";
   spawnPoints?: [MapEditorPoint, MapEditorPoint];
   paths: [MapEditorPoint[], MapEditorPoint[]];
   pathTiles: MapEditorPoint[];
@@ -420,6 +421,8 @@ const defaultMapConfiguration = () => {
     rows: 14,
     maxTowerCount: 12,
     startingCredits: 3000,
+    bossOnly: false,
+    environmentMode: "normal" as const,
     cellSize: 1.5,
     spawnPoints: [{ x: 0, y: 3 }, { x: 0, y: 10 }] as [MapEditorPoint, MapEditorPoint],
     paths,
@@ -857,20 +860,28 @@ function updateMapNumber(
   });
 }
 
+function toggleBossOnly() {
+  updateMapConfiguration((configuration) => {
+    configuration.bossOnly = !configuration.bossOnly;
+  });
+}
+
+function toggleEnvironmentMode() {
+  updateMapConfiguration((configuration) => {
+    configuration.environmentMode =
+      configuration.environmentMode === "dark" ? "normal" : "dark";
+  });
+}
+
 function configuredAssetKey(url?: string) {
   const prefix = "/api/tower-defense/assets/";
   return url?.startsWith(prefix) ? decodeURIComponent(url.slice(prefix.length)) : "";
 }
 
-function selectedAssetKey(event: Event) {
-  return (event.target as HTMLSelectElement).value;
-}
-
 function selectSimpleAsset(
   field: "backgroundMusicUrl" | "backgroundModel",
-  event: Event,
+  key: string,
 ) {
-  const key = selectedAssetKey(event);
   updateMapConfiguration((configuration) => {
     if (field === "backgroundMusicUrl") {
       configuration.backgroundMusicUrl = key ? assetPath(key) : "";
@@ -885,8 +896,7 @@ function selectSimpleAsset(
   });
 }
 
-function selectCastleModel(event: Event) {
-  const key = selectedAssetKey(event);
+function selectCastleModel(key: string) {
   if (!key) return;
   updateMapConfiguration((configuration) => {
     configuration.castle.modelUrl = assetPath(key);
@@ -1063,30 +1073,76 @@ function refreshAll() {
   void Promise.all([loadMaps(), loadAssets(), loadEnemies()]);
 }
 
-function openMapDialog(
+/** Loại hồ sơ đã xóa/tắt để form không gửi ID ẩn và bị backend từ chối. */
+function normalizeMapEnemyRoster(configuration: MapEditorConfiguration) {
+  let removedCount = 0;
+  for (const kind of ["normal", "boss"] as const) {
+    const available = enemyCatalog.value.filter(
+      (enemy) => enemy.kind === kind && enemy.is_active,
+    );
+    if (!available.length) continue;
+    const availableById = new Map(available.map((enemy) => [enemy.id, enemy]));
+    const configuredIds = kind === "boss"
+      ? configuration.bossDefinitionIds
+      : configuration.enemyDefinitionIds;
+    const legacyId = kind === "boss"
+      ? configuration.bossDefinition?.id
+      : configuration.enemyDefinition?.id;
+    const requestedIds = configuredIds?.length
+      ? configuredIds
+      : legacyId
+        ? [legacyId]
+        : [];
+    const validIds = [...new Set(requestedIds)].filter((id) =>
+      availableById.has(id),
+    );
+    removedCount += requestedIds.length - validIds.length;
+    if (!validIds.length) validIds.push(available[0]!.id);
+    const selected = validIds.map((id) => availableById.get(id)!);
+    const definitions = selected.map(managedEnemyDefinition);
+    if (kind === "boss") {
+      configuration.bossDefinitionIds = validIds;
+      configuration.bossDefinitions = definitions;
+    } else {
+      configuration.enemyDefinitionIds = validIds;
+      configuration.enemyDefinitions = definitions;
+    }
+    applyPrimaryManagedEnemy(configuration, kind, selected[0]!);
+  }
+  return removedCount;
+}
+
+async function openMapDialog(
   mode: "create" | "edit" | "delete",
   item: AdminTowerDefenseMap | null = null,
 ) {
+  if (mode !== "delete" && !enemyCatalog.value.length) await loadEnemies();
   mapMode.value = mode;
   selectedMap.value = item;
   mapFormError.value = "";
   mapFieldErrors.value = {};
+  mapEditorMessage.value = "";
+  // item đến từ ref nên configuration là Vue Proxy; structuredClone không thể
+  // clone Proxy. Cấu hình map là tài liệu JSON, vì vậy chuyển về object thuần.
+  const configuration = JSON.parse(JSON.stringify(
+    item
+      ? {
+          ...item.configuration,
+          startingCredits: item.configuration.startingCredits ?? 3000,
+        }
+      : defaultMapConfiguration(),
+  )) as MapEditorConfiguration;
+  const removedProfiles = mode === "delete"
+    ? 0
+    : normalizeMapEnemyRoster(configuration);
   Object.assign(mapForm, {
     id: item?.id ?? "",
     name: item?.name ?? "",
-    sortOrder: item?.sort_order ?? maps.value.length,
     isActive: item?.is_active ?? true,
-    configuration: JSON.stringify(
-      item
-        ? {
-            ...item.configuration,
-            startingCredits: item.configuration.startingCredits ?? 3000,
-          }
-        : defaultMapConfiguration(),
-      null,
-      2,
-    ),
+    configuration: JSON.stringify(configuration, null, 2),
   });
+  if (removedProfiles > 0)
+    mapEditorMessage.value = `Đã loại ${removedProfiles} hồ sơ quái/boss không còn hoạt động khỏi cấu hình map.`;
   mapDialog.value?.showModal();
   if (mode !== "delete") void nextTick(refreshMapPreview);
 }
@@ -1127,7 +1183,6 @@ async function submitMap() {
             ...(creating ? { id: mapForm.id.trim() } : {}),
             name: mapForm.name.trim(),
             configuration,
-            sort_order: Number(mapForm.sortOrder),
             is_active: mapForm.isActive,
           },
         },
@@ -1153,7 +1208,6 @@ async function toggleMap(item: AdminTowerDefenseMap) {
       body: {
         name: item.name,
         configuration: item.configuration,
-        sort_order: item.sort_order,
         is_active: !item.is_active,
       },
     });
@@ -1390,7 +1444,6 @@ onMounted(() => {
           <div v-else class="td-form-grid td-map-form">
             <label><span>ID map</span><input v-model="mapForm.id" :disabled="mapMode === 'edit'" required pattern="[a-z0-9-]+" placeholder="dark-forest" /><small v-if="mapFieldErrors.id">{{ mapFieldErrors.id[0] }}</small></label>
             <label><span>Tên hiển thị</span><input v-model="mapForm.name" required placeholder="Khu rừng Bóng tối" /><small v-if="mapFieldErrors.name">{{ mapFieldErrors.name[0] }}</small></label>
-            <label><span>Thứ tự</span><input v-model.number="mapForm.sortOrder" type="number" min="0" required /></label>
             <label class="td-checkbox"><input v-model="mapForm.isActive" type="checkbox" /><span>Cho phép người chơi chọn map này</span></label>
             <section v-if="visualMapConfiguration" class="td-content-editor is-full">
               <header>
@@ -1399,9 +1452,9 @@ onMounted(() => {
               <div class="td-content-grid">
                 <fieldset>
                   <legend>Công trình và không gian</legend>
-                  <label><span>Model lâu đài</span><select :value="configuredAssetKey(visualMapConfiguration.castle?.modelUrl)" @change="selectCastleModel"><option value="">Chọn model…</option><option v-for="asset in selectableCastleAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>
-                  <label><span>Model nền 3D</span><select :value="configuredAssetKey(visualMapConfiguration.backgroundModel?.url)" @change="selectSimpleAsset('backgroundModel', $event)"><option value="">Không dùng model nền</option><option v-for="asset in selectableMapModelAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>
-                  <label><span>Nhạc nền</span><select :value="configuredAssetKey(visualMapConfiguration.backgroundMusicUrl)" @change="selectSimpleAsset('backgroundMusicUrl', $event)"><option value="">Không phát nhạc</option><option v-for="asset in selectableMusicAssets" :key="asset.id" :value="asset.key">{{ asset.key }}</option></select></label>
+                  <label><span>Model lâu đài</span><AdminAssetPicker :model-value="configuredAssetKey(visualMapConfiguration.castle?.modelUrl)" :assets="selectableCastleAssets" placeholder="Chọn model lâu đài…" required @update:model-value="selectCastleModel" /></label>
+                  <label><span>Model nền 3D</span><AdminAssetPicker :model-value="configuredAssetKey(visualMapConfiguration.backgroundModel?.url)" :assets="selectableMapModelAssets" placeholder="Chọn model nền…" clear-label="Không dùng model nền" @update:model-value="selectSimpleAsset('backgroundModel', $event)" /></label>
+                  <label><span>Nhạc nền</span><AdminAssetPicker :model-value="configuredAssetKey(visualMapConfiguration.backgroundMusicUrl)" :assets="selectableMusicAssets" placeholder="Chọn nhạc nền…" clear-label="Không phát nhạc" @update:model-value="selectSimpleAsset('backgroundMusicUrl', $event)" /></label>
                 </fieldset>
 
                 <fieldset>
@@ -1414,6 +1467,17 @@ onMounted(() => {
                 <fieldset>
                   <legend>Boss</legend>
                   <div class="td-roster-heading is-boss"><span>Boss đã chọn sẽ được luân phiên ở các đợt boss.</span><b>{{ managedEnemyIds('boss').length }} đã chọn</b></div>
+                  <button
+                    type="button"
+                    class="td-boss-only-toggle"
+                    :class="{ 'is-active': visualMapConfiguration.bossOnly }"
+                    :aria-pressed="Boolean(visualMapConfiguration.bossOnly)"
+                    @click="toggleBossOnly"
+                  >
+                    <Crown />
+                    <span><strong>Chỉ spawn boss</strong><small>{{ visualMapConfiguration.bossOnly ? 'Đang bật · áp dụng ở mọi wave' : 'Đang tắt · boss xuất hiện mỗi 5 wave' }}</small></span>
+                    <i>{{ visualMapConfiguration.bossOnly ? 'BẬT' : 'TẮT' }}</i>
+                  </button>
                   <div class="td-roster-options"><label v-for="enemy in selectableBosses" :key="enemy.id" class="td-roster-option is-boss" :class="{ 'is-selected': isManagedEnemySelected('boss', enemy.id) }"><input type="checkbox" :checked="isManagedEnemySelected('boss', enemy.id)" @change="toggleManagedEnemy('boss', enemy, $event)" /><img v-if="enemy.avatar_asset_key" :src="assetPath(enemy.avatar_asset_key)" alt="" /><Crown v-else /><span><strong>{{ enemy.name }}</strong><code>{{ enemy.id }}</code><small>HP {{ enemy.base_health }} · Mất {{ enemy.castle_damage }} máu</small></span></label></div>
                   <NuxtLink class="td-manage-enemy-link" to="/admin/tower-defense/enemies">Quản lý hồ sơ boss →</NuxtLink>
                 </fieldset>
@@ -1427,6 +1491,16 @@ onMounted(() => {
                 <label><span>Số hàng</span><input :value="visualMapConfiguration.rows" type="number" :min="minimumMapRows" max="40" step="1" required @change="updateMapNumber('rows', $event)" /><small v-if="mapFieldErrors['configuration.rows']">{{ mapFieldErrors['configuration.rows'][0] }}</small></label>
                 <label><span>Số trụ tối đa</span><input :value="visualMapConfiguration.maxTowerCount" type="number" min="1" max="1000" step="1" required @change="updateMapNumber('maxTowerCount', $event)" /><small v-if="mapFieldErrors['configuration.maxTowerCount']">{{ mapFieldErrors['configuration.maxTowerCount'][0] }}</small></label>
                 <label><span>Vàng khởi đầu</span><input :value="visualMapConfiguration.startingCredits ?? 3000" type="number" min="0" max="10000000" step="1" required @change="updateMapNumber('startingCredits', $event)" /><small v-if="mapFieldErrors['configuration.startingCredits']">{{ mapFieldErrors['configuration.startingCredits'][0] }}</small></label>
+                <button
+                  type="button"
+                  class="td-environment-toggle"
+                  :class="{ 'is-dark': visualMapConfiguration.environmentMode === 'dark' }"
+                  :aria-pressed="visualMapConfiguration.environmentMode === 'dark'"
+                  @click="toggleEnvironmentMode"
+                >
+                  <span><strong>Không khí map</strong><small>{{ visualMapConfiguration.environmentMode === 'dark' ? 'U tối' : 'Bình thường' }}</small></span>
+                  <i>{{ visualMapConfiguration.environmentMode === 'dark' ? 'U TỐI' : 'THƯỜNG' }}</i>
+                </button>
               </div>
             </section>
 

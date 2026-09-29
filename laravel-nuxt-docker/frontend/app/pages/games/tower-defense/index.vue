@@ -837,7 +837,10 @@ onBeforeUnmount(() => {
     <section
       v-if="!sessionLoading && selectedFaction"
       class="defense-shell"
-      :class="{ 'is-loading': !isGameReady }"
+      :class="{
+        'is-loading': !isGameReady,
+        'is-dark-environment': map.environmentMode === 'dark',
+      }"
       :aria-hidden="!isGameReady"
     >
       <section class="defense-board-panel">

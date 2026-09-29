@@ -18,8 +18,8 @@ class TowerDefenseAssetController extends Controller
                 ->when($request->filled('type'), fn ($query) => $query->where('type', (string) $request->string('type')))
                 ->when($request->filled('purpose'), fn ($query) => $query->where('purpose', (string) $request->string('purpose')))
                 ->when($request->filled('search'), fn ($query) => $query->where('key', 'like', '%'.(string) $request->string('search').'%'))
-                ->orderBy('type')
-                ->orderBy('key')
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
                 ->paginate($this->perPage($request));
         $assets->through(fn (TowerDefenseAsset $asset): array => [
                     'id' => $asset->id,

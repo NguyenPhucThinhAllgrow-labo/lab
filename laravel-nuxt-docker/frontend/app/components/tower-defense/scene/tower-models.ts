@@ -12,10 +12,33 @@ interface TowerModelDefinition {
   urls: Record<number, string>;
 }
 
+export const PROJECTILE_VISUAL_KINDS = ["archer", "cannon", "frost", "fire", "thunder", "water"] as const;
+export type ProjectileVisualKind = (typeof PROJECTILE_VISUAL_KINDS)[number];
+
+export interface TowerVisualEffectDefinition {
+  id: string;
+  type: "glow" | "projectile";
+  enabled: boolean;
+  heightRatio?: number;
+  level: number;
+  color: string;
+  size: number;
+  opacity: number;
+  pulseSpeed: number;
+  /** Màu quầng riêng của đạn; mặc định dùng `color`. */
+  glowColor?: string;
+  /** Chiều dài đuôi đạn theo world unit. */
+  trailLength?: number;
+  trailOpacity?: number;
+  /** Hình dáng procedural dùng chung với projectile renderer trong game. */
+  projectileKind?: ProjectileVisualKind;
+}
+
 export interface ManagedTowerModelDefinition {
   templateKind: TowerKind;
   targetHeight: number;
   targetHeightByLevel?: Record<number, number>;
+  visualEffects?: TowerVisualEffectDefinition[];
   dark: Record<number, string>;
   human: Record<number, string>;
 }
@@ -184,6 +207,49 @@ function normalizeSource(
   });
 }
 
+let configuredGlowTexture: THREE.CanvasTexture | null = null;
+
+function getConfiguredGlowTexture() {
+  if (configuredGlowTexture) return configuredGlowTexture;
+  const canvas = document.createElement("canvas");
+  canvas.width = 128; canvas.height = 128;
+  const context = canvas.getContext("2d")!;
+  const gradient = context.createRadialGradient(64, 64, 3, 64, 64, 62);
+  gradient.addColorStop(0, "#ffffff");
+  gradient.addColorStop(0.18, "#ffffffdd");
+  gradient.addColorStop(0.55, "#ffffff55");
+  gradient.addColorStop(1, "#ffffff00");
+  context.fillStyle = gradient; context.fillRect(0, 0, 128, 128);
+  configuredGlowTexture = new THREE.CanvasTexture(canvas);
+  configuredGlowTexture.colorSpace = THREE.SRGBColorSpace;
+  return configuredGlowTexture;
+}
+
+export function decorateTowerVisualEffects(group: THREE.Group, effects: TowerVisualEffectDefinition[] = [], level = 1) {
+  group.getObjectByName("managedTowerVisualEffects")?.removeFromParent();
+  const active = effects.filter((effect) => effect.enabled && effect.type === "glow" && (!effect.level || effect.level === level));
+  if (!active.length) return;
+  group.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(group);
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  const collection = new THREE.Group();
+  collection.name = "managedTowerVisualEffects";
+  active.forEach((definition, index) => {
+    const effect = new THREE.Group();
+    effect.name = "managedTowerGlow";
+    effect.position.set(center.x, bounds.min.y + size.y * THREE.MathUtils.clamp(definition.heightRatio ?? 0.9, 0, 2), center.z);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: getConfiguredGlowTexture(), color: new THREE.Color(definition.color), transparent: true, opacity: THREE.MathUtils.clamp(definition.opacity, 0, 1), depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    sprite.renderOrder = 10;
+    effect.userData.baseScale = Math.max(0.05, definition.size);
+    effect.userData.pulseSpeed = Math.max(0, definition.pulseSpeed);
+    effect.userData.phase = index * 1.7;
+    sprite.scale.setScalar(effect.userData.baseScale);
+    effect.add(sprite); collection.add(effect);
+  });
+  group.add(collection);
+}
+
 export function createTowerModelLibrary({
   renderer,
   faction,
@@ -240,6 +306,7 @@ export function createTowerModelLibrary({
           if (visualKind === "frost")
             template.userData.frostEffectCenterY = 1.77;
           template.add(gltf.scene);
+          decorateTowerVisualEffects(template, managed?.visualEffects, level);
           decorate(template, visualKind, Math.min(3, level) as 1 | 2 | 3);
           templates.set(templateKey(definition.kind, level), template);
         } catch (error) {
