@@ -28,17 +28,20 @@ export interface EnemySceneSyncOptions {
   frameDelta: number;
   now: number;
   speedMultiplier: number;
-  worldUnitsPerCell: number;
   reducedEffects: boolean;
   pathPosition: (progress: number, lane: 0 | 1) => THREE.Vector3;
 }
 
-// Tốc độ world mà clip walk 1× khớp tương đối với độ dài một bước chân.
-// Mixer sẽ nhân theo vận tốc model thực tế để chân không chạy tại chỗ hoặc lướt.
-const WALK_WORLD_SPEED_AT_NORMAL_PLAYBACK = 0.54;
-const DEFAULT_WALK_CLIP_DURATION = 2.3333333333333335;
+// Clip walk của normal.glb đi 1.627 đơn vị trong 2.333 giây. Sau characterScale
+// 2 và sceneScale 0.494, nó đi khoảng 0.689 world-unit/giây. Cell của map rộng
+// 1.5 world-unit, nên playback 1× tương ứng khoảng 0.46 cell/giây. Hiệu chỉnh
+// nhẹ xuống 0.42 để bù độ dài bước chân thực tế khi model đã skin/animate.
+const WALK_PROGRESS_SPEED_AT_NORMAL_PLAYBACK = 0.42;
 const WALK_SPEED_RESPONSE = 20;
 const FACING_RESPONSE = 19;
+// Pivot của model nằm thấp hơn lòng bàn chân một chút; path top ở 0.025 nhưng
+// cần đặt wrapper tại 0.08 để bàn chân không xuyên qua mặt đường.
+const ENEMY_GROUND_Y = 0.08;
 
 export interface TowerDefenseEnemyScene {
   readonly models: Map<number, THREE.Group>;
@@ -117,7 +120,10 @@ function createEnemyHealthBars(y: number) {
 function removeRootMotion(clip: THREE.AnimationClip) {
   const normalizedClip = clip.clone();
   for (const track of normalizedClip.tracks) {
-    if (!/Hips\.position$/.test(track.name) || track.values.length < 3) continue;
+    // Chỉ chuẩn hóa bone hông. Không can thiệp bone `root` vì với Adventure
+    // Kit nó là gốc của toàn bộ rig và thay đổi track này có thể làm model lệch.
+    if (!/hips\.position$/i.test(track.name) || track.values.length < 3)
+      continue;
     const originX = track.values[0] ?? 0;
     const originZ = track.values[2] ?? 0;
     for (let index = 0; index < track.values.length; index += 3) {
@@ -471,9 +477,7 @@ export function createTowerDefenseEnemyScene(
       pooledModel.userData.progressVelocity = enemy.speed;
       pooledModel.userData.renderProgress = enemy.progress;
       pooledModel.userData.hasFacingDirection = false;
-      pooledModel.userData.hasWorldPosition = false;
-      pooledModel.userData.animationWorldSpeed = 0;
-      pooledModel.userData.walkPhase = 0;
+      pooledModel.userData.animationProgressSpeed = 0;
       (pooledModel.userData.mixer as THREE.AnimationMixer | undefined)?.setTime(0);
       scene.add(pooledModel);
       return pooledModel;
@@ -558,21 +562,22 @@ export function createTowerDefenseEnemyScene(
       enemy.kind === "normal"
         ? (definition?.animationNames ?? [])
         : (definition?.animationNames ?? BOSS_WALK_ANIMATION_NAMES);
+    // Tên trong Admin được sắp theo mức ưu tiên. Duyệt tên trước để cấu hình
+    // ["Walk", "Run"] luôn chọn Walk, bất kể thứ tự clip bên trong file GLB.
     const walk =
-      animations.find((clip) =>
-        animationNames.some((name) =>
-          clip.name.toLowerCase().includes(name.toLowerCase()),
-        ),
-      ) ?? animations[0];
+      animationNames
+        .map((name) =>
+          animations.find((clip) =>
+            clip.name.toLowerCase().includes(name.toLowerCase()),
+          ),
+        )
+        .find((clip): clip is THREE.AnimationClip => Boolean(clip)) ??
+      animations[0];
     const mixer = new THREE.AnimationMixer(group);
     if (walk) mixer.clipAction(walk).play();
     group.userData.health = health;
     group.userData.mixer = mixer;
-    group.userData.walkClipDuration = walk?.duration ?? DEFAULT_WALK_CLIP_DURATION;
-    group.userData.lastWorldPosition = new THREE.Vector3();
-    group.userData.hasWorldPosition = false;
-    group.userData.animationWorldSpeed = 0;
-    group.userData.walkPhase = 0;
+    group.userData.animationProgressSpeed = 0;
     group.userData.poolKey = poolKey;
     group.userData.sceneScale = Math.max(
       Number(
@@ -878,7 +883,6 @@ export function createTowerDefenseEnemyScene(
     frameDelta,
     now,
     speedMultiplier,
-    worldUnitsPerCell,
     reducedEffects,
     pathPosition,
   }: EnemySceneSyncOptions) {
@@ -960,39 +964,24 @@ export function createTowerDefenseEnemyScene(
       const position = pathPosition(renderProgress, enemy.lane);
       const facingFrom = pathPosition(renderProgress - 0.045, enemy.lane);
       const facingTo = pathPosition(renderProgress + 0.065, enemy.lane);
-      const lastWorldPosition = model.userData
-        .lastWorldPosition as THREE.Vector3;
-      const hasWorldPosition = Boolean(model.userData.hasWorldPosition);
-      const measuredWorldSpeed =
-        hasWorldPosition && frameDelta > 0
-          ? lastWorldPosition.distanceTo(position) / frameDelta
-          : enemy.speed * speedMultiplier * worldUnitsPerCell;
-      lastWorldPosition.copy(position);
-      model.userData.hasWorldPosition = true;
-
-      // Bám vận tốc render đủ nhanh để nhịp chân không trễ phía sau thân model,
-      // đồng thời vẫn lọc dao động nhỏ sinh ra từ tick gameplay 100 ms.
-      const animationWorldSpeed = frozen
+      // Bám tốc độ gameplay (đã gồm tốc độ Admin, slow và tốc độ trận đấu).
+      // Không dùng quãng đường world vì nó từng làm clip chạy hơn 2× so với preview.
+      const animationProgressSpeed = frozen
         ? 0
         : THREE.MathUtils.damp(
-            Number(model.userData.animationWorldSpeed) || measuredWorldSpeed,
-            measuredWorldSpeed,
+            Number(model.userData.animationProgressSpeed) ||
+              Number(model.userData.progressVelocity),
+            Number(model.userData.progressVelocity),
             WALK_SPEED_RESPONSE,
             frameDelta,
           );
-      model.userData.animationWorldSpeed = animationWorldSpeed;
+      model.userData.animationProgressSpeed = animationProgressSpeed;
       const animationTimeScale = THREE.MathUtils.clamp(
-        animationWorldSpeed / WALK_WORLD_SPEED_AT_NORMAL_PLAYBACK,
+        animationProgressSpeed / WALK_PROGRESS_SPEED_AT_NORMAL_PLAYBACK,
         0,
         4.5,
       );
-      const walkClipDuration =
-        Number(model.userData.walkClipDuration) || DEFAULT_WALK_CLIP_DURATION;
-      model.userData.walkPhase =
-        Number(model.userData.walkPhase) +
-        (frameDelta * animationTimeScale * Math.PI * 2) / walkClipDuration;
-      const stride = frozen ? 0 : Math.sin(Number(model.userData.walkPhase));
-      model.position.copy(position.setY(0.08 + Math.abs(stride) * 0.014));
+      model.position.copy(position.setY(ENEMY_GROUND_Y));
       const targetRotation = Math.atan2(
         facingTo.x - facingFrom.x,
         facingTo.z - facingFrom.z,

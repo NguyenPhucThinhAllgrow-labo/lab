@@ -673,7 +673,9 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       damageNumbers.value.splice(index, 1);
       damageNumbersByEnemyId.delete(damageNumber.enemyId);
     }
-    const baseSpawnInterval = Math.max(0.45, 1.15 - wave.value * 0.025);
+    // Chừa thêm khoảng cách giữa các enemy để đội hình không dính sát nhau.
+    // Wave cao vẫn spawn nhanh dần nhưng không thấp hơn nửa giây.
+    const baseSpawnInterval = Math.max(0.5, 1.28 - wave.value * 0.025);
     for (const lane of [0, 1] as const) {
       spawnCooldownByLane[lane] -= dt;
       if (
