@@ -1,10 +1,22 @@
 import * as THREE from "three";
 import type { Projectile, Tower } from "~/types/games/towerDefense";
+import type {
+  ManagedTowerModelDefinition,
+  ProjectileVisualKind,
+  TowerVisualEffectDefinition,
+} from "./tower-models";
+import {
+  createTowerDefenseProjectileTemplate,
+  configureTowerDefenseThunderVisual,
+  decorateTowerDefenseProjectileLevel,
+  decorateTowerDefenseProjectileVisual,
+} from "./projectile-visuals";
 
 interface ProjectileSceneOptions {
   surfaceDetail: THREE.DataTexture | null;
   worldPosition: (x: number, y: number) => THREE.Vector3;
   towerModels: ReadonlyMap<number, THREE.Group>;
+  managedTowerModels?: Partial<Record<string, ManagedTowerModelDefinition>>;
 }
 
 export interface ProjectileSceneSyncOptions {
@@ -23,9 +35,9 @@ export interface TowerDefenseProjectileScene {
 /** Quản lý trọn vòng đời hình dạng, instance và chuyển động đạn trong scene. */
 export function createTowerDefenseProjectileScene(
   scene: THREE.Scene,
-  { surfaceDetail, worldPosition, towerModels }: ProjectileSceneOptions,
+  { surfaceDetail, worldPosition, towerModels, managedTowerModels }: ProjectileSceneOptions,
 ): TowerDefenseProjectileScene {
-  const templates = new Map<Projectile["kind"], THREE.Group>();
+  const templates = new Map<ProjectileVisualKind, THREE.Group>();
   const models = new Map<number, { group: THREE.Group; bornAt: number }>();
   const modelPool = new Map<string, THREE.Group[]>();
   const activeProjectileIds = new Set<number>();
@@ -43,32 +55,6 @@ export function createTowerDefenseProjectileScene(
     const point = bounds.getCenter(new THREE.Vector3());
     point.y = THREE.MathUtils.lerp(bounds.min.y, bounds.max.y, heightRatio);
     return point;
-  }
-
-  /** Tạo material đồng nhất với các model procedural còn lại trong scene. */
-  function mesh(
-    geometry: THREE.BufferGeometry,
-    color: number,
-    options: {
-      roughness?: number;
-      metalness?: number;
-      emissive?: number;
-    } = {},
-  ) {
-    const roughness = options.roughness ?? 0.72;
-    const material = new THREE.MeshStandardMaterial({
-      color,
-      roughness,
-      metalness: options.metalness ?? 0.05,
-      emissive: options.emissive ?? 0,
-      emissiveIntensity: options.emissive ? 1.35 : 1,
-      bumpMap: roughness > 0.5 ? surfaceDetail : null,
-      bumpScale: roughness > 0.5 ? 0.012 : 0,
-    });
-    const item = new THREE.Mesh(geometry, material);
-    item.castShadow = true;
-    item.receiveShadow = true;
-    return item;
   }
 
   /** Gỡ object khỏi scene; template clone dùng chung resource nên chỉ dispose khi hủy subsystem. */
@@ -92,145 +78,6 @@ export function createTowerDefenseProjectileScene(
     object.removeFromParent();
   }
 
-  /**
-   * Tạo hình dạng 3D dùng chung cho từng loại đạn.
-   * Hàm này chỉ dựng mesh/material, chưa quyết định đạn xuất hiện ở vị trí nào.
-   */
-  function createTemplate(kind: Projectile["kind"]) {
-    const group = new THREE.Group();
-    let shot: THREE.Mesh;
-    if (kind === "archer") {
-      shot = mesh(
-        new THREE.CylinderGeometry(0.018, 0.018, 0.42, 7),
-        0xc99a58,
-      );
-      shot.rotation.x = Math.PI / 2;
-      const arrowHead = mesh(
-        new THREE.ConeGeometry(0.055, 0.13, 6),
-        0xd8dde0,
-        { metalness: 0.7, roughness: 0.28 },
-      );
-      arrowHead.rotation.x = Math.PI / 2;
-      arrowHead.position.z = 0.265;
-      group.add(arrowHead);
-      for (const rotation of [0, Math.PI / 2]) {
-        const feather = mesh(
-          new THREE.BoxGeometry(0.055, 0.012, 0.11),
-          0x7d342f,
-          { roughness: 0.85 },
-        );
-        feather.position.z = -0.19;
-        feather.rotation.z = rotation;
-        group.add(feather);
-      }
-    } else if (kind === "cannon") {
-      shot = mesh(new THREE.SphereGeometry(0.11, 9, 7), 0x332b25, {
-        metalness: 0.7,
-      });
-    } else if (kind === "fire") {
-      shot = mesh(new THREE.SphereGeometry(0.105, 14, 10), 0xffd052, {
-        emissive: 0xe8380b,
-        roughness: 0.18,
-      });
-      shot.name = "fireballCore";
-      shot.add(
-        new THREE.Mesh(
-          new THREE.SphereGeometry(0.185, 14, 10),
-          new THREE.MeshBasicMaterial({
-            color: 0xff4a18,
-            transparent: true,
-            opacity: 0.34,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending,
-          }),
-        ),
-      );
-    } else if (kind === "thunder") {
-      shot = new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.11, 1),
-        new THREE.MeshBasicMaterial({
-          color: 0xe9ddff,
-          transparent: true,
-          opacity: 0.96,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending,
-          toneMapped: false,
-        }),
-      );
-      shot.name = "thunderBoltCore";
-      shot.add(
-        new THREE.Mesh(
-          new THREE.SphereGeometry(0.2, 12, 8),
-          new THREE.MeshBasicMaterial({
-            color: 0x7c3aed,
-            transparent: true,
-            opacity: 0.38,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending,
-            toneMapped: false,
-          }),
-        ),
-      );
-    } else if (kind === "water") {
-      shot = new THREE.Mesh(
-        new THREE.SphereGeometry(0.13, 18, 12),
-        new THREE.MeshPhysicalMaterial({
-          color: 0x7dd3fc,
-          emissive: 0x075985,
-          emissiveIntensity: 0.75,
-          roughness: 0.08,
-          metalness: 0,
-          transmission: 0.5,
-          transparent: true,
-          opacity: 0.88,
-        }),
-      );
-      shot.name = "waterShotCore";
-      shot.add(
-        new THREE.Mesh(
-          new THREE.SphereGeometry(0.2, 14, 10),
-          new THREE.MeshBasicMaterial({
-            color: 0x38bdf8,
-            transparent: true,
-            opacity: 0.24,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending,
-            toneMapped: false,
-          }),
-        ),
-      );
-      for (let index = 0; index < 7; index++) {
-        const droplet = new THREE.Mesh(
-          new THREE.SphereGeometry(0.038 + (index % 3) * 0.007, 9, 7),
-          new THREE.MeshBasicMaterial({
-            color: index % 2 ? 0xbae6fd : 0x38bdf8,
-            transparent: true,
-            opacity: 0.72,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending,
-            toneMapped: false,
-          }),
-        );
-        const angle = (index / 7) * Math.PI * 2;
-        droplet.name = "waterShotDroplet";
-        droplet.userData.index = index;
-        droplet.userData.angle = angle;
-        droplet.position.set(
-          Math.cos(angle) * 0.17,
-          Math.sin(angle) * 0.12,
-          0,
-        );
-        group.add(droplet);
-      }
-    } else {
-      shot = mesh(new THREE.OctahedronGeometry(0.12), 0x74e8ff, {
-        emissive: 0x2389a0,
-      });
-    }
-    group.add(shot);
-    return group;
-  }
-
   for (const kind of [
     "archer",
     "cannon",
@@ -239,11 +86,31 @@ export function createTowerDefenseProjectileScene(
     "thunder",
     "water",
   ] as const)
-    templates.set(kind, createTemplate(kind));
+    templates.set(kind, createTowerDefenseProjectileTemplate(kind, surfaceDetail));
+
+  function projectileEffects(projectile: Projectile) {
+    return managedTowerModels?.[projectile.sourceTowerKind ?? projectile.kind]
+      ?.visualEffects?.filter(
+        (effect) =>
+          effect.type === "projectile" &&
+          effect.enabled &&
+          (!effect.level || effect.level === projectile.level),
+      ) ?? [];
+  }
+
+  function projectileEffectKey(effects: TowerVisualEffectDefinition[]) {
+    if (!effects.length) return "default";
+    return effects.map((effect) => [
+      effect.id, effect.color, effect.glowColor, effect.size, effect.opacity,
+      effect.pulseSpeed, effect.trailLength, effect.trailOpacity, effect.projectileKind,
+    ].join(":")).join("|");
+  }
 
   /** Clone projectile render-side; `sync` sẽ đặt nó tại điểm bắn ngay trong frame hiện tại. */
   function createProjectile(projectile: Projectile, now: number) {
-    const poolKey = `${projectile.kind}:${projectile.level}`;
+    const effects = projectileEffects(projectile);
+    const visualKind = effects.find((effect) => effect.projectileKind)?.projectileKind ?? projectile.kind as ProjectileVisualKind;
+    const poolKey = [projectile.kind, projectile.level, visualKind, projectileEffectKey(effects)].join(":");
     const pooled = modelPool.get(poolKey)?.pop();
     if (pooled) {
       pooled.visible = true;
@@ -251,48 +118,18 @@ export function createTowerDefenseProjectileScene(
       scene.add(pooled);
       return { group: pooled, bornAt: now };
     }
-    const template = templates.get(projectile.kind);
-    if (!template)
-      throw new Error(`Missing projectile template: ${projectile.kind}`);
+    const template = templates.get(visualKind);
+    if (!template) throw new Error("Missing projectile template: " + visualKind);
     const group = template.clone(true);
     group.userData.poolKey = poolKey;
+    group.userData.projectileVisualKind = visualKind;
     const levelScale = 1 + (projectile.level - 1) * 0.2;
     group.scale.setScalar(levelScale);
     group.userData.levelScale = levelScale;
-    if (projectile.kind === "archer" && projectile.level >= 2) {
-      const trail = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          0.008,
-          0.018,
-          0.2 + projectile.level * 0.035,
-          6,
-        ),
-        new THREE.MeshBasicMaterial({
-          color: projectile.level >= 3 ? 0xa8e878 : 0xffdfa0,
-          transparent: true,
-          opacity: projectile.level >= 3 ? 0.34 : 0.22,
-          depthWrite: false,
-          toneMapped: false,
-        }),
-      );
-      trail.name = "arrowTrail";
-      trail.rotation.x = Math.PI / 2;
-      trail.position.z = -0.34;
-      group.add(trail);
-    } else if (projectile.kind === "cannon" && projectile.level >= 2) {
-      const glow = new THREE.Mesh(
-        new THREE.SphereGeometry(0.15 + projectile.level * 0.025, 10, 8),
-        new THREE.MeshBasicMaterial({
-          color: projectile.level >= 3 ? 0xff5a24 : 0xffa43d,
-          transparent: true,
-          opacity: 0.22 + projectile.level * 0.06,
-          depthWrite: false,
-          toneMapped: false,
-        }),
-      );
-      glow.name = "cannonShotGlow";
-      group.add(glow);
-    }
+    decorateTowerDefenseProjectileLevel(group, visualKind, projectile.level);
+    if (visualKind === "thunder" && effects[0])
+      configureTowerDefenseThunderVisual(group, effects[0]);
+    else effects.forEach((effect) => decorateTowerDefenseProjectileVisual(group, effect));
     scene.add(group);
     return { group, bornAt: now };
   }
@@ -344,6 +181,20 @@ export function createTowerDefenseProjectileScene(
       item.group.visible = ratio < 1;
       if (ratio >= 1) continue;
 
+      const visualKind = (item.group.userData.projectileVisualKind ?? projectile.kind) as ProjectileVisualKind;
+      const sourceTowerKind = projectile.sourceTowerKind ?? projectile.kind;
+      const configuredProjectileEffect = projectileEffects(projectile)[0];
+      const configuredLaunchHeight = configuredProjectileEffect?.heightRatio;
+      item.group.traverse((configuredVisual) => {
+        if (configuredVisual.name !== "managedProjectileVisual") return;
+
+        const baseScale = Number(configuredVisual.userData.baseScale) || 1;
+        const pulseSpeed = Number(configuredVisual.userData.pulseSpeed) || 0;
+        const pulse = 1 + Math.sin(elapsed * pulseSpeed + projectile.id) * 0.1;
+        configuredVisual.scale.setScalar(baseScale * pulse);
+        configuredVisual.rotateZ(frameDelta * pulseSpeed * 0.35);
+      });
+
       // Tâm ô grid là vị trí mặc định; từng loại tháp có thể hiệu chỉnh `from`.
       const from = worldPosition(projectile.from.x, projectile.from.y);
       const to = worldPosition(projectile.to.x, projectile.to.y);
@@ -356,7 +207,7 @@ export function createTowerDefenseProjectileScene(
           (tower) =>
             tower.x === projectile.from.x &&
             tower.y === projectile.from.y &&
-            tower.kind === "archer",
+            tower.kind === sourceTowerKind,
         );
         const towerScale = towerScaleForLevel(sourceTower?.level ?? 1);
         const directionX = to.x - from.x;
@@ -371,7 +222,7 @@ export function createTowerDefenseProjectileScene(
         const launchOffset = 0.34 * towerScale.horizontal;
         from.x += (directionX / horizontalDistance) * launchOffset;
         from.z += (directionZ / horizontalDistance) * launchOffset;
-        const launchPoint = sourceTower ? modelLaunchPoint(sourceTower.id, 0.78) : undefined;
+        const launchPoint = sourceTower ? modelLaunchPoint(sourceTower.id, configuredLaunchHeight ?? 0.78) : undefined;
         if (launchPoint) {
           from.x = launchPoint.x + (directionX / horizontalDistance) * launchOffset;
           from.z = launchPoint.z + (directionZ / horizontalDistance) * launchOffset;
@@ -387,7 +238,7 @@ export function createTowerDefenseProjectileScene(
           (tower) =>
             tower.x === projectile.from.x &&
             tower.y === projectile.from.y &&
-            tower.kind === "cannon",
+            tower.kind === sourceTowerKind,
         );
         const towerScale = towerScaleForLevel(sourceTower?.level ?? 1);
         const directionX = to.x - from.x;
@@ -399,7 +250,7 @@ export function createTowerDefenseProjectileScene(
         const muzzleDistance = Math.cos(0.2) * 0.9 * towerScale.horizontal;
         from.x += (directionX / directionLength) * muzzleDistance;
         from.z += (directionZ / directionLength) * muzzleDistance;
-        const launchPoint = sourceTower ? modelLaunchPoint(sourceTower.id, 0.72, "towerMuzzle") : undefined;
+        const launchPoint = sourceTower ? modelLaunchPoint(sourceTower.id, configuredLaunchHeight ?? 0.72, configuredLaunchHeight === undefined ? "towerMuzzle" : undefined) : undefined;
         if (launchPoint) {
           from.copy(launchPoint);
         }
@@ -415,15 +266,21 @@ export function createTowerDefenseProjectileScene(
           (tower) =>
             tower.x === projectile.from.x &&
             tower.y === projectile.from.y &&
-            tower.kind === projectile.kind,
+            tower.kind === sourceTowerKind,
         );
         const towerScale = towerScaleForLevel(sourceTower?.level ?? 1);
+        const configuredLaunchPoint = sourceTower && configuredLaunchHeight !== undefined
+          ? modelLaunchPoint(sourceTower.id, configuredLaunchHeight)
+          : undefined;
         const elementalGlow = sourceTower
           ? towerModels
               .get(sourceTower.id)
               ?.getObjectByName("elementalTowerGlow")
           : undefined;
-        if (
+        if (configuredLaunchPoint) {
+          from.copy(configuredLaunchPoint);
+          startHeight = from.y;
+        } else if (
           elementalGlow &&
           (projectile.kind === "fire" || projectile.kind === "water")
         ) {
@@ -467,7 +324,7 @@ export function createTowerDefenseProjectileScene(
         item.group.lookAt(to.x, targetHeight, to.z);
       }
 
-      if (projectile.kind === "fire") {
+      if (visualKind === "fire") {
         const fireball = item.group.getObjectByName("fireballCore");
         if (fireball) {
           fireball.rotateZ(frameDelta * 9);
@@ -475,7 +332,7 @@ export function createTowerDefenseProjectileScene(
             1 + Math.sin(elapsed * 18 + projectile.id) * 0.1,
           );
         }
-      } else if (projectile.kind === "thunder") {
+      } else if (visualKind === "thunder") {
         const bolt = item.group.getObjectByName("thunderBoltCore");
         if (bolt) {
           bolt.rotateZ(frameDelta * 18);
@@ -483,7 +340,7 @@ export function createTowerDefenseProjectileScene(
             1 + Math.sin(elapsed * 28 + projectile.id) * 0.18,
           );
         }
-      } else if (projectile.kind === "water") {
+      } else if (visualKind === "water") {
         const drop = item.group.getObjectByName("waterShotCore");
         if (drop) {
           const pulse = 1 + Math.sin(elapsed * 10 + projectile.id) * 0.055;

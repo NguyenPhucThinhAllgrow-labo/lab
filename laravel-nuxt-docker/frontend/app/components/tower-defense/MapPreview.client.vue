@@ -74,13 +74,26 @@ function clearScene() {
   updatePortal = null;
 }
 
-function addLights() {
+function addLights(map: TowerDefenseMapDefinition) {
   if (!scene) return;
-  scene.add(new THREE.HemisphereLight(0xdbeafe, 0x17120e, 2.25));
-  const keyLight = new THREE.DirectionalLight(0xfff1d6, 3.2);
+  const dark = map.environmentMode === "dark";
+  scene.add(
+    new THREE.HemisphereLight(
+      dark ? 0xaab7e8 : 0xdbeafe,
+      dark ? 0x171022 : 0x17120e,
+      dark ? 1.5 : 2.25,
+    ),
+  );
+  const keyLight = new THREE.DirectionalLight(
+    dark ? 0xd9ddff : 0xfff1d6,
+    dark ? 2.35 : 3.2,
+  );
   keyLight.position.set(8, 18, 10);
   scene.add(keyLight);
-  const fillLight = new THREE.DirectionalLight(0x8b5cf6, 1.4);
+  const fillLight = new THREE.DirectionalLight(
+    dark ? 0x7154b3 : 0x8b5cf6,
+    dark ? 0.82 : 1.4,
+  );
   fillLight.position.set(-12, 8, -10);
   scene.add(fillLight);
 }
@@ -124,10 +137,14 @@ async function rebuildPreview() {
   loading.value = true;
   errorMessage.value = "";
   clearScene();
-  addLights();
+  addLights(props.map);
 
   try {
-    scene.background = new THREE.Color(props.map.theme.background);
+    const dark = props.map.environmentMode === "dark";
+    const background = new THREE.Color(props.map.theme.background);
+    if (dark) background.lerp(new THREE.Color(0x11101f), 0.34);
+    scene.background = background;
+    if (renderer) renderer.toneMappingExposure = dark ? 0.9 : 1.05;
     const mapScene = createTowerDefenseMapScene(scene, props.map, null);
     updatePortal = mapScene.updatePortal;
     fitCamera(props.map);

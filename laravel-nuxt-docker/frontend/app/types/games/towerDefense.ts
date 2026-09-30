@@ -52,6 +52,10 @@ export interface TowerDefenseMapDefinition {
   maxTowerCount: number;
   /** Số vàng người chơi nhận khi bắt đầu hoặc chơi lại map. */
   startingCredits: number;
+  /** Bỏ lính thường và đưa danh sách boss vào mọi wave. */
+  bossOnly?: boolean;
+  /** Tông ánh sáng và không khí riêng của map. */
+  environmentMode?: "normal" | "dark";
   /** Khoảng cách world-space giữa tâm hai ô kề nhau. */
   cellSize: number;
   /** Vị trí hai cổng sinh quái theo tọa độ grid của map. */
@@ -260,6 +264,8 @@ export interface Enemy {
 export interface Projectile {
   id: number;
   kind: TowerKind;
+  /** ID tower thực tế đã bắn; `kind` chỉ là mẫu gameplay/render gốc. */
+  sourceTowerKind?: TowerKind;
   from: GridPoint;
   to: GridPoint;
   life: number;

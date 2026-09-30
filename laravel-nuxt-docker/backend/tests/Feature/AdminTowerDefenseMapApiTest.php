@@ -19,19 +19,35 @@ class AdminTowerDefenseMapApiTest extends TestCase
         $this->createEnemy('normal-two', 'normal');
         $this->createEnemy('boss-one', 'boss');
         $this->createEnemy('boss-two', 'boss');
+        $configuration = $this->configuration(
+            ['normal-one', 'normal-two'],
+            ['boss-one', 'boss-two'],
+        );
+        $configuration['bossOnly'] = true;
+        $configuration['environmentMode'] = 'dark';
 
         $this->postJson('/api/admin/tower-defense/maps', [
             'id' => 'multi-roster-map',
             'name' => 'Multi roster map',
-            'configuration' => $this->configuration(
-                ['normal-one', 'normal-two'],
-                ['boss-one', 'boss-two'],
-            ),
+            'configuration' => $configuration,
             'sort_order' => 0,
             'is_active' => true,
         ])->assertCreated();
 
+        $this->postJson('/api/admin/tower-defense/maps', [
+            'id' => 'auto-order-map',
+            'name' => 'Auto order map',
+            'configuration' => $configuration,
+            // Backend phải bỏ qua thứ tự client gửi khi tạo mới.
+            'sort_order' => 0,
+            'is_active' => true,
+        ])->assertCreated()->assertJsonPath('data.sort_order', 1);
+
         $this->assertDatabaseHas('tower_defense_maps', ['id' => 'multi-roster-map']);
+        $this->assertDatabaseHas('tower_defense_maps', [
+            'id' => 'auto-order-map',
+            'sort_order' => 1,
+        ]);
         $configuration = json_decode(
             (string) $this->getConnection()
                 ->table('tower_defense_maps')
@@ -43,6 +59,8 @@ class AdminTowerDefenseMapApiTest extends TestCase
         $this->assertSame(['normal-one', 'normal-two'], $configuration['enemyDefinitionIds']);
         $this->assertSame(['boss-one', 'boss-two'], $configuration['bossDefinitionIds']);
         $this->assertSame(2500, $configuration['startingCredits']);
+        $this->assertTrue($configuration['bossOnly']);
+        $this->assertSame('dark', $configuration['environmentMode']);
     }
 
     public function test_map_rosters_reject_duplicates_and_profiles_of_the_wrong_kind(): void

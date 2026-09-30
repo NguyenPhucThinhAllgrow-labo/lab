@@ -3,6 +3,7 @@ import type { TowerDamageType, TowerDefinition, TowerEffectDefinition, TowerKind
 import type {
   LevelledTowerKind,
   ManagedTowerModelDefinition,
+  TowerVisualEffectDefinition,
 } from "~/components/tower-defense/scene/tower-models";
 
 interface ManagedTower {
@@ -23,7 +24,7 @@ interface ManagedTower {
   image_asset_key: string | null;
   effects: (Partial<TowerDefinition> & { items?: TowerEffectDefinition[] }) | null;
   model_asset_keys: Record<string, string> | null;
-  model_configuration: { targetHeight?: number; targetHeightByLevel?: Record<string, number> } | null;
+  model_configuration: { targetHeight?: number; targetHeightByLevel?: Record<string, number>; visualEffects?: TowerVisualEffectDefinition[] } | null;
 }
 
 const builtInDefinitions = { ...TOWER_DEFINITIONS };
@@ -97,6 +98,7 @@ export async function fetchTowerDefenseTowers(): Promise<TowerDefenseTowerCatalo
         targetHeightByLevel: tower.model_configuration?.targetHeightByLevel
           ? Object.fromEntries(Object.entries(tower.model_configuration.targetHeightByLevel).map(([level, height]) => [Number(level), Number(height)]))
           : undefined,
+        visualEffects: tower.model_configuration?.visualEffects ?? [],
         dark: factionModels("dark"),
         human: factionModels("human"),
       };

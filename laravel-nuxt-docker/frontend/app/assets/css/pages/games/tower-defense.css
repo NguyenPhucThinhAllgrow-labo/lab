@@ -370,6 +370,13 @@
   background: linear-gradient(145deg, #292b22ee, #1b1e18f5);
   box-shadow: 0 24px 70px #0005;
 }
+.defense-shell.is-dark-environment .defense-board-panel {
+  border-color: #453a56;
+  background: linear-gradient(145deg, #24212dee, #15131df5);
+  box-shadow:
+    0 24px 74px #05030a99,
+    0 0 34px #6d4aa51a;
+}
 .defense-board-panel > header {
   display: flex;
   align-items: center;

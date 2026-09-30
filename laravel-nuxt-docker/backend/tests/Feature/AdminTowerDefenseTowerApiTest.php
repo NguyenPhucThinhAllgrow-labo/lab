@@ -112,6 +112,22 @@ class AdminTowerDefenseTowerApiTest extends TestCase
             ->assertJsonPath('data.image_asset_key', 'images/games/tower-defense/towers/fire.png')
             ->assertJsonPath('data.model_asset_keys.dark1', 'models/towers/fire-level-1.glb');
 
+        $this->putJson('/api/admin/tower-defense/towers/fire/visual-effects', [
+            'visual_effects' => [[
+                'id' => 'head-glow', 'type' => 'glow', 'enabled' => true, 'level' => 0,
+                'color' => '#ff5500', 'heightRatio' => 0.9, 'size' => 1.2, 'opacity' => 0.75, 'pulseSpeed' => 4,
+            ], [
+                'id' => 'fire-shot', 'type' => 'projectile', 'enabled' => true, 'level' => 0, 'projectileKind' => 'fire',
+                'color' => '#ffcc44', 'glowColor' => '#ff5500', 'size' => 1.1,
+                'opacity' => 0.9, 'pulseSpeed' => 8, 'trailLength' => 0.7, 'trailOpacity' => 0.45,
+            ]],
+        ])->assertOk()
+            ->assertJsonPath('data.model_configuration.visualEffects.0.id', 'head-glow')
+            ->assertJsonPath('data.model_configuration.visualEffects.0.color', '#ff5500')
+            ->assertJsonPath('data.model_configuration.visualEffects.1.type', 'projectile')
+            ->assertJsonPath('data.model_configuration.visualEffects.1.projectileKind', 'fire')
+            ->assertJsonPath('data.model_configuration.visualEffects.1.trailLength', 0.7);
+
         $this->postJson('/api/admin/tower-defense/towers', [
             ...$payload,
             'id' => 'fire-elite',
@@ -159,7 +175,8 @@ class AdminTowerDefenseTowerApiTest extends TestCase
         $this->getJson('/api/tower-defense/towers')
             ->assertOk()
             ->assertJsonPath('data.0.id', 'fire')
-            ->assertJsonPath('data.0.model_asset_keys.dark1', 'models/towers/fire-level-1.glb');
+            ->assertJsonPath('data.0.model_asset_keys.dark1', 'models/towers/fire-level-1.glb')
+            ->assertJsonPath('data.0.model_configuration.visualEffects.0.id', 'head-glow');
 
         $this->putJson('/api/admin/tower-defense/towers/fire', [...$payload, 'is_active' => false])
             ->assertOk();
