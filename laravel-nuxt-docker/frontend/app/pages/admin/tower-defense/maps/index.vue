@@ -179,6 +179,7 @@ interface MapEditorConfiguration extends Record<string, unknown> {
   spawnPoints?: [MapEditorPoint, MapEditorPoint];
   paths: [MapEditorPoint[], MapEditorPoint[]];
   pathTiles: MapEditorPoint[];
+  buildableTiles?: MapEditorPoint[];
   backgroundMusicUrl?: string;
   backgroundModel?: { url: string; offsetY?: number };
   enemyModel?: CharacterModelConfiguration;
@@ -240,7 +241,9 @@ interface EnemyIntelConfiguration {
   weakness: string;
 }
 const mapEditorLane = ref<0 | 1>(0);
-const mapEditorPlacementMode = ref<"path" | "portal-0" | "portal-1" | "castle">("path");
+const mapEditorPlacementMode = ref<
+  "path" | "buildable" | "portal-0" | "portal-1" | "castle"
+>("path");
 const mapEditorAnchors = ref<[MapEditorPoint[], MapEditorPoint[]]>([[], []]);
 const mapEditorGrid = ref<HTMLElement | null>(null);
 const draggedMapAnchor = ref<{ lane: 0 | 1; index: number } | null>(null);
@@ -277,6 +280,7 @@ const minimumMapColumns = computed(() =>
     4,
     ...(visualMapConfiguration.value?.paths.flat().map((point) => point.x + 1) ?? []),
     ...(visualMapConfiguration.value?.spawnPoints?.map((point) => point.x + 1) ?? []),
+    ...(visualMapConfiguration.value?.buildableTiles?.map((point) => point.x + 1) ?? []),
     (visualMapConfiguration.value?.castle.position?.x ?? -1) + 1,
   ),
 );
@@ -285,6 +289,7 @@ const minimumMapRows = computed(() =>
     4,
     ...(visualMapConfiguration.value?.paths.flat().map((point) => point.y + 1) ?? []),
     ...(visualMapConfiguration.value?.spawnPoints?.map((point) => point.y + 1) ?? []),
+    ...(visualMapConfiguration.value?.buildableTiles?.map((point) => point.y + 1) ?? []),
     (visualMapConfiguration.value?.castle.position?.y ?? -1) + 1,
   ),
 );
@@ -304,6 +309,13 @@ const mapEditorPathKeys = computed<[Set<string>, Set<string>]>(() => {
     new Set(paths[1].map((point) => `${point.x}:${point.y}`)),
   ];
 });
+const mapEditorBuildableKeys = computed(() =>
+  new Set(
+    (visualMapConfiguration.value?.buildableTiles ?? []).map(
+      (point) => `${point.x}:${point.y}`,
+    ),
+  ),
+);
 
 function configuredSpawnPoint(lane: 0 | 1) {
   const configuration = visualMapConfiguration.value;
@@ -323,6 +335,7 @@ function editorCellContent(point: MapEditorPoint) {
   if (isConfiguredPoint(point, configuredCastlePoint())) return "♜";
   if (isConfiguredPoint(point, configuredSpawnPoint(0))) return "G1";
   if (isConfiguredPoint(point, configuredSpawnPoint(1))) return "G2";
+  if (mapEditorBuildableKeys.value.has(`${point.x}:${point.y}`)) return "T";
   return isEditorAnchor(point, 0) || isEditorAnchor(point, 1) ? "◆" : "";
 }
 
@@ -628,17 +641,56 @@ function syncEditorPaths() {
       paths.flat().map((point) => [`${point.x}:${point.y}`, point]),
     ).values(),
   );
-  mapForm.configuration = JSON.stringify(
-    { ...configuration, paths, pathTiles },
-    null,
-    2,
-  );
+  const pathKeys = new Set(pathTiles.map((point) => `${point.x}:${point.y}`));
+  const nextConfiguration = { ...configuration, paths, pathTiles };
+  // Map cũ không có buildableTiles nghĩa là mọi ô ngoài path đều đặt được trụ.
+  // Chỉ tạo danh sách giới hạn sau khi admin chủ động dùng công cụ đặt bệ.
+  if (Object.hasOwn(configuration, "buildableTiles")) {
+    nextConfiguration.buildableTiles = (configuration.buildableTiles ?? []).filter(
+      (point) => !pathKeys.has(`${point.x}:${point.y}`),
+    );
+  }
+  mapForm.configuration = JSON.stringify(nextConfiguration, null, 2);
 }
 
 function selectMapEditorCell(point: MapEditorPoint) {
   if (performance.now() < ignoreMapEditorClickUntil) return;
+  if (mapEditorPlacementMode.value === "buildable") {
+    const key = `${point.x}:${point.y}`;
+    const isPath = mapEditorPathKeys.value.some((keys) => keys.has(key));
+    if (
+      isPath ||
+      isConfiguredPoint(point, configuredSpawnPoint(0)) ||
+      isConfiguredPoint(point, configuredSpawnPoint(1)) ||
+      isConfiguredPoint(point, configuredCastlePoint())
+    ) {
+      mapEditorMessage.value =
+        "Bệ đặt trụ không được trùng đường đi, cổng spawn hoặc cổng lâu đài.";
+      return;
+    }
+    let added = false;
+    updateMapConfiguration((configuration) => {
+      const buildableTiles = configuration.buildableTiles ?? [];
+      const existingIndex = buildableTiles.findIndex(
+        (cell) => cell.x === point.x && cell.y === point.y,
+      );
+      if (existingIndex >= 0) buildableTiles.splice(existingIndex, 1);
+      else {
+        buildableTiles.push({ ...point });
+        added = true;
+      }
+      configuration.buildableTiles = buildableTiles;
+    });
+    mapEditorMessage.value = `${added ? "Đã thêm" : "Đã bỏ"} bệ đặt trụ tại ô ${point.x}, ${point.y}.`;
+    return;
+  }
   if (mapEditorPlacementMode.value !== "path") {
     updateMapConfiguration((configuration) => {
+      if (Object.hasOwn(configuration, "buildableTiles")) {
+        configuration.buildableTiles = (configuration.buildableTiles ?? []).filter(
+          (cell) => cell.x !== point.x || cell.y !== point.y,
+        );
+      }
       if (mapEditorPlacementMode.value === "castle") {
         configuration.castle.position = { ...point };
         return;
@@ -806,6 +858,13 @@ function clearMapEditorLane() {
   syncEditorPaths();
 }
 
+function clearMapEditorBuildableTiles() {
+  updateMapConfiguration((configuration) => {
+    configuration.buildableTiles = [];
+  });
+  mapEditorMessage.value = "Đã xóa toàn bộ bệ đặt trụ.";
+}
+
 function resetMapEditorLayout() {
   const defaults = defaultMapConfiguration();
   updateMapConfiguration((configuration) => {
@@ -819,6 +878,7 @@ function resetMapEditorLayout() {
       MapEditorPoint[],
     ];
     configuration.pathTiles = structuredClone(defaults.pathTiles);
+    delete configuration.buildableTiles;
     configuration.castle.position = { ...defaults.castle.position };
   });
   mapEditorLane.value = 0;
@@ -1513,12 +1573,13 @@ onMounted(() => {
             >
               <header>
                 <div>
-                  <strong>Trình dựng đường đi trực tiếp</strong>
-                  <small>Chọn lane rồi click để thêm điểm; kéo thả điểm góc để đổi vị trí. JSON được sinh tự động.</small>
+                  <strong>Trình dựng bàn chơi trực tiếp</strong>
+                  <small>Vẽ lane, đặt cổng và chọn từng bệ được phép xây trụ. JSON được sinh tự động.</small>
                 </div>
                 <div class="td-lane-switcher">
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'path' && mapEditorLane === 0 }" @click="mapEditorLane = 0; mapEditorPlacementMode = 'path'">Vẽ lane 1</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'path' && mapEditorLane === 1 }" @click="mapEditorLane = 1; mapEditorPlacementMode = 'path'">Vẽ lane 2</button>
+                  <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'buildable' }" @click="mapEditorPlacementMode = 'buildable'">Đặt bệ trụ</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'portal-0' }" @click="mapEditorPlacementMode = 'portal-0'">Đặt cổng 1</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'portal-1' }" @click="mapEditorPlacementMode = 'portal-1'">Đặt cổng 2</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'castle' }" @click="mapEditorPlacementMode = 'castle'">Đặt cổng lâu đài</button>
@@ -1546,6 +1607,7 @@ onMounted(() => {
                     :class="{
                       'is-lane-one': mapEditorPathKeys[0].has(`${point.x}:${point.y}`),
                       'is-lane-two': mapEditorPathKeys[1].has(`${point.x}:${point.y}`),
+                      'is-buildable': mapEditorBuildableKeys.has(`${point.x}:${point.y}`),
                       'is-anchor-one': isEditorAnchor(point, 0),
                       'is-anchor-two': isEditorAnchor(point, 1),
                       'is-portal-one': isConfiguredPoint(point, configuredSpawnPoint(0)),
@@ -1559,7 +1621,7 @@ onMounted(() => {
                   ><span>{{ editorCellContent(point) }}</span></button>
                 </div>
                 <aside>
-                  <div class="td-live-legend"><span class="is-one" /> Lane 1 <span class="is-two" /> Lane 2</div>
+                  <div class="td-live-legend"><span class="is-one" /> Lane 1 <span class="is-two" /> Lane 2 <span class="is-buildable" /> Bệ trụ</div>
                   <dl>
                     <div><dt>Kích thước</dt><dd>{{ visualMapConfiguration.columns }} × {{ visualMapConfiguration.rows }}</dd></div>
                     <div><dt>Lane 1</dt><dd>{{ visualMapConfiguration.paths[0]?.length ?? 0 }} ô</dd></div>
@@ -1567,9 +1629,11 @@ onMounted(() => {
                     <div><dt>Cổng 1</dt><dd>{{ configuredSpawnPoint(0)?.x }}, {{ configuredSpawnPoint(0)?.y }}</dd></div>
                     <div><dt>Cổng 2</dt><dd>{{ configuredSpawnPoint(1)?.x }}, {{ configuredSpawnPoint(1)?.y }}</dd></div>
                     <div><dt>Cổng lâu đài</dt><dd>{{ configuredCastlePoint()?.x }}, {{ configuredCastlePoint()?.y }}</dd></div>
+                    <div><dt>Bệ đặt trụ</dt><dd>{{ visualMapConfiguration.buildableTiles ? `${visualMapConfiguration.buildableTiles.length} ô` : "Mọi ô ngoài đường" }}</dd></div>
                   </dl>
                   <button class="td-editor-action" type="button" :disabled="mapEditorPlacementMode !== 'path' || mapEditorAnchors[mapEditorLane].length === 0" @click="undoMapEditorLane"><Undo2 /> Hoàn tác điểm</button>
                   <button class="td-editor-action is-danger" type="button" :disabled="mapEditorAnchors[mapEditorLane].length === 0" @click="clearMapEditorLane"><Trash2 /> Xóa lane {{ mapEditorLane + 1 }}</button>
+                  <button class="td-editor-action is-danger" type="button" :disabled="!visualMapConfiguration.buildableTiles?.length" @click="clearMapEditorBuildableTiles"><Trash2 /> Xóa toàn bộ bệ</button>
                   <button class="td-editor-action is-reset" type="button" @click="resetMapEditorLayout"><RotateCcw /> Đặt lại mặc định</button>
                 </aside>
               </div>

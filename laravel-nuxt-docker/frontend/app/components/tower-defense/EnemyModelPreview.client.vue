@@ -7,8 +7,14 @@ import {
   ADVENTURE_KIT_ROOT,
   BOSS_MOVEMENT_PATH,
 } from "./scene/enemy-models";
-import type { TowerDefenseEquipmentTransform } from "~/types/games/towerDefense";
-import { decorateTowerVisualEffects, type ProjectileVisualKind, type TowerVisualEffectDefinition } from "./scene/tower-models";
+import type { TowerDefenseEquipmentTransform, TowerKind } from "~/types/games/towerDefense";
+import {
+  decorateTowerVisualEffects,
+  getBuiltInTowerModelUrl,
+  type ProjectileVisualKind,
+  type TowerVisualEffectDefinition,
+} from "./scene/tower-models";
+import { createTowerDefenseProceduralModel } from "./scene/procedural-tower-models";
 import {
   configureTowerDefenseThunderVisual,
   createTowerDefenseProjectileTemplate,
@@ -35,6 +41,8 @@ const props = withDefaults(
     detailValue?: string;
     visualEffects?: TowerVisualEffectDefinition[];
     visualEffectLevel?: number;
+    towerKind?: TowerKind;
+    towerRange?: number;
   }>(),
   {
     modelUrl: "",
@@ -52,6 +60,8 @@ const props = withDefaults(
     detailValue: "",
     visualEffects: () => [],
     visualEffectLevel: 1,
+    towerKind: undefined,
+    towerRange: 1.47,
   },
 );
 
@@ -70,6 +80,7 @@ let camera: THREE.OrthographicCamera | null = null;
 let controls: OrbitControls | null = null;
 let characterRoot: THREE.Group | null = null;
 let towerProjectileSimulation: THREE.Group | null = null;
+let frostPreviewWaveTexture: THREE.CanvasTexture | null = null;
 let mixer: THREE.AnimationMixer | null = null;
 let animationAction: THREE.AnimationAction | null = null;
 let resizeObserver: ResizeObserver | null = null;
@@ -287,7 +298,65 @@ function fitCharacter(root: THREE.Object3D) {
   controls.update();
 }
 
-function createTowerProjectileSimulation(root: THREE.Group) {
+function getFrostPreviewWaveTexture() {
+  if (frostPreviewWaveTexture) return frostPreviewWaveTexture;
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Không thể tạo gradient cho sóng băng preview.");
+  const gradient = context.createRadialGradient(128, 128, 4, 128, 128, 126);
+  gradient.addColorStop(0, "rgba(43, 135, 194, .05)");
+  gradient.addColorStop(0.48, "rgba(35, 151, 207, .1)");
+  gradient.addColorStop(0.72, "rgba(47, 185, 226, .24)");
+  gradient.addColorStop(0.86, "rgba(106, 226, 246, .5)");
+  gradient.addColorStop(0.94, "rgba(190, 249, 255, .4)");
+  gradient.addColorStop(1, "rgba(54, 157, 211, 0)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 256, 256);
+  frostPreviewWaveTexture = new THREE.CanvasTexture(canvas);
+  frostPreviewWaveTexture.colorSpace = THREE.SRGBColorSpace;
+  return frostPreviewWaveTexture;
+}
+
+function createFrostWaveSimulation(definition: TowerVisualEffectDefinition) {
+  if (!scene) return;
+  const simulation = new THREE.Group();
+  simulation.name = "towerProjectileSimulation";
+  simulation.userData.kind = "frost-wave";
+  // Đồng bộ impact-scene: bán kính gameplay = range theo ô × cellSize (1.5).
+  const radius = Math.max(0.1, Number(props.towerRange) || 1.47) * 1.5;
+  const waves: THREE.Mesh[] = [];
+  for (const [index, scale] of [1, 0.725].entries()) {
+    const baseOpacity = THREE.MathUtils.clamp(definition.opacity, 0, 1) *
+      (index === 0 ? 0.66 : 0.34);
+    const wave = new THREE.Mesh(
+      new THREE.PlaneGeometry(radius * 2 * scale, radius * 2 * scale),
+      new THREE.MeshBasicMaterial({
+        map: getFrostPreviewWaveTexture(),
+        color: new THREE.Color(definition.color),
+        transparent: true,
+        opacity: baseOpacity,
+        depthWrite: false,
+        blending: THREE.NormalBlending,
+        toneMapped: false,
+      }),
+    );
+    wave.name = "frostCascadeWave";
+    wave.rotation.x = -Math.PI / 2;
+    wave.position.y = index === 0 ? 0.105 : 0.115;
+    wave.scale.setScalar(0.01);
+    wave.userData.baseOpacity = baseOpacity;
+    wave.userData.index = index;
+    waves.push(wave);
+    simulation.add(wave);
+  }
+  simulation.userData.frostCascadeWave = waves;
+  scene.add(simulation);
+  towerProjectileSimulation = simulation;
+}
+
+function createTowerProjectileSimulation(root: THREE.Group, adjustCamera = true) {
   if (!scene) return;
   if (towerProjectileSimulation) disposeObject(towerProjectileSimulation);
   towerProjectileSimulation = null;
@@ -298,6 +367,10 @@ function createTowerProjectileSimulation(root: THREE.Group) {
       (!effect.level || effect.level === props.visualEffectLevel),
   );
   if (!definition) return;
+  if (props.towerKind === "frost") {
+    createFrostWaveSimulation(definition);
+    return;
+  }
 
   const simulation = new THREE.Group();
   simulation.name = "towerProjectileSimulation";
@@ -380,15 +453,35 @@ function createTowerProjectileSimulation(root: THREE.Group) {
   scene.add(simulation);
   towerProjectileSimulation = simulation;
 
-  // Nới camera để vẫn thấy toàn bộ tower và model mục tiêu trong cùng khung.
-  fittedCameraTarget.set(targetPosition.x * 0.34, height * 0.5, 0);
-  fittedCameraZoom *= 0.7;
-  resetCamera();
+  if (adjustCamera) {
+    // Chỉ fit lại khi model/level thay đổi; chỉnh effect phải giữ góc nhìn hiện tại.
+    fittedCameraTarget.set(targetPosition.x * 0.34, height * 0.5, 0);
+    fittedCameraZoom *= 0.7;
+    resetCamera();
+  }
 }
 
 function animateTowerProjectileSimulation() {
   const simulation = towerProjectileSimulation;
   if (!simulation) return;
+  if (simulation.userData.kind === "frost-wave") {
+    const cycleProgress = (previewElapsed % 1.3) / 1.05;
+    const progress = THREE.MathUtils.clamp(cycleProgress, 0, 1);
+    simulation.visible = cycleProgress < 1;
+    const waveProgress = THREE.MathUtils.smoothstep(progress, 0, 0.92);
+    const fade = 1 - THREE.MathUtils.smoothstep(progress, 0.76, 1);
+    const waves = simulation.userData.frostCascadeWave as THREE.Mesh[];
+    waves.forEach((wave, index) => {
+      const delayedProgress = index === 0
+        ? waveProgress
+        : THREE.MathUtils.smoothstep(progress, 0.28, 1);
+      wave.scale.setScalar(Math.max(0.01, delayedProgress));
+      (wave.material as THREE.MeshBasicMaterial).opacity =
+        Number(wave.userData.baseOpacity) * fade * delayedProgress;
+      wave.rotation.z = (index % 2 ? -1 : 1) * previewElapsed * 0.18;
+    });
+    return;
+  }
   const projectile = simulation.userData.projectile as THREE.Group;
   const targetObject = simulation.userData.targetObject as THREE.Group;
   const definition = simulation.userData.definition as TowerVisualEffectDefinition;
@@ -472,17 +565,27 @@ async function loadPreview() {
   errorMessage.value = "";
   equipmentWarning.value = "";
   activeAnimation.value = "Tĩnh";
-  if (!props.modelUrl || !scene) return;
+  if ((!props.modelUrl && !props.towerKind) || !scene) return;
   loading.value = true;
   try {
     const loader = new GLTFLoader();
-    const gltf = await loader.loadAsync(props.modelUrl);
+    const fallbackUrl = props.towerKind
+      ? getBuiltInTowerModelUrl(props.towerKind, props.visualEffectLevel)
+      : undefined;
+    const sourceUrl = props.modelUrl || fallbackUrl;
+    const gltf = sourceUrl ? await loader.loadAsync(sourceUrl) : null;
+    const proceduralModel = gltf
+      ? null
+      : createTowerDefenseProceduralModel(props.towerKind);
+    if (!gltf && !proceduralModel)
+      throw new Error("Không có model fallback cho tower đã chọn.");
     if (version !== loadVersion || !scene) {
-      disposeObject(gltf.scene);
+      if (gltf) disposeObject(gltf.scene);
+      if (proceduralModel) disposeObject(proceduralModel);
       return;
     }
     const root = new THREE.Group();
-    const character = gltf.scene;
+    const character = gltf?.scene ?? proceduralModel!;
     const characterScale = Math.max(Number(props.characterScale) || 1, 0.01);
     const sceneScale = Math.max(Number(props.sceneScale) || 1, 0.01);
     character.scale.setScalar(characterScale);
@@ -523,7 +626,7 @@ async function loadPreview() {
       ? `Không tìm thấy bone ${missing.join(" và ")} trong model.`
       : "";
 
-    let sourceAnimations = gltf.animations;
+    let sourceAnimations = gltf?.animations ?? [];
     if (
       sourceAnimations.length === 0 &&
       props.modelUrl.includes("/kit/adventure/Characters/")
@@ -660,13 +763,23 @@ watch(
     props.sceneScale,
     props.removeRootMotion,
     props.visualEffectLevel,
+    props.towerKind,
+    props.towerRange,
     ...props.animationNames,
   ],
   () => void loadPreview(),
 );
 watch(
   () => props.visualEffects,
-  () => void loadPreview(),
+  () => {
+    if (!characterRoot) return;
+    decorateTowerVisualEffects(
+      characterRoot,
+      props.visualEffects,
+      props.visualEffectLevel,
+    );
+    createTowerProjectileSimulation(characterRoot, false);
+  },
   { deep: true },
 );
 watch(
@@ -699,6 +812,8 @@ onBeforeUnmount(() => {
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((material) => material.dispose());
   });
+  frostPreviewWaveTexture?.dispose();
+  frostPreviewWaveTexture = null;
   renderer?.dispose();
   renderer?.forceContextLoss();
   renderer?.domElement.remove();
@@ -724,8 +839,8 @@ onBeforeUnmount(() => {
       </nav>
     </header>
     <div ref="host" class="enemy-model-preview__stage">
-      <img v-if="!modelUrl && avatarUrl" :src="avatarUrl" alt="" />
-      <p v-if="!modelUrl">Chọn model để xem trước.</p>
+      <img v-if="!modelUrl && !towerKind && avatarUrl" :src="avatarUrl" alt="" />
+      <p v-if="!modelUrl && !towerKind">Chọn model để xem trước.</p>
       <p v-else-if="loading">Đang tải model…</p>
       <p v-else-if="errorMessage" class="is-error">{{ errorMessage }}</p>
     </div>

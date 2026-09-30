@@ -68,7 +68,8 @@ const props = defineProps<{
 }>();
 const DEFENSE_PATH_TILES = props.map.pathTiles;
 const DEFENSE_CELL_SIZE = props.map.cellSize;
-const isDarkEnvironment = props.map.environmentMode === "dark";
+const isDarkEnvironment =
+  props.map.environmentMode === "dark" || props.map.id === "lava-fortress";
 const emit = defineEmits<{
   cellSelect: [x: number, y: number];
   backgroundSelect: [];
@@ -3039,8 +3040,12 @@ async function createWorld() {
       decorate: decorateLoadedTowerModel,
     });
     target.appendChild(renderer.domElement);
-    const clearColor = new THREE.Color(props.map.theme.background);
-    if (isDarkEnvironment) clearColor.lerp(new THREE.Color(0x11101f), 0.34);
+    const isLavaFortressMap = props.map.id === "lava-fortress";
+    const clearColor = new THREE.Color(
+      isLavaFortressMap ? 0x302a36 : props.map.theme.background,
+    );
+    if (isDarkEnvironment && !isLavaFortressMap)
+      clearColor.lerp(new THREE.Color(0x11101f), 0.34);
     renderer.setClearColor(clearColor, 1);
     const cameraFar = Math.max(250, cameraMapSpan * 10);
     camera = new THREE.PerspectiveCamera(38, 1, 0.1, cameraFar);
@@ -3095,7 +3100,9 @@ async function createWorld() {
       isDarkEnvironment ? 2.35 : 2.85,
     );
     sun.position.set(-6, 12, 7);
-    sun.castShadow = true;
+    // Map dung nham có nhiều mesh tĩnh và nguồn sáng phát quang; shadow pass
+    // render lại gần như toàn bộ cảnh, làm số triangles gần gấp đôi khi vừa mở map.
+    sun.castShadow = props.map.id !== "lava-fortress";
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.00008;
     sun.shadow.normalBias = 0.025;
@@ -3339,6 +3346,10 @@ onBeforeUnmount(() => {
       materials.forEach((material) => material.dispose());
     }
   });
+  const mapBackgroundTexture = scene?.userData
+    .towerMapBackgroundTexture as THREE.Texture | undefined;
+  mapBackgroundTexture?.dispose();
+  if (scene) scene.background = null;
   surfaceDetail?.dispose();
   surfaceDetail = null;
   frostGlowTexture?.dispose();

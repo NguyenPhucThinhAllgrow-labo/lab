@@ -80,6 +80,9 @@ class TowerDefenseMapController extends Controller
             'configuration.paths.*.*.x' => ['required', 'integer', 'min:0'],
             'configuration.paths.*.*.y' => ['required', 'integer', 'min:0'],
             'configuration.pathTiles' => ['required', 'array'],
+            'configuration.buildableTiles' => ['sometimes', 'array', 'max:10000'],
+            'configuration.buildableTiles.*.x' => ['required', 'integer', 'min:0'],
+            'configuration.buildableTiles.*.y' => ['required', 'integer', 'min:0'],
             'configuration.cornerRadius' => ['required', 'numeric', 'min:0'],
             'configuration.enemyDefinitionIds' => ['required', 'array', 'min:1', 'max:50'],
             'configuration.enemyDefinitionIds.*' => [
@@ -169,6 +172,39 @@ class TowerDefenseMapController extends Controller
             }
         }
 
+        $blockedBuildableTiles = $pathTiles;
+        foreach ($configuration['spawnPoints'] ?? [] as $point) {
+            $blockedBuildableTiles["{$point['x']}:{$point['y']}"] = true;
+        }
+        if (isset($configuration['castle']['position'])) {
+            $point = $configuration['castle']['position'];
+            $blockedBuildableTiles["{$point['x']}:{$point['y']}"] = true;
+        }
+
+        $buildableTiles = [];
+        foreach ($configuration['buildableTiles'] ?? [] as $pointIndex => $point) {
+            $x = (int) $point['x'];
+            $y = (int) $point['y'];
+            if ($x >= $columns || $y >= $rows) {
+                throw ValidationException::withMessages([
+                    "configuration.buildableTiles.{$pointIndex}" => 'Bệ đặt trụ phải nằm trong kích thước map.',
+                ]);
+            }
+
+            $key = "{$x}:{$y}";
+            if (isset($blockedBuildableTiles[$key])) {
+                throw ValidationException::withMessages([
+                    "configuration.buildableTiles.{$pointIndex}" => 'Bệ đặt trụ không được trùng đường đi, cổng spawn hoặc cổng lâu đài.',
+                ]);
+            }
+            if (isset($buildableTiles[$key])) {
+                throw ValidationException::withMessages([
+                    "configuration.buildableTiles.{$pointIndex}" => 'Bệ đặt trụ bị trùng tọa độ.',
+                ]);
+            }
+            $buildableTiles[$key] = ['x' => $x, 'y' => $y];
+        }
+
         $firstPath = $configuration['paths'][0];
         $secondPath = $configuration['paths'][1];
         $firstEnd = end($firstPath);
@@ -183,6 +219,8 @@ class TowerDefenseMapController extends Controller
         }
 
         $configuration['pathTiles'] = array_values($pathTiles);
+        if (array_key_exists('buildableTiles', $configuration))
+            $configuration['buildableTiles'] = array_values($buildableTiles);
         $data['configuration'] = $configuration;
 
         return $data;

@@ -497,10 +497,77 @@
   {
     "id": "lava-fortress",
     "name": "Pháo đài Dung nham",
+    "environmentMode": "dark",
     "columns": 18,
     "rows": 14,
     "maxTowerCount": 16,
     "cellSize": 1.5,
+    "buildableTiles": [
+      {
+        "x": 1,
+        "y": 1
+      },
+      {
+        "x": 3,
+        "y": 2
+      },
+      {
+        "x": 5,
+        "y": 1
+      },
+      {
+        "x": 3,
+        "y": 5
+      },
+      {
+        "x": 6,
+        "y": 4
+      },
+      {
+        "x": 8,
+        "y": 4
+      },
+      {
+        "x": 1,
+        "y": 12
+      },
+      {
+        "x": 3,
+        "y": 11
+      },
+      {
+        "x": 5,
+        "y": 12
+      },
+      {
+        "x": 6,
+        "y": 8
+      },
+      {
+        "x": 9,
+        "y": 8
+      },
+      {
+        "x": 10,
+        "y": 9
+      },
+      {
+        "x": 12,
+        "y": 2
+      },
+      {
+        "x": 14,
+        "y": 6
+      },
+      {
+        "x": 15,
+        "y": 2
+      },
+      {
+        "x": 16,
+        "y": 6
+      }
+    ],
     "paths": [
       [
         {
@@ -883,7 +950,7 @@
       "zoom": 0.71
     },
     "theme": {
-      "background": 591629,
+      "background": 3156534,
       "fogNear": 18,
       "fogFar": 39,
       "terrain": 591626,

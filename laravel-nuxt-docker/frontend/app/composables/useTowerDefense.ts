@@ -123,6 +123,9 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     pathKeys.add(`${point.x}:${point.y}`);
   if (map.castle.position)
     pathKeys.add(`${map.castle.position.x}:${map.castle.position.y}`);
+  const buildableKeys = map.buildableTiles
+    ? new Set(map.buildableTiles.map((point) => `${point.x}:${point.y}`))
+    : null;
   const selectedTower = computed(
     () =>
       towers.value.find((tower) => tower.id === selectedTowerId.value) ?? null,
@@ -151,6 +154,10 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   /** Kiểm tra ô có thuộc một trong hai lane và vì vậy bị cấm xây tower hay không. */
   function isPath(x: number, y: number) {
     return pathKeys.has(`${x}:${y}`);
+  }
+  /** Map có bệ riêng chỉ cho xây tại các bệ đã khai báo. */
+  function isBuildable(x: number, y: number) {
+    return !isPath(x, y) && (!buildableKeys || buildableKeys.has(`${x}:${y}`));
   }
   /** Tìm tower tại một ô grid, dùng cho cả selection và chống đặt chồng. */
   function towerAt(x: number, y: number) {
@@ -226,9 +233,9 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         return;
       }
       if (phase.value === "gameover" || phase.value === "completed") return;
-      if (isPath(x, y)) {
+      if (!isBuildable(x, y)) {
         message.value =
-          "Không thể đặt tháp trên đường di chuyển của quân địch.";
+          "Chỉ có thể đặt tháp trên các bệ phòng thủ.";
         return;
       }
 
@@ -240,7 +247,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       return;
     }
 
-    if (isPath(x, y) || phase.value === "gameover" || phase.value === "completed") return;
+    if (!isBuildable(x, y) || phase.value === "gameover" || phase.value === "completed") return;
     if (!selectedKind.value) {
       message.value = "Hãy chọn một công trình trước khi đặt tháp.";
       return;

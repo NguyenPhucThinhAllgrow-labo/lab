@@ -108,6 +108,12 @@ const LEVELLED_TOWER_MODELS: TowerModelDefinition[] = [
   },
 ];
 
+/** URL model tích hợp mà gameplay dùng khi CMS chưa gán model riêng. */
+export function getBuiltInTowerModelUrl(kind: TowerKind, level: number) {
+  const definition = LEVELLED_TOWER_MODELS.find((item) => item.kind === kind);
+  return definition?.urls[Math.max(1, Math.round(level))];
+}
+
 export interface TowerModelLibraryOptions {
   renderer: THREE.WebGLRenderer;
   faction: TowerFaction;

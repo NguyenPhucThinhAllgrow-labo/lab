@@ -67,6 +67,8 @@ export interface TowerDefenseMapDefinition {
     url: string;
     offsetY?: number;
   };
+  /** Các bệ được phép xây; bỏ trống để mọi ô ngoài path vẫn xây được. */
+  buildableTiles?: GridPoint[];
   /** Nhạc nền riêng của map, được chọn từ kho asset backend. */
   backgroundMusicUrl?: string;
   /** Model quái thường riêng của map. */
