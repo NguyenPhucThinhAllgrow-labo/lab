@@ -84,6 +84,23 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
   const buildableKeys = new Set(
     (map.buildableTiles ?? []).map((point) => `${point.x}:${point.y}`),
   );
+  const borderHalfSize = map.cellSize * 0.44;
+  const buildableBorderGeometry = gothicAbyss
+    ? new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-borderHalfSize, 0, -borderHalfSize),
+        new THREE.Vector3(borderHalfSize, 0, -borderHalfSize),
+        new THREE.Vector3(borderHalfSize, 0, borderHalfSize),
+        new THREE.Vector3(-borderHalfSize, 0, borderHalfSize),
+      ])
+    : null;
+  const buildableBorderMaterial = gothicAbyss
+    ? new THREE.LineBasicMaterial({
+        color: 0xc7c9cf,
+        transparent: true,
+        opacity: 0.92,
+        depthWrite: false,
+      })
+    : null;
   const tiles: THREE.Mesh[] = [];
   for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.columns; x++) {
     const key = `${x}:${y}`;
@@ -102,13 +119,28 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
       isPath
         ? map.theme.path
         : gothicAbyss && isBuildable
-          ? 0x111216
+          ? 0x686a70
           : tileTone,
       { roughness: 1 },
     );
     tile.position.copy(mapWorldPosition(map, x, y));
     tile.position.y = gothicAbyss ? 0 : (isPath ? -0.025 : 0);
     scene.add(tile);
+    if (
+      gothicAbyss &&
+      isBuildable &&
+      buildableBorderGeometry &&
+      buildableBorderMaterial
+    ) {
+      const border = new THREE.LineLoop(
+        buildableBorderGeometry,
+        buildableBorderMaterial,
+      );
+      border.position.copy(tile.position);
+      border.position.y += 0.082;
+      border.renderOrder = 2;
+      scene.add(border);
+    }
     if (isPath || !restrictBuildableTiles || isBuildable) {
       tile.userData.cell = { x, y };
       tiles.push(tile);
@@ -118,6 +150,7 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
 }
 
 function addCobblestonePath(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null) {
+  if (isGothicAbyssMap(map)) return;
   const stonesPerTile = 9;
   const geometry = new THREE.BoxGeometry(0.27 * map.cellSize, 0.025, 0.24 * map.cellSize);
   const material = new THREE.MeshStandardMaterial({ color: map.theme.pathStone, roughness: 0.92, metalness: 0.04, bumpMap: surfaceDetail, bumpScale: 0.014 });
@@ -588,9 +621,6 @@ function addGothicAbyssScenery(
     bumpMap: surfaceDetail,
     bumpScale: 0.018,
   });
-  const platformByKey = new Map<string, GridPoint>();
-  for (const point of [...map.pathTiles, ...(map.buildableTiles ?? [])])
-    platformByKey.set(`${point.x}:${point.y}`, point);
   const dummy = new THREE.Object3D();
   const pathFoundation = new THREE.InstancedMesh(
     new THREE.BoxGeometry(map.cellSize * 1.02, 2.6, map.cellSize * 1.02),
@@ -632,77 +662,6 @@ function addGothicAbyssScenery(
   padFoundation.receiveShadow = true;
   padFoundation.instanceMatrix.needsUpdate = true;
   group.add(padFoundation);
-
-  for (const point of map.buildableTiles ?? []) {
-    const position = mapWorldPosition(map, point.x, point.y);
-    const nearestPath = map.pathTiles.reduce((nearest, candidate) => {
-      const nearestDistance = (nearest.x - point.x) ** 2 + (nearest.y - point.y) ** 2;
-      const candidateDistance = (candidate.x - point.x) ** 2 + (candidate.y - point.y) ** 2;
-      return candidateDistance < nearestDistance ? candidate : nearest;
-    });
-    const pathPosition = mapWorldPosition(map, nearestPath.x, nearestPath.y);
-    const deltaX = pathPosition.x - position.x;
-    const deltaZ = pathPosition.z - position.z;
-    const connectorLength = Math.hypot(deltaX, deltaZ);
-    const connector = createMapMesh(
-      surfaceDetail,
-      new THREE.BoxGeometry(map.cellSize * 0.46, 0.16, connectorLength),
-      map.theme.path,
-      { roughness: 0.94 },
-    );
-    connector.position.set(
-      (position.x + pathPosition.x) / 2,
-      0,
-      (position.z + pathPosition.z) / 2,
-    );
-    connector.rotation.y = Math.atan2(deltaX, deltaZ);
-    group.add(connector);
-    const connectorFoundation = new THREE.Mesh(
-      new THREE.BoxGeometry(map.cellSize * 0.72, 2, connectorLength),
-      cliffMaterial,
-    );
-    connectorFoundation.position.set(
-      (position.x + pathPosition.x) / 2,
-      -1.08,
-      (position.z + pathPosition.z) / 2,
-    );
-    connectorFoundation.rotation.y = Math.atan2(deltaX, deltaZ);
-    connectorFoundation.receiveShadow = true;
-    group.add(connectorFoundation);
-  }
-
-  const railMaterial = new THREE.MeshStandardMaterial({
-    color: 0x302c33,
-    roughness: 0.82,
-    metalness: 0.22,
-  });
-  const directions = [
-    { dx: -1, dy: 0 }, { dx: 1, dy: 0 },
-    { dx: 0, dy: -1 }, { dx: 0, dy: 1 },
-  ];
-  for (const point of map.pathTiles) {
-    const center = mapWorldPosition(map, point.x, point.y);
-    for (const { dx, dy } of directions) {
-      if (platformByKey.has(`${point.x + dx}:${point.y + dy}`)) continue;
-      const rail = createMapMesh(
-        surfaceDetail,
-        new THREE.BoxGeometry(
-          dx ? 0.1 : map.cellSize * 0.74,
-          0.22,
-          dy ? 0.1 : map.cellSize * 0.74,
-        ),
-        0x302c33,
-        { roughness: 0.82 },
-      );
-      rail.material = railMaterial;
-      rail.position.set(
-        center.x + dx * map.cellSize * 0.48,
-        0.24,
-        center.z + dy * map.cellSize * 0.48,
-      );
-      group.add(rail);
-    }
-  }
 
   scene.add(group);
   return (_elapsed: number) => {};
