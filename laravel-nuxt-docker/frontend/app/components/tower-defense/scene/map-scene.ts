@@ -11,6 +11,7 @@ export interface TowerDefenseMapScene {
   tileMeshes: THREE.Mesh[];
   particles: THREE.Points;
   updatePortal: (elapsed: number) => void;
+  updateBuildableBorders: (elapsed: number) => void;
 }
 
 export interface TowerDefenseBackgroundLayer {
@@ -84,7 +85,7 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
   const buildableKeys = new Set(
     (map.buildableTiles ?? []).map((point) => `${point.x}:${point.y}`),
   );
-  const borderHalfSize = map.cellSize * 0.44;
+  const borderHalfSize = map.cellSize * (gothicAbyss ? 0.385 : 0.44);
   const buildableBorderGeometry = gothicAbyss
     ? new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(-borderHalfSize, 0, -borderHalfSize),
@@ -95,9 +96,17 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
     : null;
   const buildableBorderMaterial = gothicAbyss
     ? new THREE.LineBasicMaterial({
-        color: 0xc7c9cf,
+        color: 0xffb35c,
         transparent: true,
-        opacity: 0.92,
+        opacity: 0.78,
+        depthWrite: false,
+      })
+    : null;
+  const buildableHaloMaterial = gothicAbyss
+    ? new THREE.LineBasicMaterial({
+        color: 0xff4b16,
+        transparent: true,
+        opacity: 0.2,
         depthWrite: false,
       })
     : null;
@@ -109,9 +118,9 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
     if (gothicAbyss && !isPath && !isBuildable) continue;
     const tileTone = (x * 7 + y * 11) % 4 === 0 ? map.theme.tileColors[0] : (x + y) % 3 === 0 ? map.theme.tileColors[1] : map.theme.tileColors[2];
     const geometry = new THREE.BoxGeometry(
-      map.cellSize,
+      gothicAbyss && isBuildable ? map.cellSize * 0.86 : map.cellSize,
       isPath ? 0.16 : 0.15,
-      map.cellSize,
+      gothicAbyss && isBuildable ? map.cellSize * 0.86 : map.cellSize,
     );
     const tile = createMapMesh(
       surfaceDetail,
@@ -124,14 +133,24 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
       { roughness: 1 },
     );
     tile.position.copy(mapWorldPosition(map, x, y));
-    tile.position.y = gothicAbyss ? 0 : (isPath ? -0.025 : 0);
+    tile.position.y = gothicAbyss ? (isPath ? -0.08 : 0) : (isPath ? -0.025 : 0);
     scene.add(tile);
     if (
       gothicAbyss &&
       isBuildable &&
       buildableBorderGeometry &&
-      buildableBorderMaterial
+      buildableBorderMaterial &&
+      buildableHaloMaterial
     ) {
+      const halo = new THREE.LineLoop(
+        buildableBorderGeometry,
+        buildableHaloMaterial,
+      );
+      halo.position.copy(tile.position);
+      halo.position.y += 0.075;
+      halo.scale.setScalar(1.08);
+      halo.renderOrder = 1;
+      scene.add(halo);
       const border = new THREE.LineLoop(
         buildableBorderGeometry,
         buildableBorderMaterial,
@@ -146,6 +165,9 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
       tiles.push(tile);
     }
   }
+  scene.userData.lavaPadBorderMaterials = gothicAbyss
+    ? [buildableBorderMaterial, buildableHaloMaterial]
+    : null;
   return tiles;
 }
 
@@ -225,7 +247,7 @@ function addRouteLines(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
     const at = (progress: number) => {
       const position = mapPathPosition(map, progress, lane);
       const world = mapWorldPosition(map, position.x, position.y);
-      world.y = 0.105;
+      world.y = isGothicAbyssMap(map) ? 0.025 : 0.105;
       return world;
     };
     const portalPlacement = spawnPortalPlacement(map, lane);
@@ -234,7 +256,7 @@ function addRouteLines(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       portalPlacement.position.x,
       portalPlacement.position.y,
     );
-    previous.y = 0.105;
+    previous.y = isGothicAbyssMap(map) ? 0.025 : 0.105;
     const routeStartProgress = map.spawnPoints?.[lane] ? -1 : 0;
     for (let progress = routeStartProgress; progress < routeEndProgress; progress += sampleStep) {
       const next = at(Math.min(progress, routeEndProgress));
@@ -644,7 +666,7 @@ function addGothicAbyssScenery(
   const padFoundation = new THREE.InstancedMesh(
     new THREE.BoxGeometry(
       map.cellSize * 1.02,
-      2.6,
+      3.4,
       map.cellSize * 1.02,
     ),
     cliffMaterial,
@@ -653,7 +675,8 @@ function addGothicAbyssScenery(
   buildableTiles.forEach((cell, index) => {
     const position = mapWorldPosition(map, cell.x, cell.y);
     const depth = 2.5 + ((cell.x * 5 + cell.y * 3) % 3) * 0.16;
-    dummy.position.set(position.x, -0.08 - depth / 2, position.z);
+    const actualDepth = depth * (3.4 / 2.6);
+    dummy.position.set(position.x, -0.08 - actualDepth / 2, position.z);
     dummy.rotation.set(0, 0, 0);
     dummy.scale.set(1, depth / 2.6, 1);
     dummy.updateMatrix();
@@ -711,7 +734,17 @@ export function createTowerDefenseMapScene(scene: THREE.Scene, map: TowerDefense
     updateSpawnPortals(elapsed);
     updateGothicAbyss(elapsed);
   };
-  return { tileMeshes, particles, updatePortal };
+  const updateBuildableBorders = (elapsed: number) => {
+    const materials = scene.userData.lavaPadBorderMaterials as
+      | [THREE.LineBasicMaterial, THREE.LineBasicMaterial]
+      | null
+      | undefined;
+    if (!materials) return;
+    const pulse = 0.5 + 0.5 * Math.sin(elapsed * 3.4);
+    materials[0].opacity = 0.46 + pulse * 0.46;
+    materials[1].opacity = 0.08 + pulse * 0.3;
+  };
+  return { tileMeshes, particles, updatePortal, updateBuildableBorders };
 }
 
 /**

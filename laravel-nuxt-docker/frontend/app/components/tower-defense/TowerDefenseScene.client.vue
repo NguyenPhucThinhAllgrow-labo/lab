@@ -157,6 +157,7 @@ let attackRangeMarker: THREE.Group | null = null;
 let towerFocusMarker: THREE.Group | null = null;
 let mysticParticles: THREE.Points | null = null;
 let updateSpawnPortal: ((elapsed: number) => void) | null = null;
+let updateBuildableBorders: ((elapsed: number) => void) | null = null;
 let performanceMode = false;
 
 watch(
@@ -2356,6 +2357,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     }
   }
   updateSpawnPortal?.(elapsed);
+  updateBuildableBorders?.(elapsed);
   const selectedTower = props.towers.find(
     (tower) => tower.id === props.selectedTowerId,
   );
@@ -3066,6 +3068,7 @@ async function createWorld() {
           .filter((definition) => definition.model)
           .map((definition) => [definition.id, definition.model!]),
       ),
+      groundY: props.map.id === "lava-fortress" ? 0 : undefined,
     });
     damageNumberScene = createTowerDefenseDamageNumberScene(scene, {
       enemyModels: enemyScene.models,
@@ -3121,6 +3124,7 @@ async function createWorld() {
     tileMeshes.push(...mapScene.tileMeshes);
     mysticParticles = mapScene.particles;
     updateSpawnPortal = mapScene.updatePortal;
+    updateBuildableBorders = mapScene.updateBuildableBorders;
     hoverMarker = new THREE.Mesh(
       new THREE.PlaneGeometry(0.88, 0.88),
       new THREE.MeshBasicMaterial({
@@ -3360,6 +3364,7 @@ onBeforeUnmount(() => {
   towerBuffBadgeTextures.clear();
   mysticParticles = null;
   updateSpawnPortal = null;
+  updateBuildableBorders = null;
   renderer?.dispose();
   renderer?.forceContextLoss();
   renderer?.domElement.remove();

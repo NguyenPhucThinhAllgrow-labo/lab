@@ -65,6 +65,7 @@ export interface TowerDefenseEnemySceneOptions {
   bossModel?: TowerDefenseCharacterModelDefinition;
   enemyModels?: Record<string, TowerDefenseCharacterModelDefinition>;
   bossModels?: Record<string, TowerDefenseCharacterModelDefinition>;
+  groundY?: number;
 }
 
 function disposeObject(object: THREE.Object3D, disposeResources = true) {
@@ -186,6 +187,7 @@ export function createTowerDefenseEnemyScene(
   camera: THREE.Camera,
   options: TowerDefenseEnemySceneOptions = {},
 ): TowerDefenseEnemyScene {
+  const enemyGroundY = options.groundY ?? ENEMY_GROUND_Y;
   const models = new Map<number, THREE.Group>();
   const activeEnemyIds = new Set<number>();
   const modelPool = new Map<string, THREE.Group[]>();
@@ -981,7 +983,7 @@ export function createTowerDefenseEnemyScene(
         0,
         4.5,
       );
-      model.position.copy(position.setY(ENEMY_GROUND_Y));
+      model.position.copy(position.setY(enemyGroundY));
       const targetRotation = Math.atan2(
         facingTo.x - facingFrom.x,
         facingTo.z - facingFrom.z,
