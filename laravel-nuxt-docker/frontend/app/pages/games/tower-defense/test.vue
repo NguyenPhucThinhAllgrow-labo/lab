@@ -16,7 +16,7 @@ useHead({
 const viewport = ref<HTMLDivElement | null>(null);
 const loading = ref(true);
 const muted = ref(false);
-const autoRotate = ref(true);
+const autoRotate = ref(false);
 const fullscreen = ref(false);
 
 let renderer: THREE.WebGLRenderer | null = null;
@@ -26,15 +26,43 @@ let controls: OrbitControls | null = null;
 let animationFrame = 0;
 let resizeObserver: ResizeObserver | null = null;
 let lavaMaterial: THREE.ShaderMaterial | null = null;
+const lavaFlowMaterials: THREE.ShaderMaterial[] = [];
 const flames: Array<{ mesh: THREE.Mesh; light?: THREE.PointLight; phase: number }> = [];
+const lavaLights: Array<{ light: THREE.PointLight; baseIntensity: number; phase: number }> = [];
 const embers: THREE.Points[] = [];
+const surfaceTextures: THREE.Texture[] = [];
+// Preserve the gameplay camera's configured direction
+// ([7.41, 16.25, 7.28] looking at [1.69, 0, 0]) while scaling its distance
+// to frame this much larger hand-built scene.
+const DEFAULT_CAMERA_TARGET = new THREE.Vector3(17, 5.3, 0);
+const DEFAULT_CAMERA_POSITION = new THREE.Vector3(41.02, 73.55, 30.58);
+const DEFAULT_CAMERA_ZOOM = 0.71;
+
+// Move the complete citadel four bridge bays farther back while keeping the
+// opposite shore fixed. Extending by exact 4.5-unit bays also keeps every
+// pier and arch evenly spaced.
+const BRIDGE_CASTLE_EDGE_X = 32;
+const BRIDGE_LENGTH = 72;
+const BRIDGE_WIDTH = 9;
+const BRIDGE_CENTER_X = BRIDGE_CASTLE_EDGE_X - BRIDGE_LENGTH / 2;
+const BRIDGE_OPPOSITE_EDGE_X = BRIDGE_CASTLE_EDGE_X - BRIDGE_LENGTH;
+const OPPOSITE_LANDMASS_ORIGIN_X = -43;
 
 const vertexShader = /* glsl */ `
+  uniform float uTime;
   varying vec2 vUv;
   varying vec3 vWorldPosition;
+  varying float vSurfaceLift;
+
   void main() {
     vUv = uv;
-    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vec3 displaced = position;
+    float broadSwell = sin(position.x * 0.052 + uTime * 0.07)
+      * sin(position.y * 0.061 - uTime * 0.055);
+    float crossingSwell = sin((position.x - position.y) * 0.033 + uTime * 0.042);
+    vSurfaceLift = broadSwell * 0.065 + crossingSwell * 0.035;
+    displaced.z += vSurfaceLift;
+    vec4 worldPosition = modelMatrix * vec4(displaced, 1.0);
     vWorldPosition = worldPosition.xyz;
     gl_Position = projectionMatrix * viewMatrix * worldPosition;
   }
@@ -44,6 +72,7 @@ const lavaFragmentShader = /* glsl */ `
   uniform float uTime;
   varying vec2 vUv;
   varying vec3 vWorldPosition;
+  varying float vSurfaceLift;
 
   float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -58,33 +87,346 @@ const lavaFragmentShader = /* glsl */ `
   }
 
   float fbm(vec2 p) {
-    float v = 0.0;
-    float a = 0.5;
-    for (int i = 0; i < 5; i++) {
-      v += a * noise(p);
-      p = p * 2.03 + 7.13;
-      a *= 0.5;
+    float value = 0.0;
+    float amplitude = 0.52;
+    for (int octave = 0; octave < 3; octave++) {
+      value += amplitude * noise(p);
+      p = p * 2.02 + vec2(4.17, 7.31);
+      amplitude *= 0.48;
     }
-    return v;
+    return value;
   }
 
   void main() {
-    vec2 p = vWorldPosition.xz * 0.16;
-    float flow = fbm(p + vec2(uTime * 0.08, -uTime * 0.12));
-    float cracks = fbm(p * 2.8 - vec2(uTime * 0.18, uTime * 0.05));
-    float hot = smoothstep(0.5, 0.82, flow + cracks * 0.48);
-    vec3 dark = vec3(0.09, 0.006, 0.002);
-    vec3 red = vec3(0.65, 0.025, 0.002);
-    vec3 gold = vec3(1.0, 0.35, 0.015);
-    vec3 color = mix(dark, red, smoothstep(0.25, 0.7, flow));
-    color = mix(color, gold, hot);
+    vec2 world = vWorldPosition.xz;
+    vec2 drift = vec2(uTime * 0.009, -uTime * 0.013);
+    vec2 broadCoordinates = world * vec2(0.027, 0.034);
+    vec2 warp = vec2(
+      noise(broadCoordinates + drift),
+      noise(broadCoordinates + vec2(8.7, 13.1) - drift * 0.7)
+    ) - 0.5;
+    vec2 flowCoordinates = world * vec2(0.046, 0.058) + warp * 1.72 + drift;
+
+    // A ridged, domain-warped field leaves most of the lake covered by cooled
+    // basalt. Only narrow, broken contours expose the incandescent interior.
+    float broadShape = fbm(flowCoordinates);
+    float ridge = 1.0 - abs(broadShape * 2.0 - 1.0);
+    float breakup = noise(flowCoordinates * 2.8 - drift * 1.2);
+    float fissure = smoothstep(0.82, 0.945, ridge + (breakup - 0.5) * 0.13);
+    float hotCore = smoothstep(0.72, 0.97, fissure) * smoothstep(0.28, 0.72, breakup);
+
+    vec3 coldBasalt = vec3(0.014, 0.011, 0.010);
+    vec3 warmBasalt = vec3(0.072, 0.020, 0.009);
+    vec3 deepMagma = vec3(0.48, 0.022, 0.002);
+    vec3 moltenOrange = vec3(0.96, 0.105, 0.004);
+    vec3 hotAmber = vec3(1.0, 0.38, 0.025);
+
+    vec3 crustColor = mix(coldBasalt, warmBasalt, broadShape * 0.4);
+    vec3 magmaColor = mix(deepMagma, moltenOrange, fissure * (0.62 + breakup * 0.28));
+    magmaColor = mix(magmaColor, hotAmber, hotCore * 0.64);
+    float cooledFilm = smoothstep(0.68, 0.92, breakup) * fissure * 0.2;
+    vec3 color = mix(crustColor, magmaColor, fissure);
+    color = mix(color, warmBasalt, cooledFilm);
+
+    // Small, broad highlights belong to the solid skin only. Molten seams stay
+    // emissive and matte instead of looking like glossy neon paint.
+    vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+    vec3 surfaceNormal = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
+    surfaceNormal.y = abs(surfaceNormal.y);
+    vec3 lightDirection = normalize(vec3(-0.35, 0.82, 0.44));
+    vec3 halfDirection = normalize(lightDirection + viewDirection);
+    float specular = pow(max(dot(surfaceNormal, halfDirection), 0.0), 28.0);
+    float fresnel = pow(1.0 - max(dot(surfaceNormal, viewDirection), 0.0), 4.0);
+    color += vec3(0.16, 0.19, 0.21) * (specular * 0.16 + fresnel * 0.045)
+      * (1.0 - fissure) * (0.82 + vSurfaceLift);
     gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+const lavaFlowVertexShader = /* glsl */ `
+  varying vec2 vFlowPosition;
+  void main() {
+    vFlowPosition = position.xy;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const lavaFlowFragmentShader = /* glsl */ `
+  uniform float uTime;
+  uniform float uPhase;
+  varying vec2 vFlowPosition;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+
+  float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+  }
+
+  void main() {
+    float fall = -vFlowPosition.y;
+    vec2 flowUv = vec2(vFlowPosition.x * 1.7, fall * 0.82 - uTime * 1.35 + uPhase);
+    float broadFlow = noise(flowUv);
+    float fineFlow = noise(flowUv * vec2(2.7, 1.8) + vec2(7.3, -uTime * 0.65));
+    float hotCore = smoothstep(0.42, 0.86, broadFlow * 0.72 + fineFlow * 0.5);
+    vec3 crust = vec3(0.26, 0.015, 0.002);
+    vec3 molten = vec3(1.0, 0.16, 0.005);
+    vec3 hot = vec3(1.0, 0.78, 0.08);
+    vec3 color = mix(crust, molten, smoothstep(0.15, 0.72, broadFlow));
+    color = mix(color, hot, hotCore);
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+const lavaImpactVertexShader = /* glsl */ `
+  varying vec2 vUv;
+
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const lavaImpactFragmentShader = /* glsl */ `
+  uniform float uTime;
+  uniform float uPhase;
+  varying vec2 vUv;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+
+  float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+  }
+
+  void main() {
+    vec2 p = (vUv - 0.5) * 2.0;
+    float radius = length(p);
+    float angle = atan(p.y, p.x);
+    float time = uTime * 0.42 + uPhase;
+
+    // Break the circular silhouette so the pool merges into the lake instead
+    // of reading as a flat, perfectly cut decal.
+    float edgeNoise = noise(vec2(angle * 1.7 + uPhase, time * 0.24));
+    float edge = 0.9 + (edgeNoise - 0.5) * 0.2;
+    float poolMask = 1.0 - smoothstep(edge - 0.16, edge + 0.04, radius);
+
+    float moltenNoise = noise(p * 3.3 + vec2(time * 0.35, -time * 0.22));
+    float core = (1.0 - smoothstep(0.08, 0.72, radius)) * (0.7 + moltenNoise * 0.3);
+
+    // Two soft shock fronts travel through the shallow molten pool. Their
+    // irregularity keeps the contact from looking like a neon ring.
+    float ripplePhase = fract(time * 0.34);
+    float rippleRadius = mix(0.16, 0.92, ripplePhase);
+    float ripple = 1.0 - smoothstep(0.025, 0.105, abs(radius - rippleRadius));
+    ripple *= 1.0 - ripplePhase;
+    ripple *= 0.45 + noise(vec2(angle * 3.1, uPhase)) * 0.55;
+
+    float secondPhase = fract(ripplePhase + 0.5);
+    float secondRadius = mix(0.18, 0.9, secondPhase);
+    float secondRipple = 1.0 - smoothstep(0.025, 0.09, abs(radius - secondRadius));
+    secondRipple *= (1.0 - secondPhase) * 0.55;
+
+    vec3 cooled = vec3(0.18, 0.008, 0.001);
+    vec3 molten = vec3(1.0, 0.12, 0.002);
+    vec3 whiteHot = vec3(1.0, 0.72, 0.06);
+    vec3 color = mix(cooled, molten, smoothstep(0.18, 0.7, moltenNoise + core));
+    color = mix(color, whiteHot, clamp(core * 0.72 + ripple + secondRipple, 0.0, 1.0));
+
+    float crustFade = 1.0 - smoothstep(0.62, 1.0, radius);
+    float alpha = poolMask * (0.28 + core * 0.58 + (ripple + secondRipple) * 0.35);
+    alpha *= mix(0.72, 1.0, crustFade);
+    gl_FragColor = vec4(color, alpha);
   }
 `;
 
 function seededRandom(seed: number) {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
   return value - Math.floor(value);
+}
+
+function addLavaFall(
+  parent: THREE.Object3D,
+  position: [number, number, number],
+  width: number,
+  height: number,
+  seed: number,
+  rotationY = 0,
+  outwardBulge = 0.7,
+) {
+  const halfWidth = width / 2;
+  const shape = new THREE.Shape();
+  shape.moveTo(-halfWidth * 0.72, 0);
+  shape.lineTo(-halfWidth * (0.82 + seededRandom(seed) * 0.22), -height * 0.2);
+  shape.lineTo(-halfWidth * (0.55 + seededRandom(seed + 1) * 0.3), -height * 0.43);
+  shape.lineTo(-halfWidth * (0.88 + seededRandom(seed + 2) * 0.2), -height * 0.7);
+  // An uneven, slightly broken lower lip avoids the perfectly straight seam
+  // that otherwise gives away the waterfall as a single flat polygon.
+  shape.lineTo(-halfWidth * 0.9, -height * 0.975);
+  shape.lineTo(-halfWidth * 0.54, -height);
+  shape.lineTo(-halfWidth * 0.14, -height * 0.968);
+  shape.lineTo(halfWidth * 0.18, -height);
+  shape.lineTo(halfWidth * 0.56, -height * 0.958);
+  shape.lineTo(halfWidth, -height * 0.986);
+  shape.lineTo(halfWidth * (0.62 + seededRandom(seed + 3) * 0.3), -height * 0.72);
+  shape.lineTo(halfWidth * (0.9 + seededRandom(seed + 4) * 0.18), -height * 0.45);
+  shape.lineTo(halfWidth * (0.58 + seededRandom(seed + 5) * 0.32), -height * 0.18);
+  shape.lineTo(halfWidth * 0.72, 0);
+  shape.closePath();
+
+  const material = new THREE.ShaderMaterial({
+    vertexShader: lavaFlowVertexShader,
+    fragmentShader: lavaFlowFragmentShader,
+    uniforms: {
+      uTime: { value: 0 },
+      uPhase: { value: seededRandom(seed + 11) * 12 },
+    },
+    // The cascade is visually opaque. Let it participate in the depth buffer
+    // so cliffs, bridge piers and rocks correctly occlude it.
+    side: THREE.FrontSide,
+    transparent: false,
+    depthTest: true,
+    depthWrite: true,
+    toneMapped: false,
+  });
+  lavaFlowMaterials.push(material);
+
+  const geometry = new THREE.ShapeGeometry(shape, 12);
+  const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
+  for (let index = 0; index < positions.count; index += 1) {
+    const progress = THREE.MathUtils.clamp(-positions.getY(index) / height, 0, 1);
+    positions.setZ(index, Math.sin(progress * Math.PI * 0.5) * outwardBulge);
+  }
+  positions.needsUpdate = true;
+  geometry.computeVertexNormals();
+
+  const fall = new THREE.Mesh(geometry, material);
+  const outwardX = Math.sin(rotationY);
+  const outwardZ = Math.cos(rotationY);
+  fall.position.set(
+    position[0] + outwardX * 0.16,
+    position[1],
+    position[2] + outwardZ * 0.16,
+  );
+  fall.rotation.y = rotationY;
+  fall.renderOrder = 4;
+  parent.add(fall);
+
+  // Build the impact in a rotated local frame. Besides keeping the long axis
+  // parallel to the waterfall, this also lets the animated pool overlap the
+  // curved lower lip and dissolve naturally into the lake surface.
+  const impactMaterial = new THREE.ShaderMaterial({
+    vertexShader: lavaImpactVertexShader,
+    fragmentShader: lavaImpactFragmentShader,
+    uniforms: {
+      uTime: { value: 0 },
+      uPhase: { value: seededRandom(seed + 17) * 9 },
+    },
+    side: THREE.FrontSide,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthTest: true,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  lavaFlowMaterials.push(impactMaterial);
+
+  const impact = new THREE.Group();
+  impact.position.set(
+    position[0] + outwardX * (outwardBulge + 0.55),
+    position[1] - height + 0.06,
+    position[2] + outwardZ * (outwardBulge + 0.55),
+  );
+  impact.rotation.y = rotationY;
+
+  const splash = new THREE.Mesh(new THREE.CircleGeometry(width * 0.92, 48), impactMaterial);
+  splash.rotation.x = -Math.PI / 2;
+  splash.scale.set(1, 0.68, 1);
+  splash.renderOrder = 3;
+  impact.add(splash);
+  parent.add(impact);
+
+  // Point lights are one of the most expensive inputs to every standard
+  // material. Keep them only on the dominant cascades; smaller falls inherit
+  // enough illumination from the shared lake bounce lights.
+  if (width >= 2.4) {
+    const glow = new THREE.PointLight(0xff4a08, 92 + width * 12, 12 + width * 1.8, 2);
+    glow.position.set(
+      position[0] + outwardX * (outwardBulge + 0.4),
+      position[1] - height + 0.65,
+      position[2] + outwardZ * (outwardBulge + 0.4),
+    );
+    parent.add(glow);
+  }
+  return fall;
+}
+
+type SurfacePattern = "masonry" | "rough" | "path" | "roof";
+
+function createSurfaceBumpMap(pattern: SurfacePattern, repeatX: number, repeatY: number) {
+  const size = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+
+  const image = context.createImageData(size, size);
+  const pixels = image.data;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const index = (y * size + x) * 4;
+      const broadNoise = seededRandom(Math.floor(x / 8) * 0.73 + Math.floor(y / 8) * 13.17);
+      const fineNoise = seededRandom(x * 0.113 + y * 7.31);
+      let height = 128 + broadNoise * 42 + fineNoise * 24;
+
+      if (pattern === "masonry") {
+        const course = 64;
+        const row = Math.floor(y / course);
+        const shiftedX = (x + (row % 2) * 48) % 96;
+        const horizontalJoint = Math.min(y % course, course - (y % course));
+        const verticalJoint = Math.min(shiftedX, 96 - shiftedX);
+        const edge = Math.min(horizontalJoint, verticalJoint);
+        height = edge < 4 ? 24 + fineNoise * 12 : 155 + Math.min(edge, 14) * 2.8 + broadNoise * 28 + fineNoise * 14;
+      } else if (pattern === "path") {
+        const cellX = (x + (Math.floor(y / 76) % 2) * 54) % 108;
+        const cellY = y % 76;
+        const joint = Math.min(cellX, 108 - cellX, cellY, 76 - cellY);
+        height = joint < 5 ? 22 : 142 + Math.min(joint, 18) * 2.5 + broadNoise * 38 + fineNoise * 18;
+      } else if (pattern === "roof") {
+        const rib = Math.abs(((x + y * 0.2) % 42) - 21);
+        height = 92 + Math.max(0, 21 - rib) * 5.4 + broadNoise * 20 + fineNoise * 9;
+      } else {
+        height = 88 + broadNoise * 82 + fineNoise * 44;
+      }
+
+      const value = Math.max(0, Math.min(255, Math.round(height)));
+      pixels[index] = value;
+      pixels[index + 1] = value;
+      pixels[index + 2] = value;
+      pixels[index + 3] = 255;
+    }
+  }
+  context.putImageData(image, 0, 0);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeatX, repeatY);
+  texture.anisotropy = renderer ? Math.min(renderer.capabilities.getMaxAnisotropy(), 8) : 1;
+  texture.needsUpdate = true;
+  surfaceTextures.push(texture);
+  return texture;
 }
 
 function setShadow(object: THREE.Object3D) {
@@ -109,6 +451,245 @@ function addBox(
   mesh.receiveShadow = true;
   parent.add(mesh);
   return mesh;
+}
+
+function addRuggedFoundationBlock(
+  parent: THREE.Object3D,
+  size: [number, number, number],
+  position: [number, number, number],
+  material: THREE.Material,
+  seed: number,
+  amplitude = 0.22,
+) {
+  const [width, height, depth] = size;
+  const geometry = new THREE.BoxGeometry(
+    width,
+    height,
+    depth,
+    Math.max(4, Math.ceil(width / 2.4)),
+    2,
+    Math.max(4, Math.ceil(depth / 2.4)),
+  );
+  const vertices = geometry.getAttribute("position") as THREE.BufferAttribute;
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  const halfDepth = depth / 2;
+
+  for (let index = 0; index < vertices.count; index += 1) {
+    let x = vertices.getX(index);
+    let y = vertices.getY(index);
+    let z = vertices.getZ(index);
+    const surfaceNoise = seededRandom(
+      seed + Math.round((x + halfWidth) * 17) * 0.37 + Math.round((z + halfDepth) * 19) * 1.91,
+    );
+    const cornerStrength = THREE.MathUtils.smoothstep(Math.abs(x) / halfWidth, 0.68, 1)
+      * THREE.MathUtils.smoothstep(Math.abs(z) / halfDepth, 0.68, 1);
+    const localAmplitude = amplitude * (1 + cornerStrength * 2.4);
+
+    if (y >= halfHeight - 0.001) y += (surfaceNoise - 0.5) * localAmplitude * 2;
+    if (Math.abs(x) >= halfWidth - 0.001)
+      x += Math.sign(x) * (surfaceNoise - 0.5) * localAmplitude * 0.7;
+    if (Math.abs(z) >= halfDepth - 0.001)
+      z += Math.sign(z) * (surfaceNoise - 0.5) * localAmplitude * 0.7;
+
+    vertices.setXYZ(index, x, y, z);
+  }
+  vertices.needsUpdate = true;
+  geometry.computeVertexNormals();
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(...position);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+function roughenExtrudedFoundationTop(
+  geometry: THREE.ExtrudeGeometry,
+  seed: number,
+  amplitude: number,
+) {
+  const vertices = geometry.getAttribute("position") as THREE.BufferAttribute;
+  geometry.computeBoundingBox();
+  const bounds = geometry.boundingBox!;
+  const centerX = (bounds.min.x + bounds.max.x) / 2;
+  const centerY = (bounds.min.y + bounds.max.y) / 2;
+  const halfWidth = Math.max((bounds.max.x - bounds.min.x) / 2, 0.001);
+  const halfDepth = Math.max((bounds.max.y - bounds.min.y) / 2, 0.001);
+  for (let index = 0; index < vertices.count; index += 1) {
+    const x = vertices.getX(index);
+    const y = vertices.getY(index);
+    const z = vertices.getZ(index);
+    if (z > 0.08) continue;
+    const cornerStrength = THREE.MathUtils.smoothstep(Math.abs(x - centerX) / halfWidth, 0.7, 1)
+      * THREE.MathUtils.smoothstep(Math.abs(y - centerY) / halfDepth, 0.7, 1);
+    const relief = (seededRandom(seed + x * 1.73 + y * 7.19) - 0.5)
+      * amplitude
+      * (1 + cornerStrength * 2.6);
+    vertices.setZ(index, z - relief);
+  }
+  vertices.needsUpdate = true;
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function addRuggedSurfaceField(
+  parent: THREE.Object3D,
+  material: THREE.Material,
+  bounds: [number, number, number, number],
+  surfaceY: number,
+  count: number,
+  seed: number,
+  contains?: (x: number, z: number) => boolean,
+) {
+  const [minX, maxX, minZ, maxZ] = bounds;
+  const geometry = new THREE.DodecahedronGeometry(1, 0);
+  const field = new THREE.InstancedMesh(geometry, material, count);
+  const transform = new THREE.Object3D();
+  let placed = 0;
+  let attempt = 0;
+
+  while (placed < count && attempt < count * 8) {
+    const itemSeed = seed + attempt * 47;
+    const x = THREE.MathUtils.lerp(minX, maxX, seededRandom(itemSeed));
+    const z = THREE.MathUtils.lerp(minZ, maxZ, seededRandom(itemSeed + 11));
+    attempt += 1;
+    if (contains && !contains(x, z)) continue;
+
+    const radius = 0.45 + seededRandom(itemSeed + 19) * 1.25;
+    transform.position.set(x, surfaceY, z);
+    transform.rotation.set(
+      (seededRandom(itemSeed + 23) - 0.5) * 0.18,
+      seededRandom(itemSeed + 29) * Math.PI,
+      (seededRandom(itemSeed + 31) - 0.5) * 0.18,
+    );
+    transform.scale.set(
+      radius,
+      0.1 + seededRandom(itemSeed + 37) * 0.2,
+      radius * (0.65 + seededRandom(itemSeed + 41) * 0.55),
+    );
+    transform.updateMatrix();
+    field.setMatrixAt(placed, transform.matrix);
+    placed += 1;
+  }
+
+  field.count = placed;
+  field.instanceMatrix.needsUpdate = true;
+  field.castShadow = true;
+  field.receiveShadow = true;
+  parent.add(field);
+  return field;
+}
+
+function addFoundationCornerOutcrops(
+  parent: THREE.Object3D,
+  material: THREE.Material,
+  corners: Array<[number, number]>,
+  surfaceY: number,
+  seed: number,
+) {
+  const piecesPerCorner = 3;
+  const geometry = new THREE.DodecahedronGeometry(1, 0);
+  const outcrops = new THREE.InstancedMesh(
+    geometry,
+    material,
+    corners.length * piecesPerCorner,
+  );
+  const transform = new THREE.Object3D();
+  let instance = 0;
+
+  corners.forEach(([cornerX, cornerZ], cornerIndex) => {
+    for (let piece = 0; piece < piecesPerCorner; piece += 1) {
+      const itemSeed = seed + cornerIndex * 101 + piece * 23;
+      const radius = 1.15 + seededRandom(itemSeed + 5) * 1.45;
+      transform.position.set(
+        cornerX + (seededRandom(itemSeed + 7) - 0.5) * 3.2,
+        surfaceY + seededRandom(itemSeed + 11) * 0.22,
+        cornerZ + (seededRandom(itemSeed + 13) - 0.5) * 3.2,
+      );
+      transform.rotation.set(
+        (seededRandom(itemSeed + 17) - 0.5) * 0.32,
+        seededRandom(itemSeed + 19) * Math.PI,
+        (seededRandom(itemSeed + 29) - 0.5) * 0.32,
+      );
+      transform.scale.set(
+        radius,
+        0.38 + seededRandom(itemSeed + 31) * 0.72,
+        radius * (0.72 + seededRandom(itemSeed + 37) * 0.5),
+      );
+      transform.updateMatrix();
+      outcrops.setMatrixAt(instance, transform.matrix);
+      instance += 1;
+    }
+  });
+
+  outcrops.instanceMatrix.needsUpdate = true;
+  outcrops.castShadow = true;
+  outcrops.receiveShadow = true;
+  parent.add(outcrops);
+  return outcrops;
+}
+
+function addGableRoof(
+  parent: THREE.Object3D,
+  width: number,
+  depth: number,
+  height: number,
+  y: number,
+  material: THREE.Material,
+) {
+  const halfWidth = width / 2;
+  const halfDepth = depth / 2;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute([
+    -halfWidth, 0, halfDepth, halfWidth, 0, halfDepth, 0, height, halfDepth,
+    -halfWidth, 0, -halfDepth, halfWidth, 0, -halfDepth, 0, height, -halfDepth,
+  ], 3));
+  geometry.setIndex([
+    0, 1, 2, 4, 3, 5,
+    3, 0, 2, 3, 2, 5,
+    1, 4, 5, 1, 5, 2,
+    3, 4, 1, 3, 1, 0,
+  ]);
+  geometry.computeVertexNormals();
+  const roofMesh = new THREE.Mesh(geometry, material);
+  roofMesh.position.y = y;
+  parent.add(setShadow(roofMesh));
+  return roofMesh;
+}
+
+function addRoseWindow(
+  parent: THREE.Object3D,
+  x: number,
+  y: number,
+  z: number,
+  scale: number,
+  stone: THREE.Material,
+) {
+  const window = new THREE.Group();
+  window.position.set(x, y, z);
+  const glass = new THREE.Mesh(
+    new THREE.CircleGeometry(1.08 * scale, 24),
+    new THREE.MeshStandardMaterial({
+      color: 0x3d1018,
+      emissive: 0xa72b12,
+      emissiveIntensity: 0.75,
+      side: THREE.DoubleSide,
+    }),
+  );
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.08 * scale, 0.13 * scale, 6, 24), stone);
+  glass.position.z = 0.01;
+  ring.position.z = 0.05;
+  window.add(glass, ring);
+  for (let spoke = 0; spoke < 8; spoke += 1) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.07 * scale, 2.0 * scale, 0.1), stone);
+    bar.rotation.z = (spoke / 8) * Math.PI;
+    bar.position.z = 0.07;
+    window.add(bar);
+  }
+  parent.add(setShadow(window));
+  return window;
 }
 
 function addSpire(
@@ -213,13 +794,22 @@ function addGothicWindow(parent: THREE.Object3D, x: number, y: number, z: number
   return group;
 }
 
-function addBattlements(parent: THREE.Object3D, length: number, x: number, y: number, z: number, alongX: boolean, material: THREE.Material) {
+function addBattlements(
+  parent: THREE.Object3D,
+  length: number,
+  x: number,
+  y: number,
+  z: number,
+  alongX: boolean,
+  material: THREE.Material,
+  thickness = 0.52,
+) {
   const count = Math.max(2, Math.floor(length / 0.75));
   for (let index = 0; index <= count; index += 1) {
     const t = index / count - 0.5;
     addBox(
       parent,
-      alongX ? [0.34, 0.48, 0.52] : [0.52, 0.48, 0.34],
+      alongX ? [0.34, 0.48, thickness] : [thickness, 0.48, 0.34],
       alongX ? [x + t * length, y, z] : [x, y, z + t * length],
       material,
     );
@@ -263,6 +853,428 @@ function addRockCluster(parent: THREE.Object3D, x: number, z: number, scale: num
   return group;
 }
 
+function addCliffRockBlocks(parent: THREE.Object3D, rock: THREE.Material) {
+  const blocks: Array<{ x: number; y: number; z: number; side: boolean; seed: number }> = [];
+  // Three staggered courses create the tall, broken basalt wall from the
+  // reference instead of exposing a broad, smooth extruded foundation face.
+  const levels = [-2.15, -5.45, -8.35];
+  let seed = 2101;
+
+  levels.forEach((y, level) => {
+    for (let x = -37 + level * 4.8; x <= 37; x += 10.4) {
+      const absX = Math.abs(x);
+      const frontZ = absX <= 14 ? 27 : 27 - ((absX - 14) / 25) * 3;
+      blocks.push({ x, y, z: frontZ + 0.08, side: false, seed: seed++ });
+      blocks.push({ x: x - 2.1, y, z: -28.08, side: false, seed: seed++ });
+    }
+  });
+
+  levels.forEach((y, level) => {
+    for (const x of [-45.08, 45.08]) {
+      for (let z = -19 + level * 4.4; z <= 14; z += 10.2) {
+        blocks.push({ x, y, z, side: true, seed: seed++ });
+      }
+    }
+  });
+
+  const blockGeometry = new THREE.DodecahedronGeometry(1, 0);
+  const cliffBlocks = new THREE.InstancedMesh(blockGeometry, rock, blocks.length);
+  const transform = new THREE.Object3D();
+  blocks.forEach((block, index) => {
+    const along = 3.3 + seededRandom(block.seed * 1.7) * 1.15;
+    const vertical = 2.15 + seededRandom(block.seed * 2.3) * 0.72;
+    const outward = 1.35 + seededRandom(block.seed * 3.1) * 0.55;
+    transform.position.set(
+      block.x + (seededRandom(block.seed * 4.1) - 0.5) * 1.5,
+      block.y + (seededRandom(block.seed * 5.3) - 0.5) * 0.9,
+      block.z + (seededRandom(block.seed * 6.7) - 0.5) * 0.55,
+    );
+    transform.rotation.set(
+      (seededRandom(block.seed * 7.1) - 0.5) * 0.35,
+      seededRandom(block.seed * 8.3) * Math.PI,
+      (seededRandom(block.seed * 9.7) - 0.5) * 0.3,
+    );
+    transform.scale.set(
+      block.side ? outward : along,
+      vertical,
+      block.side ? along : outward,
+    );
+    transform.updateMatrix();
+    cliffBlocks.setMatrixAt(index, transform.matrix);
+  });
+  cliffBlocks.instanceMatrix.needsUpdate = true;
+  cliffBlocks.castShadow = true;
+  cliffBlocks.receiveShadow = true;
+  parent.add(cliffBlocks);
+  return cliffBlocks;
+}
+
+function addLavaSupportRocks(parent: THREE.Object3D, rock: THREE.Material) {
+  const supports = [-37, -27, -17, -7, 7, 17, 27, 37];
+  const pieces: Array<{
+    x: number;
+    y: number;
+    z: number;
+    sx: number;
+    sy: number;
+    sz: number;
+    rx: number;
+    ry: number;
+    rz: number;
+  }> = [];
+
+  supports.forEach((x, supportIndex) => {
+    const seed = 2603 + supportIndex * 47;
+    const absX = Math.abs(x);
+    const cliffZ = absX <= 14 ? 27 : 27 - ((absX - 14) / 25) * 3;
+    const bottom = -9.7;
+    const height = 7.15 + seededRandom(seed) * 1.35;
+    const segmentCount = 2;
+    const step = height / segmentCount;
+
+    for (let segment = 0; segment < segmentCount; segment += 1) {
+      const taper = 1 - segment * 0.095;
+      const segmentSeed = seed + segment * 13;
+      pieces.push({
+        x: x + (seededRandom(segmentSeed) - 0.5) * 1.1,
+        y: bottom + step * (segment + 0.5),
+        z: cliffZ + 0.78 + (seededRandom(segmentSeed + 3) - 0.5) * 0.55,
+        sx: (2.35 + seededRandom(segmentSeed + 5) * 0.8) * taper,
+        sy: step * 0.7,
+        sz: (1.65 + seededRandom(segmentSeed + 7) * 0.65) * taper,
+        rx: (seededRandom(segmentSeed + 9) - 0.5) * 0.22,
+        ry: seededRandom(segmentSeed + 11) * Math.PI,
+        rz: (seededRandom(segmentSeed + 15) - 0.5) * 0.18,
+      });
+    }
+
+    // Broad anchor boulders make each pillar feel embedded in the lava plane.
+    for (const side of [-1, 1]) {
+      const shardSeed = seed + (side > 0 ? 31 : 23);
+      pieces.push({
+        x: x + side * (1.85 + seededRandom(shardSeed) * 0.7),
+        y: -8.65 + seededRandom(shardSeed + 2) * 0.3,
+        z: cliffZ + 1.0 + (seededRandom(shardSeed + 4) - 0.5) * 1.1,
+        sx: 1.35 + seededRandom(shardSeed + 6) * 0.65,
+        sy: 1.45 + seededRandom(shardSeed + 8) * 0.6,
+        sz: 1.1 + seededRandom(shardSeed + 10) * 0.5,
+        rx: (seededRandom(shardSeed + 12) - 0.5) * 0.45,
+        ry: seededRandom(shardSeed + 14) * Math.PI,
+        rz: side * (0.18 + seededRandom(shardSeed + 16) * 0.18),
+      });
+    }
+  });
+
+  const geometry = new THREE.DodecahedronGeometry(1, 0);
+  const mesh = new THREE.InstancedMesh(geometry, rock, pieces.length);
+  const transform = new THREE.Object3D();
+  pieces.forEach((piece, index) => {
+    transform.position.set(piece.x, piece.y, piece.z);
+    transform.rotation.set(piece.rx, piece.ry, piece.rz);
+    transform.scale.set(piece.sx, piece.sy, piece.sz);
+    transform.updateMatrix();
+    mesh.setMatrixAt(index, transform.matrix);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+function addFoundationLavaFissures(parent: THREE.Object3D) {
+  const fissureMaterial = new THREE.MeshStandardMaterial({
+    color: 0x661603,
+    emissive: 0xff3108,
+    emissiveIntensity: 2.35,
+    roughness: 0.72,
+    metalness: 0,
+  });
+  const segments: Array<{
+    x: number;
+    y: number;
+    z: number;
+    length: number;
+    width: number;
+    angle: number;
+    side: boolean;
+  }> = [];
+
+  const addCrack = (
+    fixed: number,
+    along: number,
+    side: boolean,
+    direction: number,
+    seed: number,
+  ) => {
+    let cursor = along;
+    let y = -9.56;
+    const count = 3 + Math.floor(seededRandom(seed + 2) * 2);
+    for (let index = 0; index < count; index += 1) {
+      const segmentSeed = seed + index * 17;
+      const length = 0.72 + seededRandom(segmentSeed) * 0.78;
+      const angle = (seededRandom(segmentSeed + 3) - 0.5) * 0.72;
+      const deltaAlong = Math.sin(angle) * length;
+      const deltaY = Math.cos(angle) * length;
+      segments.push({
+        x: side ? fixed : cursor + deltaAlong * 0.5,
+        y: y + deltaY * 0.5,
+        z: side ? cursor + deltaAlong * 0.5 : fixed,
+        length,
+        width: 0.075 + seededRandom(segmentSeed + 7) * 0.085,
+        angle: angle * direction,
+        side,
+      });
+      cursor += deltaAlong;
+      y += deltaY;
+    }
+  };
+
+  // Sparse vertical seams echo the reference cliff. Keeping most of the rock
+  // unlit avoids turning the foundation into a regular glowing grid.
+  [-30, -10, 13, 31].forEach((x, index) => addCrack(27.72, x, false, -1, 5201 + index * 53));
+  [-24, 4, 28].forEach((x, index) => addCrack(-28.72, x, false, 1, 5441 + index * 59));
+  [-16, 3, 17].forEach((z, index) => addCrack(-45.72, z, true, 1, 5651 + index * 61));
+  [-13, 8].forEach((z, index) => addCrack(45.72, z, true, -1, 5861 + index * 67));
+
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const fissures = new THREE.InstancedMesh(geometry, fissureMaterial, segments.length);
+  const transform = new THREE.Object3D();
+  segments.forEach((segment, index) => {
+    transform.position.set(segment.x, segment.y, segment.z);
+    transform.rotation.set(segment.side ? segment.angle : 0, 0, segment.side ? 0 : segment.angle);
+    transform.scale.set(
+      segment.side ? 0.075 : segment.width,
+      segment.length,
+      segment.side ? segment.width : 0.075,
+    );
+    transform.updateMatrix();
+    fissures.setMatrixAt(index, transform.matrix);
+  });
+  fissures.instanceMatrix.needsUpdate = true;
+  fissures.castShadow = false;
+  fissures.receiveShadow = false;
+  fissures.renderOrder = 1;
+  parent.add(fissures);
+  return fissures;
+}
+
+function addOppositeCliffRockFacing(parent: THREE.Object3D, rock: THREE.Material) {
+  // Follow the castle-facing front and both angled shoulders with the same
+  // massive low-poly boulders used beneath the citadel foundation.
+  const contour: Array<[number, number]> = [
+    [-48.05, -59.2],
+    [-43.05, -54],
+    [-39.05, -42],
+    [-39.05, 42],
+    [-43.05, 54],
+    [-48.05, 59.2],
+  ];
+  const pieces: Array<{
+    x: number;
+    y: number;
+    z: number;
+    rotationY: number;
+    sx: number;
+    sy: number;
+    sz: number;
+    seed: number;
+  }> = [];
+
+  let seed = 4703;
+  for (let segment = 0; segment < contour.length - 1; segment += 1) {
+    const [startX, startZ] = contour[segment]!;
+    const [endX, endZ] = contour[segment + 1]!;
+    const deltaX = endX - startX;
+    const deltaZ = endZ - startZ;
+    const length = Math.hypot(deltaX, deltaZ);
+    const tangentX = deltaX / length;
+    const tangentZ = deltaZ / length;
+    const outwardX = tangentZ;
+    const outwardZ = -tangentX;
+    const baseRotationY = Math.atan2(-tangentZ, tangentX);
+    const count = Math.max(1, Math.ceil(length / 8.4));
+
+    for (let row = 0; row < 2; row += 1) {
+      for (let index = 0; index < count; index += 1) {
+        const pieceSeed = seed++;
+        const stagger = row === 0 ? 0.18 : 0.62;
+        const progress = THREE.MathUtils.clamp((index + stagger) / count, 0.04, 0.96);
+        const outwardOffset = 0.48 + seededRandom(pieceSeed * 2.3) * 0.34;
+        pieces.push({
+          x: THREE.MathUtils.lerp(startX, endX, progress) + outwardX * outwardOffset,
+          y: (row === 0 ? -2.25 : 2.0) + (seededRandom(pieceSeed * 3.1) - 0.5) * 0.72,
+          z: THREE.MathUtils.lerp(startZ, endZ, progress) + outwardZ * outwardOffset,
+          rotationY: baseRotationY + (seededRandom(pieceSeed * 4.7) - 0.5) * 0.32,
+          sx: 3.15 + seededRandom(pieceSeed * 5.3) * 1.05,
+          sy: 2.05 + seededRandom(pieceSeed * 6.1) * 0.62,
+          sz: 1.35 + seededRandom(pieceSeed * 7.9) * 0.48,
+          seed: pieceSeed,
+        });
+      }
+    }
+  }
+
+  const geometry = new THREE.DodecahedronGeometry(1, 0);
+  const facing = new THREE.InstancedMesh(geometry, rock, pieces.length);
+  const transform = new THREE.Object3D();
+  pieces.forEach((piece, index) => {
+    transform.position.set(piece.x, piece.y, piece.z);
+    transform.rotation.set(
+      (seededRandom(piece.seed * 8.3) - 0.5) * 0.28,
+      piece.rotationY,
+      (seededRandom(piece.seed * 9.7) - 0.5) * 0.24,
+    );
+    transform.scale.set(piece.sx, piece.sy, piece.sz);
+    transform.updateMatrix();
+    facing.setMatrixAt(index, transform.matrix);
+  });
+  facing.instanceMatrix.needsUpdate = true;
+  facing.castShadow = true;
+  facing.receiveShadow = true;
+  parent.add(facing);
+  return facing;
+}
+
+function addOppositeRockyPlateauTop(parent: THREE.Object3D, rock: THREE.Material) {
+  // Broad overlapping shelves make the land read as one eroded high plateau,
+  // rather than a flat slab with small stones sprinkled over it. The bridge
+  // approach stays clear so its deck still meets the plateau cleanly.
+  const count = 64;
+  const geometry = new THREE.DodecahedronGeometry(1, 0);
+  const shelves = new THREE.InstancedMesh(geometry, rock, count);
+  const transform = new THREE.Object3D();
+  let placed = 0;
+  let attempt = 0;
+
+  while (placed < count && attempt < count * 12) {
+    const itemSeed = 6101 + attempt * 43;
+    const x = THREE.MathUtils.lerp(-86, -43, seededRandom(itemSeed));
+    const z = THREE.MathUtils.lerp(-53, 53, seededRandom(itemSeed + 7));
+    attempt += 1;
+
+    const insidePlateau = Math.abs(z) <= 42
+      || x <= -48 - (Math.abs(z) - 42) * 0.32;
+    const bridgeApproach = x > -58 && Math.abs(z) < 10;
+    if (!insidePlateau || bridgeApproach) continue;
+
+    const radius = 1.9 + seededRandom(itemSeed + 11) * 2.65;
+    const rise = 0.12 + seededRandom(itemSeed + 13) * 0.72;
+    transform.position.set(
+      x,
+      5.2 + rise * 0.55,
+      z,
+    );
+    transform.rotation.set(
+      (seededRandom(itemSeed + 17) - 0.5) * 0.11,
+      seededRandom(itemSeed + 19) * Math.PI,
+      (seededRandom(itemSeed + 23) - 0.5) * 0.11,
+    );
+    transform.scale.set(
+      radius * (0.85 + seededRandom(itemSeed + 29) * 0.45),
+      0.22 + rise,
+      radius * (0.65 + seededRandom(itemSeed + 31) * 0.55),
+    );
+    transform.updateMatrix();
+    shelves.setMatrixAt(placed, transform.matrix);
+    placed += 1;
+  }
+
+  shelves.count = placed;
+  shelves.instanceMatrix.needsUpdate = true;
+  shelves.castShadow = true;
+  shelves.receiveShadow = true;
+  parent.add(shelves);
+  return shelves;
+}
+
+function addOppositeLandmass(
+  parent: THREE.Object3D,
+  rock: THREE.Material,
+  lavaRock: THREE.Material,
+) {
+  // A continent-sized plateau spans the complete 120-unit lava width.
+  // Its eastern edge is derived from the bridge length so both always meet.
+  const bevelSize = 0.8;
+  // Compensate for the beveled top contour with only a small hidden overlap;
+  // a larger value leaves a visible excess shelf around the far bridge mouth.
+  const bridgeOverlap = bevelSize + 0.15;
+  // Keep the overlap that hides the bevel at the bridge joint, but place the
+  // plateau a hair below the deck. Coplanar overlapping top faces z-fight as
+  // the camera moves and make the bridge edge appear to flicker.
+  const bridgeJointDepthOffset = 0.1;
+  const eastEdgeX = BRIDGE_OPPOSITE_EDGE_X - OPPOSITE_LANDMASS_ORIGIN_X + bridgeOverlap;
+  const shape = new THREE.Shape();
+  shape.moveTo(-47, -59.2);
+  shape.lineTo(eastEdgeX - 9, -59.2);
+  shape.lineTo(eastEdgeX - 4, -54);
+  shape.lineTo(eastEdgeX, -42);
+  shape.lineTo(eastEdgeX, 42);
+  shape.lineTo(eastEdgeX - 4, 54);
+  shape.lineTo(eastEdgeX - 9, 59.2);
+  shape.lineTo(-47, 59.2);
+  shape.closePath();
+
+  const landmassGeometry = roughenExtrudedFoundationTop(
+    new THREE.ExtrudeGeometry(shape, {
+      depth: 8.7,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      bevelSize,
+      bevelThickness: 0.65,
+      steps: 1,
+    }),
+    3907,
+    0.5,
+  );
+  // Keep the plateau cap as ordinary rock while the vertical faces exposed to
+  // the lake use heat-darkened basalt.
+  const landmass = new THREE.Mesh(landmassGeometry, [rock, lavaRock]);
+  // Include bevel thickness in the height calculation. Away from the hidden
+  // joint the 0.1-unit difference is imperceptible, while the bridge surface
+  // remains the sole visible face throughout the overlap.
+  landmass.position.set(
+    OPPOSITE_LANDMASS_ORIGIN_X,
+    4.65 - bridgeJointDepthOffset,
+    0,
+  );
+  landmass.rotation.x = Math.PI / 2;
+  parent.add(setShadow(landmass));
+  addOppositeCliffRockFacing(parent, lavaRock);
+  addOppositeRockyPlateauTop(parent, rock);
+
+  addRuggedSurfaceField(
+    parent,
+    rock,
+    [-88, -41, -56, 56],
+    5.13,
+    150,
+    3967,
+    (x, z) => Math.abs(z) <= 42 || x <= -48 - (Math.abs(z) - 42) * 0.32,
+  );
+  addFoundationCornerOutcrops(
+    parent,
+    rock,
+    [[-87, -55], [-87, 55], [-44, -42], [-44, 42]],
+    5.08,
+    4013,
+  );
+
+  // Lava vents break through the cliff facing the bridge and fall directly
+  // into the lake. Keep the central bridge mouth clear.
+  const oppositeCliffX = OPPOSITE_LANDMASS_ORIGIN_X + eastEdgeX + 0.18;
+  for (const [z, width, seed] of [
+    [-28, 2.7, 4051],
+    [-14, 2.1, 4073],
+    [15, 2.45, 4091],
+    [29, 2.0, 4111],
+  ] as Array<[number, number, number]>) {
+    addLavaFall(parent, [oppositeCliffX, 4.72, z], width, 9.32, seed, Math.PI / 2, 0.8);
+  }
+
+  return landmass;
+}
+
 function addRoad(parent: THREE.Object3D, points: THREE.Vector3[], material: THREE.Material, width = 3.25) {
   const curve = new THREE.CatmullRomCurve3(points);
   const samples = 62;
@@ -285,29 +1297,115 @@ function addGothicArch(
   z: number,
   scale: number,
   material: THREE.Material,
+  archMaterial: THREE.Material,
   facingBack = false,
 ) {
   const group = new THREE.Group();
   group.position.set(x, 0, z);
   if (facingBack) group.rotation.y = Math.PI;
   const radius = 1.55 * scale;
-  const arch = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.22 * scale, 8, 24, Math.PI), material);
-  arch.position.y = -2.05 * scale;
-  const leftColumn = new THREE.Mesh(new THREE.BoxGeometry(0.48 * scale, 5.3 * scale, 0.5 * scale), material);
-  leftColumn.position.set(-radius, -4.7 * scale, 0);
+  const springY = -2.05 * scale;
+  const deckUndersideY = -0.3 * scale;
+  // Stop each spandrel inside the shared pier so neighbouring panels never overlap.
+  const halfBay = 2.15 * scale;
+
+  // Fill both spandrels so no sky gap remains between the curved arch and bridge deck.
+  const leftSpandrelShape = new THREE.Shape();
+  leftSpandrelShape.moveTo(-halfBay, springY);
+  leftSpandrelShape.lineTo(-halfBay, deckUndersideY);
+  leftSpandrelShape.lineTo(0, deckUndersideY);
+  for (let step = 0; step <= 10; step += 1) {
+    const angle = Math.PI / 2 + (step / 10) * (Math.PI / 2);
+    leftSpandrelShape.lineTo(Math.cos(angle) * radius, springY + Math.sin(angle) * radius);
+  }
+  leftSpandrelShape.closePath();
+
+  const rightSpandrelShape = new THREE.Shape();
+  rightSpandrelShape.moveTo(0, deckUndersideY);
+  rightSpandrelShape.lineTo(halfBay, deckUndersideY);
+  rightSpandrelShape.lineTo(halfBay, springY);
+  for (let step = 0; step <= 10; step += 1) {
+    const angle = (step / 10) * (Math.PI / 2);
+    rightSpandrelShape.lineTo(Math.cos(angle) * radius, springY + Math.sin(angle) * radius);
+  }
+  rightSpandrelShape.closePath();
+
+  for (const shape of [leftSpandrelShape, rightSpandrelShape]) {
+    const spandrel = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(shape, {
+        depth: 0.04 * scale,
+        bevelEnabled: false,
+        steps: 1,
+      }),
+      material,
+    );
+    // Centre the thin solid on the arch plane: nearly flush, but never coplanar with the pier.
+    spandrel.position.z = -0.02 * scale;
+    group.add(spandrel);
+  }
+
+  // Individual dark voussoirs read as masonry and avoid the smooth pipe-like torus silhouette.
+  const archSegments = 13;
+  const innerRadius = radius - 0.22 * scale;
+  const outerRadius = radius + 0.22 * scale;
+  for (let index = 0; index < archSegments; index += 1) {
+    // Adjacent stones share an edge but never an area. Overlapping their
+    // coplanar front/back faces causes visible shimmer on the far arch row.
+    const startAngle = (index / archSegments) * Math.PI;
+    const endAngle = ((index + 1) / archSegments) * Math.PI;
+    const archStoneShape = new THREE.Shape();
+    archStoneShape.moveTo(
+      Math.cos(startAngle) * innerRadius,
+      springY + Math.sin(startAngle) * innerRadius,
+    );
+    archStoneShape.lineTo(
+      Math.cos(endAngle) * innerRadius,
+      springY + Math.sin(endAngle) * innerRadius,
+    );
+    archStoneShape.lineTo(
+      Math.cos(endAngle) * outerRadius,
+      springY + Math.sin(endAngle) * outerRadius,
+    );
+    archStoneShape.lineTo(
+      Math.cos(startAngle) * outerRadius,
+      springY + Math.sin(startAngle) * outerRadius,
+    );
+    archStoneShape.closePath();
+    const archStone = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(archStoneShape, {
+        depth: 0.44 * scale,
+        bevelEnabled: false,
+        steps: 1,
+      }),
+      archMaterial,
+    );
+    archStone.position.z = -0.22 * scale;
+    group.add(archStone);
+  }
+  // Preserve the arch crown while extending its columns to the lava-level footing.
+  const columnHeight = 7.65 * scale;
+  const columnCenterY = -5.875 * scale;
+  const footingY = -9.49 * scale;
+  const leftColumn = new THREE.Mesh(new THREE.BoxGeometry(0.48 * scale, columnHeight, 0.5 * scale), material);
+  leftColumn.position.set(-radius, columnCenterY, 0);
   const rightColumn = leftColumn.clone();
   rightColumn.position.x = radius;
   const leftFoot = new THREE.Mesh(new THREE.BoxGeometry(0.76 * scale, 0.42 * scale, 0.72 * scale), material);
-  leftFoot.position.set(-radius, -7.25 * scale, 0);
+  leftFoot.position.set(-radius, footingY, 0);
   const rightFoot = leftFoot.clone();
   rightFoot.position.x = radius;
-  group.add(arch, leftColumn, rightColumn, leftFoot, rightFoot);
+  group.add(leftColumn, rightColumn, leftFoot, rightFoot);
 
+  // Impost blocks cover the visible seams where each curved arch meets its columns.
   for (const side of [-1, 1]) {
-    const rib = new THREE.Mesh(new THREE.BoxGeometry(0.11 * scale, 4.8 * scale, 0.13 * scale), material);
-    rib.position.set(side * radius * 0.72, -4.8 * scale, 0.29 * scale);
-    group.add(rib);
+    const impost = new THREE.Mesh(
+      new THREE.BoxGeometry(0.76 * scale, 0.46 * scale, 0.72 * scale),
+      material,
+    );
+    impost.position.set(side * radius, -2.05 * scale, 0);
+    group.add(impost);
   }
+
   parent.add(setShadow(group));
 }
 
@@ -329,6 +1427,107 @@ function addDeadTree(parent: THREE.Object3D, x: number, y: number, z: number, sc
   parent.add(setShadow(tree));
 }
 
+function addAshForest(
+  parent: THREE.Object3D,
+  countPerSide: number,
+  frontCountPerSide: number,
+  rearCount: number,
+) {
+  const totalTrees = (countPerSide + frontCountPerSide) * 2 + rearCount;
+  const bark = new THREE.MeshStandardMaterial({ color: 0x100b0a, roughness: 1 });
+  const trunk = new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(0.1, 0.24, 5, 7),
+    bark,
+    totalTrees,
+  );
+  const branches = Array.from({ length: 6 }, () => (
+    new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.025, 0.075, 1.55, 5),
+      bark,
+      totalTrees,
+    )
+  ));
+  const transform = new THREE.Object3D();
+  const up = new THREE.Vector3(0, 1, 0);
+  const branchDirection = new THREE.Vector3();
+  let instance = 0;
+
+  const placeTree = (seed: number, x: number, z: number, scale: number) => {
+    const rotationY = seededRandom(seed + 41) * Math.PI * 2;
+
+    transform.position.set(x, -0.48 + 2.45 * scale, z);
+    transform.rotation.set(
+      (seededRandom(seed + 43) - 0.5) * 0.12,
+      rotationY,
+      (seededRandom(seed + 47) - 0.5) * 0.12,
+    );
+    transform.scale.setScalar(scale);
+    transform.updateMatrix();
+    trunk.setMatrixAt(instance, transform.matrix);
+
+    branches.forEach((branch, tier) => {
+      const branchSeed = seed + tier * 17;
+      const angle = rotationY + tier * 2.399 + (seededRandom(branchSeed + 3) - 0.5) * 0.5;
+      const upward = 0.22 + seededRandom(branchSeed + 5) * 0.38;
+      branchDirection.set(Math.cos(angle), upward, Math.sin(angle)).normalize();
+      const branchLength = scale * (0.9 + seededRandom(branchSeed + 7) * 0.85);
+      const branchY = -0.48 + (1.8 + tier * 0.55) * scale;
+      transform.position.set(
+        x + branchDirection.x * branchLength * 0.42,
+        branchY + branchDirection.y * branchLength * 0.42,
+        z + branchDirection.z * branchLength * 0.42,
+      );
+      transform.quaternion.setFromUnitVectors(up, branchDirection);
+      transform.scale.set(scale * 0.82, branchLength / 1.55, scale * 0.82);
+      transform.updateMatrix();
+      branch.setMatrixAt(instance, transform.matrix);
+    });
+    instance += 1;
+  };
+
+  for (const side of [-1, 1]) {
+    for (let index = 0; index < countPerSide; index += 1) {
+      const seed = 941 + index * 37 + (side > 0 ? 5003 : 0);
+      const x = side * (19.2 + seededRandom(seed) * 20.5);
+      const z = -21.5 + seededRandom(seed + 11) * 43;
+      const scale = 1.05 + seededRandom(seed + 23) * 1.15;
+      placeTree(seed, x, z, scale);
+    }
+
+    // A looser transition scatters burned trees around the forecourt instead of
+    // forming two artificial-looking clumps tight against its parapets.
+    for (let index = 0; index < frontCountPerSide; index += 1) {
+      const seed = 12011 + index * 43 + (side > 0 ? 3011 : 0);
+      const x = side * (13.2 + seededRandom(seed) * 10.8);
+      const z = 13.5 + seededRandom(seed + 11) * 11.5;
+      const scale = 0.85 + seededRandom(seed + 23) * 0.9;
+      placeTree(seed, x, z, scale);
+    }
+  }
+
+  // A continuous but irregular tree line fills the strip behind the rear wall
+  // and great hall, where the plateau previously looked empty when viewed
+  // from the gameplay camera or while orbiting around the citadel.
+  for (let index = 0; index < rearCount; index += 1) {
+    const seed = 18181 + index * 61;
+    const x = -39 + seededRandom(seed) * 78;
+    const z = -27 + seededRandom(seed + 13) * 5.5;
+    const scale = 0.95 + seededRandom(seed + 29) * 1.15;
+    placeTree(seed, x, z, scale);
+  }
+
+  trunk.instanceMatrix.needsUpdate = true;
+  trunk.castShadow = true;
+  trunk.receiveShadow = true;
+  parent.add(trunk);
+  for (const branch of branches) {
+    branch.instanceMatrix.needsUpdate = true;
+    branch.castShadow = true;
+    branch.receiveShadow = true;
+    parent.add(branch);
+  }
+}
+
 function addCrimsonGrowth(parent: THREE.Object3D, x: number, y: number, z: number, scale: number, seed: number) {
   const material = new THREE.MeshStandardMaterial({ color: 0x760d1b, roughness: 1 });
   for (let i = 0; i < 12; i += 1) {
@@ -341,45 +1540,88 @@ function addCrimsonGrowth(parent: THREE.Object3D, x: number, y: number, z: numbe
   }
 }
 
-function addBridge(parent: THREE.Object3D, stone: THREE.Material, darkStone: THREE.Material, roof: THREE.Material) {
+function addBridge(
+  parent: THREE.Object3D,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  lavaRock: THREE.Material,
+) {
   const bridge = new THREE.Group();
-  bridge.position.set(0, 5, 0);
-  addBox(bridge, [17, 0.75, 4.1], [0, 0, 0], stone);
-  addBox(bridge, [17.3, 0.28, 4.45], [0, -0.48, 0], darkStone);
+  // Keep the castle end fixed while deriving the opposite end and foundation edge.
+  bridge.position.set(BRIDGE_CENTER_X, 5, 0);
+  const bridgeLength = BRIDGE_LENGTH;
+  const bridgeWidth = BRIDGE_WIDTH;
+  const bayWidth = 4.5;
+  const pierCount = Math.round(bridgeLength / bayWidth) + 1;
+  const pierPositions = Array.from(
+    { length: pierCount },
+    (_, index) => -bridgeLength / 2 + index * bayWidth,
+  );
+  const archPositions = pierPositions.slice(0, -1).map((x) => x + bayWidth / 2);
+  const deckTopY = 0.3;
+  const railingHeight = 1.3;
+  const railingThickness = 0.28;
+  const battlementY = deckTopY + railingHeight + 0.24;
+  const bridgeEdgeZ = bridgeWidth / 2;
+  // Use the deck's outer face as the single reference plane for the complete
+  // bridge edge. The previous hard-coded inset left a thin exposed ledge,
+  // which read as a broken/flickering seam from the gameplay camera.
+  const railingZ = bridgeEdgeZ - railingThickness / 2;
+  // The bridge surface tops out at world Y = 5.3, matching the forecourt and castle floor.
+  addBox(bridge, [bridgeLength, 0.6, bridgeWidth], [0, 0, 0], stone);
+  addBox(bridge, [bridgeLength, 0.28, bridgeWidth], [0, -0.44, 0], darkStone);
 
-  for (const z of [-2.2, 2.2]) {
-    addBox(bridge, [17.2, 0.52, 0.28], [0, 0.55, z], stone);
-    addBattlements(bridge, 17, 0, 1.04, z, true, stone);
+  // Align the deck, lower trim and parapet into one uninterrupted outer edge.
+  for (const z of [-railingZ, railingZ]) {
+    addBox(
+      bridge,
+      [bridgeLength, railingHeight, railingThickness],
+      [0, deckTopY + railingHeight / 2, z],
+      stone,
+    );
+    addBattlements(
+      bridge,
+      bridgeLength - 0.34,
+      0,
+      battlementY,
+      z,
+      true,
+      stone,
+      railingThickness,
+    );
   }
 
-  for (const x of [-6.8, -2.3, 2.3, 6.8]) {
-    for (const z of [-1.95, 1.95]) {
-      addSpire(bridge, x, 0.62, z, 0.58, stone, roof);
-    }
-    const pier = addBox(bridge, [1.15, 8.6, 4.5], [x, -4.45, 0], darkStone);
-    pier.geometry.translate(0, 0, 0);
+  const recessShape = new THREE.Shape();
+  recessShape.moveTo(-0.4, -1.7);
+  recessShape.lineTo(-0.4, 0.72);
+  recessShape.quadraticCurveTo(-0.34, 1.35, 0, 1.72);
+  recessShape.quadraticCurveTo(0.34, 1.35, 0.4, 0.72);
+  recessShape.lineTo(0.4, -1.7);
+  recessShape.closePath();
+  const recessGeometry = new THREE.ShapeGeometry(recessShape);
+  const recessMaterial = new THREE.MeshBasicMaterial({
+    color: 0x100d12,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+
+  for (const x of pierPositions) {
+    // Meet the deck exactly at its underside. Avoid overlapping coplanar side faces,
+    // which cause z-fighting now that the deck and supports share the same width.
+    addBox(bridge, [1.15, 9.4, bridgeWidth], [x, -5, 0], lavaRock);
     for (const side of [-1, 1]) {
-      const recess = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.58, 2.7, 5, 12),
-        new THREE.MeshStandardMaterial({ color: 0x100d12, roughness: 1 }),
-      );
-      recess.position.set(x, -4.2, side * 2.265);
-      recess.rotation.z = Math.PI;
+      const recess = new THREE.Mesh(recessGeometry, recessMaterial);
+      recess.position.set(x, -5.05, side * (bridgeWidth / 2 + 0.08));
       bridge.add(recess);
     }
   }
 
-  for (const x of [-4.55, 0, 4.55]) {
-    addGothicArch(bridge, x, -2.28, 1, stone);
-    addGothicArch(bridge, x, 2.28, 1, stone, true);
-  }
-
-  for (const x of [-5.8, -3.5, -1.15, 1.15, 3.5, 5.8]) {
-    addBanner(bridge, x, -0.95, -2.32, 0, 0.48);
-  }
-
-  for (const x of [-5.6, -1.8, 1.8, 5.6]) {
-    addTorch(bridge, x, 1.28, -1.82, 0.72, x === -1.8 || x === 1.8);
+  const archZ = bridgeWidth / 2 + 0.03;
+  for (const x of archPositions) {
+    addGothicArch(bridge, x, -archZ, 1, stone, darkStone);
+    addGothicArch(bridge, x, archZ, 1, stone, darkStone, true);
   }
   parent.add(bridge);
   return bridge;
@@ -426,67 +1668,951 @@ function addCircularRune(parent: THREE.Object3D, x: number, y: number, z: number
   parent.add(group);
 }
 
-function buildFortress(root: THREE.Group, stone: THREE.Material, darkStone: THREE.Material, roof: THREE.Material, rock: THREE.Material) {
+function addCastleDoor(parent: THREE.Object3D, x: number, y: number, z: number, rotationY: number, scale = 1) {
+  const door = new THREE.Group();
+  door.position.set(x, y, z);
+  door.rotation.y = rotationY;
+
+  const width = 1.58 * scale;
+  const shoulderHeight = 1.72 * scale;
+  const totalHeight = 2.92 * scale;
+  const shape = new THREE.Shape();
+  shape.moveTo(-width / 2, 0);
+  shape.lineTo(-width / 2, shoulderHeight);
+  shape.quadraticCurveTo(-width * 0.42, totalHeight * 0.88, 0, totalHeight);
+  shape.quadraticCurveTo(width * 0.42, totalHeight * 0.88, width / 2, shoulderHeight);
+  shape.lineTo(width / 2, 0);
+  shape.closePath();
+
+  const wood = new THREE.MeshStandardMaterial({
+    color: 0x6b321e,
+    roughness: 0.72,
+    metalness: 0.02,
+    emissive: 0x120502,
+    emissiveIntensity: 0.22,
+    bumpMap: createSurfaceBumpMap("rough", 2.2, 6.5),
+    bumpScale: 0.1,
+  });
+  const iron = new THREE.MeshStandardMaterial({ color: 0x29262d, roughness: 0.3, metalness: 0.9 });
+  const doorLeaf = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(shape, { depth: 0.16 * scale, bevelEnabled: true, bevelSize: 0.035 * scale, bevelThickness: 0.025 * scale, bevelSegments: 2 }),
+    wood,
+  );
+  doorLeaf.castShadow = true;
+  doorLeaf.receiveShadow = true;
+  door.add(doorLeaf);
+
+  const hardwareDepth = 0.215 * scale;
+  const centerBar = new THREE.Mesh(new THREE.BoxGeometry(0.075 * scale, 2.55 * scale, 0.055 * scale), iron);
+  centerBar.position.set(0, 1.27 * scale, hardwareDepth);
+  door.add(centerBar);
+
+  for (const barY of [0.52, 1.25, 1.86]) {
+    const brace = new THREE.Mesh(new THREE.BoxGeometry(1.42 * scale, 0.11 * scale, 0.055 * scale), iron);
+    brace.position.set(0, barY * scale, hardwareDepth);
+    door.add(brace);
+  }
+
+  for (const side of [-1, 1]) {
+    const verticalBrace = new THREE.Mesh(new THREE.BoxGeometry(0.09 * scale, 2.18 * scale, 0.055 * scale), iron);
+    verticalBrace.position.set(side * 0.55 * scale, 1.1 * scale, hardwareDepth);
+    door.add(verticalBrace);
+
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.1 * scale, 0.025 * scale, 6, 16), iron);
+    handle.position.set(side * 0.17 * scale, 1.12 * scale, hardwareDepth + 0.055 * scale);
+    door.add(handle);
+  }
+
+  for (const studY of [0.52, 1.25, 1.86]) {
+    for (const studX of [-0.55, -0.28, 0.28, 0.55]) {
+      const stud = new THREE.Mesh(new THREE.SphereGeometry(0.035 * scale, 7, 5), iron);
+      stud.position.set(studX * scale, studY * scale, hardwareDepth + 0.04 * scale);
+      door.add(stud);
+    }
+  }
+
+  parent.add(setShadow(door));
+  return door;
+}
+
+function addCastleGatehouse(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+) {
+  const gatehouse = new THREE.Group();
+  gatehouse.position.set(x, 0, z);
+
+  // Twin round watchtowers and a tall pointed portal follow the reference gate module.
+  for (const side of [-1, 1]) {
+    addGothicWatchtower(gatehouse, side * 2.55, 0, 12.8, 1.28, stone, darkStone, roof);
+    addBanner(gatehouse, side * 2.55, 7.9, 1.31, 0, 0.82);
+  }
+
+  addBox(gatehouse, [3.25, 10.5, 1.25], [0, 5.25, 0], darkStone);
+  addBox(gatehouse, [3.65, 0.42, 1.48], [0, 10.43, 0], stone);
+  addBattlements(gatehouse, 3.45, 0, 10.87, 0.74, true, stone);
+  addGothicWindow(gatehouse, 0, 7.35, 0.636, 0, 0.48);
+  addRoseWindow(gatehouse, 0, 9.0, 0.65, 0.48, stone);
+
+  // A flat pointed opening replaces the previous rounded 3D capsule.
+  const openingShape = new THREE.Shape();
+  openingShape.moveTo(-1.18, 0);
+  openingShape.lineTo(-1.18, 2.55);
+  openingShape.lineTo(0, 4.15);
+  openingShape.lineTo(1.18, 2.55);
+  openingShape.lineTo(1.18, 0);
+  openingShape.closePath();
+  const opening = new THREE.Mesh(
+    new THREE.ShapeGeometry(openingShape),
+    new THREE.MeshBasicMaterial({ color: 0x070608, side: THREE.DoubleSide }),
+  );
+  opening.position.set(0, 0.48, 0.646);
+  gatehouse.add(opening);
+
+  // Heavy stone jambs and a pointed lintel frame the entrance.
+  for (const side of [-1, 1]) {
+    addBox(gatehouse, [0.34, 2.75, 0.42], [side * 1.32, 1.84, 0.88], stone);
+    const archSide = addBox(gatehouse, [2.0, 0.34, 0.42], [side * 0.58, 3.75, 0.88], stone);
+    archSide.rotation.z = side * -0.94;
+    addBox(gatehouse, [0.62, 0.38, 0.62], [side * 1.32, 0.52, 0.88], stone);
+  }
+
+  addCastleDoor(gatehouse, 0, 0.5, 0.91, 0, 1.32);
+  for (const torchX of [-1.72, 1.72]) addTorch(gatehouse, torchX, 2.35, 1.02, 0.76, true);
+
+  parent.add(setShadow(gatehouse));
+  return gatehouse;
+}
+
+function addCastleFoundation(
+  parent: THREE.Object3D,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  rock: THREE.Material,
+  lavaRock: THREE.Material,
+) {
+  const foundation = new THREE.Group();
+  const cityCenterZ = -3.6;
+  const lavaWidth = 90;
+
+  // The summit stretches behind the citadel to hold several complete town districts.
+  addRuggedFoundationBlock(foundation, [36.7, 0.7, 37.7], [0, -1.35, cityCenterZ], stone, 4201, 0.24);
+  addRuggedFoundationBlock(foundation, [36.15, 0.85, 37.15], [0, -2.05, cityCenterZ], darkStone, 4243, 0.28);
+  addRuggedFoundationBlock(foundation, [35.45, 1.05, 36.45], [0, -2.95, cityCenterZ], stone, 4283, 0.32);
+
+  // One broad volcanic plateau supports both the citadel and its forecourt.
+  // The irregular vertical outline reads as a land region with cliffs instead
+  // of a tapered mound of loose material.
+  const halfLandWidth = lavaWidth / 2;
+  const landShape = new THREE.Shape();
+  landShape.moveTo(-halfLandWidth + 4, -28);
+  landShape.lineTo(halfLandWidth - 4, -28);
+  landShape.lineTo(halfLandWidth, -22);
+  landShape.lineTo(halfLandWidth, 15);
+  landShape.lineTo(halfLandWidth - 6, 24);
+  landShape.lineTo(14, 27);
+  landShape.lineTo(-14, 27);
+  landShape.lineTo(-halfLandWidth + 6, 24);
+  landShape.lineTo(-halfLandWidth, 15);
+  landShape.lineTo(-halfLandWidth, -22);
+  landShape.closePath();
+
+  // Keep the cliff body solid behind the large outer boulders. Hiding the
+  // extrusion sides leaves visible holes between rocks and breaks the base.
+  const landGeometry = roughenExtrudedFoundationTop(
+    new THREE.ExtrudeGeometry(landShape, {
+      depth: 9.15,
+      bevelEnabled: true,
+      bevelSegments: 1,
+      bevelSize: 0.65,
+      bevelThickness: 0.45,
+      steps: 1,
+    }),
+    4303,
+    0.48,
+  );
+  const land = new THREE.Mesh(landGeometry, [rock, lavaRock]);
+  land.position.y = -0.55;
+  land.rotation.x = Math.PI / 2;
+  foundation.add(setShadow(land));
+  addRuggedSurfaceField(
+    foundation,
+    rock,
+    [-42, 42, -25.5, 24],
+    -0.08,
+    170,
+    4363,
+    (x, z) => {
+      const edge = z > 15
+        ? 44 - (z - 15) * 0.62
+        : z < -22
+          ? 44 - (-22 - z) * 0.62
+          : 44;
+      return Math.abs(x) <= edge;
+    },
+  );
+  addFoundationCornerOutcrops(
+    foundation,
+    rock,
+    [[-40, -26], [40, -26], [-38, 23], [38, 23]],
+    -0.16,
+    4409,
+  );
+  addCliffRockBlocks(foundation, lavaRock);
+
+  // One heavy stone belt visually locks the castle plinth into the mountain summit.
+  addRuggedFoundationBlock(
+    foundation,
+    [35.1, 0.24, 36.1],
+    [0, -3.48, cityCenterZ],
+    darkStone,
+    4337,
+    0.14,
+  );
+
+  // Heavy buttresses carry the wall down towards the volcanic shelf.
+  for (const x of [-16.6, -12.45, -8.3, -4.15, 0, 4.15, 8.3, 12.45, 16.6]) {
+    const frontButtress = addBox(foundation, [0.72, 6.8, 1.05], [x, -6.3, 14.15], stone);
+    frontButtress.rotation.x = -0.035;
+    const backButtress = addBox(foundation, [0.72, 6.8, 1.05], [x, -6.3, -22.15], stone);
+    backButtress.rotation.x = 0.035;
+    addBox(foundation, [1.15, 0.55, 1.5], [x, -9.425, 14.38], lavaRock);
+    addBox(foundation, [1.15, 0.55, 1.5], [x, -9.425, -22.38], lavaRock);
+  }
+
+  for (const z of [-20.25, -16.2, -12.15, -8.1, -4.05, 0, 4.1, 8.2, 12.25]) {
+    const leftButtress = addBox(foundation, [1.05, 6.8, 0.72], [-17.65, -6.3, z], stone);
+    leftButtress.rotation.z = 0.035;
+    const rightButtress = addBox(foundation, [1.05, 6.8, 0.72], [17.65, -6.3, z], stone);
+    rightButtress.rotation.z = -0.035;
+    addBox(foundation, [1.5, 0.55, 1.15], [-17.88, -9.425, z], lavaRock);
+    addBox(foundation, [1.5, 0.55, 1.15], [17.88, -9.425, z], lavaRock);
+  }
+
+  // Irregular volcanic rocks break up the mountain silhouette at the lava line.
+  const cliff = new THREE.Group();
+  cliff.position.y = -8.75;
+  addRockCluster(cliff, -16.4, -21, 3.35, lavaRock, 511);
+  addRockCluster(cliff, 16.3, -20.9, 3.5, lavaRock, 537);
+  addRockCluster(cliff, -16.5, 12.9, 3.25, lavaRock, 563);
+  addRockCluster(cliff, 16.4, 13, 3.1, lavaRock, 587);
+  addRockCluster(cliff, 0, -21.4, 3.0, lavaRock, 613);
+  addRockCluster(cliff, 0.3, 13.35, 2.85, lavaRock, 641);
+  foundation.add(cliff);
+
+  // Natural rock pillars rise out of the lava and visibly carry the front edge.
+  addLavaSupportRocks(foundation, lavaRock);
+  addFoundationLavaFissures(foundation);
+
+  const slopeRocks = new THREE.Group();
+  slopeRocks.position.y = -6.25;
+  addRockCluster(slopeRocks, -15.8, -16.8, 2.75, lavaRock, 677);
+  addRockCluster(slopeRocks, 15.6, -16.5, 2.9, lavaRock, 701);
+  addRockCluster(slopeRocks, -16, 8.7, 2.65, lavaRock, 727);
+  addRockCluster(slopeRocks, 15.7, 8.9, 2.5, lavaRock, 751);
+  foundation.add(slopeRocks);
+
+  // Landscape the broad outer bands while preserving the gate-to-hall sightline.
+  const plateauRocks = [
+    [-37, -20, 2.3, 811], [-29, -8, 1.8, 823], [-38, 8, 2.05, 839], [-29, 20, 1.7, 853],
+    [37, -19, 2.2, 877], [29, -6, 1.75, 881], [38, 9, 2.0, 907], [30, 20, 1.8, 919],
+  ] as Array<[number, number, number, number]>;
+  for (const [x, z, scale, seed] of plateauRocks) {
+    const cluster = addRockCluster(foundation, x, z, scale, rock, seed);
+    cluster.position.y = -0.42;
+  }
+
+  // A contiguous canopy of tall instanced pines fills both outer land bands.
+  addAshForest(foundation, 110, 28, 64);
+
+  for (const side of [-1, 1]) {
+    // Smaller boulder fields break up the tree line and create natural clearings.
+    for (let index = 0; index < 4; index += 1) {
+      const seed = 1709 + index * 53 + (side > 0 ? 277 : 0);
+      const x = side * (24 + seededRandom(seed) * 14);
+      const z = -17 + seededRandom(seed + 17) * 34;
+      const cluster = addRockCluster(foundation, x, z, 0.8 + seededRandom(seed + 31) * 0.65, rock, seed);
+      cluster.position.y = -0.42;
+    }
+  }
+
+  for (const [x, z, scale] of [
+    [-40, -8, 1.0], [-31, 5, 0.82], [-23, 20, 0.9],
+    [40, -7, 0.95], [31, 6, 0.86], [23, 20, 0.92],
+  ] as Array<[number, number, number]>) addDeadTree(foundation, x, -0.48, z, scale);
+
+  for (const [x, z, scale, seed] of [
+    [-35, -4, 1.8, 1013], [-26, 8, 1.45, 1019], [-39, 17, 1.6, 1021],
+    [35, -3, 1.7, 1031], [26, 9, 1.5, 1039], [39, 18, 1.55, 1049],
+  ] as Array<[number, number, number, number]>) {
+    addCrimsonGrowth(foundation, x, -0.44, z, scale, seed);
+  }
+
+  // Animated lava cascades emerge from cracks in the castle foundation. The
+  // front pair frames the entrance while the side vents remain visible when
+  // orbiting around the citadel.
+  addLavaFall(foundation, [-10.5, -0.38, 27.25], 2.6, 9.25, 4513, 0, 3.0);
+  addLavaFall(foundation, [10.8, -0.38, 27.25], 2.25, 9.25, 4547, 0, 3.0);
+  addLavaFall(foundation, [-45.15, -0.42, -5.5], 2.3, 9.2, 4579, -Math.PI / 2, 2.2);
+  addLavaFall(foundation, [45.15, -0.42, 4.5], 2.55, 9.2, 4603, Math.PI / 2, 2.2);
+
+  parent.add(foundation);
+}
+
+function addCastleForecourt(
+  parent: THREE.Object3D,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+) {
+  const forecourt = new THREE.Group();
+  const courtZ = 17.5;
+  const courtWidth = 24;
+  const courtDepth = 10;
+
+  // The paved court sits directly on the flat summit of the shared plateau.
+  addBox(forecourt, [courtWidth, 0.78, courtDepth], [0, -0.16, courtZ], stone);
+
+  // Large alternating slabs make the scale of the open court readable from above.
+  for (let row = 0; row < 5; row += 1) {
+    for (let column = 0; column < 10; column += 1) {
+      addBox(
+        forecourt,
+        [2.05, 0.08, 1.72],
+        [-9.45 + column * 2.1, 0.27, 13.3 + row * 1.78],
+        (row + column) % 2 ? stone : darkStone,
+      );
+    }
+  }
+
+  for (const x of [-11.72, 11.72]) {
+    addBox(forecourt, [0.4, 0.82, courtDepth], [x, 0.4, courtZ], stone);
+    addBattlements(forecourt, courtDepth - 0.3, x, 1.03, courtZ, false, stone);
+  }
+
+  // The outer parapet is split in the middle so the bridge enters the court directly.
+  for (const x of [-7.6, 7.6]) {
+    addBox(forecourt, [7.2, 0.82, 0.4], [x, 0.4, 22.32], stone);
+    addBattlements(forecourt, 6.95, x, 1.03, 22.32, true, stone);
+  }
+
+  for (const x of [-10.3, 10.3]) {
+    addStatue(forecourt, x, 0.24, 13.2, x < 0 ? 0.45 : -0.45, stone, 0.72);
+    addTorch(forecourt, x, 1.05, 21.15, 0.74, true);
+  }
+  for (const x of [-4.8, 4.8]) addSpire(forecourt, x, 0.25, 22.15, 0.48, stone, roof);
+
+  parent.add(setShadow(forecourt));
+}
+
+function addSquareCastleTower(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  height: number,
+  size: number,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+  roofed = false,
+) {
+  const tower = new THREE.Group();
+  tower.position.set(x, 0, z);
+
+  addBox(tower, [size + 0.35, 0.55, size + 0.35], [0, 0.28, 0], darkStone);
+  addBox(tower, [size, height, size], [0, height / 2 + 0.5, 0], stone);
+  addBox(tower, [size + 0.28, 0.35, size + 0.28], [0, height + 0.42, 0], darkStone);
+
+  if (roofed) {
+    const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(size * 0.78, 3.3, 4), roof);
+    roofMesh.position.y = height + 2.18;
+    roofMesh.rotation.y = Math.PI / 4;
+    tower.add(roofMesh);
+    addSpire(tower, 0, height + 3.55, 0, 0.34, stone, roof);
+  } else {
+    addBattlements(tower, size - 0.2, 0, height + 0.82, size / 2, true, stone);
+    addBattlements(tower, size - 0.2, 0, height + 0.82, -size / 2, true, stone);
+    addBattlements(tower, size - 0.2, size / 2, height + 0.82, 0, false, stone);
+    addBattlements(tower, size - 0.2, -size / 2, height + 0.82, 0, false, stone);
+  }
+
+  addGothicWindow(tower, 0, height * 0.64, size / 2 + 0.012, 0, 0.52);
+  addGothicWindow(tower, size / 2 + 0.012, height * 0.64, 0, Math.PI / 2, 0.52);
+  parent.add(setShadow(tower));
+  return tower;
+}
+
+function addGothicWatchtower(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  height: number,
+  radius: number,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+) {
+  const tower = new THREE.Group();
+  tower.position.set(x, 0, z);
+
+  const footing = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.28, radius * 1.42, 1.05, 12), darkStone);
+  footing.position.y = 0.52;
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 1.08, height, 12), stone);
+  shaft.position.y = height / 2 + 0.72;
+  const balcony = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.2, radius * 1.12, 0.52, 12), darkStone);
+  balcony.position.y = height + 0.72;
+  tower.add(footing, shaft, balcony);
+
+  for (let index = 0; index < 12; index += 1) {
+    const angle = (index / 12) * Math.PI * 2;
+    const merlon = addBox(
+      tower,
+      [0.42, 0.62, 0.34],
+      [Math.sin(angle) * radius * 1.1, height + 1.18, Math.cos(angle) * radius * 1.1],
+      stone,
+    );
+    merlon.rotation.y = angle;
+  }
+
+  const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.28, 4.5, 12), roof);
+  roofMesh.position.y = height + 3.25;
+  tower.add(roofMesh);
+  addSpire(tower, 0, height + 5.35, 0, 0.34, stone, roof);
+
+  for (const angle of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    addGothicWindow(
+      tower,
+      Math.sin(angle) * (radius + 0.015),
+      height * 0.58,
+      Math.cos(angle) * (radius + 0.015),
+      angle,
+      0.46,
+    );
+  }
+
+  // Four shallow radial buttresses give the cylindrical shaft a fortified Gothic base.
+  for (const angle of [Math.PI / 4, Math.PI * 3 / 4, Math.PI * 5 / 4, Math.PI * 7 / 4]) {
+    const buttress = addBox(
+      tower,
+      [0.42, height * 0.48, 0.72],
+      [Math.sin(angle) * radius * 1.02, height * 0.24 + 0.55, Math.cos(angle) * radius * 1.02],
+      darkStone,
+    );
+    buttress.rotation.y = angle;
+  }
+
+  parent.add(setShadow(tower));
+  return tower;
+}
+
+function addCentralGothicTower(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  height: number,
+  size: number,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+) {
+  const tower = new THREE.Group();
+  tower.position.set(x, 0, z);
+
+  addBox(tower, [size + 0.8, 0.8, size + 0.8], [0, 0.4, 0], darkStone);
+  addBox(tower, [size, height, size], [0, height / 2 + 0.72, 0], stone);
+  addBox(tower, [size + 0.42, 0.42, size + 0.42], [0, height * 0.48, 0], darkStone);
+  addBox(tower, [size + 0.56, 0.48, size + 0.56], [0, height + 0.78, 0], darkStone);
+
+  const frontZ = size / 2 + 0.03;
+  addVisibleChamber(tower, 0, 4.2, frontZ, stone, darkStone, 1.18, "hall");
+  addVisibleChamber(tower, 0, 10.2, frontZ, stone, darkStone, 1.06, "hall");
+  addRoseWindow(tower, 0, 15.8, frontZ + 0.02, 1.02, stone);
+  for (const side of [-1, 1]) {
+    addGothicWindow(tower, side * (size / 2 + 0.02), 7.0, 0.8, side * Math.PI / 2, 0.52);
+    addGothicWindow(tower, side * (size / 2 + 0.02), 13.2, -0.8, side * Math.PI / 2, 0.48);
+    addBanner(tower, side * 2.05, 10.8, frontZ + 0.08, 0, 0.9);
+  }
+
+  for (const sideX of [-1, 1]) {
+    for (const sideZ of [-1, 1]) {
+      addBox(
+        tower,
+        [0.52, height * 0.7, 0.66],
+        [sideX * (size / 2 + 0.15), height * 0.35 + 0.72, sideZ * (size / 2 + 0.08)],
+        darkStone,
+      );
+      addSpire(tower, sideX * (size / 2 + 0.08), height + 0.8, sideZ * (size / 2 + 0.08), 0.52, stone, roof);
+    }
+  }
+
+  const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(size * 0.76, 9.2, 4), roof);
+  roofMesh.position.y = height + 5.35;
+  roofMesh.rotation.y = Math.PI / 4;
+  tower.add(roofMesh);
+  addSpire(tower, 0, height + 9.75, 0, 0.46, stone, roof);
+
+  parent.add(setShadow(tower));
+  return tower;
+}
+
+function addArrowSlit(parent: THREE.Object3D, x: number, y: number, z: number, rotationY = 0) {
+  const slit = new THREE.Group();
+  slit.position.set(x, y, z);
+  slit.rotation.y = rotationY;
+  const recess = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.18, 0.92),
+    new THREE.MeshBasicMaterial({ color: 0x09080b, side: THREE.DoubleSide }),
+  );
+  const lintel = new THREE.Mesh(
+    new THREE.BoxGeometry(0.42, 0.13, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x56505a, roughness: 0.9 }),
+  );
+  lintel.position.set(0, 0.51, 0.025);
+  slit.add(recess, lintel);
+  parent.add(slit);
+  return slit;
+}
+
+function addVisibleChamber(
+  parent: THREE.Object3D,
+  x: number,
+  y: number,
+  z: number,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  scale = 1,
+  roomType: "hall" | "library" | "quarters" = "hall",
+) {
+  const room = new THREE.Group();
+  room.position.set(x, y, z);
+
+  const width = 1.65 * scale;
+  const shoulder = 1.35 * scale;
+  const peak = 2.05 * scale;
+  const openingShape = new THREE.Shape();
+  openingShape.moveTo(-width / 2, 0);
+  openingShape.lineTo(-width / 2, shoulder);
+  openingShape.lineTo(0, peak);
+  openingShape.lineTo(width / 2, shoulder);
+  openingShape.lineTo(width / 2, 0);
+  openingShape.closePath();
+
+  const chamberGlow = new THREE.MeshStandardMaterial({
+    color: roomType === "library" ? 0x24120d : 0x32140c,
+    emissive: roomType === "quarters" ? 0x7d1d08 : 0xb4370b,
+    emissiveIntensity: roomType === "quarters" ? 0.55 : 0.82,
+    roughness: 0.92,
+    side: THREE.DoubleSide,
+  });
+  const opening = new THREE.Mesh(new THREE.ShapeGeometry(openingShape), chamberGlow);
+  opening.position.z = 0.018;
+  room.add(opening);
+
+  // Thick jambs, sill and angled lintels make the room read as a deep opening.
+  for (const side of [-1, 1]) {
+    addBox(room, [0.2 * scale, shoulder, 0.34 * scale], [side * (width / 2 + 0.06 * scale), shoulder / 2, 0.16 * scale], stone);
+    const lintel = addBox(room, [1.08 * scale, 0.2 * scale, 0.34 * scale], [side * 0.37 * scale, 1.7 * scale, 0.16 * scale], stone);
+    lintel.rotation.z = side * -0.61;
+  }
+  addBox(room, [width + 0.35 * scale, 0.2 * scale, 0.52 * scale], [0, 0.03, 0.22 * scale], darkStone);
+
+  const wood = new THREE.MeshStandardMaterial({ color: 0x3b2118, roughness: 0.72, metalness: 0.04 });
+  const metal = new THREE.MeshStandardMaterial({ color: 0x17151a, roughness: 0.38, metalness: 0.72 });
+  if (roomType === "library") {
+    for (const shelfY of [0.42, 0.76, 1.1]) addBox(room, [1.12 * scale, 0.07 * scale, 0.08], [0, shelfY * scale, 0.055], wood);
+    for (const shelfX of [-0.52, 0, 0.52]) addBox(room, [0.055 * scale, 1.02 * scale, 0.08], [shelfX * scale, 0.74 * scale, 0.06], wood);
+  } else if (roomType === "quarters") {
+    addBox(room, [0.95 * scale, 0.18 * scale, 0.46 * scale], [0, 0.3 * scale, 0.25 * scale], wood);
+    addBox(room, [0.12 * scale, 0.5 * scale, 0.12 * scale], [-0.36 * scale, 0.12 * scale, 0.25 * scale], wood);
+    addBox(room, [0.12 * scale, 0.5 * scale, 0.12 * scale], [0.36 * scale, 0.12 * scale, 0.25 * scale], wood);
+  } else {
+    addBox(room, [1.05 * scale, 0.13 * scale, 0.42 * scale], [0, 0.48 * scale, 0.24 * scale], wood);
+    for (const tableX of [-0.4, 0.4]) addBox(room, [0.1 * scale, 0.48 * scale, 0.1 * scale], [tableX * scale, 0.24 * scale, 0.24 * scale], wood);
+    const brazier = new THREE.Mesh(new THREE.SphereGeometry(0.11 * scale, 8, 6), metal);
+    brazier.position.set(0, 1.16 * scale, 0.2 * scale);
+    room.add(brazier);
+  }
+
+  parent.add(setShadow(room));
+  return room;
+}
+
+function addCourtyardGallery(
+  parent: THREE.Object3D,
+  side: -1 | 1,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+) {
+  const gallery = new THREE.Group();
+  gallery.position.set(side * 7.1, 0, 6.2);
+  const innerX = -side * 0.94;
+  const outerX = side * 0.94;
+
+  addBox(gallery, [2.05, 0.22, 5.15], [0, 0.55, 0], darkStone);
+  addBox(gallery, [0.28, 2.85, 5.15], [outerX, 1.93, 0], darkStone);
+  addBox(gallery, [2.15, 0.24, 5.35], [0, 3.35, 0], roof).rotation.z = side * 0.11;
+  addBox(gallery, [0.24, 0.28, 5.3], [innerX, 3.12, 0], stone);
+
+  // Open arcade creates a readable circulation layer around the inner court.
+  for (const z of [-2.35, -1.18, 0, 1.18, 2.35]) {
+    addBox(gallery, [0.3, 2.6, 0.3], [innerX, 1.84, z], stone);
+    addBox(gallery, [0.52, 0.22, 0.52], [innerX, 0.66, z], darkStone);
+  }
+  for (const z of [-1.75, 0, 1.75]) {
+    addCastleDoor(gallery, outerX - side * 0.03, 0.59, z, -side * Math.PI / 2, 0.43);
+  }
+
+  // Benches, a long work table and roof beams distinguish the arcade from a bare wall.
+  const wood = new THREE.MeshStandardMaterial({ color: 0x352019, roughness: 0.78 });
+  addBox(gallery, [1.1, 0.12, 2.35], [side * 0.12, 1.02, 0], wood);
+  for (const z of [-0.92, 0.92]) addBox(gallery, [0.82, 0.48, 0.12], [side * 0.12, 0.78, z], wood);
+  for (const z of [-2.0, -1.0, 0, 1.0, 2.0]) addBox(gallery, [1.92, 0.12, 0.16], [0, 3.08, z], darkStone);
+  addTorch(gallery, outerX - side * 0.2, 2.35, -0.58, 0.5, false);
+  addTorch(gallery, outerX - side * 0.2, 2.35, 0.58, 0.5, false);
+
+  parent.add(setShadow(gallery));
+  return gallery;
+}
+
+function addTownHouse(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  width: number,
+  depth: number,
+  height: number,
+  rotationY: number,
+  seed: number,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+) {
+  const house = new THREE.Group();
+  house.position.set(x, 0, z);
+  house.rotation.y = rotationY;
+  const timber = new THREE.MeshStandardMaterial({
+    color: seed % 2 ? 0x3a241d : 0x2b1d1a,
+    roughness: 0.86,
+  });
+  const plaster = new THREE.MeshStandardMaterial({
+    color: seed % 3 ? 0x65564d : 0x574c49,
+    roughness: 0.94,
+  });
+
+  // Stone shop floor with a slightly overhanging timber residence above it.
+  addBox(house, [width, 1.55, depth], [0, 1.25, 0], stone);
+  addBox(house, [width + 0.24, height - 1.35, depth + 0.18], [0, 1.55 + (height - 1.35) / 2, 0], plaster);
+  addBox(house, [width + 0.38, 0.18, depth + 0.32], [0, 1.62, 0], darkStone);
+
+  // Exposed beams make each small building readable as an individual town house.
+  for (const beamX of [-width * 0.42, 0, width * 0.42]) {
+    addBox(house, [0.1, height - 1.5, 0.12], [beamX, 1.72 + (height - 1.5) / 2, depth / 2 + 0.12], timber);
+  }
+  addBox(house, [width + 0.12, 0.1, 0.13], [0, height - 0.52, depth / 2 + 0.12], timber);
+  addBox(house, [width + 0.12, 0.1, 0.13], [0, height - 1.42, depth / 2 + 0.12], timber);
+
+  addGableRoof(house, width + 0.58, depth + 0.52, 1.9, height, roof);
+
+  addBox(house, [0.62, 1.08, 0.1], [-width * 0.23, 1.02, depth / 2 + 0.08], timber);
+  addBox(house, [0.78, 0.13, 0.18], [-width * 0.23, 1.6, depth / 2 + 0.1], darkStone);
+  addGothicWindow(house, width * 0.23, 1.18, depth / 2 + 0.075, 0, 0.34);
+  addGothicWindow(house, 0, height - 0.92, depth / 2 + 0.105, 0, 0.3);
+
+  const chimneyX = seed % 2 ? -width * 0.3 : width * 0.3;
+  addBox(house, [0.36, 1.8, 0.42], [chimneyX, height + 1.15, -depth * 0.18], darkStone);
+  addBox(house, [0.5, 0.16, 0.56], [chimneyX, height + 2.04, -depth * 0.18], stone);
+
+  parent.add(setShadow(house));
+  return house;
+}
+
+function addTownChapel(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+) {
+  const chapel = new THREE.Group();
+  chapel.position.set(x, 0, z);
+  addBox(chapel, [3.0, 4.0, 3.2], [0, 2.45, 0], darkStone);
+  addBox(chapel, [3.25, 0.22, 3.45], [0, 0.5, 0], stone);
+
+  addGableRoof(chapel, 3.65, 3.75, 2.8, 4.45, roof);
+
+  addBox(chapel, [1.25, 5.15, 1.35], [0, 3.0, 1.42], stone);
+  const bellRoof = new THREE.Mesh(new THREE.ConeGeometry(1.05, 2.1, 4), roof);
+  bellRoof.position.set(0, 6.55, 1.42);
+  bellRoof.rotation.y = Math.PI / 4;
+  chapel.add(bellRoof);
+  addSpire(chapel, 0, 7.4, 1.42, 0.27, stone, roof);
+  addCastleDoor(chapel, 0, 0.5, 1.7, 0, 0.62);
+  addGothicWindow(chapel, 0, 3.76, 1.805, 0, 0.44);
+  addGothicWindow(chapel, 1.51, 2.7, -0.35, Math.PI / 2, 0.38);
+  parent.add(setShadow(chapel));
+  return chapel;
+}
+
+function addMarketStall(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  rotationY: number,
+  darkStone: THREE.Material,
+  seed: number,
+) {
+  const stall = new THREE.Group();
+  stall.position.set(x, 0, z);
+  stall.rotation.y = rotationY;
+  const wood = new THREE.MeshStandardMaterial({ color: 0x39231a, roughness: 0.8 });
+  const cloth = new THREE.MeshStandardMaterial({
+    color: seed % 2 ? 0x721724 : 0x8b3b1c,
+    roughness: 0.88,
+    side: THREE.DoubleSide,
+  });
+  for (const postX of [-0.68, 0.68]) {
+    for (const postZ of [-0.42, 0.42]) addBox(stall, [0.09, 1.55, 0.09], [postX, 1.23, postZ], wood);
+  }
+  addBox(stall, [1.55, 0.13, 1.0], [0, 1.05, 0], wood);
+  const canopy = addBox(stall, [1.75, 0.1, 1.18], [0, 2.03, 0], cloth);
+  canopy.rotation.z = seed % 2 ? 0.08 : -0.08;
+  for (const itemX of [-0.45, 0, 0.45]) {
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, 0.3), itemX === 0 ? darkStone : wood);
+    crate.position.set(itemX, 1.25, 0);
+    stall.add(crate);
+  }
+  parent.add(setShadow(stall));
+  return stall;
+}
+
+function addTownWell(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+) {
+  const well = new THREE.Group();
+  well.position.set(x, 0, z);
+  const basin = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.9, 0.62, 12), stone);
+  basin.position.y = 0.76;
+  const opening = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.58, 0.08, 12), darkStone);
+  opening.position.y = 1.09;
+  well.add(basin, opening);
+  for (const side of [-1, 1]) addBox(well, [0.14, 1.8, 0.14], [side * 0.73, 1.5, 0], darkStone);
+  addBox(well, [1.72, 0.16, 0.18], [0, 2.34, 0], stone);
+  const cover = new THREE.Mesh(new THREE.ConeGeometry(1, 0.72, 4), roof);
+  cover.position.y = 2.66;
+  cover.rotation.y = Math.PI / 4;
+  cover.scale.z = 0.72;
+  well.add(cover);
+  parent.add(setShadow(well));
+  return well;
+}
+
+function addResidentialWing(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  width: number,
+  depth: number,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+) {
+  const wing = new THREE.Group();
+  wing.position.set(x, 0, z);
+  const height = x < 0 ? 12.9 : 11.4;
+
+  addBox(wing, [width, height, depth], [0, height / 2 + 0.48, 0], darkStone);
+  addBox(wing, [width + 0.28, 0.24, depth + 0.28], [0, 6.3, 0], stone);
+  addBox(wing, [width + 0.38, 0.32, depth + 0.38], [0, height + 0.42, 0], stone);
+
+  // A steep gabled roof replaces the flat barracks silhouette.
+  addGableRoof(wing, width + 0.78, depth + 0.72, 4.1, height + 0.58, roof);
+
+  // Tall paired lancets emphasize the vertical Gothic facade.
+  for (const slitX of [-width * 0.27, width * 0.25]) {
+    addGothicWindow(wing, slitX, 2.2, depth / 2 + 0.025, 0, 0.55);
+    addGothicWindow(wing, slitX, 7.25, depth / 2 + 0.025, 0, 0.62);
+  }
+  addArrowSlit(wing, x < 0 ? width * 0.18 : -width * 0.2, height - 2.1, depth / 2 + 0.016);
+  addCastleDoor(wing, 0, 0.5, depth / 2 + 0.04, 0, 0.52);
+  for (const side of [-1, 1]) {
+    addArrowSlit(wing, side * (width / 2 + 0.016), 4.1, -depth * 0.2, side * Math.PI / 2);
+    addArrowSlit(wing, side * (width / 2 + 0.016), height - 2.35, depth * 0.2, side * Math.PI / 2);
+
+    // Deep buttresses visually carry the weight of the upper fighting platform.
+    for (const buttressZ of [-depth * 0.36, depth * 0.36]) {
+      addBox(wing, [0.48, height * 0.82, 0.72], [side * (width / 2 + 0.18), height * 0.41 + 0.48, buttressZ], stone);
+      addBox(wing, [0.68, 0.42, 0.96], [side * (width / 2 + 0.2), 0.69, buttressZ], darkStone);
+    }
+  }
+
+  // One slender round turret breaks the residential symmetry.
+  addGothicWatchtower(
+    wing,
+    x < 0 ? -width * 0.34 : width * 0.34,
+    -depth * 0.32,
+    height + 2.1,
+    1.15,
+    stone,
+    darkStone,
+    roof,
+  );
+
+  parent.add(setShadow(wing));
+  return wing;
+}
+
+function buildFortress(
+  root: THREE.Group,
+  stone: THREE.Material,
+  darkStone: THREE.Material,
+  roof: THREE.Material,
+  rock: THREE.Material,
+  lavaRock: THREE.Material,
+) {
   const fortress = new THREE.Group();
-  fortress.position.set(11.5, 5, -3.8);
-  addBox(fortress, [15, 0.9, 12], [0, -0.15, 0], stone);
-  addBox(fortress, [15.6, 1.3, 12.6], [0, -0.85, 0], darkStone);
-  for (const z of [-5.82, 5.82]) {
-    addBox(fortress, [14.8, 0.5, 0.28], [0, 0.58, z], stone);
-    addBattlements(fortress, 14.6, 0, 1.04, z, true, stone);
-  }
-  for (const x of [-7.32, 7.32]) {
-    addBox(fortress, [0.28, 0.5, 11.4], [x, 0.58, 0], stone);
-    addBattlements(fortress, 11.3, x, 1.04, 0, false, stone);
-  }
-  addRockCluster(fortress, 5.8, 4.7, 2.4, rock, 101);
-  addRockCluster(fortress, -5.9, -4.7, 2.1, rock, 125);
+  // The complete citadel, plateau and forest sit four bridge bays farther back;
+  // the extended deck still meets the forecourt at world X = 32.
+  fortress.position.set(54.5, 5, 0);
+  // Turn the complete front facade towards the bridge while keeping the gate,
+  // courtyard path and keep aligned as one architectural composition.
+  fortress.rotation.y = -Math.PI / 2;
+  addCastleFoundation(fortress, stone, darkStone, rock, lavaRock);
+  addCastleForecourt(fortress, stone, darkStone, roof);
+  addBox(fortress, [35, 0.9, 35.5], [0, -0.15, -4], stone);
+  addBox(fortress, [35.6, 1.3, 36.1], [0, -0.85, -4], darkStone);
 
-  addBox(fortress, [12.8, 4.7, 1.15], [0, 2.3, -4.85], darkStone);
-  addBattlements(fortress, 12.8, 0, 4.85, -4.85, true, stone);
-  for (const x of [-5.4, 5.4]) addTower(fortress, x, -4.7, 7.2, stone, roof, 1.38);
-  for (const x of [-7, 7]) addTower(fortress, x, 4.9, 5.1, stone, roof, 1.08);
+  // Taller curtain walls give the outer defensive ring a more imposing silhouette.
+  const curtainWallHeight = 10.3;
+  const curtainWallCenterY = 0.205 + curtainWallHeight / 2;
+  const curtainWallTrimY = 0.205 + curtainWallHeight + 0.065;
+  const curtainWallBattlementY = curtainWallTrimY + 0.42;
+  for (const z of [-20.65, 12.65]) {
+    addBox(fortress, [32.2, curtainWallHeight, 0.82], [0, curtainWallCenterY, z], darkStone);
+    addBox(fortress, [32.4, 0.3, 1.02], [0, curtainWallTrimY, z], stone);
+    addBattlements(fortress, 32.1, 0, curtainWallBattlementY, z, true, stone);
+  }
+  for (const x of [-16.72, 16.72]) {
+    addBox(fortress, [0.82, curtainWallHeight, 30.3], [x, curtainWallCenterY, -4], darkStone);
+    addBox(fortress, [1.02, 0.3, 30.5], [x, curtainWallTrimY, -4], stone);
+    addBattlements(fortress, 30.2, x, curtainWallBattlementY, -4, false, stone);
+  }
 
+  // Repeated exterior buttresses reproduce the strong vertical rhythm of the reference walls.
+  for (const z of [-20.65, 12.65]) {
+    const outwardZ = z + (z > 0 ? 0.64 : -0.64);
+    for (const x of [-12.4, -8.3, -4.2, 4.2, 8.3, 12.4]) {
+      addBox(fortress, [0.48, 8.8, 1.08], [x, 4.6, outwardZ], stone);
+      addBox(fortress, [0.72, 0.55, 1.42], [x, 0.78, outwardZ + (z > 0 ? 0.12 : -0.12)], darkStone);
+    }
+  }
+  for (const x of [-16.72, 16.72]) {
+    const outwardX = x + (x > 0 ? 0.64 : -0.64);
+    for (const z of [-15.8, -10.8, -5.8, -0.8, 4.2, 9.2]) {
+      addBox(fortress, [1.08, 8.8, 0.48], [outwardX, 4.6, z], stone);
+      addBox(fortress, [1.42, 0.55, 0.72], [outwardX + (x > 0 ? 0.12 : -0.12), 0.78, z], darkStone);
+    }
+  }
+
+  // Four corner towers establish the classic castle silhouette.
+  for (const [x, z] of [[-16.45, -20.45], [-16.45, 12.45], [16.45, -20.45], [16.45, 12.45]] as const) {
+    addGothicWatchtower(fortress, x, z, 14.6, 2.45, stone, darkStone, roof);
+  }
+  // Mid-wall watchtowers break the long city wall into defended sections.
+  addGothicWatchtower(fortress, -16.45, -4.2, 12.4, 1.9, stone, darkStone, roof);
+  addGothicWatchtower(fortress, 16.45, -4.2, 12.4, 1.9, stone, darkStone, roof);
+  addGothicWatchtower(fortress, 0, -20.45, 13.4, 2.1, stone, darkStone, roof);
+
+  // The only main entrance projects from the front facade, now facing the bridge.
+  addCastleGatehouse(fortress, 0, 13.05, stone, darkStone, roof);
+  for (const x of [-12.2, -9.4, 9.4, 12.2]) {
+    addGothicWindow(fortress, x, 5.6, 13.08, 0, 0.46);
+  }
+  addBanner(fortress, -6.7, 7.2, 13.1, 0, 0.94);
+  addBanner(fortress, 6.7, 7.2, 13.1, 0, 0.94);
+
+  // The great hall anchors the rear of the castle and terminates the processional axis.
   const keep = new THREE.Group();
-  keep.position.set(0, 0, -3.85);
-  addBox(keep, [8.5, 6.4, 2.3], [0, 3.2, 0], darkStone);
-  addBattlements(keep, 8.6, 0, 6.65, 1.22, true, stone);
-  for (const x of [-3.9, 3.9]) addSpire(keep, x, 6.1, 0.95, 0.9, stone, roof);
-  addGothicWindow(keep, 0, 3.75, 1.18, 0, 1.85);
-  addGothicWindow(keep, -2.35, 3.55, 1.18, 0, 1.05);
-  addGothicWindow(keep, 2.35, 3.55, 1.18, 0, 1.05);
+  keep.position.set(0, 0, -14.1);
+  const hallWidth = 18;
+  const hallDepth = 8.6;
+  const hallHeight = 12.7;
+  addBox(keep, [hallWidth, hallHeight, hallDepth], [0, 6.755, 0], darkStone);
+  addBox(keep, [hallWidth + 0.4, 0.38, hallDepth + 0.4], [0, 13.13, 0], stone);
+  addGableRoof(keep, hallWidth + 0.75, hallDepth + 0.8, 5.2, 13.32, roof);
+
+  // A broad, symmetrical facade faces the gate across the now-open inner court.
+  for (const x of [-6.2, -3.15, 3.15, 6.2]) {
+    addVisibleChamber(keep, x, 0.72, hallDepth / 2 + 0.025, stone, darkStone, 0.98, "hall");
+  }
+  addCastleDoor(keep, 0, 0.5, hallDepth / 2 + 0.08, 0, 1.3);
+  addVisibleChamber(keep, -5.2, 7.05, hallDepth / 2 + 0.025, stone, darkStone, 0.9, "library");
+  addVisibleChamber(keep, 5.2, 7.05, hallDepth / 2 + 0.025, stone, darkStone, 0.9, "quarters");
+  addRoseWindow(keep, 0, 9.72, hallDepth / 2 + 0.04, 1.18, stone);
+  addBox(keep, [15.2, 0.2, 0.68], [0, 6.79, hallDepth / 2 + 0.2], stone);
+  for (const x of [-6.2, -3.15, 0, 3.15, 6.2]) {
+    addBox(keep, [0.16, 0.62, 0.16], [x, 7.06, hallDepth / 2 + 0.47], darkStone);
+  }
+  for (const z of [-2.8, 0, 2.8]) {
+    addArrowSlit(keep, hallWidth / 2 + 0.02, 4.2, z, Math.PI / 2);
+    addArrowSlit(keep, hallWidth / 2 + 0.02, 9.6, z, Math.PI / 2);
+  }
+
+  addCentralGothicTower(keep, 0, -1.15, 22.5, 6.2, stone, darkStone, roof);
+  for (const side of [-1, 1]) {
+    addGothicWatchtower(keep, side * 7.15, 3.15, 16.5, 1.45, stone, darkStone, roof);
+    addBanner(keep, side * 7.15, 9.15, 4.62, 0, 0.9);
+  }
+  for (const [x, z] of [[-8.1, -3.65], [-8.1, 3.65], [8.1, -3.65], [8.1, 3.65]] as const) {
+    addSpire(keep, x, 13.07, z, 0.66, stone, roof);
+  }
+  addTorch(keep, -7.55, 1.05, hallDepth / 2 + 0.1, 0.66, true);
+  addTorch(keep, 7.55, 1.05, hallDepth / 2 + 0.1, 0.66, true);
   fortress.add(keep);
 
-  const gate = new THREE.Group();
-  // Cổng chính nằm trên mặt tiền đại điện phía sau, hướng xuống sân trong.
-  gate.position.set(0, 0.05, -2.62);
-  addBox(gate, [5.8, 4.5, 1.5], [0, 2.25, 0], darkStone);
-  const portal = new THREE.Mesh(
-    new THREE.CapsuleGeometry(1.2, 1.8, 7, 16),
-    new THREE.MeshBasicMaterial({ color: 0xff4a06 }),
-  );
-  portal.scale.y = 1.16;
-  portal.position.set(0, 2.25, 0.77);
-  gate.add(portal);
-  for (let step = 0; step < 6; step += 1) {
-    addBox(gate, [4.25 + step * 0.22, 0.18, 0.58], [0, 0.86 - step * 0.15, 1.15 + step * 0.48], stone);
-  }
-  for (const x of [-2.5, 2.5]) addSpire(gate, x, 4.2, 0.55, 0.68, stone, roof);
-  fortress.add(gate);
+  // Asymmetrical fortified barracks add rooms without softening the citadel silhouette.
+  addResidentialWing(fortress, -12.8, -0.8, 4.15, 9.4, stone, darkStone, roof);
+  addResidentialWing(fortress, 12.8, -0.8, 4.15, 9.4, stone, darkStone, roof);
 
-  for (const x of [-5.9, -3.2, 3.2, 5.9]) addBanner(fortress, x, 3.7, -4.22, 0, 0.9);
-  addBanner(fortress, -3.6, 2.2, 5.51, Math.PI, 0.75);
-  addBanner(fortress, 3.6, 2.2, 5.51, Math.PI, 0.75);
-  addCircularRune(fortress, -3.4, 0.47, 0.55, 1.3);
-  addCircularRune(fortress, 3.6, 0.47, 2.1, 1.25);
-  addStatue(fortress, -3.6, 0.45, 3.75, 0.1, stone, 0.8);
-  addStatue(fortress, 3.6, 0.45, 3.75, -0.1, stone, 0.8);
-  addStatue(fortress, -5.9, 0.45, 1.1, Math.PI * 0.15, stone, 0.65);
-  addStatue(fortress, 5.9, 0.45, 1.1, -Math.PI * 0.15, stone, 0.65);
-  for (const x of [-5.5, -2.7, 2.7, 5.5]) addTorch(fortress, x, 0.9, 4.9, 0.74, true);
-  for (const [x, z, scale, seed] of [[-5, 2.2, 1.5, 330], [5.2, -1.3, 1.35, 350], [-2.1, -1, 1.2, 370]] as Array<[number, number, number, number]>) {
-    addCrimsonGrowth(fortress, x, 0.45, z, scale, seed);
+  // Covered galleries connect the barracks, courtyard and central keep.
+  addCourtyardGallery(fortress, -1, stone, darkStone, roof);
+  addCourtyardGallery(fortress, 1, stone, darkStone, roof);
+
+  // Service buildings stay against the side walls, leaving the rear hall and
+  // the complete ceremonial axis unobstructed.
+  addTownChapel(fortress, -12.6, -11.8, stone, darkStone, roof);
+  const townLots = [
+    [-12.2, -7.8, 2.25, 2.05, 3.45, Math.PI, 11],
+    [12.2, -7.85, 2.3, 2.0, 3.85, Math.PI, 29],
+    [-12.35, -16.6, 2.3, 2.05, 3.65, 0, 61],
+    [12.35, -16.55, 2.3, 2.05, 3.8, 0, 97],
+  ] as Array<[number, number, number, number, number, number, number]>;
+  for (const [x, z, width, depth, height, rotationY, seed] of townLots) {
+    addTownHouse(fortress, x, z, width, depth, height, rotationY, seed, stone, darkStone, roof);
   }
+  addTownHouse(fortress, -12.55, 8.6, 2.3, 2.15, 3.5, Math.PI / 2, 41, stone, darkStone, roof);
+  addTownHouse(fortress, 12.55, 8.55, 2.35, 2.15, 3.85, -Math.PI / 2, 47, stone, darkStone, roof);
+
+  // The processional path now runs without interruption from the gate to the rear hall.
+  for (let step = 0; step < 29; step += 1) {
+    addBox(fortress, [4.4, 0.12, 0.72], [0, 0.52, 11.7 - step * 0.74], step % 2 ? stone : darkStone);
+  }
+  addCircularRune(fortress, 0, 0.58, 5.8, 1.35);
+  addCircularRune(fortress, 0, 0.58, -5.1, 1.2);
+  addMarketStall(fortress, -3.35, 10.25, Math.PI / 2, darkStone, 53);
+  addMarketStall(fortress, 3.35, 10.25, -Math.PI / 2, darkStone, 59);
+  addTownWell(fortress, 4.25, 7.75, stone, darkStone, roof);
+  addStatue(fortress, -4.25, 0.48, 7.75, 0.25, stone, 0.6);
   root.add(fortress);
 }
 
@@ -511,135 +2637,234 @@ function createEmbers(root: THREE.Group) {
   }
 }
 
+function createBrightSkyTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2;
+  canvas.height = 1024;
+  const context = canvas.getContext("2d");
+  if (!context) return new THREE.Color(0x9fc7e3);
+
+  const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#4f87bd");
+  gradient.addColorStop(0.48, "#9ec8e3");
+  gradient.addColorStop(0.78, "#ecd5ae");
+  gradient.addColorStop(1, "#f6b77d");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 function buildScene() {
   const host = viewport.value;
   if (!host) return;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x070609);
-  scene.fog = new THREE.FogExp2(0x10090e, 0.018);
+  scene.background = createBrightSkyTexture();
+  scene.fog = new THREE.FogExp2(0xb8b1a5, 0.012);
 
-  camera = new THREE.PerspectiveCamera(38, host.clientWidth / host.clientHeight, 0.1, 130);
-  camera.position.set(31, 31, 38);
+  camera = new THREE.PerspectiveCamera(38, host.clientWidth / host.clientHeight, 0.1, 300);
+  camera.position.copy(DEFAULT_CAMERA_POSITION);
+  camera.zoom = DEFAULT_CAMERA_ZOOM;
+  camera.updateProjectionMatrix();
 
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
   renderer.setSize(host.clientWidth, host.clientHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.08;
+  renderer.toneMappingExposure = 1.04;
   host.appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 3.1, 0);
+  controls.target.copy(DEFAULT_CAMERA_TARGET);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.055;
-  controls.autoRotate = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = true;
+  controls.autoRotate = false;
   controls.autoRotateSpeed = 0.35;
-  controls.minDistance = 18;
-  controls.maxDistance = 64;
+  controls.minDistance = 24;
+  controls.maxDistance = 160;
   controls.maxPolarAngle = Math.PI * 0.48;
   controls.minPolarAngle = Math.PI * 0.19;
+  controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+  controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+  controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
 
   const root = new THREE.Group();
   root.rotation.y = -0.18;
   scene.add(root);
 
-  const stone = new THREE.MeshStandardMaterial({ color: 0x403b43, roughness: 0.86, metalness: 0.08 });
-  const darkStone = new THREE.MeshStandardMaterial({ color: 0x242029, roughness: 0.92, metalness: 0.05 });
-  const pathStone = new THREE.MeshStandardMaterial({ color: 0x6b5a50, roughness: 0.95 });
-  const roof = new THREE.MeshStandardMaterial({ color: 0x11121a, roughness: 0.72, metalness: 0.24 });
-  const rock = new THREE.MeshStandardMaterial({ color: 0x1c191f, roughness: 1 });
+  const stone = new THREE.MeshStandardMaterial({
+    color: 0x696872,
+    roughness: 0.82,
+    metalness: 0.05,
+    bumpMap: createSurfaceBumpMap("masonry", 3.2, 3.2),
+    bumpScale: 0.18,
+  });
+  const darkStone = new THREE.MeshStandardMaterial({
+    color: 0x45434c,
+    roughness: 0.9,
+    metalness: 0.03,
+    bumpMap: createSurfaceBumpMap("masonry", 3.8, 3.8),
+    bumpScale: 0.16,
+  });
+  const roof = new THREE.MeshStandardMaterial({
+    color: 0x202936,
+    roughness: 0.64,
+    metalness: 0.18,
+    bumpMap: createSurfaceBumpMap("roof", 4.5, 2.5),
+    bumpScale: 0.18,
+  });
+  const rock = new THREE.MeshStandardMaterial({
+    color: 0x252229,
+    roughness: 0.96,
+    flatShading: true,
+    bumpMap: createSurfaceBumpMap("rough", 3.5, 3.5),
+    bumpScale: 0.38,
+  });
+  const lavaRock = new THREE.MeshStandardMaterial({
+    // The final colour is height-blended in the shader: ordinary dark rock at
+    // the top, heat-blackened basalt where the foundation meets the lava.
+    color: 0xffffff,
+    roughness: 1,
+    metalness: 0,
+    flatShading: true,
+    emissive: 0x260601,
+    emissiveIntensity: 0.14,
+    bumpMap: createSurfaceBumpMap("rough", 4.2, 4.2),
+    bumpScale: 0.46,
+  });
+  lavaRock.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying float vLavaWorldY;",
+      )
+      .replace(
+        "#include <project_vertex>",
+        `vec4 lavaWorldPosition = vec4(transformed, 1.0);
+#ifdef USE_INSTANCING
+        lavaWorldPosition = instanceMatrix * lavaWorldPosition;
+#endif
+        vLavaWorldY = (modelMatrix * lavaWorldPosition).y;
+#include <project_vertex>`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying float vLavaWorldY;",
+      )
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+        // World-space height keeps the transition consistent across the
+        // castle cliff, bridge piers and the opposite plateau.
+        float lavaProximity = 1.0 - smoothstep(-4.35, 1.4, vLavaWorldY);
+        vec3 upperRock = vec3(0.145, 0.132, 0.155);
+        vec3 cooledBasalt = vec3(0.040, 0.025, 0.027);
+        diffuseColor.rgb *= mix(upperRock, cooledBasalt, lavaProximity);`,
+      )
+      .replace(
+        "#include <emissivemap_fragment>",
+        `#include <emissivemap_fragment>
+        float lavaHeat = 1.0 - smoothstep(-4.65, -2.15, vLavaWorldY);
+        totalEmissiveRadiance *= lavaHeat;`,
+      );
+  };
+  lavaRock.customProgramCacheKey = () => "height-blended-lava-rock-v1";
 
   lavaMaterial = new THREE.ShaderMaterial({
     vertexShader,
     fragmentShader: lavaFragmentShader,
     uniforms: { uTime: { value: 0 } },
   });
-  const lava = new THREE.Mesh(new THREE.PlaneGeometry(90, 70, 1, 1), lavaMaterial);
+  // Enough subdivisions for very shallow viscous swells; the displacement is
+  // deliberately subtle so bridge footings remain seated at the lava line.
+  const lava = new THREE.Mesh(new THREE.PlaneGeometry(180, 120, 80, 52), lavaMaterial);
   lava.rotation.x = -Math.PI / 2;
   lava.position.y = -4.7;
   root.add(lava);
 
-  const underGlow = new THREE.PointLight(0xff2600, 16, 58, 1.5);
-  underGlow.position.set(0, -3.5, 0);
+  // A low red fill prevents the underside of the bridge and cliff feet from
+  // falling to pure black, while localized amber lights make the lava bounce
+  // feel tied to nearby surface regions instead of one global orange wash.
+  const underGlow = new THREE.PointLight(0xb92708, 90, 72, 2);
+  underGlow.position.set(0, -4.15, 0);
   root.add(underGlow);
 
-  addBridge(root, stone, darkStone, roof);
-  buildFortress(root, stone, darkStone, roof, rock);
+  for (const [x, z, intensity, phase] of [
+    [-20, -5.5, 220, 0.6],
+    [18, 5.5, 220, 3.7],
+  ] as Array<[number, number, number, number]>) {
+    const light = new THREE.PointLight(0xff5a16, intensity, 44, 2);
+    light.position.set(x, -3.7, z);
+    root.add(light);
+    lavaLights.push({ light, baseIntensity: intensity, phase });
+  }
 
-  const leftIsland = new THREE.Group();
-  leftIsland.position.set(-13.5, 4.75, 3.6);
-  addRockCluster(leftIsland, 0, 0, 4.8, rock, 20);
-  addRockCluster(leftIsland, -4.7, 2.2, 3.1, rock, 31);
-  addBox(leftIsland, [11.5, 0.72, 10.5], [-0.4, 0, 0], darkStone);
-  addRoad(leftIsland, [
-    new THREE.Vector3(-5.4, 0.5, 4.0),
-    new THREE.Vector3(-2.8, 0.5, 3.25),
-    new THREE.Vector3(-1.4, 0.5, 1.1),
-    new THREE.Vector3(-2.1, 0.5, -1.55),
-    new THREE.Vector3(0.8, 0.5, -2.35),
-    new THREE.Vector3(5.2, 0.5, -1.35),
-  ], pathStone, 3.4);
-  addCircularRune(leftIsland, -2.25, 0.64, 1.3, 1.35);
-  addCircularRune(leftIsland, -1.2, 0.64, -2.0, 1.12);
-  addCircularRune(leftIsland, 2.55, 0.64, -1.65, 1.08);
-  addTower(leftIsland, -3.7, -2.9, 4.4, stone, roof, 0.85);
-  addTower(leftIsland, -4, 3.2, 3.6, stone, roof, 0.72);
-  addTower(leftIsland, 2.9, 2.8, 3.7, stone, roof, 0.72);
-  addBanner(leftIsland, -3.2, 1.6, -2.25, 0.15, 0.64);
-  addStatue(leftIsland, 2.55, 0.55, -2.6, -0.3, stone, 0.67);
-  for (const point of [[-4.2, 1.0, 1.0], [0, 1.0, -2.1], [4, 1.0, -1.6]] as const) addTorch(leftIsland, ...point, 0.68, true);
-  addDeadTree(leftIsland, -5, 0.5, 1.9, 1.05);
-  addDeadTree(leftIsland, -1.3, 0.5, 4.15, 0.85);
-  addCrimsonGrowth(leftIsland, -4.3, 0.55, -0.6, 1.6, 410);
-  addCrimsonGrowth(leftIsland, 1.5, 0.55, 2.85, 1.4, 430);
-  addCrimsonGrowth(leftIsland, 3.5, 0.55, -3.2, 1.3, 450);
-  root.add(leftIsland);
+  addOppositeLandmass(root, rock, lavaRock);
+  addBridge(root, stone, darkStone, lavaRock);
+  buildFortress(root, stone, darkStone, roof, rock, lavaRock);
 
-  const gateIsland = new THREE.Group();
-  gateIsland.position.set(-21.5, 4.65, -2.4);
-  addRockCluster(gateIsland, 0, 0, 3.4, rock, 61);
-  addBox(gateIsland, [5.5, 0.75, 5.3], [0, 0, 0], darkStone);
-  addBox(gateIsland, [4.1, 4.8, 0.8], [0, 2.4, -1.6], stone);
-  const gateOpening = new THREE.Mesh(new THREE.CapsuleGeometry(0.82, 1.35, 6, 12), new THREE.MeshBasicMaterial({ color: 0x16090b }));
-  gateOpening.position.set(0, 2, -2.02);
-  gateIsland.add(gateOpening);
-  for (const x of [-1.65, 1.65]) addSpire(gateIsland, x, 4.25, -1.55, 0.7, stone, roof);
-  addBanner(gateIsland, 0, 3.05, -2.04, Math.PI, 0.72);
-  addTorch(gateIsland, -1.4, 0.8, 1.65, 0.8, true);
-  addTorch(gateIsland, 1.4, 0.8, 1.65, 0.8, true);
-  addDeadTree(gateIsland, -2.1, 0.45, 1.4, 0.9);
-  addCrimsonGrowth(gateIsland, 1.6, 0.5, 0.8, 1.15, 470);
-  root.add(gateIsland);
-
+  // These basalt clusters sit inside the lake rather than floating above it:
+  // their lower mass is submerged, while only broken crowns pierce the opaque
+  // lava skin. This also gives the bridge surroundings more physical depth.
   for (const [x, z, scale, seed] of [
     [-20, 10, 2.5, 201], [-11, 11, 2.2, 221], [21, 6, 3.4, 238], [19, -12, 3.1, 250], [8, 11, 2.1, 266], [-3, -10, 2.2, 279],
-  ] as Array<[number, number, number, number]>) addRockCluster(root, x, z, scale, rock, seed);
+  ] as Array<[number, number, number, number]>) {
+    const submergedCluster = addRockCluster(root, x, z, scale, lavaRock, seed);
+    submergedCluster.position.y = -4.55 + seededRandom(seed + 83) * 0.32;
+  }
 
-  scene.add(new THREE.HemisphereLight(0x443955, 0x170605, 1.55));
-  const keyLight = new THREE.DirectionalLight(0x8a8cae, 2.8);
-  keyLight.position.set(-13, 25, 16);
+  // Cool daylight defines the masonry without flattening it. The warm key is
+  // strong enough to cast readable shadows but leaves room for lava bounce.
+  scene.add(new THREE.HemisphereLight(0xb9d8f2, 0x321711, 1.18));
+  const keyLight = new THREE.DirectionalLight(0xffdfb8, 2.55);
+  keyLight.position.set(-24, 38, 22);
+  keyLight.target.position.set(10, 0, 0);
   keyLight.castShadow = true;
   keyLight.shadow.mapSize.set(2048, 2048);
-  keyLight.shadow.camera.left = -35;
-  keyLight.shadow.camera.right = 35;
-  keyLight.shadow.camera.top = 30;
-  keyLight.shadow.camera.bottom = -30;
-  scene.add(keyLight);
-  const fortressGlow = new THREE.PointLight(0xff6a18, 38, 24, 1.7);
-  fortressGlow.position.set(11, 10, -5);
-  scene.add(fortressGlow);
+  keyLight.shadow.camera.near = 1;
+  keyLight.shadow.camera.far = 150;
+  keyLight.shadow.camera.left = -68;
+  keyLight.shadow.camera.right = 68;
+  keyLight.shadow.camera.top = 58;
+  keyLight.shadow.camera.bottom = -58;
+  keyLight.shadow.bias = -0.00018;
+  keyLight.shadow.normalBias = 0.055;
+  scene.add(keyLight, keyLight.target);
+
+  const rimLight = new THREE.DirectionalLight(0x7aaee0, 0.72);
+  rimLight.position.set(34, 18, -32);
+  scene.add(rimLight);
+
+  const gateGlow = new THREE.PointLight(0xff6a22, 125, 28, 2);
+  gateGlow.position.set(35, 3.8, 0);
+  root.add(gateGlow);
 
   createEmbers(root);
+
+  // All shadow-casting architecture is static. Render its shadow atlas once
+  // instead of rebuilding a large depth map on every animation frame.
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
 
   const clock = new THREE.Clock();
   const animate = () => {
     animationFrame = requestAnimationFrame(animate);
     const elapsed = clock.getElapsedTime();
     if (lavaMaterial) lavaMaterial.uniforms.uTime!.value = elapsed;
+    lavaFlowMaterials.forEach((material) => {
+      material.uniforms.uTime!.value = elapsed;
+    });
+    lavaLights.forEach(({ light, baseIntensity, phase }) => {
+      light.intensity = baseIntensity * (0.95 + Math.sin(elapsed * 0.72 + phase) * 0.05);
+    });
     flames.forEach((flame) => {
       const pulse = 0.86 + Math.sin(elapsed * 8.5 + flame.phase) * 0.11 + Math.sin(elapsed * 15 + flame.phase) * 0.05;
       flame.mesh.scale.set(0.72 * pulse, 1.75 * (1.08 - pulse * 0.08), 0.72 * pulse);
@@ -671,8 +2896,10 @@ function buildScene() {
 
 function resetCamera() {
   if (!camera || !controls) return;
-  camera.position.set(31, 31, 38);
-  controls.target.set(0, 3.1, 0);
+  camera.position.copy(DEFAULT_CAMERA_POSITION);
+  camera.zoom = DEFAULT_CAMERA_ZOOM;
+  camera.updateProjectionMatrix();
+  controls.target.copy(DEFAULT_CAMERA_TARGET);
   controls.update();
 }
 
@@ -696,6 +2923,7 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   controls?.dispose();
   if (scene) {
+    if (scene.background instanceof THREE.Texture) scene.background.dispose();
     scene.traverse((object) => {
       if (!(object instanceof THREE.Mesh || object instanceof THREE.Points)) return;
       object.geometry?.dispose();
@@ -705,6 +2933,10 @@ onBeforeUnmount(() => {
   }
   renderer?.dispose();
   renderer?.domElement.remove();
+  surfaceTextures.forEach((texture) => texture.dispose());
+  surfaceTextures.length = 0;
+  lavaFlowMaterials.length = 0;
+  lavaLights.length = 0;
   document.removeEventListener("fullscreenchange", onFullscreenChange);
   flames.length = 0;
   embers.length = 0;
@@ -799,7 +3031,7 @@ onBeforeUnmount(() => {
 
 .vignette,
 .grain { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.vignette { box-shadow: inset 0 0 150px 42px rgba(0, 0, 0, .68); }
+.vignette { box-shadow: inset 0 0 130px 28px rgba(18, 25, 34, .34); }
 .grain {
   opacity: .06;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
