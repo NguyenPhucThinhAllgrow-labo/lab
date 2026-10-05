@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 useHead({
   title: "Citadel of Cinders — Three.js Scene",
@@ -28,7 +29,6 @@ let resizeObserver: ResizeObserver | null = null;
 let lavaMaterial: THREE.ShaderMaterial | null = null;
 const lavaFlowMaterials: THREE.ShaderMaterial[] = [];
 const flames: Array<{ mesh: THREE.Mesh; light?: THREE.PointLight; phase: number }> = [];
-const lavaLights: Array<{ light: THREE.PointLight; baseIntensity: number; phase: number }> = [];
 const embers: THREE.Points[] = [];
 const surfaceTextures: THREE.Texture[] = [];
 // Preserve the gameplay camera's configured direction
@@ -43,10 +43,19 @@ const DEFAULT_CAMERA_ZOOM = 0.71;
 // pier and arch evenly spaced.
 const BRIDGE_CASTLE_EDGE_X = 32;
 const BRIDGE_LENGTH = 72;
-const BRIDGE_WIDTH = 9;
+const BRIDGE_WIDTH = 5;
 const BRIDGE_CENTER_X = BRIDGE_CASTLE_EDGE_X - BRIDGE_LENGTH / 2;
 const BRIDGE_OPPOSITE_EDGE_X = BRIDGE_CASTLE_EDGE_X - BRIDGE_LENGTH;
 const OPPOSITE_LANDMASS_ORIGIN_X = -43;
+
+function getAdaptivePixelRatio(width: number, height: number) {
+  // Keep the internal buffer near 1.1 MP. Small/medium screens stay crisp,
+  // while large and high-DPI displays scale down instead of multiplying GPU
+  // work purely because the browser window contains more pixels.
+  const maxRenderPixels = 1_100_000;
+  const pixelBudgetRatio = Math.sqrt(maxRenderPixels / Math.max(1, width * height));
+  return Math.min(window.devicePixelRatio, 1, pixelBudgetRatio);
+}
 
 const vertexShader = /* glsl */ `
   uniform float uTime;
@@ -86,45 +95,48 @@ const lavaFragmentShader = /* glsl */ `
                mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
   }
 
-  float fbm(vec2 p) {
-    float value = 0.0;
-    float amplitude = 0.52;
-    for (int octave = 0; octave < 3; octave++) {
-      value += amplitude * noise(p);
-      p = p * 2.02 + vec2(4.17, 7.31);
-      amplitude *= 0.48;
-    }
-    return value;
-  }
-
   void main() {
     vec2 world = vWorldPosition.xz;
-    vec2 drift = vec2(uTime * 0.009, -uTime * 0.013);
-    vec2 broadCoordinates = world * vec2(0.027, 0.034);
+    vec2 drift = vec2(uTime * 0.007, -uTime * 0.01);
+    vec2 broadCoordinates = world * vec2(0.035, 0.041);
+    // The two broad warp samples do not need a full multi-octave fbm. Keeping
+    // them as value noise preserves the slow organic drift while substantially
+    // reducing fragment work on the full-screen lava surface.
     vec2 warp = vec2(
       noise(broadCoordinates + drift),
-      noise(broadCoordinates + vec2(8.7, 13.1) - drift * 0.7)
+      noise(broadCoordinates + vec2(8.7, 13.1) - drift * 0.65)
     ) - 0.5;
-    vec2 flowCoordinates = world * vec2(0.046, 0.058) + warp * 1.72 + drift;
+    vec2 flowCoordinates = world * vec2(0.09, 0.105) + warp * 2.1 + drift;
 
-    // A ridged, domain-warped field leaves most of the lake covered by cooled
-    // basalt. Only narrow, broken contours expose the incandescent interior.
-    float broadShape = fbm(flowCoordinates);
+    // Hai thang nhiễu tạo các mảng vỏ nguội không đều. Ngưỡng cao giữ phần
+    // dung nham nóng thành khe hẹp, đứt đoạn thay vì các dải neon lớn.
+    float broadShape = noise(flowCoordinates);
+    float fineShape = noise(flowCoordinates * 3.7 + warp * 1.4 - drift * 1.8);
+    float microShape = noise(flowCoordinates * 8.3 - drift * 3.1);
     float ridge = 1.0 - abs(broadShape * 2.0 - 1.0);
-    float breakup = noise(flowCoordinates * 2.8 - drift * 1.2);
-    float fissure = smoothstep(0.82, 0.945, ridge + (breakup - 0.5) * 0.13);
-    float hotCore = smoothstep(0.72, 0.97, fissure) * smoothstep(0.28, 0.72, breakup);
+    float fissure = smoothstep(
+      0.89,
+      0.975,
+      ridge + (fineShape - 0.5) * 0.1
+    );
+    float brokenFlow = smoothstep(0.24, 0.68, fineShape + microShape * 0.2);
+    fissure *= mix(0.22, 1.0, brokenFlow);
+    float hotCore = smoothstep(0.62, 0.96, fissure)
+      * smoothstep(0.5, 0.88, microShape);
 
-    vec3 coldBasalt = vec3(0.014, 0.011, 0.010);
-    vec3 warmBasalt = vec3(0.072, 0.020, 0.009);
-    vec3 deepMagma = vec3(0.48, 0.022, 0.002);
-    vec3 moltenOrange = vec3(0.96, 0.105, 0.004);
-    vec3 hotAmber = vec3(1.0, 0.38, 0.025);
+    vec3 coldBasalt = vec3(0.009, 0.008, 0.01);
+    vec3 warmBasalt = vec3(0.055, 0.017, 0.012);
+    vec3 ashBasalt = vec3(0.085, 0.074, 0.077);
+    vec3 deepMagma = vec3(0.32, 0.012, 0.002);
+    vec3 moltenOrange = vec3(0.82, 0.075, 0.004);
+    vec3 hotAmber = vec3(1.0, 0.29, 0.018);
 
-    vec3 crustColor = mix(coldBasalt, warmBasalt, broadShape * 0.4);
-    vec3 magmaColor = mix(deepMagma, moltenOrange, fissure * (0.62 + breakup * 0.28));
-    magmaColor = mix(magmaColor, hotAmber, hotCore * 0.64);
-    float cooledFilm = smoothstep(0.68, 0.92, breakup) * fissure * 0.2;
+    float crustVariation = mix(broadShape, fineShape, 0.36);
+    vec3 crustColor = mix(coldBasalt, warmBasalt, crustVariation * 0.58);
+    crustColor = mix(crustColor, ashBasalt, smoothstep(0.72, 0.94, fineShape) * 0.22);
+    vec3 magmaColor = mix(deepMagma, moltenOrange, fissure * 0.82);
+    magmaColor = mix(magmaColor, hotAmber, hotCore * 0.72);
+    float cooledFilm = smoothstep(0.7, 0.94, microShape) * fissure * 0.26;
     vec3 color = mix(crustColor, magmaColor, fissure);
     color = mix(color, warmBasalt, cooledFilm);
 
@@ -250,6 +262,55 @@ const lavaImpactFragmentShader = /* glsl */ `
   }
 `;
 
+const bridgeLavaContactVertexShader = /* glsl */ `
+  uniform float uTime;
+  varying vec2 vUv;
+  varying float vPhase;
+
+  void main() {
+    vUv = uv;
+    vec4 contactPosition = vec4(position, 1.0);
+    #ifdef USE_INSTANCING
+      contactPosition = instanceMatrix * contactPosition;
+    #endif
+    vec4 worldPosition = modelMatrix * contactPosition;
+    vPhase = fract(sin(dot(worldPosition.xz, vec2(12.9898, 78.233))) * 43758.5453);
+
+    float radial = length(uv - vec2(0.5)) * 2.0;
+    float surfacePulse = sin(radial * 18.0 - uTime * 2.2 + vPhase * 6.2831);
+    worldPosition.y += surfacePulse * 0.018;
+    gl_Position = projectionMatrix * viewMatrix * worldPosition;
+  }
+`;
+
+const bridgeLavaContactFragmentShader = /* glsl */ `
+  uniform float uTime;
+  varying vec2 vUv;
+  varying float vPhase;
+
+  void main() {
+    float radial = length(vUv - vec2(0.5)) * 2.0;
+    float life = fract(uTime * 0.24 + vPhase);
+    float waveRadius = mix(0.5, 0.98, life);
+    float wave = 1.0 - smoothstep(0.02, 0.12, abs(radial - waveRadius));
+    wave *= 1.0 - life;
+
+    float secondLife = fract(life + 0.5);
+    float secondRadius = mix(0.5, 0.98, secondLife);
+    float secondWave = 1.0 - smoothstep(0.02, 0.105, abs(radial - secondRadius));
+    secondWave *= (1.0 - secondLife) * 0.55;
+
+    float contactHeat = 1.0 - smoothstep(0.48, 0.72, radial);
+    float flicker = 0.82 + sin(uTime * 3.1 + vPhase * 11.0) * 0.18;
+    vec3 deepHeat = vec3(0.48, 0.025, 0.002);
+    vec3 hotEdge = vec3(1.0, 0.34, 0.025);
+    vec3 color = mix(deepHeat, hotEdge, clamp(wave + secondWave + contactHeat * 0.45, 0.0, 1.0));
+    float alpha = (wave * 0.68 + secondWave * 0.38 + contactHeat * 0.24) * flicker;
+    if (alpha < 0.018) discard;
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
+
 function seededRandom(seed: number) {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
   return value - Math.floor(value);
@@ -356,18 +417,6 @@ function addLavaFall(
   impact.add(splash);
   parent.add(impact);
 
-  // Point lights are one of the most expensive inputs to every standard
-  // material. Keep them only on the dominant cascades; smaller falls inherit
-  // enough illumination from the shared lake bounce lights.
-  if (width >= 2.4) {
-    const glow = new THREE.PointLight(0xff4a08, 92 + width * 12, 12 + width * 1.8, 2);
-    glow.position.set(
-      position[0] + outwardX * (outwardBulge + 0.4),
-      position[1] - height + 0.65,
-      position[2] + outwardZ * (outwardBulge + 0.4),
-    );
-    parent.add(glow);
-  }
   return fall;
 }
 
@@ -449,8 +498,76 @@ function addBox(
   mesh.position.set(...position);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  mesh.userData.mergeStaticBox = true;
   parent.add(mesh);
   return mesh;
+}
+
+function mergeStaticMeshes(scope: THREE.Object3D, destination: THREE.Scene) {
+  scope.updateWorldMatrix(true, true);
+  const animatedMeshes = new Set(flames.map(({ mesh }) => mesh));
+  const groups = new Map<string, {
+    material: THREE.Material;
+    meshes: THREE.Mesh[];
+    geometries: THREE.BufferGeometry[];
+  }>();
+
+  scope.traverse((object) => {
+    if (
+      !(object instanceof THREE.Mesh)
+      || object instanceof THREE.InstancedMesh
+      || object instanceof THREE.SkinnedMesh
+      || Array.isArray(object.material)
+      || object.material.transparent
+      || object.material instanceof THREE.ShaderMaterial
+      || animatedMeshes.has(object)
+      || object.renderOrder !== 0
+    ) return;
+
+    const attributeSignature = Object.keys(object.geometry.attributes)
+      .map((name) => {
+        const attribute = object.geometry.getAttribute(name);
+        return `${name}:${attribute.itemSize}:${Number(attribute.normalized)}`;
+      })
+      .sort()
+      .join("|");
+    const key = [
+      object.material.uuid,
+      Number(object.castShadow),
+      Number(object.receiveShadow),
+      Number(Boolean(object.geometry.index)),
+      attributeSignature,
+    ].join(":");
+    let group = groups.get(key);
+    if (!group) {
+      group = { material: object.material, meshes: [], geometries: [] };
+      groups.set(key, group);
+    }
+    const geometry = object.geometry.clone();
+    geometry.applyMatrix4(object.matrixWorld);
+    group.meshes.push(object);
+    group.geometries.push(geometry);
+  });
+
+  groups.forEach(({ material, meshes, geometries }) => {
+    if (meshes.length < 2) {
+      geometries.forEach((geometry) => geometry.dispose());
+      return;
+    }
+    const geometry = mergeGeometries(geometries, false);
+    geometries.forEach((item) => item.dispose());
+    if (!geometry) return;
+
+    const merged = new THREE.Mesh(geometry, material);
+    merged.castShadow = meshes[0]!.castShadow;
+    merged.receiveShadow = meshes[0]!.receiveShadow;
+    merged.name = `merged-static-meshes-${material.uuid}`;
+    destination.add(merged);
+
+    meshes.forEach((mesh) => {
+      mesh.parent?.remove(mesh);
+    });
+  });
 }
 
 function addRuggedFoundationBlock(
@@ -728,13 +845,10 @@ function addTorch(parent: THREE.Object3D, x: number, y: number, z: number, scale
   fire.scale.set(0.72, 1.75, 0.72);
   fire.position.y = 0.34 * scale;
   group.add(bowl, fire);
-  let light: THREE.PointLight | undefined;
-  if (withLight) {
-    light = new THREE.PointLight(0xff4b0a, 13 * scale, 8 * scale, 1.9);
-    light.position.y = 0.55 * scale;
-    group.add(light);
-  }
-  flames.push({ mesh: fire, light, phase: seededRandom(flames.length + 12) * Math.PI * 2 });
+  // Ánh sáng môi trường đã đủ nhuộm màu kiến trúc. Không tạo PointLight cho
+  // từng đuốc vì mỗi nguồn sẽ được tính trên mọi MeshStandardMaterial.
+  void withLight;
+  flames.push({ mesh: fire, phase: seededRandom(flames.length + 12) * Math.PI * 2 });
   parent.add(group);
   return group;
 }
@@ -1427,6 +1541,154 @@ function addDeadTree(parent: THREE.Object3D, x: number, y: number, z: number, sc
   parent.add(setShadow(tree));
 }
 
+function addBurningTree(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  scale: number,
+  seed: number,
+) {
+  const charredBark = new THREE.MeshStandardMaterial({
+    color: 0x090606,
+    emissive: 0x160300,
+    emissiveIntensity: 0.2,
+    roughness: 1,
+  });
+  const emberMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff4a0a,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  });
+  const tree = new THREE.Group();
+  tree.position.set(x, -0.48, z);
+  tree.rotation.y = seededRandom(seed) * Math.PI * 2;
+  tree.rotation.z = (seededRandom(seed + 3) - 0.5) * 0.16;
+
+  const trunkHeight = 4.1 * scale;
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1 * scale, 0.28 * scale, trunkHeight, 7),
+    charredBark,
+  );
+  trunk.position.y = trunkHeight / 2;
+  tree.add(trunk);
+
+  for (let index = 0; index < 5; index += 1) {
+    const angle = seededRandom(seed + index * 13) * Math.PI * 2;
+    const branchLength = scale * (0.8 + seededRandom(seed + index * 17) * 0.8);
+    const branch = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.025 * scale, 0.07 * scale, branchLength, 5),
+      charredBark,
+    );
+    const direction = new THREE.Vector3(
+      Math.cos(angle),
+      0.25 + seededRandom(seed + index * 19) * 0.38,
+      Math.sin(angle),
+    ).normalize();
+    branch.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+    branch.position.copy(direction).multiplyScalar(branchLength * 0.42);
+    branch.position.y += scale * (1.65 + index * 0.42);
+    tree.add(branch);
+  }
+
+  // Khe than hồng mảnh bám theo mặt thân cây. Dùng mặt phẳng thay cho các
+  // SphereGeometry để khi nhìn gần không còn giống những cục cam tròn.
+  for (let index = 0; index < 4; index += 1) {
+    const angle = seededRandom(seed + 101 + index * 11) * Math.PI * 2;
+    const scar = new THREE.Mesh(
+      new THREE.PlaneGeometry(
+        0.055 * scale,
+        (0.2 + seededRandom(seed + index * 17) * 0.16) * scale,
+      ),
+      emberMaterial,
+    );
+    scar.position.set(
+      Math.cos(angle) * 0.205 * scale,
+      scale * (0.65 + index * 0.68),
+      Math.sin(angle) * 0.205 * scale,
+    );
+    scar.rotation.y = Math.PI / 2 - angle;
+    scar.rotation.z = (seededRandom(seed + index * 31) - 0.5) * 0.65;
+    tree.add(scar);
+  }
+
+  // Ngọn lửa thuôn nhọn và hơi nghiêng, thay cho khối cầu phát sáng trước đây.
+  for (let index = 0; index < 2; index += 1) {
+    const angle = seededRandom(seed + 211 + index * 23) * Math.PI * 2;
+    const fire = new THREE.Mesh(
+      new THREE.ConeGeometry(0.14 * scale, 0.62 * scale, 5),
+      new THREE.MeshBasicMaterial({
+        color: index === 0 ? 0xff6a0a : 0xd92b05,
+        transparent: true,
+        opacity: 0.88,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      }),
+    );
+    fire.position.set(
+      Math.cos(angle) * 0.2 * scale,
+      scale * (0.9 + index * 1.35),
+      Math.sin(angle) * 0.2 * scale,
+    );
+    fire.rotation.z = (seededRandom(seed + 251 + index * 13) - 0.5) * 0.28;
+    fire.scale.set(0.72, 1.25, 0.72);
+    tree.add(fire);
+    flames.push({
+      mesh: fire,
+      phase: seededRandom(seed + 307 + index * 29) * Math.PI * 2,
+    });
+  }
+
+  const emberCount = 18;
+  const emberPositions = new Float32Array(emberCount * 3);
+  const emberOffsets = new Float32Array(emberCount * 2);
+  const emberPhases = new Float32Array(emberCount);
+  for (let index = 0; index < emberCount; index += 1) {
+    const particleSeed = seed + 401 + index * 31;
+    const angle = seededRandom(particleSeed) * Math.PI * 2;
+    const radius = scale * (0.08 + seededRandom(particleSeed + 3) * 0.24);
+    emberOffsets[index * 2] = Math.cos(angle) * radius;
+    emberOffsets[index * 2 + 1] = Math.sin(angle) * radius;
+    emberPhases[index] = seededRandom(particleSeed + 7);
+  }
+  const emberGeometry = new THREE.BufferGeometry();
+  emberGeometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(emberPositions, 3),
+  );
+  const risingEmbers = new THREE.Points(
+    emberGeometry,
+    new THREE.PointsMaterial({
+      color: 0xff6418,
+      size: 0.075 * scale,
+      transparent: true,
+      opacity: 0.86,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+  );
+  risingEmbers.frustumCulled = false;
+  risingEmbers.userData.rising = true;
+  risingEmbers.userData.emberOffsets = emberOffsets;
+  risingEmbers.userData.emberPhases = emberPhases;
+  risingEmbers.userData.riseHeight = 4.5 * scale;
+  risingEmbers.userData.riseSpeed = 0.12 + seededRandom(seed + 503) * 0.045;
+  risingEmbers.userData.driftPhase = seededRandom(seed + 509) * Math.PI * 2;
+  tree.add(risingEmbers);
+  embers.push(risingEmbers);
+
+  tree.traverse((child) => {
+    if (!(child instanceof THREE.Mesh) || child.material !== charredBark) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+  });
+  parent.add(tree);
+}
+
 function addAshForest(
   parent: THREE.Object3D,
   countPerSide: number,
@@ -1434,7 +1696,12 @@ function addAshForest(
   rearCount: number,
 ) {
   const totalTrees = (countPerSide + frontCountPerSide) * 2 + rearCount;
-  const bark = new THREE.MeshStandardMaterial({ color: 0x100b0a, roughness: 1 });
+  const bark = new THREE.MeshStandardMaterial({
+    color: 0x211516,
+    emissive: 0x120504,
+    emissiveIntensity: 0.24,
+    roughness: 1,
+  });
   const trunk = new THREE.InstancedMesh(
     new THREE.CylinderGeometry(0.1, 0.24, 5, 7),
     bark,
@@ -1559,36 +1826,249 @@ function addBridge(
   );
   const archPositions = pierPositions.slice(0, -1).map((x) => x + bayWidth / 2);
   const deckTopY = 0.3;
-  const railingHeight = 1.3;
-  const railingThickness = 0.28;
-  const battlementY = deckTopY + railingHeight + 0.24;
   const bridgeEdgeZ = bridgeWidth / 2;
-  // Use the deck's outer face as the single reference plane for the complete
-  // bridge edge. The previous hard-coded inset left a thin exposed ledge,
-  // which read as a broken/flickering seam from the gameplay camera.
-  const railingZ = bridgeEdgeZ - railingThickness / 2;
+  // Mười hai vị trí đặt tháp trải đều dọc cầu. Bỏ ba tim trụ cách đều nhau
+  // để tạo khoảng nghỉ, tránh biến mép cầu thành một dải bệ liên tục.
+  const omittedTowerPierIndices = new Set([3, 8, 13]);
+  const towerPadXs = pierPositions.filter((_, index) => (
+    index > 0
+      && index < pierPositions.length - 1
+      && !omittedTowerPierIndices.has(index)
+  ));
   // The bridge surface tops out at world Y = 5.3, matching the forecourt and castle floor.
   addBox(bridge, [bridgeLength, 0.6, bridgeWidth], [0, 0, 0], stone);
   addBox(bridge, [bridgeLength, 0.28, bridgeWidth], [0, -0.44, 0], darkStone);
 
-  // Align the deck, lower trim and parapet into one uninterrupted outer edge.
-  for (const z of [-railingZ, railingZ]) {
-    addBox(
-      bridge,
-      [bridgeLength, railingHeight, railingThickness],
-      [0, deckTopY + railingHeight / 2, z],
-      stone,
-    );
-    addBattlements(
-      bridge,
-      bridgeLength - 0.34,
-      0,
-      battlementY,
-      z,
-      true,
-      stone,
-      railingThickness,
-    );
+  // Những phiến đá xám nâu lớn tạo mặt đường lát kiểu pháo đài trong ảnh.
+  // Instance color phá sự đồng đều nhưng toàn bộ nền gạch vẫn chỉ tốn một draw call.
+  const paverColumns = 36;
+  const paverRows = 3;
+  const paverLength = bridgeLength / paverColumns;
+  const paverDepth = (bridgeWidth - 0.18) / paverRows;
+  const paverMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.94,
+    metalness: 0.015,
+  });
+  const pavers = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(paverLength - 0.075, 0.075, paverDepth - 0.075),
+    paverMaterial,
+    paverColumns * paverRows,
+  );
+  const paverTransform = new THREE.Object3D();
+  const paverPalette = [0x615957, 0x756960, 0x514c50, 0x685e5b];
+  let paverIndex = 0;
+  for (let column = 0; column < paverColumns; column += 1) {
+    for (let row = 0; row < paverRows; row += 1) {
+      const seed = 23011 + column * 37 + row * 101;
+      paverTransform.position.set(
+        -bridgeLength / 2 + paverLength * (column + 0.5),
+        deckTopY + 0.0375 + (seededRandom(seed) - 0.5) * 0.012,
+        (row - (paverRows - 1) / 2) * paverDepth,
+      );
+      paverTransform.rotation.set(
+        0,
+        (seededRandom(seed + 7) - 0.5) * 0.025,
+        (seededRandom(seed + 13) - 0.5) * 0.012,
+      );
+      paverTransform.updateMatrix();
+      pavers.setMatrixAt(paverIndex, paverTransform.matrix);
+      pavers.setColorAt(
+        paverIndex,
+        new THREE.Color(paverPalette[(column + row * 2) % paverPalette.length]!),
+      );
+      paverIndex += 1;
+    }
+  }
+  pavers.instanceMatrix.needsUpdate = true;
+  if (pavers.instanceColor) pavers.instanceColor.needsUpdate = true;
+  // The deck beneath already receives the large architectural shadows. Avoid
+  // repeating that shadow lookup across every visible paving fragment.
+  pavers.receiveShadow = false;
+  bridge.add(pavers);
+
+  // Mặt cầu chỉ nở rộng cục bộ thành các ban công tròn, thay vì biến toàn bộ
+  // cây cầu thành một tấm chữ nhật rộng đều.
+  const towerPadPositions = towerPadXs.map((x, index) => {
+    const side = index % 2 === 0 ? -1 : 1;
+    return [x, side * (bridgeEdgeZ + 0.5)] as const;
+  });
+  const padTransform = new THREE.Object3D();
+
+  // Lan can Gothic thấp và thoáng: hai thanh ngang mảnh, trụ đứng và chóp
+  // nhọn. Các đoạn thẳng ngắt tại lối vào bệ đặt tháp.
+  const railMaterial = new THREE.MeshStandardMaterial({
+    color: 0x29262d,
+    metalness: 0.28,
+    roughness: 0.72,
+  });
+  const straightRailSegments: Array<[number, number, number]> = [];
+  const railOpeningHalfWidth = 1.28;
+  const railEdgeZ = bridgeEdgeZ - 0.09;
+  for (const z of [-railEdgeZ, railEdgeZ]) {
+    const sidePadXs = towerPadPositions
+      .filter(([, padZ]) => Math.sign(padZ) === Math.sign(z))
+      .map(([padX]) => padX);
+    let segmentStart = -bridgeLength / 2;
+    for (const padX of sidePadXs) {
+      const segmentEnd = padX - railOpeningHalfWidth;
+      if (segmentEnd - segmentStart > 0.2) {
+        straightRailSegments.push([
+          (segmentStart + segmentEnd) / 2,
+          segmentEnd - segmentStart,
+          z,
+        ]);
+      }
+      segmentStart = padX + railOpeningHalfWidth;
+    }
+    if (bridgeLength / 2 - segmentStart > 0.2) {
+      straightRailSegments.push([
+        (segmentStart + bridgeLength / 2) / 2,
+        bridgeLength / 2 - segmentStart,
+        z,
+      ]);
+    }
+  }
+
+  const straightRails = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    railMaterial,
+    straightRailSegments.length * 2,
+  );
+  const straightPostPositions: Array<[number, number]> = [];
+  let straightRailIndex = 0;
+  straightRailSegments.forEach(([centerX, length, z]) => {
+    for (const [height, centerY, depth] of [
+      [0.14, deckTopY + 0.11, 0.2],
+      [0.11, deckTopY + 0.64, 0.18],
+    ] as Array<[number, number, number]>) {
+      padTransform.position.set(centerX, centerY, z);
+      padTransform.rotation.set(0, 0, 0);
+      padTransform.scale.set(length, height, depth);
+      padTransform.updateMatrix();
+      straightRails.setMatrixAt(straightRailIndex, padTransform.matrix);
+      straightRailIndex += 1;
+    }
+
+    const postCount = Math.max(2, Math.ceil(length / 1.05));
+    for (let post = 0; post <= postCount; post += 1) {
+      straightPostPositions.push([
+        centerX - length / 2 + (post / postCount) * length,
+        z,
+      ]);
+    }
+  });
+
+  const straightPosts = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.14, 0.66, 0.14),
+    railMaterial,
+    straightPostPositions.length,
+  );
+  const straightFinials = new THREE.InstancedMesh(
+    new THREE.ConeGeometry(0.13, 0.24, 4),
+    railMaterial,
+    straightPostPositions.length,
+  );
+  straightPostPositions.forEach(([x, z], index) => {
+    padTransform.position.set(x, deckTopY + 0.33, z);
+    padTransform.rotation.set(0, Math.PI / 4, 0);
+    padTransform.scale.set(1, 1, 1);
+    padTransform.updateMatrix();
+    straightPosts.setMatrixAt(index, padTransform.matrix);
+
+    padTransform.position.y = deckTopY + 0.78;
+    padTransform.updateMatrix();
+    straightFinials.setMatrixAt(index, padTransform.matrix);
+  });
+
+  for (const railPart of [
+    straightRails,
+    straightPosts,
+    straightFinials,
+  ]) {
+    railPart.instanceMatrix.needsUpdate = true;
+    railPart.castShadow = true;
+    railPart.receiveShadow = true;
+    bridge.add(railPart);
+  }
+
+  const padBalconies = new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(1.4, 1.4, 0.6, 18),
+    stone,
+    towerPadPositions.length,
+  );
+  const padCorbels = new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(0.85, 1.22, 0.78, 12),
+    darkStone,
+    towerPadPositions.length,
+  );
+  towerPadPositions.forEach(([x, z], index) => {
+    padTransform.position.set(x, 0, z);
+    padTransform.rotation.set(0, Math.PI / 18, 0);
+    padTransform.scale.set(1, 1, 1);
+    padTransform.updateMatrix();
+    padBalconies.setMatrixAt(index, padTransform.matrix);
+
+    padTransform.position.y = -0.68;
+    padTransform.rotation.y = Math.PI / 12;
+    padTransform.updateMatrix();
+    padCorbels.setMatrixAt(index, padTransform.matrix);
+  });
+
+  const padRuneMaterial = new THREE.MeshStandardMaterial({
+    color: 0x9a6032,
+    emissive: 0x2c0903,
+    emissiveIntensity: 0.24,
+    metalness: 0.58,
+    roughness: 0.46,
+  });
+  const padRings = new THREE.InstancedMesh(
+    new THREE.TorusGeometry(0.83, 0.07, 6, 20),
+    padRuneMaterial,
+    towerPadPositions.length,
+  );
+  towerPadPositions.forEach(([x, z], index) => {
+    padTransform.position.set(x, deckTopY + 0.015, z);
+    padTransform.rotation.set(Math.PI / 2, 0, 0);
+    padTransform.scale.set(1, 1, 1);
+    padTransform.updateMatrix();
+    padRings.setMatrixAt(index, padTransform.matrix);
+  });
+
+  const spokeCount = 8;
+  const padSpokes = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.58, 0.05, 0.065),
+    padRuneMaterial,
+    towerPadPositions.length * spokeCount,
+  );
+  let spokeIndex = 0;
+  towerPadPositions.forEach(([x, z]) => {
+    for (let spoke = 0; spoke < spokeCount; spoke += 1) {
+      const angle = (spoke / spokeCount) * Math.PI * 2;
+      const radialCenter = 0.51;
+      padTransform.position.set(
+        x + Math.cos(angle) * radialCenter,
+        deckTopY + 0.02,
+        z + Math.sin(angle) * radialCenter,
+      );
+      padTransform.rotation.set(0, -angle, 0);
+      padTransform.updateMatrix();
+      padSpokes.setMatrixAt(spokeIndex, padTransform.matrix);
+      spokeIndex += 1;
+    }
+  });
+
+  for (const padPart of [
+    padBalconies,
+    padCorbels,
+    padRings,
+    padSpokes,
+  ]) {
+    padPart.instanceMatrix.needsUpdate = true;
+    padPart.castShadow = true;
+    padPart.receiveShadow = true;
+    padPart.name = "tower-placement-pad";
+    bridge.add(padPart);
   }
 
   const recessShape = new THREE.Shape();
@@ -1618,11 +2098,91 @@ function addBridge(
     }
   }
 
+  // Phá silhouette vuông vức tại đường tiếp xúc với dung nham. Các tảng
+  // basalt thấp che chân hộp và khiến trụ trông như được neo vào đá núi lửa.
+  const footingGeometry = new THREE.DodecahedronGeometry(1, 0);
+  const footingCount = pierPositions.length * 4;
+  const footingRocks = new THREE.InstancedMesh(
+    footingGeometry,
+    lavaRock,
+    footingCount,
+  );
+  const footingTransform = new THREE.Object3D();
+  let footingIndex = 0;
+  pierPositions.forEach((x, pierIndex) => {
+    for (let piece = 0; piece < 4; piece += 1) {
+      const seed = 6203 + pierIndex * 71 + piece * 17;
+      const side = piece % 2 === 0 ? -1 : 1;
+      const radius = 0.72 + seededRandom(seed) * 0.5;
+      footingTransform.position.set(
+        x + (seededRandom(seed + 3) - 0.5) * 1.35,
+        -9.55 + seededRandom(seed + 5) * 0.2,
+        side * (1.25 + seededRandom(seed + 7) * 2.3),
+      );
+      footingTransform.rotation.set(
+        (seededRandom(seed + 11) - 0.5) * 0.42,
+        seededRandom(seed + 13) * Math.PI,
+        (seededRandom(seed + 17) - 0.5) * 0.36,
+      );
+      footingTransform.scale.set(
+        radius * (0.78 + seededRandom(seed + 19) * 0.45),
+        radius * (0.48 + seededRandom(seed + 23) * 0.38),
+        radius * (0.9 + seededRandom(seed + 29) * 0.62),
+      );
+      footingTransform.updateMatrix();
+      footingRocks.setMatrixAt(footingIndex, footingTransform.matrix);
+      footingIndex += 1;
+    }
+  });
+  footingRocks.instanceMatrix.needsUpdate = true;
+  footingRocks.castShadow = true;
+  footingRocks.receiveShadow = true;
+  bridge.add(footingRocks);
+
+  // Một draw call tạo vùng gợn nóng cho toàn bộ chân cầu. Các instance dùng
+  // pha khác nhau nên mặt dung nham không dao động đồng loạt như máy móc.
+  const contactMaterial = new THREE.ShaderMaterial({
+    vertexShader: bridgeLavaContactVertexShader,
+    fragmentShader: bridgeLavaContactFragmentShader,
+    uniforms: { uTime: { value: 0 } },
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  });
+  lavaFlowMaterials.push(contactMaterial);
+  const contactRipples = new THREE.InstancedMesh(
+    new THREE.RingGeometry(0.5, 1, 28),
+    contactMaterial,
+    pierPositions.length,
+  );
+  const contactTransform = new THREE.Object3D();
+  pierPositions.forEach((x, index) => {
+    // Mặt lava dao động tối đa khoảng 0.1; đặt ripple cao hơn đỉnh sóng một
+    // chút để depth buffer không nuốt mất hiệu ứng ở góc camera thấp.
+    contactTransform.position.set(x, -9.56, 0);
+    contactTransform.rotation.set(-Math.PI / 2, 0, 0);
+    contactTransform.scale.set(
+      1.72 + seededRandom(8101 + index * 23) * 0.24,
+      5.05 + seededRandom(8111 + index * 29) * 0.4,
+      1,
+    );
+    contactTransform.updateMatrix();
+    contactRipples.setMatrixAt(index, contactTransform.matrix);
+  });
+  contactRipples.instanceMatrix.needsUpdate = true;
+  contactRipples.frustumCulled = false;
+  contactRipples.renderOrder = 8;
+  bridge.add(contactRipples);
+
   const archZ = bridgeWidth / 2 + 0.03;
   for (const x of archPositions) {
     addGothicArch(bridge, x, -archZ, 1, stone, darkStone);
     addGothicArch(bridge, x, archZ, 1, stone, darkStone, true);
   }
+
   parent.add(bridge);
   return bridge;
 }
@@ -1651,20 +2211,32 @@ function addStatue(parent: THREE.Object3D, x: number, y: number, z: number, rota
 
 function addCircularRune(parent: THREE.Object3D, x: number, y: number, z: number, scale: number) {
   const group = new THREE.Group();
-  group.position.set(x, y, z);
+  // Nhấc rune khỏi mặt đường một khoảng rất nhỏ để tránh z-fighting.
+  group.position.set(x, y + 0.012, z);
   group.rotation.x = -Math.PI / 2;
-  const runeMaterial = new THREE.MeshStandardMaterial({ color: 0xa49b8e, roughness: 0.8, metalness: 0.25 });
+  const runeMaterial = new THREE.MeshStandardMaterial({
+    color: 0xa49b8e,
+    roughness: 0.8,
+    metalness: 0.25,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
   const ring = new THREE.Mesh(new THREE.RingGeometry(scale * 0.72, scale * 0.88, 12), runeMaterial);
   group.add(ring);
+  const spokeInnerRadius = scale * 0.22;
+  const spokeOuterRadius = scale * 0.72;
+  const spokeLength = spokeOuterRadius - spokeInnerRadius;
   for (let i = 0; i < 8; i += 1) {
-    const spoke = new THREE.Mesh(new THREE.BoxGeometry(scale * 0.08, scale * 0.75, 0.04), runeMaterial);
-    spoke.position.y = scale * 0.35;
+    const spoke = new THREE.Mesh(
+      new THREE.BoxGeometry(scale * 0.08, spokeLength, 0.04),
+      runeMaterial,
+    );
+    // Bắt đầu tia ngoài vùng tâm để các mesh không còn đè lên nhau.
+    spoke.position.y = (spokeInnerRadius + spokeOuterRadius) / 2;
     spoke.rotation.z = (i / 8) * Math.PI * 2;
     group.add(spoke);
   }
-  const center = new THREE.Mesh(new THREE.CylinderGeometry(scale * 0.16, scale * 0.16, 0.06, 10), runeMaterial);
-  center.rotation.x = Math.PI / 2;
-  group.add(center);
   parent.add(group);
 }
 
@@ -1906,7 +2478,6 @@ function addCastleFoundation(
 
   // Natural rock pillars rise out of the lava and visibly carry the front edge.
   addLavaSupportRocks(foundation, lavaRock);
-  addFoundationLavaFissures(foundation);
 
   const slopeRocks = new THREE.Group();
   slopeRocks.position.y = -6.25;
@@ -1928,6 +2499,16 @@ function addCastleFoundation(
 
   // A contiguous canopy of tall instanced pines fills both outer land bands.
   addAshForest(foundation, 110, 28, 64);
+  for (const [x, z, scale, seed] of [
+    [-31, -13, 1.25, 7103],
+    [-25, 8, 1.05, 7151],
+    [-34, 18, 1.18, 7193],
+    [29, -16, 1.3, 7247],
+    [24, 7, 1.08, 7283],
+    [35, 16, 1.2, 7331],
+  ] as Array<[number, number, number, number]>) {
+    addBurningTree(foundation, x, z, scale, seed);
+  }
 
   for (const side of [-1, 1]) {
     // Smaller boulder fields break up the tree line and create natural clearings.
@@ -2616,39 +3197,19 @@ function buildFortress(
   root.add(fortress);
 }
 
-function createEmbers(root: THREE.Group) {
-  for (let cloudIndex = 0; cloudIndex < 3; cloudIndex += 1) {
-    const count = 100;
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i += 1) {
-      positions[i * 3] = (seededRandom(i + cloudIndex * 91) - 0.5) * 42;
-      positions[i * 3 + 1] = seededRandom(i + cloudIndex * 103) * 13 - 1;
-      positions[i * 3 + 2] = (seededRandom(i + cloudIndex * 117) - 0.5) * 34;
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    const points = new THREE.Points(
-      geometry,
-      new THREE.PointsMaterial({ color: cloudIndex === 0 ? 0xff7a18 : 0xc82b0a, size: 0.075, transparent: true, opacity: 0.75 }),
-    );
-    points.userData.speed = 0.12 + cloudIndex * 0.06;
-    root.add(points);
-    embers.push(points);
-  }
-}
-
-function createBrightSkyTexture() {
+function createVolcanicSkyTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 2;
   canvas.height = 1024;
   const context = canvas.getContext("2d");
-  if (!context) return new THREE.Color(0x9fc7e3);
+  if (!context) return new THREE.Color(0x120b10);
 
   const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, "#4f87bd");
-  gradient.addColorStop(0.48, "#9ec8e3");
-  gradient.addColorStop(0.78, "#ecd5ae");
-  gradient.addColorStop(1, "#f6b77d");
+  gradient.addColorStop(0, "#242532");
+  gradient.addColorStop(0.42, "#343341");
+  gradient.addColorStop(0.72, "#49323a");
+  gradient.addColorStop(0.9, "#68281d");
+  gradient.addColorStop(1, "#28151b");
   context.fillStyle = gradient;
   context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -2662,8 +3223,10 @@ function buildScene() {
   if (!host) return;
 
   scene = new THREE.Scene();
-  scene.background = createBrightSkyTexture();
-  scene.fog = new THREE.FogExp2(0xb8b1a5, 0.012);
+  scene.background = createVolcanicSkyTexture();
+  // Fog tuyến tính chỉ bắt đầu ngoài vùng chơi chính. FogExp2 phụ thuộc mạnh
+  // vào khoảng cách camera nên từng làm màu lâu đài đổi rõ rệt khi zoom ra.
+  scene.fog = new THREE.Fog(0x302631, 180, 340);
 
   camera = new THREE.PerspectiveCamera(38, host.clientWidth / host.clientHeight, 0.1, 300);
   camera.position.copy(DEFAULT_CAMERA_POSITION);
@@ -2671,13 +3234,13 @@ function buildScene() {
   camera.updateProjectionMatrix();
 
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
+  renderer.setPixelRatio(getAdaptivePixelRatio(host.clientWidth, host.clientHeight));
   renderer.setSize(host.clientWidth, host.clientHeight);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.04;
+  renderer.toneMappingExposure = 1;
   host.appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
@@ -2785,27 +3348,10 @@ function buildScene() {
   });
   // Enough subdivisions for very shallow viscous swells; the displacement is
   // deliberately subtle so bridge footings remain seated at the lava line.
-  const lava = new THREE.Mesh(new THREE.PlaneGeometry(180, 120, 80, 52), lavaMaterial);
+  const lava = new THREE.Mesh(new THREE.PlaneGeometry(180, 120, 56, 34), lavaMaterial);
   lava.rotation.x = -Math.PI / 2;
   lava.position.y = -4.7;
   root.add(lava);
-
-  // A low red fill prevents the underside of the bridge and cliff feet from
-  // falling to pure black, while localized amber lights make the lava bounce
-  // feel tied to nearby surface regions instead of one global orange wash.
-  const underGlow = new THREE.PointLight(0xb92708, 90, 72, 2);
-  underGlow.position.set(0, -4.15, 0);
-  root.add(underGlow);
-
-  for (const [x, z, intensity, phase] of [
-    [-20, -5.5, 220, 0.6],
-    [18, 5.5, 220, 3.7],
-  ] as Array<[number, number, number, number]>) {
-    const light = new THREE.PointLight(0xff5a16, intensity, 44, 2);
-    light.position.set(x, -3.7, z);
-    root.add(light);
-    lavaLights.push({ light, baseIntensity: intensity, phase });
-  }
 
   addOppositeLandmass(root, rock, lavaRock);
   addBridge(root, stone, darkStone, lavaRock);
@@ -2821,13 +3367,20 @@ function buildScene() {
     submergedCluster.position.y = -4.55 + seededRandom(seed + 83) * 0.32;
   }
 
-  // Cool daylight defines the masonry without flattening it. The warm key is
-  // strong enough to cast readable shadows but leaves room for lava bounce.
-  scene.add(new THREE.HemisphereLight(0xb9d8f2, 0x321711, 1.18));
-  const keyLight = new THREE.DirectionalLight(0xffdfb8, 2.55);
+  // Hundreds of individually-authored boxes share only a small set of
+  // materials. Bake their world transforms and merge each material group so
+  // the static architecture renders in a handful of draw calls.
+  mergeStaticMeshes(root, scene);
+
+  // Ánh trăng tím lạnh chỉ viền khối; nguồn cam ấm giữ đá ăn màu với dung nham
+  // mà không nâng toàn bộ vật liệu lên xám trắng.
+  scene.add(new THREE.HemisphereLight(0xa2a5ba, 0x351713, 0.88));
+  const keyLight = new THREE.DirectionalLight(0xffc39d, 1.96);
   keyLight.position.set(-24, 38, 22);
   keyLight.target.position.set(10, 0, 0);
   keyLight.castShadow = true;
+  // The atlas is generated only once, so doubling its resolution improves
+  // static shadow edges without adding per-frame shadow rendering work.
   keyLight.shadow.mapSize.set(2048, 2048);
   keyLight.shadow.camera.near = 1;
   keyLight.shadow.camera.far = 150;
@@ -2839,15 +3392,9 @@ function buildScene() {
   keyLight.shadow.normalBias = 0.055;
   scene.add(keyLight, keyLight.target);
 
-  const rimLight = new THREE.DirectionalLight(0x7aaee0, 0.72);
+  const rimLight = new THREE.DirectionalLight(0x8a8fbf, 0.56);
   rimLight.position.set(34, 18, -32);
   scene.add(rimLight);
-
-  const gateGlow = new THREE.PointLight(0xff6a22, 125, 28, 2);
-  gateGlow.position.set(35, 3.8, 0);
-  root.add(gateGlow);
-
-  createEmbers(root);
 
   // All shadow-casting architecture is static. Render its shadow atlas once
   // instead of rebuilding a large depth map on every animation frame.
@@ -2855,15 +3402,18 @@ function buildScene() {
   renderer.shadowMap.needsUpdate = true;
 
   const clock = new THREE.Clock();
+  let lastRisingEmberUpdate = -1;
   const animate = () => {
     animationFrame = requestAnimationFrame(animate);
     const elapsed = clock.getElapsedTime();
+    // Let requestAnimationFrame follow the display cadence. Comparing its
+    // slightly jittery interval against an exact 1/60 previously skipped every
+    // other callback on some 60 Hz displays, making the scene look like 30 FPS.
+    const updateRisingEmbers = elapsed - lastRisingEmberUpdate >= 1 / 24;
+    if (updateRisingEmbers) lastRisingEmberUpdate = elapsed;
     if (lavaMaterial) lavaMaterial.uniforms.uTime!.value = elapsed;
     lavaFlowMaterials.forEach((material) => {
       material.uniforms.uTime!.value = elapsed;
-    });
-    lavaLights.forEach(({ light, baseIntensity, phase }) => {
-      light.intensity = baseIntensity * (0.95 + Math.sin(elapsed * 0.72 + phase) * 0.05);
     });
     flames.forEach((flame) => {
       const pulse = 0.86 + Math.sin(elapsed * 8.5 + flame.phase) * 0.11 + Math.sin(elapsed * 15 + flame.phase) * 0.05;
@@ -2871,8 +3421,32 @@ function buildScene() {
       if (flame.light) flame.light.intensity = 10 + pulse * 5;
     });
     embers.forEach((cloud) => {
-      cloud.rotation.y = elapsed * cloud.userData.speed;
-      cloud.position.y = Math.sin(elapsed * cloud.userData.speed * 3) * 0.3;
+      if (cloud.userData.rising) {
+        if (!updateRisingEmbers) return;
+        const positions = cloud.geometry.getAttribute(
+          "position",
+        ) as THREE.BufferAttribute;
+        const offsets = cloud.userData.emberOffsets as Float32Array;
+        const phases = cloud.userData.emberPhases as Float32Array;
+        const riseHeight = cloud.userData.riseHeight as number;
+        const riseSpeed = cloud.userData.riseSpeed as number;
+        const driftPhase = cloud.userData.driftPhase as number;
+        for (let index = 0; index < positions.count; index += 1) {
+          const life = (elapsed * riseSpeed + phases[index]!) % 1;
+          const sway = Math.sin(elapsed * 1.35 + index * 1.71 + driftPhase)
+            * life
+            * 0.22;
+          positions.setXYZ(
+            index,
+            offsets[index * 2]! + sway,
+            0.55 + life * riseHeight,
+            offsets[index * 2 + 1]! + Math.cos(elapsed + index) * life * 0.12,
+          );
+        }
+        positions.needsUpdate = true;
+        const material = cloud.material as THREE.PointsMaterial;
+        material.opacity = 0.62 + Math.sin(elapsed * 2.1 + driftPhase) * 0.16;
+      }
     });
     if (controls) {
       controls.autoRotate = autoRotate.value;
@@ -2888,6 +3462,7 @@ function buildScene() {
     const height = host.clientHeight;
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
+    renderer.setPixelRatio(getAdaptivePixelRatio(width, height));
     renderer.setSize(width, height, false);
   });
   resizeObserver.observe(host);
@@ -2936,7 +3511,6 @@ onBeforeUnmount(() => {
   surfaceTextures.forEach((texture) => texture.dispose());
   surfaceTextures.length = 0;
   lavaFlowMaterials.length = 0;
-  lavaLights.length = 0;
   document.removeEventListener("fullscreenchange", onFullscreenChange);
   flames.length = 0;
   embers.length = 0;
@@ -2947,7 +3521,6 @@ onBeforeUnmount(() => {
   <main class="citadel-page">
     <div ref="viewport" class="scene-viewport">
       <div class="vignette" aria-hidden="true" />
-      <div class="grain" aria-hidden="true" />
 
       <div class="controls-hint">
         <span><b>DRAG</b> Rotate</span>
@@ -3029,14 +3602,8 @@ onBeforeUnmount(() => {
 .scene-viewport :deep(canvas) { display: block; width: 100%; height: 100%; cursor: grab; }
 .scene-viewport :deep(canvas:active) { cursor: grabbing; }
 
-.vignette,
-.grain { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.vignette { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .vignette { box-shadow: inset 0 0 130px 28px rgba(18, 25, 34, .34); }
-.grain {
-  opacity: .06;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
-  mix-blend-mode: soft-light;
-}
 
 .title-card {
   position: absolute;
@@ -3079,8 +3646,7 @@ h1 span { color: #bb5d35; font-size: .57em; letter-spacing: .045em; }
   display: flex;
   overflow: hidden;
   border: 1px solid rgba(218, 157, 102, .18);
-  background: rgba(9, 7, 10, .72);
-  backdrop-filter: blur(12px);
+  background: rgba(9, 7, 10, .9);
 }
 .scene-actions button { display: grid; width: 42px; height: 42px; padding: 12px; color: rgba(238, 225, 210, .48); cursor: pointer; border: 0; border-right: 1px solid rgba(218, 157, 102, .13); background: transparent; transition: .2s ease; }
 .scene-actions button:last-child { border-right: 0; }
