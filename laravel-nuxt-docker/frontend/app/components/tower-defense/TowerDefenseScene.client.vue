@@ -69,7 +69,9 @@ const props = defineProps<{
 const DEFENSE_PATH_TILES = props.map.pathTiles;
 const DEFENSE_CELL_SIZE = props.map.cellSize;
 const isDarkEnvironment =
-  props.map.environmentMode === "dark" || props.map.id === "lava-fortress";
+  props.map.environmentMode === "dark" ||
+  props.map.worldStyle === "gothic-abyss" ||
+  props.map.id === "lava-fortress";
 const emit = defineEmits<{
   cellSelect: [x: number, y: number];
   backgroundSelect: [];
@@ -3105,7 +3107,7 @@ async function createWorld() {
     sun.position.set(-6, 12, 7);
     // Map dung nham có nhiều mesh tĩnh và nguồn sáng phát quang; shadow pass
     // render lại gần như toàn bộ cảnh, làm số triangles gần gấp đôi khi vừa mở map.
-    sun.castShadow = props.map.id !== "lava-fortress";
+    sun.castShadow = props.map.id !== "lava-fortress" && props.map.worldStyle !== "gothic-abyss";
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.00008;
     sun.shadow.normalBias = 0.025;

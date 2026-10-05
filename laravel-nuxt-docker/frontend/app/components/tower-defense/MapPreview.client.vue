@@ -76,7 +76,7 @@ function clearScene() {
 
 function addLights(map: TowerDefenseMapDefinition) {
   if (!scene) return;
-  const dark = map.environmentMode === "dark";
+  const dark = map.environmentMode === "dark" || map.worldStyle === "gothic-abyss";
   scene.add(
     new THREE.HemisphereLight(
       dark ? 0xaab7e8 : 0xdbeafe,
@@ -140,7 +140,7 @@ async function rebuildPreview() {
   addLights(props.map);
 
   try {
-    const dark = props.map.environmentMode === "dark";
+    const dark = props.map.environmentMode === "dark" || props.map.worldStyle === "gothic-abyss";
     const background = new THREE.Color(props.map.theme.background);
     if (dark) background.lerp(new THREE.Color(0x11101f), 0.34);
     scene.background = background;

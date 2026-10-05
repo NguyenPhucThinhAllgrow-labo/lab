@@ -5,6 +5,7 @@ import { mapPathPosition } from "~/games/tower-defense/map-path";
 import type {
   GridPoint,
   TowerDefenseMapDefinition,
+  TowerDefenseStructureKind,
 } from "~/types/games/towerDefense";
 
 export interface TowerDefenseMapScene {
@@ -29,7 +30,7 @@ export function mapWorldPosition(map: TowerDefenseMapDefinition, x: number, y: n
 }
 
 const isGothicAbyssMap = (map: TowerDefenseMapDefinition) =>
-  map.id === "lava-fortress";
+  map.id === "lava-fortress" || map.worldStyle === "gothic-abyss";
 
 function createMapMesh(surfaceDetail: THREE.DataTexture | null, geometry: THREE.BufferGeometry, color: number, options: { roughness?: number; emissive?: number; flatShading?: boolean } = {}) {
   const roughness = options.roughness ?? 0.8;
@@ -80,6 +81,9 @@ function addFoundation(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfa
 
 function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null) {
   const pathKeys = new Set(map.pathTiles.map(point => `${point.x}:${point.y}`));
+  const terrainByKey = new Map(
+    (map.terrainTiles ?? []).map((tile) => [`${tile.x}:${tile.y}`, tile.type]),
+  );
   const gothicAbyss = isGothicAbyssMap(map);
   const restrictBuildableTiles = Array.isArray(map.buildableTiles);
   const buildableKeys = new Set(
@@ -115,8 +119,17 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
     const key = `${x}:${y}`;
     const isPath = pathKeys.has(key);
     const isBuildable = buildableKeys.has(key);
-    if (gothicAbyss && !isPath && !isBuildable) continue;
+    const terrainType = terrainByKey.get(key);
+    if (gothicAbyss && !isPath && !isBuildable && !terrainType) continue;
+    if (gothicAbyss && terrainType === "lava" && !isPath && !isBuildable) continue;
     const tileTone = (x * 7 + y * 11) % 4 === 0 ? map.theme.tileColors[0] : (x + y) % 3 === 0 ? map.theme.tileColors[1] : map.theme.tileColors[2];
+    const terrainColor = terrainType === "grass" ? 0x36533b
+      : terrainType === "stone" ? 0x69666a
+        : terrainType === "basalt" ? 0x29262d
+          : terrainType === "lava" ? 0xd9360d
+            : terrainType === "sand" ? 0x92784f
+              : terrainType === "snow" ? 0xc4d1d5
+                : tileTone;
     const geometry = new THREE.BoxGeometry(
       gothicAbyss && isBuildable ? map.cellSize * 0.86 : map.cellSize,
       isPath ? 0.16 : 0.15,
@@ -129,8 +142,11 @@ function addTiles(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDet
         ? map.theme.path
         : gothicAbyss && isBuildable
           ? 0x686a70
-          : tileTone,
-      { roughness: 1 },
+          : terrainColor,
+      {
+        roughness: terrainType === "lava" ? 0.72 : 1,
+        emissive: terrainType === "lava" ? 0x651000 : undefined,
+      },
     );
     tile.position.copy(mapWorldPosition(map, x, y));
     tile.position.y = gothicAbyss ? (isPath ? -0.08 : 0) : (isPath ? -0.025 : 0);
@@ -204,12 +220,14 @@ function spawnPortalPlacement(
   lane: 0 | 1,
 ) {
   const path = map.paths[lane];
-  const pathStart = path[0]!;
+  const pathStart = path[0];
   const configuredSpawnPoint = map.spawnPoints?.[lane];
+  if (!pathStart && !configuredSpawnPoint) return null;
   const spawnPoint = configuredSpawnPoint ?? pathStart;
+  if (!spawnPoint) return null;
   const entranceTarget = path.find(
     (point) => point.x !== spawnPoint.x || point.y !== spawnPoint.y,
-  ) ?? pathStart;
+  ) ?? spawnPoint;
   const direction = {
     x: entranceTarget.x - spawnPoint.x,
     y: entranceTarget.y - spawnPoint.y,
@@ -240,6 +258,7 @@ function spawnPortalPlacement(
 function addRouteLines(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   for (const lane of [0, 1] as const) {
     const path = map.paths[lane];
+    if (path.length < 2) continue;
     const curve = new THREE.CurvePath<THREE.Vector3>();
     const sampleStep = 0.08;
     const lastProgress = path.length - 1;
@@ -251,6 +270,7 @@ function addRouteLines(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       return world;
     };
     const portalPlacement = spawnPortalPlacement(map, lane);
+    if (!portalPlacement) continue;
     let previous = mapWorldPosition(
       map,
       portalPlacement.position.x,
@@ -344,6 +364,162 @@ function addScenery(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceD
   }
 }
 
+function createConfiguredStructure(
+  type: TowerDefenseStructureKind,
+  surfaceDetail: THREE.DataTexture | null,
+) {
+  const group = new THREE.Group();
+  const stone = 0x4f4b53;
+  const darkStone = 0x29262f;
+  const add = (geometry: THREE.BufferGeometry, color: number, y: number) => {
+    const mesh = createMapMesh(surfaceDetail, geometry, color, {
+      roughness: 0.94,
+      flatShading: true,
+    });
+    mesh.position.y = y;
+    group.add(mesh);
+    return mesh;
+  };
+
+  if (type === "wall") {
+    add(new THREE.BoxGeometry(0.92, 0.58, 0.24), stone, 0.29);
+    for (const x of [-0.34, 0, 0.34])
+      add(new THREE.BoxGeometry(0.18, 0.2, 0.3), darkStone, 0.68).position.x = x;
+  } else if (type === "watchtower") {
+    add(new THREE.CylinderGeometry(0.34, 0.42, 1.08, 8), stone, 0.54);
+    add(new THREE.CylinderGeometry(0.46, 0.46, 0.16, 8), darkStone, 1.05);
+    add(new THREE.ConeGeometry(0.5, 0.68, 8), 0x242b36, 1.47);
+  } else if (type === "arch") {
+    for (const x of [-0.3, 0.3])
+      add(new THREE.BoxGeometry(0.2, 0.98, 0.26), stone, 0.49).position.x = x;
+    add(new THREE.BoxGeometry(0.82, 0.22, 0.28), darkStone, 0.96);
+    add(new THREE.ConeGeometry(0.2, 0.42, 4), darkStone, 1.25).rotation.y = Math.PI / 4;
+  } else if (type === "gatehouse") {
+    for (const x of [-0.36, 0.36]) {
+      add(new THREE.CylinderGeometry(0.22, 0.27, 1.18, 8), stone, 0.59).position.x = x;
+      add(new THREE.ConeGeometry(0.31, 0.54, 8), 0x171923, 1.36).position.x = x;
+    }
+    add(new THREE.BoxGeometry(0.56, 0.82, 0.3), darkStone, 0.61);
+    const doorway = add(new THREE.BoxGeometry(0.2, 0.54, 0.32), 0x09080c, 0.28);
+    doorway.position.z = 0.02;
+    for (const x of [-0.22, 0, 0.22])
+      add(new THREE.BoxGeometry(0.12, 0.17, 0.34), stone, 1.08).position.x = x;
+  } else if (type === "fortress") {
+    add(new THREE.BoxGeometry(0.9, 0.68, 0.72), darkStone, 0.34);
+    for (const [x, z] of [[-0.38, -0.29], [0.38, -0.29], [-0.38, 0.29], [0.38, 0.29]] as const) {
+      const tower = add(new THREE.CylinderGeometry(0.17, 0.21, 0.9, 8), stone, 0.48);
+      tower.position.set(x, 0.48, z);
+      const roof = add(new THREE.ConeGeometry(0.24, 0.45, 8), 0x171923, 1.12);
+      roof.position.set(x, 1.12, z);
+    }
+    add(new THREE.BoxGeometry(0.32, 1.12, 0.32), stone, 0.58);
+    add(new THREE.ConeGeometry(0.28, 0.62, 8), 0x171923, 1.45);
+  } else if (type === "ruin") {
+    for (let index = 0; index < 3; index += 1) {
+      const height = 0.46 + index * 0.2;
+      const pillar = add(
+        new THREE.CylinderGeometry(0.1, 0.13, height, 6),
+        index % 2 ? darkStone : stone,
+        height / 2,
+      );
+      pillar.position.x = (index - 1) * 0.28;
+      pillar.rotation.z = (index - 1) * 0.08;
+    }
+  } else if (type === "rock") {
+    const rock = add(new THREE.DodecahedronGeometry(0.42, 0), darkStone, 0.27);
+    rock.scale.set(1.2, 0.72, 0.95);
+  } else if (type === "dead-tree" || type === "burning-tree") {
+    const bark = 0x241719;
+    const trunk = add(new THREE.CylinderGeometry(0.07, 0.15, 1.18, 6), bark, 0.58);
+    trunk.rotation.z = 0.08;
+    for (let index = 0; index < 4; index += 1) {
+      const branch = add(new THREE.CylinderGeometry(0.025, 0.055, 0.58, 5), bark, 0.72 + index * 0.1);
+      branch.position.x = (index % 2 ? 1 : -1) * 0.16;
+      branch.rotation.z = (index % 2 ? -1 : 1) * (0.62 + index * 0.06);
+      branch.rotation.x = (index % 2 ? -1 : 1) * 0.28;
+    }
+    if (type === "burning-tree") {
+      const emberCount = 18;
+      const positions = new Float32Array(emberCount * 3);
+      const seeds = new Float32Array(emberCount);
+      for (let index = 0; index < emberCount; index += 1) {
+        const seed = ((index * 37) % emberCount) / emberCount;
+        positions.set([
+          Math.sin(index * 12.93) * 0.13,
+          0.18 + seed * 1.02,
+          Math.cos(index * 7.71) * 0.12,
+        ], index * 3);
+        seeds[index] = seed;
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
+      const material = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+        uniforms: { uTime: { value: 0 } },
+        vertexShader: `
+          attribute float aSeed;
+          uniform float uTime;
+          varying float vLife;
+          void main() {
+            float life = fract(aSeed + uTime * (0.16 + aSeed * 0.08));
+            vec3 p = position;
+            p.y = 0.18 + life * 1.32;
+            p.x += sin(uTime * 2.1 + aSeed * 31.0) * life * 0.16;
+            p.z += cos(uTime * 1.7 + aSeed * 19.0) * life * 0.12;
+            vLife = sin(life * 3.14159265);
+            vec4 viewPosition = modelViewMatrix * vec4(p, 1.0);
+            gl_Position = projectionMatrix * viewPosition;
+            gl_PointSize = (3.0 + aSeed * 2.0) * vLife;
+          }
+        `,
+        fragmentShader: `
+          varying float vLife;
+          void main() {
+            float d = length(gl_PointCoord - vec2(0.5));
+            if (d > 0.5) discard;
+            float core = 1.0 - smoothstep(0.05, 0.5, d);
+            gl_FragColor = vec4(mix(vec3(1.0, 0.16, 0.01), vec3(1.0, 0.78, 0.18), core), core * vLife);
+          }
+        `,
+      });
+      const embers = new THREE.Points(geometry, material);
+      embers.frustumCulled = false;
+      group.add(embers);
+      const emberMaterials = (group.userData.emberMaterials ??= []) as THREE.ShaderMaterial[];
+      emberMaterials.push(material);
+    }
+  }
+
+  return group;
+}
+
+function addConfiguredStructures(
+  scene: THREE.Scene,
+  map: TowerDefenseMapDefinition,
+  surfaceDetail: THREE.DataTexture | null,
+) {
+  for (const definition of map.structures ?? []) {
+    const structure = createConfiguredStructure(definition.type, surfaceDetail);
+    structure.position.copy(mapWorldPosition(map, definition.x, definition.y));
+    structure.position.y = 0.08;
+    structure.rotation.y = definition.rotation ?? 0;
+    structure.scale.setScalar(
+      map.cellSize * 0.78 * THREE.MathUtils.clamp(definition.scale ?? 1, 0.5, 2),
+    );
+    structure.name = `configured-structure-${definition.type}-${definition.x}-${definition.y}`;
+    const emberMaterials = structure.userData.emberMaterials as THREE.ShaderMaterial[] | undefined;
+    if (emberMaterials?.length) {
+      const allMaterials = (scene.userData.configuredEmberMaterials ??= []) as THREE.ShaderMaterial[];
+      allMaterials.push(...emberMaterials);
+    }
+    scene.add(structure);
+  }
+}
+
 function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   const isLavaPortal = map.bossCombatProfileKey === "lava-boss";
   const portalColor = new THREE.Color(isLavaPortal ? 0xd93612 : 0x7040b8);
@@ -357,6 +533,8 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   }> = [];
 
   for (const lane of [0, 1] as const) {
+    const placement = spawnPortalPlacement(map, lane);
+    if (!placement) continue;
     const portal = new THREE.Group();
     portal.name = `enemySpawnPortal-${lane}`;
     const vortexMaterial = new THREE.ShaderMaterial({
@@ -490,7 +668,6 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
       vortexMaterial,
     );
     vortex.name = "spawnPortalVortex";
-    const placement = spawnPortalPlacement(map, lane);
     const entranceDirection = placement.direction;
     portal.rotation.y = Math.atan2(entranceDirection.x, entranceDirection.y);
     portal.position.copy(
@@ -636,33 +813,211 @@ function addGothicAbyssScenery(
   if (!isGothicAbyssMap(map)) return (_elapsed: number) => {};
   const group = new THREE.Group();
   group.name = "gothicAbyssScenery";
+  const mapWidth = map.columns * map.cellSize;
+  const mapDepth = map.rows * map.cellSize;
+  const lavaMaterial = new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
+    toneMapped: false,
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec2 vUv;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0)), f.x), f.y);
+      }
+      void main() {
+        vec2 p = vUv * vec2(13.0, 9.0);
+        float flow = noise(p + vec2(uTime * 0.13, -uTime * 0.08));
+        float detail = noise(p * 2.15 + vec2(-uTime * 0.2, uTime * 0.11));
+        float crust = smoothstep(0.48, 0.68, flow * 0.72 + detail * 0.28);
+        float vein = smoothstep(0.38, 0.61, abs(flow - detail) + flow * 0.2);
+        vec3 deep = vec3(0.035, 0.004, 0.003);
+        vec3 red = vec3(0.72, 0.035, 0.004);
+        vec3 hot = vec3(1.0, 0.26, 0.018);
+        vec3 color = mix(deep, red, crust);
+        color = mix(color, hot, vein * (0.42 + crust * 0.58));
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+  });
+  const lava = new THREE.Mesh(
+    new THREE.PlaneGeometry(Math.max(90, mapWidth * 3), Math.max(90, mapDepth * 3)),
+    lavaMaterial,
+  );
+  lava.name = "gothicAbyssLava";
+  lava.rotation.x = -Math.PI / 2;
+  lava.position.y = -3.45;
+  lava.receiveShadow = false;
+  group.add(lava);
+
   const cliffMaterial = new THREE.MeshStandardMaterial({
-    color: 0x211e25,
+    color: 0x241b1e,
     roughness: 0.96,
     metalness: 0.08,
+    emissive: 0x180403,
+    emissiveIntensity: 0.34,
     bumpMap: surfaceDetail,
     bumpScale: 0.018,
   });
-  const dummy = new THREE.Object3D();
-  const pathFoundation = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(map.cellSize * 1.02, 2.6, map.cellSize * 1.02),
-    cliffMaterial,
-    map.pathTiles.length,
-  );
-  map.pathTiles.forEach((cell, index) => {
-    const position = mapWorldPosition(map, cell.x, cell.y);
-    const depth = 2.35 + ((cell.x * 7 + cell.y * 11) % 4) * 0.18;
-    dummy.position.set(position.x, -0.08 - depth / 2, position.z);
-    dummy.rotation.set(0, 0, 0);
-    dummy.scale.set(1, depth / 2.6, 1);
-    dummy.updateMatrix();
-    pathFoundation.setMatrixAt(index, dummy.matrix);
+  const bridgeStoneMaterial = new THREE.MeshStandardMaterial({
+    color: 0x44383b,
+    roughness: 0.88,
+    metalness: 0.1,
+    emissive: 0x240502,
+    emissiveIntensity: 0.16,
+    bumpMap: surfaceDetail,
+    bumpScale: 0.012,
   });
-  pathFoundation.receiveShadow = true;
-  pathFoundation.instanceMatrix.needsUpdate = true;
-  group.add(pathFoundation);
+  const bridgeTrimMaterial = new THREE.MeshStandardMaterial({
+    color: 0x21191e,
+    roughness: 0.82,
+    metalness: 0.16,
+  });
+  const dummy = new THREE.Object3D();
+
+  // Mỗi cạnh hở của lane trở thành một nhịp cầu Gothic. Cách dựng theo cạnh
+  // giúp mọi lane do admin vẽ (thẳng hoặc rẽ) vẫn có vòm và lan can đúng hướng.
+  const bridgeDeckCells = Array.from(new Map(
+    [
+      ...map.pathTiles,
+      ...(map.terrainTiles ?? []).filter((tile) => tile.type !== "lava"),
+    ].map((cell) => [`${cell.x}:${cell.y}`, cell]),
+  ).values());
+  const supportedSurfaceKeys = new Set([
+    ...bridgeDeckCells.map((cell) => `${cell.x}:${cell.y}`),
+    ...(map.buildableTiles ?? []).map((cell) => `${cell.x}:${cell.y}`),
+  ]);
+  const exposedEdges: Array<{ position: THREE.Vector3; rotation: number }> = [];
+  const directions = [
+    { dx: 0, dy: -1, ox: 0, oz: -0.5, rotation: 0 },
+    { dx: 0, dy: 1, ox: 0, oz: 0.5, rotation: Math.PI },
+    { dx: -1, dy: 0, ox: -0.5, oz: 0, rotation: Math.PI / 2 },
+    { dx: 1, dy: 0, ox: 0.5, oz: 0, rotation: -Math.PI / 2 },
+  ];
+  for (const cell of bridgeDeckCells) {
+    const center = mapWorldPosition(map, cell.x, cell.y);
+    for (const direction of directions) {
+      if (supportedSurfaceKeys.has(`${cell.x + direction.dx}:${cell.y + direction.dy}`)) continue;
+      exposedEdges.push({
+        position: new THREE.Vector3(
+          center.x + direction.ox * map.cellSize,
+          0,
+          center.z + direction.oz * map.cellSize,
+        ),
+        rotation: direction.rotation,
+      });
+    }
+  }
+
+  const sidePiers = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(map.cellSize * 0.13, 3.25, map.cellSize * 0.17),
+    cliffMaterial,
+    exposedEdges.length * 2,
+  );
+  const archRings = new THREE.InstancedMesh(
+    new THREE.TorusGeometry(map.cellSize * 0.33, map.cellSize * 0.085, 5, 12, Math.PI),
+    bridgeStoneMaterial,
+    exposedEdges.length,
+  );
+  const sideBeams = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(map.cellSize, map.cellSize * 0.18, map.cellSize * 0.2),
+    bridgeStoneMaterial,
+    exposedEdges.length,
+  );
+  const railBeams = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(map.cellSize * 0.96, map.cellSize * 0.1, map.cellSize * 0.09),
+    bridgeTrimMaterial,
+    exposedEdges.length,
+  );
+  const merlonCount = exposedEdges.length * 4;
+  const merlons = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(map.cellSize * 0.13, map.cellSize * 0.22, map.cellSize * 0.13),
+    bridgeTrimMaterial,
+    merlonCount,
+  );
+  let pierIndex = 0;
+  let merlonIndex = 0;
+  exposedEdges.forEach((edge, edgeIndex) => {
+    const tangent = new THREE.Vector3(Math.cos(edge.rotation), 0, -Math.sin(edge.rotation));
+    for (const side of [-1, 1]) {
+      dummy.position.copy(edge.position).addScaledVector(tangent, side * map.cellSize * 0.43);
+      dummy.position.y = -1.7;
+      dummy.rotation.set(0, edge.rotation, 0);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      sidePiers.setMatrixAt(pierIndex++, dummy.matrix);
+    }
+    dummy.position.copy(edge.position);
+    dummy.position.y = -1.18;
+    dummy.rotation.set(0, edge.rotation, 0);
+    dummy.scale.set(1, 1, 1);
+    dummy.updateMatrix();
+    archRings.setMatrixAt(edgeIndex, dummy.matrix);
+    dummy.position.y = -0.33;
+    dummy.updateMatrix();
+    sideBeams.setMatrixAt(edgeIndex, dummy.matrix);
+    dummy.position.y = 0.27;
+    dummy.updateMatrix();
+    railBeams.setMatrixAt(edgeIndex, dummy.matrix);
+    for (let marker = 0; marker < 4; marker += 1) {
+      dummy.position.copy(edge.position).addScaledVector(tangent, (marker - 1.5) * map.cellSize * 0.27);
+      dummy.position.y = 0.42;
+      dummy.updateMatrix();
+      merlons.setMatrixAt(merlonIndex++, dummy.matrix);
+    }
+  });
+  for (const item of [sidePiers, archRings, sideBeams, railBeams, merlons]) {
+    item.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    item.instanceMatrix.needsUpdate = true;
+    item.castShadow = true;
+    item.receiveShadow = true;
+    group.add(item);
+  }
+
+  const paversPerTile = 6;
+  const pavers = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(map.cellSize * 0.3, 0.055, map.cellSize * 0.43),
+    bridgeStoneMaterial,
+    map.pathTiles.length * paversPerTile,
+  );
+  let paverIndex = 0;
+  map.pathTiles.forEach((cell, cellIndex) => {
+    const center = mapWorldPosition(map, cell.x, cell.y);
+    for (let row = 0; row < 2; row += 1) for (let column = 0; column < 3; column += 1) {
+      const stagger = row ? map.cellSize * 0.08 : 0;
+      dummy.position.set(
+        center.x + (column - 1) * map.cellSize * 0.32 + stagger,
+        0.015,
+        center.z + (row - 0.5) * map.cellSize * 0.46,
+      );
+      dummy.rotation.set(0, ((cellIndex + row + column) % 3 - 1) * 0.018, 0);
+      dummy.scale.set(0.94, 1, 0.92);
+      dummy.updateMatrix();
+      pavers.setMatrixAt(paverIndex++, dummy.matrix);
+    }
+  });
+  pavers.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+  pavers.instanceMatrix.needsUpdate = true;
+  pavers.receiveShadow = true;
+  group.add(pavers);
 
   const buildableTiles = map.buildableTiles ?? [];
+  const foundationTiles = Array.from(new Map(
+    [
+      ...buildableTiles,
+      ...(map.terrainTiles ?? []).filter((tile) => tile.type !== "lava"),
+    ].map((cell) => [`${cell.x}:${cell.y}`, cell]),
+  ).values());
   const padFoundation = new THREE.InstancedMesh(
     new THREE.BoxGeometry(
       map.cellSize * 1.02,
@@ -670,9 +1025,9 @@ function addGothicAbyssScenery(
       map.cellSize * 1.02,
     ),
     cliffMaterial,
-    buildableTiles.length,
+    foundationTiles.length,
   );
-  buildableTiles.forEach((cell, index) => {
+  foundationTiles.forEach((cell, index) => {
     const position = mapWorldPosition(map, cell.x, cell.y);
     const depth = 2.5 + ((cell.x * 5 + cell.y * 3) % 3) * 0.16;
     const actualDepth = depth * (3.4 / 2.6);
@@ -686,18 +1041,39 @@ function addGothicAbyssScenery(
   padFoundation.instanceMatrix.needsUpdate = true;
   group.add(padFoundation);
 
+  // Ánh đỏ phản xạ nhẹ ở chân cầu tạo cảm giác lava thực sự tác động lên đá,
+  // không dùng PointLight theo từng nhịp để giữ ổn định FPS.
+  const heatGlow = new THREE.Mesh(
+    new THREE.PlaneGeometry(Math.max(30, mapWidth * 1.3), Math.max(30, mapDepth * 1.3)),
+    new THREE.MeshBasicMaterial({
+      color: 0x9c1605,
+      transparent: true,
+      opacity: 0.075,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    }),
+  );
+  heatGlow.rotation.x = -Math.PI / 2;
+  heatGlow.position.y = -3.32;
+  group.add(heatGlow);
+
   scene.add(group);
-  return (_elapsed: number) => {};
+  return (elapsed: number) => {
+    lavaMaterial.uniforms.uTime!.value = elapsed;
+  };
 }
 
 function addAtmosphere(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
-  const count = 90;
+  const gothicAbyss = isGothicAbyssMap(map);
+  const count = gothicAbyss ? 56 : 90;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const baseY = new Float32Array(count);
   let seed = 2173;
-  const gold = new THREE.Color(0xffd88a);
-  const blue = new THREE.Color(0x74dff2);
+  const gold = new THREE.Color(gothicAbyss ? 0xff7a1c : 0xffd88a);
+  const blue = new THREE.Color(gothicAbyss ? 0xd62d0a : 0x74dff2);
   for (let index = 0; index < count; index++) {
     seed = (seed * 16807) % 2147483647;
     const x = ((seed / 2147483647) * (map.columns + 0.4) - (map.columns + 0.4) / 2) * map.cellSize;
@@ -713,7 +1089,7 @@ function addAtmosphere(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  const particles = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.065, vertexColors: true, transparent: true, opacity: 0.72, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+  const particles = new THREE.Points(geometry, new THREE.PointsMaterial({ size: gothicAbyss ? 0.045 : 0.065, vertexColors: true, transparent: true, opacity: gothicAbyss ? 0.48 : 0.72, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
   particles.userData.baseY = baseY;
   particles.frustumCulled = false;
   scene.add(particles);
@@ -722,17 +1098,21 @@ function addAtmosphere(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
 
 /** Dựng toàn bộ phần tĩnh của map và trả các object scene cần tương tác. */
 export function createTowerDefenseMapScene(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null): TowerDefenseMapScene {
+  scene.userData.configuredEmberMaterials = [];
   addFoundation(scene, map, surfaceDetail);
   const tileMeshes = addTiles(scene, map, surfaceDetail);
   addCobblestonePath(scene, map, surfaceDetail);
   addRouteLines(scene, map);
   addScenery(scene, map, surfaceDetail);
+  addConfiguredStructures(scene, map, surfaceDetail);
   const updateGothicAbyss = addGothicAbyssScenery(scene, map, surfaceDetail);
   const updateSpawnPortals = addSpawnPortal(scene, map);
   const particles = addAtmosphere(scene, map);
   const updatePortal = (elapsed: number) => {
     updateSpawnPortals(elapsed);
     updateGothicAbyss(elapsed);
+    const emberMaterials = scene.userData.configuredEmberMaterials as THREE.ShaderMaterial[];
+    for (const material of emberMaterials) material.uniforms.uTime!.value = elapsed;
   };
   const updateBuildableBorders = (elapsed: number) => {
     const materials = scene.userData.lavaPadBorderMaterials as
@@ -854,13 +1234,16 @@ export async function loadTowerDefenseCastle(map: TowerDefenseMapDefinition) {
   container.scale.setScalar(modelScale);
   const castleCell = map.castle.position ?? {
     x: map.columns + map.castle.offsetX,
-    y: map.paths[0].at(-1)!.y,
+    y: map.paths[0].at(-1)?.y ?? (map.rows - 1) / 2,
   };
   const approachPoints = map.paths.map((path) =>
     [...path].reverse().find(
       (point) => point.x !== castleCell.x || point.y !== castleCell.y,
-    ) ?? path.at(-1)!,
-  );
+    ) ?? path.at(-1),
+  ).filter((point): point is GridPoint => Boolean(point));
+  if (approachPoints.length === 0) {
+    approachPoints.push({ x: castleCell.x - 1, y: castleCell.y });
+  }
   const approachCenter = approachPoints.reduce(
     (center, point) => ({ x: center.x + point.x / approachPoints.length, y: center.y + point.y / approachPoints.length }),
     { x: 0, y: 0 },

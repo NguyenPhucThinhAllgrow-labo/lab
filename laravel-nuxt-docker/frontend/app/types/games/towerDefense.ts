@@ -16,6 +16,35 @@ export interface GridPoint {
   y: number;
 }
 
+export type TowerDefenseTerrainKind =
+  | "grass"
+  | "stone"
+  | "basalt"
+  | "lava"
+  | "sand"
+  | "snow";
+
+export type TowerDefenseStructureKind =
+  | "wall"
+  | "watchtower"
+  | "arch"
+  | "gatehouse"
+  | "fortress"
+  | "ruin"
+  | "rock"
+  | "dead-tree"
+  | "burning-tree";
+
+export interface TowerDefenseTerrainTile extends GridPoint {
+  type: TowerDefenseTerrainKind;
+}
+
+export interface TowerDefenseMapStructure extends GridPoint {
+  type: TowerDefenseStructureKind;
+  rotation?: number;
+  scale?: number;
+}
+
 export type TowerDefenseLane = 0 | 1;
 
 export interface TowerDefenseMapTheme {
@@ -56,6 +85,8 @@ export interface TowerDefenseMapDefinition {
   bossOnly?: boolean;
   /** Tông ánh sáng và không khí riêng của map. */
   environmentMode?: "normal" | "dark";
+  /** Nền liền hoặc các đảo/cầu nổi trên vực theo phong cách map test. */
+  worldStyle?: "ground" | "gothic-abyss";
   /** Khoảng cách world-space giữa tâm hai ô kề nhau. */
   cellSize: number;
   /** Vị trí hai cổng sinh quái theo tọa độ grid của map. */
@@ -69,6 +100,10 @@ export interface TowerDefenseMapDefinition {
   };
   /** Các bệ được phép xây; bỏ trống để mọi ô ngoài path vẫn xây được. */
   buildableTiles?: GridPoint[];
+  /** Địa hình được admin sơn thủ công; ô không khai báo dùng theme mặc định. */
+  terrainTiles?: TowerDefenseTerrainTile[];
+  /** Công trình procedural do admin đặt trực tiếp trên lưới map. */
+  structures?: TowerDefenseMapStructure[];
   /** Nhạc nền riêng của map, được chọn từ kho asset backend. */
   backgroundMusicUrl?: string;
   /** Model quái thường riêng của map. */

@@ -21,7 +21,13 @@ import {
   Upload,
   X,
 } from "lucide-vue-next";
-import type { TowerDefenseMapDefinition } from "~/types/games/towerDefense";
+import type {
+  TowerDefenseMapDefinition,
+  TowerDefenseMapStructure,
+  TowerDefenseStructureKind,
+  TowerDefenseTerrainKind,
+  TowerDefenseTerrainTile,
+} from "~/types/games/towerDefense";
 
 type AssetType = "model" | "sound" | "image";
 type AssetPurpose =
@@ -176,10 +182,13 @@ interface MapEditorConfiguration extends Record<string, unknown> {
   startingCredits: number;
   bossOnly?: boolean;
   environmentMode?: "normal" | "dark";
+  worldStyle?: "ground" | "gothic-abyss";
   spawnPoints?: [MapEditorPoint, MapEditorPoint];
   paths: [MapEditorPoint[], MapEditorPoint[]];
   pathTiles: MapEditorPoint[];
   buildableTiles?: MapEditorPoint[];
+  terrainTiles?: TowerDefenseTerrainTile[];
+  structures?: TowerDefenseMapStructure[];
   backgroundMusicUrl?: string;
   backgroundModel?: { url: string; offsetY?: number };
   enemyModel?: CharacterModelConfiguration;
@@ -203,9 +212,16 @@ interface MapEditorConfiguration extends Record<string, unknown> {
     pathEndOffset: number;
   };
   theme?: {
+    background?: number;
+    fogNear?: number;
+    fogFar?: number;
     terrain?: number;
+    gridCenter?: number;
     gridLine?: number;
+    path?: number;
+    pathStone?: number;
     routeColors?: [number, number];
+    tileColors?: [number, number, number];
   };
 }
 interface ManagedEnemyDefinition {
@@ -242,8 +258,46 @@ interface EnemyIntelConfiguration {
 }
 const mapEditorLane = ref<0 | 1>(0);
 const mapEditorPlacementMode = ref<
-  "path" | "buildable" | "portal-0" | "portal-1" | "castle"
+  | "path"
+  | "buildable"
+  | "terrain"
+  | "structure"
+  | "erase-decoration"
+  | "portal-0"
+  | "portal-1"
+  | "castle"
 >("path");
+const TERRAIN_OPTIONS: Array<{
+  value: TowerDefenseTerrainKind;
+  label: string;
+  color: string;
+}> = [
+  { value: "grass", label: "Cỏ", color: "#36533b" },
+  { value: "stone", label: "Đá lát", color: "#69666a" },
+  { value: "basalt", label: "Đá bazan", color: "#29262d" },
+  { value: "lava", label: "Dung nham", color: "#e34212" },
+  { value: "sand", label: "Cát", color: "#9b8055" },
+  { value: "snow", label: "Tuyết", color: "#c5d2d6" },
+];
+const STRUCTURE_OPTIONS: Array<{
+  value: TowerDefenseStructureKind;
+  label: string;
+  icon: string;
+}> = [
+  { value: "wall", label: "Tường thành", icon: "▥" },
+  { value: "watchtower", label: "Tháp canh", icon: "♜" },
+  { value: "arch", label: "Cổng vòm", icon: "∩" },
+  { value: "gatehouse", label: "Cổng pháo đài", icon: "♖" },
+  { value: "fortress", label: "Cụm lâu đài", icon: "♛" },
+  { value: "ruin", label: "Tàn tích", icon: "Π" },
+  { value: "rock", label: "Cụm đá", icon: "◆" },
+  { value: "dead-tree", label: "Cây khô", icon: "♆" },
+  { value: "burning-tree", label: "Cây cháy", icon: "♨" },
+];
+const selectedTerrainKind = ref<TowerDefenseTerrainKind>("basalt");
+const selectedStructureKind = ref<TowerDefenseStructureKind>("wall");
+const selectedStructureRotation = ref(0);
+const selectedStructureScale = ref(1);
 const mapEditorAnchors = ref<[MapEditorPoint[], MapEditorPoint[]]>([[], []]);
 const mapEditorGrid = ref<HTMLElement | null>(null);
 const draggedMapAnchor = ref<{ lane: 0 | 1; index: number } | null>(null);
@@ -281,6 +335,8 @@ const minimumMapColumns = computed(() =>
     ...(visualMapConfiguration.value?.paths.flat().map((point) => point.x + 1) ?? []),
     ...(visualMapConfiguration.value?.spawnPoints?.map((point) => point.x + 1) ?? []),
     ...(visualMapConfiguration.value?.buildableTiles?.map((point) => point.x + 1) ?? []),
+    ...(visualMapConfiguration.value?.terrainTiles?.map((point) => point.x + 1) ?? []),
+    ...(visualMapConfiguration.value?.structures?.map((point) => point.x + 1) ?? []),
     (visualMapConfiguration.value?.castle.position?.x ?? -1) + 1,
   ),
 );
@@ -290,6 +346,8 @@ const minimumMapRows = computed(() =>
     ...(visualMapConfiguration.value?.paths.flat().map((point) => point.y + 1) ?? []),
     ...(visualMapConfiguration.value?.spawnPoints?.map((point) => point.y + 1) ?? []),
     ...(visualMapConfiguration.value?.buildableTiles?.map((point) => point.y + 1) ?? []),
+    ...(visualMapConfiguration.value?.terrainTiles?.map((point) => point.y + 1) ?? []),
+    ...(visualMapConfiguration.value?.structures?.map((point) => point.y + 1) ?? []),
     (visualMapConfiguration.value?.castle.position?.y ?? -1) + 1,
   ),
 );
@@ -316,6 +374,26 @@ const mapEditorBuildableKeys = computed(() =>
     ),
   ),
 );
+const mapEditorTerrainByKey = computed(() => new Map(
+  (visualMapConfiguration.value?.terrainTiles ?? []).map(
+    (tile) => [`${tile.x}:${tile.y}`, tile.type],
+  ),
+));
+const mapEditorStructureByKey = computed(() => new Map(
+  (visualMapConfiguration.value?.structures ?? []).map(
+    (structure) => [`${structure.x}:${structure.y}`, structure],
+  ),
+));
+
+function editorTerrainClass(point: MapEditorPoint) {
+  const type = mapEditorTerrainByKey.value.get(`${point.x}:${point.y}`);
+  return type ? `is-terrain-${type}` : "";
+}
+
+function editorStructureIcon(point: MapEditorPoint) {
+  const structure = mapEditorStructureByKey.value.get(`${point.x}:${point.y}`);
+  return STRUCTURE_OPTIONS.find((option) => option.value === structure?.type)?.icon ?? "";
+}
 
 function configuredSpawnPoint(lane: 0 | 1) {
   const configuration = visualMapConfiguration.value;
@@ -336,6 +414,8 @@ function editorCellContent(point: MapEditorPoint) {
   if (isConfiguredPoint(point, configuredSpawnPoint(0))) return "G1";
   if (isConfiguredPoint(point, configuredSpawnPoint(1))) return "G2";
   if (mapEditorBuildableKeys.value.has(`${point.x}:${point.y}`)) return "T";
+  const structureIcon = editorStructureIcon(point);
+  if (structureIcon) return structureIcon;
   return isEditorAnchor(point, 0) || isEditorAnchor(point, 1) ? "◆" : "";
 }
 
@@ -436,6 +516,7 @@ const defaultMapConfiguration = () => {
     startingCredits: 3000,
     bossOnly: false,
     environmentMode: "normal" as const,
+    worldStyle: "ground" as const,
     cellSize: 1.5,
     spawnPoints: [{ x: 0, y: 3 }, { x: 0, y: 10 }] as [MapEditorPoint, MapEditorPoint],
     paths,
@@ -497,6 +578,8 @@ const defaultMapConfiguration = () => {
       routeColors: [14796906, 16751454],
       tileColors: [2504752, 2965305, 2040098],
     },
+    terrainTiles: [],
+    structures: [],
     scenery: { trees: [], crystals: [], runes: [] },
   };
 };
@@ -540,11 +623,16 @@ const previewMap = computed<TowerDefenseMapDefinition | null>(() => {
 });
 const renderedPreviewMap = shallowRef<TowerDefenseMapDefinition | null>(null);
 const mapPreviewDirty = ref(false);
+let mapPreviewRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 function refreshMapPreview() {
   if (!previewMap.value) return;
-  // Preview dùng snapshot riêng để thao tác vẽ lane không kích hoạt việc dựng
-  // lại hàng trăm mesh và tải model sau mỗi lần click.
+  if (mapPreviewRefreshTimer) {
+    clearTimeout(mapPreviewRefreshTimer);
+    mapPreviewRefreshTimer = null;
+  }
+  // Dùng snapshot riêng để scene chỉ dựng lại sau khi người dùng tạm ngừng
+  // thao tác, tránh tải model và tạo hàng trăm mesh cho từng pointer event.
   renderedPreviewMap.value = JSON.parse(
     JSON.stringify(previewMap.value),
   ) as TowerDefenseMapDefinition;
@@ -552,7 +640,14 @@ function refreshMapPreview() {
 }
 
 watch(previewMap, () => {
-  if (renderedPreviewMap.value) mapPreviewDirty.value = true;
+  if (!previewMap.value) return;
+  mapPreviewDirty.value = true;
+  if (mapPreviewRefreshTimer) clearTimeout(mapPreviewRefreshTimer);
+  mapPreviewRefreshTimer = setTimeout(refreshMapPreview, 320);
+});
+
+onBeforeUnmount(() => {
+  if (mapPreviewRefreshTimer) clearTimeout(mapPreviewRefreshTimer);
 });
 
 function compressPath(path: MapEditorPoint[]) {
@@ -650,14 +745,71 @@ function syncEditorPaths() {
       (point) => !pathKeys.has(`${point.x}:${point.y}`),
     );
   }
+  nextConfiguration.structures = (configuration.structures ?? []).filter(
+    (point) => !pathKeys.has(`${point.x}:${point.y}`),
+  );
   mapForm.configuration = JSON.stringify(nextConfiguration, null, 2);
 }
 
 function selectMapEditorCell(point: MapEditorPoint) {
   if (performance.now() < ignoreMapEditorClickUntil) return;
+  const pointKey = `${point.x}:${point.y}`;
+  if (mapEditorPlacementMode.value === "terrain") {
+    updateMapConfiguration((configuration) => {
+      const terrainTiles = configuration.terrainTiles ?? [];
+      const existing = terrainTiles.find(
+        (tile) => tile.x === point.x && tile.y === point.y,
+      );
+      if (existing) existing.type = selectedTerrainKind.value;
+      else terrainTiles.push({ ...point, type: selectedTerrainKind.value });
+      configuration.terrainTiles = terrainTiles;
+    });
+    mapEditorMessage.value = `Đã sơn ${TERRAIN_OPTIONS.find((item) => item.value === selectedTerrainKind.value)?.label} tại ô ${point.x}, ${point.y}.`;
+    return;
+  }
+  if (mapEditorPlacementMode.value === "structure") {
+    const occupied = mapEditorPathKeys.value.some((keys) => keys.has(pointKey))
+      || mapEditorBuildableKeys.value.has(pointKey)
+      || isConfiguredPoint(point, configuredSpawnPoint(0))
+      || isConfiguredPoint(point, configuredSpawnPoint(1))
+      || isConfiguredPoint(point, configuredCastlePoint());
+    if (occupied) {
+      mapEditorMessage.value =
+        "Công trình không được chắn lane, bệ trụ, cổng spawn hoặc cổng lâu đài.";
+      return;
+    }
+    updateMapConfiguration((configuration) => {
+      const structures = configuration.structures ?? [];
+      const next: TowerDefenseMapStructure = {
+        ...point,
+        type: selectedStructureKind.value,
+        rotation: selectedStructureRotation.value,
+        scale: selectedStructureScale.value,
+      };
+      const existingIndex = structures.findIndex(
+        (item) => item.x === point.x && item.y === point.y,
+      );
+      if (existingIndex >= 0) structures[existingIndex] = next;
+      else structures.push(next);
+      configuration.structures = structures;
+    });
+    mapEditorMessage.value = `Đã đặt ${STRUCTURE_OPTIONS.find((item) => item.value === selectedStructureKind.value)?.label} tại ô ${point.x}, ${point.y}.`;
+    return;
+  }
+  if (mapEditorPlacementMode.value === "erase-decoration") {
+    updateMapConfiguration((configuration) => {
+      configuration.terrainTiles = (configuration.terrainTiles ?? []).filter(
+        (item) => item.x !== point.x || item.y !== point.y,
+      );
+      configuration.structures = (configuration.structures ?? []).filter(
+        (item) => item.x !== point.x || item.y !== point.y,
+      );
+    });
+    mapEditorMessage.value = `Đã xóa địa hình/công trình tùy chỉnh tại ô ${point.x}, ${point.y}.`;
+    return;
+  }
   if (mapEditorPlacementMode.value === "buildable") {
-    const key = `${point.x}:${point.y}`;
-    const isPath = mapEditorPathKeys.value.some((keys) => keys.has(key));
+    const isPath = mapEditorPathKeys.value.some((keys) => keys.has(pointKey));
     if (
       isPath ||
       isConfiguredPoint(point, configuredSpawnPoint(0)) ||
@@ -676,6 +828,9 @@ function selectMapEditorCell(point: MapEditorPoint) {
       );
       if (existingIndex >= 0) buildableTiles.splice(existingIndex, 1);
       else {
+        configuration.structures = (configuration.structures ?? []).filter(
+          (item) => item.x !== point.x || item.y !== point.y,
+        );
         buildableTiles.push({ ...point });
         added = true;
       }
@@ -691,6 +846,9 @@ function selectMapEditorCell(point: MapEditorPoint) {
           (cell) => cell.x !== point.x || cell.y !== point.y,
         );
       }
+      configuration.structures = (configuration.structures ?? []).filter(
+        (item) => item.x !== point.x || item.y !== point.y,
+      );
       if (mapEditorPlacementMode.value === "castle") {
         configuration.castle.position = { ...point };
         return;
@@ -865,6 +1023,20 @@ function clearMapEditorBuildableTiles() {
   mapEditorMessage.value = "Đã xóa toàn bộ bệ đặt trụ.";
 }
 
+function rotateSelectedStructure() {
+  selectedStructureRotation.value = (
+    selectedStructureRotation.value + Math.PI / 2
+  ) % (Math.PI * 2);
+}
+
+function clearMapEditorDecorations() {
+  updateMapConfiguration((configuration) => {
+    configuration.terrainTiles = [];
+    configuration.structures = [];
+  });
+  mapEditorMessage.value = "Đã xóa toàn bộ địa hình và công trình thủ công.";
+}
+
 function resetMapEditorLayout() {
   const defaults = defaultMapConfiguration();
   updateMapConfiguration((configuration) => {
@@ -879,6 +1051,8 @@ function resetMapEditorLayout() {
     ];
     configuration.pathTiles = structuredClone(defaults.pathTiles);
     delete configuration.buildableTiles;
+    configuration.terrainTiles = [];
+    configuration.structures = [];
     configuration.castle.position = { ...defaults.castle.position };
   });
   mapEditorLane.value = 0;
@@ -931,6 +1105,73 @@ function toggleEnvironmentMode() {
     configuration.environmentMode =
       configuration.environmentMode === "dark" ? "normal" : "dark";
   });
+}
+
+function updateMapWorldStyle(event: Event) {
+  const value = (event.target as HTMLSelectElement).value;
+  if (value !== "ground" && value !== "gothic-abyss") return;
+  updateMapConfiguration((configuration) => {
+    configuration.worldStyle = value;
+    if (value === "gothic-abyss") configuration.environmentMode = "dark";
+  });
+}
+
+function applyTestMapLayout() {
+  updateMapConfiguration((configuration) => {
+    const columns = 24;
+    const rows = 11;
+    const laneOne = Array.from({ length: 22 }, (_, x) => ({ x, y: 4 }));
+    laneOne.push({ x: 21, y: 5 });
+    const laneTwo = Array.from({ length: 22 }, (_, x) => ({ x, y: 6 }));
+    laneTwo.push({ x: 21, y: 5 });
+    const paths = [laneOne, laneTwo] as [MapEditorPoint[], MapEditorPoint[]];
+    const pathKeys = new Set(paths.flat().map((point) => `${point.x}:${point.y}`));
+    const buildableTiles: MapEditorPoint[] = [
+      ...[2, 6, 10, 14, 18, 22].map((x) => ({ x, y: 2 })),
+      ...[4, 8, 12, 16, 20, 23].map((x) => ({ x, y: 8 })),
+    ];
+    const buildableKeys = new Set(buildableTiles.map((point) => `${point.x}:${point.y}`));
+    const terrainTiles: TowerDefenseTerrainTile[] = [];
+    for (let x = 0; x < columns; x += 1) {
+      for (let y = 3; y <= 7; y += 1) {
+        const key = `${x}:${y}`;
+        if (pathKeys.has(key) || buildableKeys.has(key)) continue;
+        terrainTiles.push({ x, y, type: (x + y) % 5 === 0 ? "stone" : "basalt" });
+      }
+    }
+    Object.assign(configuration, {
+      columns,
+      rows,
+      maxTowerCount: 12,
+      environmentMode: "dark",
+      worldStyle: "gothic-abyss",
+      spawnPoints: [{ x: 0, y: 4 }, { x: 0, y: 6 }],
+      paths,
+      pathTiles: Array.from(new Map(
+        paths.flat().map((point) => [`${point.x}:${point.y}`, point]),
+      ).values()),
+      buildableTiles,
+      terrainTiles,
+      structures: [],
+    });
+    configuration.castle.position = { x: 22, y: 5 };
+    configuration.castle.rotationY = 0;
+    configuration.castle.maxSize = Math.max(configuration.castle.maxSize ?? 0, 10.5);
+    configuration.theme = {
+      ...configuration.theme,
+      background: 0x09070b,
+      fogNear: 22,
+      fogFar: 58,
+      terrain: 0x1b1519,
+      gridCenter: 0x392326,
+      gridLine: 0x24171b,
+      path: 0x3b2d31,
+      pathStone: 0x6a5654,
+      routeColors: [0xf0a04b, 0xd85a38],
+      tileColors: [0x302529, 0x3b2d31, 0x261d22],
+    };
+  });
+  mapEditorMessage.value = "Đã áp dụng bố cục cầu Gothic giống map test với 12 bệ đặt trụ so le.";
 }
 
 function configuredAssetKey(url?: string) {
@@ -1209,6 +1450,8 @@ async function openMapDialog(
 
 function closeMapDialog() {
   if (!savingMap.value) {
+    if (mapPreviewRefreshTimer) clearTimeout(mapPreviewRefreshTimer);
+    mapPreviewRefreshTimer = null;
     mapDialog.value?.close();
     renderedPreviewMap.value = null;
     mapPreviewDirty.value = false;
@@ -1248,6 +1491,8 @@ async function submitMap() {
         },
       );
     }
+    if (mapPreviewRefreshTimer) clearTimeout(mapPreviewRefreshTimer);
+    mapPreviewRefreshTimer = null;
     mapDialog.value?.close();
     renderedPreviewMap.value = null;
     mapPreviewDirty.value = false;
@@ -1551,6 +1796,7 @@ onMounted(() => {
                 <label><span>Số hàng</span><input :value="visualMapConfiguration.rows" type="number" :min="minimumMapRows" max="40" step="1" required @change="updateMapNumber('rows', $event)" /><small v-if="mapFieldErrors['configuration.rows']">{{ mapFieldErrors['configuration.rows'][0] }}</small></label>
                 <label><span>Số trụ tối đa</span><input :value="visualMapConfiguration.maxTowerCount" type="number" min="1" max="1000" step="1" required @change="updateMapNumber('maxTowerCount', $event)" /><small v-if="mapFieldErrors['configuration.maxTowerCount']">{{ mapFieldErrors['configuration.maxTowerCount'][0] }}</small></label>
                 <label><span>Vàng khởi đầu</span><input :value="visualMapConfiguration.startingCredits ?? 3000" type="number" min="0" max="10000000" step="1" required @change="updateMapNumber('startingCredits', $event)" /><small v-if="mapFieldErrors['configuration.startingCredits']">{{ mapFieldErrors['configuration.startingCredits'][0] }}</small></label>
+                  <label><span>Kiểu nền thế giới</span><select :value="visualMapConfiguration.worldStyle ?? 'ground'" @change="updateMapWorldStyle"><option value="ground">Mặt đất liền</option><option value="gothic-abyss">Cảnh Gothic lava như map test</option></select><small>Preset Gothic tự dựng lava động, cầu lát đá, vòm chịu lực và lan can theo lane đã vẽ.</small><button class="td-editor-action" type="button" @click="applyTestMapLayout">Áp dụng toàn bộ bố cục map test</button></label>
                 <button
                   type="button"
                   class="td-environment-toggle"
@@ -1580,11 +1826,26 @@ onMounted(() => {
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'path' && mapEditorLane === 0 }" @click="mapEditorLane = 0; mapEditorPlacementMode = 'path'">Vẽ lane 1</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'path' && mapEditorLane === 1 }" @click="mapEditorLane = 1; mapEditorPlacementMode = 'path'">Vẽ lane 2</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'buildable' }" @click="mapEditorPlacementMode = 'buildable'">Đặt bệ trụ</button>
+                  <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'terrain' }" @click="mapEditorPlacementMode = 'terrain'">Sơn địa hình</button>
+                  <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'structure' }" @click="mapEditorPlacementMode = 'structure'">Đặt công trình</button>
+                  <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'erase-decoration' }" @click="mapEditorPlacementMode = 'erase-decoration'">Tẩy cảnh</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'portal-0' }" @click="mapEditorPlacementMode = 'portal-0'">Đặt cổng 1</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'portal-1' }" @click="mapEditorPlacementMode = 'portal-1'">Đặt cổng 2</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'castle' }" @click="mapEditorPlacementMode = 'castle'">Đặt cổng lâu đài</button>
                 </div>
               </header>
+
+              <div v-if="mapEditorPlacementMode === 'terrain' || mapEditorPlacementMode === 'structure' || mapEditorPlacementMode === 'erase-decoration'" class="td-builder-palette">
+                <template v-if="mapEditorPlacementMode === 'terrain'">
+                  <button v-for="option in TERRAIN_OPTIONS" :key="option.value" type="button" :class="{ 'is-active': selectedTerrainKind === option.value }" @click="selectedTerrainKind = option.value"><i :style="{ background: option.color }" />{{ option.label }}</button>
+                </template>
+                <template v-else-if="mapEditorPlacementMode === 'structure'">
+                  <button v-for="option in STRUCTURE_OPTIONS" :key="option.value" type="button" :class="{ 'is-active': selectedStructureKind === option.value }" @click="selectedStructureKind = option.value"><b>{{ option.icon }}</b>{{ option.label }}</button>
+                  <button type="button" @click="rotateSelectedStructure">Xoay {{ Math.round(selectedStructureRotation * 180 / Math.PI) }}°</button>
+                  <label>Tỷ lệ <select v-model.number="selectedStructureScale"><option :value="0.75">Nhỏ</option><option :value="1">Vừa</option><option :value="1.25">Lớn</option><option :value="1.5">Rất lớn</option></select></label>
+                </template>
+                <span v-else>Chọn ô để trả địa hình về mặc định và xóa công trình tại ô đó.</span>
+              </div>
 
               <div v-if="visualMapConfiguration" class="td-live-stage">
                 <div
@@ -1604,10 +1865,11 @@ onMounted(() => {
                     :key="`${point.x}:${point.y}`"
                     type="button"
                     :title="`Ô ${point.x}, ${point.y}`"
-                    :class="{
+                    :class="[editorTerrainClass(point), {
                       'is-lane-one': mapEditorPathKeys[0].has(`${point.x}:${point.y}`),
                       'is-lane-two': mapEditorPathKeys[1].has(`${point.x}:${point.y}`),
                       'is-buildable': mapEditorBuildableKeys.has(`${point.x}:${point.y}`),
+                      'is-structure': Boolean(editorStructureIcon(point)),
                       'is-anchor-one': isEditorAnchor(point, 0),
                       'is-anchor-two': isEditorAnchor(point, 1),
                       'is-portal-one': isConfiguredPoint(point, configuredSpawnPoint(0)),
@@ -1615,7 +1877,7 @@ onMounted(() => {
                       'is-castle': isConfiguredPoint(point, configuredCastlePoint()),
                       'is-anchor-draggable': canDragMapAnchor(point),
                       'is-anchor-drop-target': isMapAnchorDropTarget(point),
-                    }"
+                    }]"
                     @pointerdown="startMapAnchorDrag($event, point)"
                     @click="selectMapEditorCell(point)"
                   ><span>{{ editorCellContent(point) }}</span></button>
@@ -1630,10 +1892,13 @@ onMounted(() => {
                     <div><dt>Cổng 2</dt><dd>{{ configuredSpawnPoint(1)?.x }}, {{ configuredSpawnPoint(1)?.y }}</dd></div>
                     <div><dt>Cổng lâu đài</dt><dd>{{ configuredCastlePoint()?.x }}, {{ configuredCastlePoint()?.y }}</dd></div>
                     <div><dt>Bệ đặt trụ</dt><dd>{{ visualMapConfiguration.buildableTiles ? `${visualMapConfiguration.buildableTiles.length} ô` : "Mọi ô ngoài đường" }}</dd></div>
+                    <div><dt>Ô địa hình</dt><dd>{{ visualMapConfiguration.terrainTiles?.length ?? 0 }}</dd></div>
+                    <div><dt>Công trình</dt><dd>{{ visualMapConfiguration.structures?.length ?? 0 }}</dd></div>
                   </dl>
                   <button class="td-editor-action" type="button" :disabled="mapEditorPlacementMode !== 'path' || mapEditorAnchors[mapEditorLane].length === 0" @click="undoMapEditorLane"><Undo2 /> Hoàn tác điểm</button>
                   <button class="td-editor-action is-danger" type="button" :disabled="mapEditorAnchors[mapEditorLane].length === 0" @click="clearMapEditorLane"><Trash2 /> Xóa lane {{ mapEditorLane + 1 }}</button>
                   <button class="td-editor-action is-danger" type="button" :disabled="!visualMapConfiguration.buildableTiles?.length" @click="clearMapEditorBuildableTiles"><Trash2 /> Xóa toàn bộ bệ</button>
+                  <button class="td-editor-action is-danger" type="button" :disabled="!visualMapConfiguration.terrainTiles?.length && !visualMapConfiguration.structures?.length" @click="clearMapEditorDecorations"><Trash2 /> Xóa cảnh thủ công</button>
                   <button class="td-editor-action is-reset" type="button" @click="resetMapEditorLayout"><RotateCcw /> Đặt lại mặc định</button>
                 </aside>
               </div>
@@ -1646,13 +1911,11 @@ onMounted(() => {
                 <div>
                   <small>LIVE PREVIEW</small>
                   <strong>Bản xem trước trong game</strong>
-                  <p>Preview chỉ dựng lại khi bạn yêu cầu để thao tác chỉnh lane luôn mượt.</p>
+                  <p>Preview luôn hiển thị và tự đồng bộ sau khi bạn ngừng thao tác trong giây lát.</p>
                 </div>
                 <div class="td-map-preview-actions">
-                  <span v-if="mapPreviewDirty">Có thay đổi chưa hiển thị</span>
-                  <button type="button" :disabled="!previewMap" @click="refreshMapPreview">
-                    <RefreshCw /> {{ mapPreviewDirty ? 'Cập nhật preview' : 'Dựng lại preview' }}
-                  </button>
+                  <span v-if="mapPreviewDirty"><RefreshCw class="is-spinning" /> Đang đồng bộ…</span>
+                  <span v-else>Đã cập nhật</span>
                 </div>
               </header>
               <ClientOnly>

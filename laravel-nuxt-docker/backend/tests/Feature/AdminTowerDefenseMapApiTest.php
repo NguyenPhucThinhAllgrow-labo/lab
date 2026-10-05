@@ -115,6 +115,46 @@ class AdminTowerDefenseMapApiTest extends TestCase
         $this->assertSame($configuration['castle']['position'], $stored['castle']['position']);
     }
 
+    public function test_admin_can_paint_terrain_and_place_structures(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+        $this->createEnemy('normal-one', 'normal');
+        $this->createEnemy('boss-one', 'boss');
+        $configuration = $this->configuration(['normal-one'], ['boss-one']);
+        $configuration['worldStyle'] = 'gothic-abyss';
+        $configuration['terrainTiles'] = [
+            ['x' => 2, 'y' => 2, 'type' => 'lava'],
+            ['x' => 3, 'y' => 3, 'type' => 'basalt'],
+        ];
+        $configuration['structures'] = [
+            ['x' => 2, 'y' => 3, 'type' => 'watchtower', 'rotation' => 1.5708, 'scale' => 1.25],
+        ];
+
+        $this->postJson('/api/admin/tower-defense/maps', [
+            'id' => 'hand-built-map',
+            'name' => 'Hand built map',
+            'configuration' => $configuration,
+        ])->assertCreated();
+
+        $configuration['terrainTiles'][0]['type'] = 'snow';
+        $configuration['structures'][0]['type'] = 'burning-tree';
+        $this->putJson('/api/admin/tower-defense/maps/hand-built-map', [
+            'name' => 'Hand built map updated',
+            'configuration' => $configuration,
+        ])->assertOk();
+
+        $stored = json_decode(
+            (string) $this->getConnection()->table('tower_defense_maps')
+                ->where('id', 'hand-built-map')
+                ->value('configuration'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $this->assertSame($configuration['terrainTiles'], $stored['terrainTiles']);
+        $this->assertSame($configuration['structures'], $stored['structures']);
+        $this->assertSame('gothic-abyss', $stored['worldStyle']);
+    }
+
     private function createEnemy(string $id, string $kind): void
     {
         TowerDefenseEnemy::create([

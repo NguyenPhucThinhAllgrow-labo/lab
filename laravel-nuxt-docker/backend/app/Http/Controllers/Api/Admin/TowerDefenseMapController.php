@@ -71,6 +71,7 @@ class TowerDefenseMapController extends Controller
             'configuration.startingCredits' => ['sometimes', 'integer', 'between:0,10000000'],
             'configuration.bossOnly' => ['sometimes', 'boolean'],
             'configuration.environmentMode' => ['sometimes', Rule::in(['normal', 'dark'])],
+            'configuration.worldStyle' => ['sometimes', Rule::in(['ground', 'gothic-abyss'])],
             'configuration.cellSize' => ['required', 'numeric', 'gt:0'],
             'configuration.spawnPoints' => ['sometimes', 'array', 'size:2'],
             'configuration.spawnPoints.*.x' => ['required_with:configuration.spawnPoints', 'integer', 'min:0'],
@@ -83,6 +84,21 @@ class TowerDefenseMapController extends Controller
             'configuration.buildableTiles' => ['sometimes', 'array', 'max:10000'],
             'configuration.buildableTiles.*.x' => ['required', 'integer', 'min:0'],
             'configuration.buildableTiles.*.y' => ['required', 'integer', 'min:0'],
+            'configuration.terrainTiles' => ['sometimes', 'array', 'max:10000'],
+            'configuration.terrainTiles.*.x' => ['required', 'integer', 'min:0'],
+            'configuration.terrainTiles.*.y' => ['required', 'integer', 'min:0'],
+            'configuration.terrainTiles.*.type' => ['required', Rule::in([
+                'grass', 'stone', 'basalt', 'lava', 'sand', 'snow',
+            ])],
+            'configuration.structures' => ['sometimes', 'array', 'max:1000'],
+            'configuration.structures.*.x' => ['required', 'integer', 'min:0'],
+            'configuration.structures.*.y' => ['required', 'integer', 'min:0'],
+            'configuration.structures.*.type' => ['required', Rule::in([
+                'wall', 'watchtower', 'arch', 'gatehouse', 'fortress',
+                'ruin', 'rock', 'dead-tree', 'burning-tree',
+            ])],
+            'configuration.structures.*.rotation' => ['sometimes', 'numeric', 'between:0,6.2832'],
+            'configuration.structures.*.scale' => ['sometimes', 'numeric', 'between:0.5,2'],
             'configuration.cornerRadius' => ['required', 'numeric', 'min:0'],
             'configuration.enemyDefinitionIds' => ['required', 'array', 'min:1', 'max:50'],
             'configuration.enemyDefinitionIds.*' => [
@@ -205,6 +221,61 @@ class TowerDefenseMapController extends Controller
             $buildableTiles[$key] = ['x' => $x, 'y' => $y];
         }
 
+        $terrainTiles = [];
+        foreach ($configuration['terrainTiles'] ?? [] as $pointIndex => $point) {
+            $x = (int) $point['x'];
+            $y = (int) $point['y'];
+            if ($x >= $columns || $y >= $rows) {
+                throw ValidationException::withMessages([
+                    "configuration.terrainTiles.{$pointIndex}" => 'Ô địa hình phải nằm trong kích thước map.',
+                ]);
+            }
+            $key = "{$x}:{$y}";
+            if (isset($terrainTiles[$key])) {
+                throw ValidationException::withMessages([
+                    "configuration.terrainTiles.{$pointIndex}" => 'Ô địa hình bị trùng tọa độ.',
+                ]);
+            }
+            $terrainTiles[$key] = [
+                'x' => $x,
+                'y' => $y,
+                'type' => $point['type'],
+            ];
+        }
+
+        $blockedStructures = $blockedBuildableTiles;
+        foreach ($buildableTiles as $key => $_point) {
+            $blockedStructures[$key] = true;
+        }
+        $structures = [];
+        foreach ($configuration['structures'] ?? [] as $pointIndex => $point) {
+            $x = (int) $point['x'];
+            $y = (int) $point['y'];
+            if ($x >= $columns || $y >= $rows) {
+                throw ValidationException::withMessages([
+                    "configuration.structures.{$pointIndex}" => 'Công trình phải nằm trong kích thước map.',
+                ]);
+            }
+            $key = "{$x}:{$y}";
+            if (isset($blockedStructures[$key])) {
+                throw ValidationException::withMessages([
+                    "configuration.structures.{$pointIndex}" => 'Công trình không được chắn đường, bệ trụ hoặc cổng.',
+                ]);
+            }
+            if (isset($structures[$key])) {
+                throw ValidationException::withMessages([
+                    "configuration.structures.{$pointIndex}" => 'Công trình bị trùng tọa độ.',
+                ]);
+            }
+            $structures[$key] = array_filter([
+                'x' => $x,
+                'y' => $y,
+                'type' => $point['type'],
+                'rotation' => isset($point['rotation']) ? (float) $point['rotation'] : null,
+                'scale' => isset($point['scale']) ? (float) $point['scale'] : null,
+            ], static fn ($value) => $value !== null);
+        }
+
         $firstPath = $configuration['paths'][0];
         $secondPath = $configuration['paths'][1];
         $firstEnd = end($firstPath);
@@ -221,6 +292,10 @@ class TowerDefenseMapController extends Controller
         $configuration['pathTiles'] = array_values($pathTiles);
         if (array_key_exists('buildableTiles', $configuration))
             $configuration['buildableTiles'] = array_values($buildableTiles);
+        if (array_key_exists('terrainTiles', $configuration))
+            $configuration['terrainTiles'] = array_values($terrainTiles);
+        if (array_key_exists('structures', $configuration))
+            $configuration['structures'] = array_values($structures);
         $data['configuration'] = $configuration;
 
         return $data;
