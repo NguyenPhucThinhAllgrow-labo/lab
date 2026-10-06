@@ -27,7 +27,7 @@ class TowerDefenseEnemySeeder extends Seeder
             'weakness' => 'Không',
             'model_configuration' => [
                 'characterScale' => 2,
-                'sceneScale' => 0.494,
+                'sceneScale' => \App\Services\TowerDefenseDefaultVisualScales::ENEMY_SCALES['dark-soldier'],
                 'healthBarY' => 1.85,
                 'animationNames' => ['Walk', 'Run'],
                 'removeRootMotion' => true,
@@ -57,7 +57,7 @@ class TowerDefenseEnemySeeder extends Seeder
             'weakness' => 'Nhận thêm 25% sát thương nước',
             'model_configuration' => [
                 'characterScale' => 1,
-                'sceneScale' => 1,
+                'sceneScale' => \App\Services\TowerDefenseDefaultVisualScales::ENEMY_SCALES['lava-overlord'],
                 'healthBarY' => 2.5,
                 'animationNames' => ['Walk', 'Run'],
                 'removeRootMotion' => true,
@@ -87,7 +87,7 @@ class TowerDefenseEnemySeeder extends Seeder
             'weakness' => 'Không',
             'model_configuration' => [
                 'characterScale' => 0.78,
-                'sceneScale' => 1.05,
+                'sceneScale' => \App\Services\TowerDefenseDefaultVisualScales::ENEMY_SCALES['dark-commander'],
                 'healthBarY' => 1.9,
                 'animationNames' => ['Walking_A'],
                 'removeRootMotion' => true,

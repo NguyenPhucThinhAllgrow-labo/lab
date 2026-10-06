@@ -1,18 +1,42 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import lavaMapData from "~/data/tower-defense/lava-map.json";
+import { resolveCitadelCamera } from "~/utils/games/citadelCamera";
+import type { CitadelRuntime } from "~/components/tower-defense/scene/citadel-runtime";
+import { CITADEL_PAVING_COLORS, citadelBridgePointWorld, citadelForecourtTiles } from "~/utils/games/citadelBridgeLayout";
 
-useHead({
-  title: "Citadel of Cinders — Three.js Scene",
-  meta: [
-    {
-      name: "description",
-      content: "Khung cảnh pháo đài gothic trên vực dung nham dựng hoàn toàn bằng Three.js.",
-    },
-  ],
-});
+interface CitadelPreviewConfiguration {
+  columns: number;
+  rows: number;
+  cellSize: number;
+  buildableTiles?: Array<{ x: number; y: number }>;
+  sceneSettings?: typeof lavaMapData.configuration.sceneSettings;
+}
+
+const props = withDefaults(
+  defineProps<{
+    embedded?: boolean;
+    gameplay?: boolean;
+    showPlacementPads?: boolean;
+    configuration?: CitadelPreviewConfiguration;
+  }>(),
+  { embedded: false, showPlacementPads: true },
+);
+const emit = defineEmits<{ runtimeReady: [runtime: CitadelRuntime] }>();
+
+if (!props.embedded)
+  useHead({
+    title: "Citadel of Cinders — Three.js Scene",
+    meta: [
+      {
+        name: "description",
+        content: "Khung cảnh pháo đài gothic trên vực dung nham dựng hoàn toàn bằng Three.js.",
+      },
+    ],
+  });
 
 const viewport = ref<HTMLDivElement | null>(null);
 const loading = ref(true);
@@ -26,33 +50,55 @@ let camera: THREE.PerspectiveCamera | null = null;
 let controls: OrbitControls | null = null;
 let animationFrame = 0;
 let resizeObserver: ResizeObserver | null = null;
+let previewVisibilityObserver: IntersectionObserver | null = null;
+let previewIsVisible = true;
 let lavaMaterial: THREE.ShaderMaterial | null = null;
 const lavaFlowMaterials: THREE.ShaderMaterial[] = [];
+let towerPadGlowMaterial: THREE.MeshStandardMaterial | null = null;
+let rebuildBridgeDecorations: (() => void) | null = null;
+let updatePlacementPadsVisibility: (() => void) | null = null;
 const flames: Array<{ mesh: THREE.Mesh; light?: THREE.PointLight; phase: number }> = [];
 const embers: THREE.Points[] = [];
 const surfaceTextures: THREE.Texture[] = [];
-// Preserve the gameplay camera's configured direction
-// ([7.41, 16.25, 7.28] looking at [1.69, 0, 0]) while scaling its distance
-// to frame this much larger hand-built scene.
-const DEFAULT_CAMERA_TARGET = new THREE.Vector3(17, 5.3, 0);
-const DEFAULT_CAMERA_POSITION = new THREE.Vector3(41.02, 73.55, 30.58);
-const DEFAULT_CAMERA_ZOOM = 0.71;
+// Keep the editor preview and gameplay on the same configured camera angle.
+const testMapConfiguration = props.configuration ?? lavaMapData.configuration;
+const testSceneSettings =
+  testMapConfiguration.sceneSettings ?? lavaMapData.configuration.sceneSettings;
+const sceneCamera = resolveCitadelCamera(testSceneSettings.camera, lavaMapData.configuration.sceneSettings.camera);
+const DEFAULT_CAMERA_TARGET = new THREE.Vector3(
+  sceneCamera.target[0],
+  sceneCamera.target[1],
+  sceneCamera.target[2],
+);
+const DEFAULT_CAMERA_POSITION = new THREE.Vector3(
+  sceneCamera.position[0],
+  sceneCamera.position[1],
+  sceneCamera.position[2],
+);
+const DEFAULT_CAMERA_ZOOM = props.gameplay
+  ? Math.max(testSceneSettings.camera.zoom, lavaMapData.configuration.sceneSettings.camera.zoom)
+  : testSceneSettings.camera.zoom;
 
 // Move the complete citadel four bridge bays farther back while keeping the
 // opposite shore fixed. Extending by exact 4.5-unit bays also keeps every
 // pier and arch evenly spaced.
-const BRIDGE_CASTLE_EDGE_X = 32;
-const BRIDGE_LENGTH = 72;
-const BRIDGE_WIDTH = 5;
+const BRIDGE_CASTLE_EDGE_X = testSceneSettings.bridge.castleEdgeX;
+const BRIDGE_LENGTH = testSceneSettings.bridge.length;
+// Honour the saved width; flush placement markings need no raised platform.
+const BRIDGE_WIDTH = Math.max(testSceneSettings.bridge.width, 3);
 const BRIDGE_CENTER_X = BRIDGE_CASTLE_EDGE_X - BRIDGE_LENGTH / 2;
 const BRIDGE_OPPOSITE_EDGE_X = BRIDGE_CASTLE_EDGE_X - BRIDGE_LENGTH;
-const OPPOSITE_LANDMASS_ORIGIN_X = -43;
+const OPPOSITE_LANDMASS_ORIGIN_X =
+  testSceneSettings.oppositeLandmass.originX;
+const LAVA_SURFACE_WORLD_Y = testSceneSettings.lava.surfaceWorldY;
 
 function getAdaptivePixelRatio(width: number, height: number) {
   // Keep the internal buffer near 1.1 MP. Small/medium screens stay crisp,
   // while large and high-DPI displays scale down instead of multiplying GPU
-  // work purely because the browser window contains more pixels.
-  const maxRenderPixels = 1_100_000;
+  // work purely because the browser window contains more pixels. The admin
+  // editor also renders its 2D layout, so its embedded preview gets a smaller
+  // GPU budget without changing the standalone /test scene.
+  const maxRenderPixels = props.embedded ? 700_000 : 1_100_000;
   const pixelBudgetRatio = Math.sqrt(maxRenderPixels / Math.max(1, width * height));
   return Math.min(window.devicePixelRatio, 1, pixelBudgetRatio);
 }
@@ -1818,7 +1864,7 @@ function addBridge(
   bridge.position.set(BRIDGE_CENTER_X, 5, 0);
   const bridgeLength = BRIDGE_LENGTH;
   const bridgeWidth = BRIDGE_WIDTH;
-  const bayWidth = 4.5;
+  const bayWidth = testSceneSettings.bridge.bayWidth;
   const pierCount = Math.round(bridgeLength / bayWidth) + 1;
   const pierPositions = Array.from(
     { length: pierCount },
@@ -1827,28 +1873,22 @@ function addBridge(
   const archPositions = pierPositions.slice(0, -1).map((x) => x + bayWidth / 2);
   const deckTopY = 0.3;
   const bridgeEdgeZ = bridgeWidth / 2;
-  // Mười hai vị trí đặt tháp trải đều dọc cầu. Bỏ ba tim trụ cách đều nhau
-  // để tạo khoảng nghỉ, tránh biến mép cầu thành một dải bệ liên tục.
-  const omittedTowerPierIndices = new Set([3, 8, 13]);
-  const towerPadXs = pierPositions.filter((_, index) => (
-    index > 0
-      && index < pierPositions.length - 1
-      && !omittedTowerPierIndices.has(index)
-  ));
   // The bridge surface tops out at world Y = 5.3, matching the forecourt and castle floor.
   addBox(bridge, [bridgeLength, 0.6, bridgeWidth], [0, 0, 0], stone);
   addBox(bridge, [bridgeLength, 0.28, bridgeWidth], [0, -0.44, 0], darkStone);
 
-  // Những phiến đá xám nâu lớn tạo mặt đường lát kiểu pháo đài trong ảnh.
+  // Cool, weathered slate slabs for the dark-gothic fortress floor.
   // Instance color phá sự đồng đều nhưng toàn bộ nền gạch vẫn chỉ tốn một draw call.
-  const paverColumns = 36;
-  const paverRows = 3;
+  const paverColumns = testSceneSettings.bridge.paverColumns;
+  const paverRows = testSceneSettings.bridge.paverRows;
   const paverLength = bridgeLength / paverColumns;
   const paverDepth = (bridgeWidth - 0.18) / paverRows;
   const paverMaterial = new THREE.MeshStandardMaterial({
     color: 0xffffff,
     roughness: 0.94,
     metalness: 0.015,
+    bumpMap: createSurfaceBumpMap("rough", 1, 1),
+    bumpScale: 0.065,
   });
   const pavers = new THREE.InstancedMesh(
     new THREE.BoxGeometry(paverLength - 0.075, 0.075, paverDepth - 0.075),
@@ -1856,7 +1896,7 @@ function addBridge(
     paverColumns * paverRows,
   );
   const paverTransform = new THREE.Object3D();
-  const paverPalette = [0x615957, 0x756960, 0x514c50, 0x685e5b];
+  const paverPalette = CITADEL_PAVING_COLORS;
   let paverIndex = 0;
   for (let column = 0; column < paverColumns; column += 1) {
     for (let row = 0; row < paverRows; row += 1) {
@@ -1889,29 +1929,75 @@ function addBridge(
 
   // Mặt cầu chỉ nở rộng cục bộ thành các ban công tròn, thay vì biến toàn bộ
   // cây cầu thành một tấm chữ nhật rộng đều.
-  const towerPadPositions = towerPadXs.map((x, index) => {
-    const side = index % 2 === 0 ? -1 : 1;
-    return [x, side * (bridgeEdgeZ + 0.5)] as const;
-  });
+  const bridgeDecorations = new THREE.Group();
+  bridge.add(bridgeDecorations);
+  const rebuildDecorations = () => {
+    const geometries = new Set<THREE.BufferGeometry>();
+    const materials = new Set<THREE.Material>();
+    bridgeDecorations.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      if (object instanceof THREE.InstancedMesh) object.dispose();
+      geometries.add(object.geometry);
+      const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
+      meshMaterials.forEach((material) => {
+        if (material !== stone && material !== darkStone) materials.add(material);
+      });
+    });
+    bridgeDecorations.clear();
+    geometries.forEach((geometry) => geometry.dispose());
+    materials.forEach((material) => material.dispose());
+    towerPadGlowMaterial = null;
+  const configuredPads = (props.configuration ?? testMapConfiguration).buildableTiles;
+  const omittedTowerPierIndices = new Set(
+    testSceneSettings.bridge.omittedTowerPierIndices ?? [3, 8, 13],
+  );
+  const towerPadPositions: Array<readonly [number, number, boolean]> = configuredPads
+    ? configuredPads.map((point) => {
+        const world = citadelBridgePointWorld(point, {
+          ...testMapConfiguration,
+          sceneSettings: testSceneSettings,
+        })!;
+        const touchesRail = world.balcony
+          || (world.onDeck && Math.abs(world.z) > 0.01);
+        return [world.x - BRIDGE_CENTER_X, world.z, touchesRail] as const;
+      })
+    : pierPositions
+        .filter((_, index) => (
+          index > 0
+          && index < pierPositions.length - 1
+          && !omittedTowerPierIndices.has(index)
+        ))
+        .slice(0, testSceneSettings.bridge.towerPadCount)
+        .map((x, index) => [
+          x,
+          (index % 2 === 0 ? -1 : 1) * (bridgeEdgeZ + 0.5),
+          true,
+        ] as const);
   const padTransform = new THREE.Object3D();
 
-  // Lan can Gothic thấp và thoáng: hai thanh ngang mảnh, trụ đứng và chóp
-  // nhọn. Các đoạn thẳng ngắt tại lối vào bệ đặt tháp.
-  const railMaterial = new THREE.MeshStandardMaterial({
-    color: 0x29262d,
-    metalness: 0.28,
-    roughness: 0.72,
-  });
+  // Low medieval stone parapets with coping, square piers and crenellations.
+  // Keep openings at tower pads and batch repeated masonry into instances.
+  const railMaterial = stone;
   const straightRailSegments: Array<[number, number, number]> = [];
   const railOpeningHalfWidth = 1.28;
   const railEdgeZ = bridgeEdgeZ - 0.09;
   for (const z of [-railEdgeZ, railEdgeZ]) {
     const sidePadXs = towerPadPositions
-      .filter(([, padZ]) => Math.sign(padZ) === Math.sign(z))
-      .map(([padX]) => padX);
+      .filter(([, padZ, opensRail]) => (
+        opensRail && Math.sign(padZ) === Math.sign(z)
+      ))
+      .map(([padX]) => padX)
+      .filter((padX) => (
+        padX + railOpeningHalfWidth > -bridgeLength / 2
+        && padX - railOpeningHalfWidth < bridgeLength / 2
+      ))
+      .sort((left, right) => left - right);
     let segmentStart = -bridgeLength / 2;
     for (const padX of sidePadXs) {
-      const segmentEnd = padX - railOpeningHalfWidth;
+      const segmentEnd = Math.min(
+        bridgeLength / 2,
+        padX - railOpeningHalfWidth,
+      );
       if (segmentEnd - segmentStart > 0.2) {
         straightRailSegments.push([
           (segmentStart + segmentEnd) / 2,
@@ -1919,7 +2005,10 @@ function addBridge(
           z,
         ]);
       }
-      segmentStart = padX + railOpeningHalfWidth;
+      segmentStart = Math.max(
+        segmentStart,
+        padX + railOpeningHalfWidth,
+      );
     }
     if (bridgeLength / 2 - segmentStart > 0.2) {
       straightRailSegments.push([
@@ -1936,11 +2025,12 @@ function addBridge(
     straightRailSegments.length * 2,
   );
   const straightPostPositions: Array<[number, number]> = [];
+  const railPanelPositions: Array<[number, number, number]> = [];
   let straightRailIndex = 0;
   straightRailSegments.forEach(([centerX, length, z]) => {
     for (const [height, centerY, depth] of [
-      [0.14, deckTopY + 0.11, 0.2],
-      [0.11, deckTopY + 0.64, 0.18],
+      [0.68, deckTopY + 0.38, 0.3],
+      [0.12, deckTopY + 0.78, 0.38],
     ] as Array<[number, number, number]>) {
       padTransform.position.set(centerX, centerY, z);
       padTransform.rotation.set(0, 0, 0);
@@ -1950,50 +2040,83 @@ function addBridge(
       straightRailIndex += 1;
     }
 
-    const postCount = Math.max(2, Math.ceil(length / 1.05));
+    const postCount = Math.max(1, Math.ceil(length / 2.4));
     for (let post = 0; post <= postCount; post += 1) {
       straightPostPositions.push([
         centerX - length / 2 + (post / postCount) * length,
         z,
       ]);
+      if (post < postCount) {
+        railPanelPositions.push([
+          centerX - length / 2 + ((post + 0.5) / postCount) * length,
+          length / postCount,
+          z,
+        ]);
+      }
     }
   });
 
   const straightPosts = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(0.14, 0.66, 0.14),
+    new THREE.BoxGeometry(0.32, 1.2, 0.38),
     railMaterial,
     straightPostPositions.length,
   );
   const straightFinials = new THREE.InstancedMesh(
-    new THREE.ConeGeometry(0.13, 0.24, 4),
-    railMaterial,
+    new THREE.BoxGeometry(0.44, 0.12, 0.48),
+    darkStone,
     straightPostPositions.length,
   );
   straightPostPositions.forEach(([x, z], index) => {
-    padTransform.position.set(x, deckTopY + 0.33, z);
-    padTransform.rotation.set(0, Math.PI / 4, 0);
+    padTransform.position.set(x, deckTopY + 0.64, z);
+    padTransform.rotation.set(0, 0, 0);
     padTransform.scale.set(1, 1, 1);
     padTransform.updateMatrix();
     straightPosts.setMatrixAt(index, padTransform.matrix);
 
-    padTransform.position.y = deckTopY + 0.78;
+    padTransform.position.y = deckTopY + 1.3;
     padTransform.updateMatrix();
     straightFinials.setMatrixAt(index, padTransform.matrix);
+  });
+
+  // Broad merlons alternate with open crenels instead of thin metal arches.
+  const railMerlons = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 0.42, 0.32), railMaterial, railPanelPositions.length,
+  );
+  railPanelPositions.forEach(([x, width, z], index) => {
+    padTransform.position.set(x, deckTopY + 1.05, z);
+    padTransform.rotation.set(0, 0, 0);
+    padTransform.scale.set(width * 0.4, 1, 1);
+    padTransform.updateMatrix();
+    railMerlons.setMatrixAt(index, padTransform.matrix);
+  });
+  const railFeet = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.44, 0.16, 0.5),
+    darkStone,
+    straightPostPositions.length,
+  );
+  straightPostPositions.forEach(([x, z], index) => {
+    padTransform.position.set(x, deckTopY + 0.08, z);
+    padTransform.rotation.set(0, 0, 0);
+    padTransform.scale.set(1, 1, 1);
+    padTransform.updateMatrix();
+    railFeet.setMatrixAt(index, padTransform.matrix);
   });
 
   for (const railPart of [
     straightRails,
     straightPosts,
     straightFinials,
+    railMerlons,
+    railFeet,
   ]) {
     railPart.instanceMatrix.needsUpdate = true;
     railPart.castShadow = true;
     railPart.receiveShadow = true;
-    bridge.add(railPart);
+    bridgeDecorations.add(railPart);
   }
 
   const padBalconies = new THREE.InstancedMesh(
-    new THREE.CylinderGeometry(1.4, 1.4, 0.6, 18),
+    new THREE.CylinderGeometry(1.32, 1.4, 0.6, 8),
     stone,
     towerPadPositions.length,
   );
@@ -2002,42 +2125,65 @@ function addBridge(
     darkStone,
     towerPadPositions.length,
   );
+  const padIsBalcony = (z: number) => Math.abs(z) > bridgeEdgeZ;
+  const padScale = (_z: number) => 1;
+  const padTop = (x: number, z: number) => padIsBalcony(z) ? deckTopY
+    : Math.abs(x) <= bridgeLength / 2 ? deckTopY + 0.1 : deckTopY + 0.02;
   towerPadPositions.forEach(([x, z], index) => {
+    const balcony = padIsBalcony(z);
+    const size = padScale(z);
     padTransform.position.set(x, 0, z);
-    padTransform.rotation.set(0, Math.PI / 18, 0);
-    padTransform.scale.set(1, 1, 1);
+    padTransform.rotation.set(0, Math.PI / 8, 0);
+    // Only side balconies need a physical platform. Deck placements are
+    // flush markings on existing paving, not another raised stone pedestal.
+    padTransform.scale.setScalar(balcony ? size : 0);
     padTransform.updateMatrix();
     padBalconies.setMatrixAt(index, padTransform.matrix);
 
     padTransform.position.y = -0.68;
     padTransform.rotation.y = Math.PI / 12;
+    // Interior pads sit on the paving; only outer balconies need a corbel.
+    padTransform.scale.setScalar(balcony ? 1 : 0);
     padTransform.updateMatrix();
     padCorbels.setMatrixAt(index, padTransform.matrix);
   });
 
   const padRuneMaterial = new THREE.MeshStandardMaterial({
-    color: 0x9a6032,
-    emissive: 0x2c0903,
-    emissiveIntensity: 0.24,
-    metalness: 0.58,
-    roughness: 0.46,
+    color: 0x84735c,
+    emissive: 0xff9b38,
+    emissiveIntensity: 1.2,
+    metalness: 0.48,
+    roughness: 0.72,
+  });
+  towerPadGlowMaterial = padRuneMaterial;
+  const padInsets = new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(1.16, 1.2, 0.06, 8),
+    darkStone,
+    towerPadPositions.length,
+  );
+  towerPadPositions.forEach(([x, z], index) => {
+    padTransform.position.set(x, padTop(x, z) + 0.031, z);
+    padTransform.rotation.set(0, Math.PI / 8, 0);
+    padTransform.scale.setScalar(padIsBalcony(z) ? padScale(z) : 0);
+    padTransform.updateMatrix();
+    padInsets.setMatrixAt(index, padTransform.matrix);
   });
   const padRings = new THREE.InstancedMesh(
-    new THREE.TorusGeometry(0.83, 0.07, 6, 20),
+    new THREE.TorusGeometry(0.98, 0.0125, 4, 8),
     padRuneMaterial,
     towerPadPositions.length,
   );
   towerPadPositions.forEach(([x, z], index) => {
-    padTransform.position.set(x, deckTopY + 0.015, z);
-    padTransform.rotation.set(Math.PI / 2, 0, 0);
-    padTransform.scale.set(1, 1, 1);
+    padTransform.position.set(x, padTop(x, z) + (padIsBalcony(z) ? 0.074 : 0.015), z);
+    padTransform.rotation.set(Math.PI / 2, 0, Math.PI / 8);
+    padTransform.scale.setScalar(padScale(z));
     padTransform.updateMatrix();
     padRings.setMatrixAt(index, padTransform.matrix);
   });
 
-  const spokeCount = 8;
+  const spokeCount = 4;
   const padSpokes = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(0.58, 0.05, 0.065),
+    new THREE.BoxGeometry(0.18, 0.025, 0.07),
     padRuneMaterial,
     towerPadPositions.length * spokeCount,
   );
@@ -2045,31 +2191,46 @@ function addBridge(
   towerPadPositions.forEach(([x, z]) => {
     for (let spoke = 0; spoke < spokeCount; spoke += 1) {
       const angle = (spoke / spokeCount) * Math.PI * 2;
-      const radialCenter = 0.51;
+      const radialCenter = 0.85 * padScale(z);
       padTransform.position.set(
         x + Math.cos(angle) * radialCenter,
-        deckTopY + 0.02,
+        padTop(x, z) + (padIsBalcony(z) ? 0.072 : 0.015),
         z + Math.sin(angle) * radialCenter,
       );
       padTransform.rotation.set(0, -angle, 0);
+      padTransform.scale.set(padScale(z), 1, padScale(z));
       padTransform.updateMatrix();
       padSpokes.setMatrixAt(spokeIndex, padTransform.matrix);
       spokeIndex += 1;
     }
   });
 
-  for (const padPart of [
-    padBalconies,
-    padCorbels,
-    padRings,
-    padSpokes,
-  ]) {
+  // Keep load-bearing side balconies; hide only placement markings in combat.
+  const placementMarks = new THREE.Group();
+  placementMarks.name = "tower-placement-markings";
+  bridgeDecorations.add(placementMarks);
+  updatePlacementPadsVisibility = () => {
+    placementMarks.visible = props.showPlacementPads;
+  };
+  updatePlacementPadsVisibility();
+  for (const padPart of [padBalconies, padCorbels]) {
     padPart.instanceMatrix.needsUpdate = true;
     padPart.castShadow = true;
     padPart.receiveShadow = true;
-    padPart.name = "tower-placement-pad";
-    bridge.add(padPart);
+    bridgeDecorations.add(padPart);
   }
+  for (const padPart of [padInsets, padRings, padSpokes]) {
+    padPart.instanceMatrix.needsUpdate = true;
+    padPart.castShadow = false;
+    padPart.receiveShadow = true;
+    padPart.name = "tower-placement-pad";
+    placementMarks.add(padPart);
+  }
+    bridgeDecorations.updateWorldMatrix(true, true);
+    if (renderer) renderer.shadowMap.needsUpdate = true;
+  };
+  rebuildBridgeDecorations = rebuildDecorations;
+  rebuildDecorations();
 
   const recessShape = new THREE.Shape();
   recessShape.moveTo(-0.4, -1.7);
@@ -2558,16 +2719,22 @@ function addCastleForecourt(
   // The paved court sits directly on the flat summit of the shared plateau.
   addBox(forecourt, [courtWidth, 0.78, courtDepth], [0, -0.16, courtZ], stone);
 
-  // Large alternating slabs make the scale of the open court readable from above.
-  for (let row = 0; row < 5; row += 1) {
-    for (let column = 0; column < 10; column += 1) {
+  // Share one bump texture and four materials across all court slabs.
+  const courtBump = createSurfaceBumpMap("rough", 1, 1);
+  const courtPaving = new Map(CITADEL_PAVING_COLORS.map((color) => [color, new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.94,
+    metalness: 0.015,
+    bumpMap: courtBump,
+    bumpScale: 0.065,
+  })]));
+  for (const tile of citadelForecourtTiles({ ...testMapConfiguration, sceneSettings: testSceneSettings })) {
       addBox(
         forecourt,
-        [2.05, 0.08, 1.72],
-        [-9.45 + column * 2.1, 0.27, 13.3 + row * 1.78],
-        (row + column) % 2 ? stone : darkStone,
+        [tile.height * testMapConfiguration.cellSize - 0.06, 0.08, tile.width * testMapConfiguration.cellSize - 0.06],
+        [tile.worldZ, 0.27, 54.5 - tile.worldX],
+        courtPaving.get(tile.color)!,
       );
-    }
   }
 
   for (const x of [-11.72, 11.72]) {
@@ -3070,7 +3237,14 @@ function buildFortress(
   fortress.rotation.y = -Math.PI / 2;
   addCastleFoundation(fortress, stone, darkStone, rock, lavaRock);
   addCastleForecourt(fortress, stone, darkStone, roof);
-  addBox(fortress, [35, 0.9, 35.5], [0, -0.15, -4], stone);
+  const innerPaving = new THREE.MeshStandardMaterial({
+    color: CITADEL_PAVING_COLORS[0],
+    roughness: 0.94,
+    metalness: 0.015,
+    bumpMap: createSurfaceBumpMap("path", 6, 6),
+    bumpScale: 0.085,
+  });
+  addBox(fortress, [35, 0.9, 35.5], [0, -0.15, -4], innerPaving);
   addBox(fortress, [35.6, 1.3, 36.1], [0, -0.85, -4], darkStone);
 
   // Taller curtain walls give the outer defensive ring a more imposing silhouette.
@@ -3221,6 +3395,13 @@ function createVolcanicSkyTexture() {
 function buildScene() {
   const host = viewport.value;
   if (!host) return;
+  if (props.embedded) {
+    previewIsVisible = false;
+    previewVisibilityObserver = new IntersectionObserver(([entry]) => {
+      previewIsVisible = entry?.isIntersecting ?? false;
+    });
+    previewVisibilityObserver.observe(host);
+  }
 
   scene = new THREE.Scene();
   scene.background = createVolcanicSkyTexture();
@@ -3250,7 +3431,7 @@ function buildScene() {
   controls.enablePan = true;
   controls.autoRotate = false;
   controls.autoRotateSpeed = 0.35;
-  controls.minDistance = 24;
+  controls.minDistance = 4;
   controls.maxDistance = 160;
   controls.maxPolarAngle = Math.PI * 0.48;
   controls.minPolarAngle = Math.PI * 0.19;
@@ -3348,9 +3529,17 @@ function buildScene() {
   });
   // Enough subdivisions for very shallow viscous swells; the displacement is
   // deliberately subtle so bridge footings remain seated at the lava line.
-  const lava = new THREE.Mesh(new THREE.PlaneGeometry(180, 120, 56, 34), lavaMaterial);
+  const lava = new THREE.Mesh(
+    new THREE.PlaneGeometry(
+      testSceneSettings.lava.width,
+      testSceneSettings.lava.depth,
+      56,
+      34,
+    ),
+    lavaMaterial,
+  );
   lava.rotation.x = -Math.PI / 2;
-  lava.position.y = -4.7;
+  lava.position.y = LAVA_SURFACE_WORLD_Y;
   root.add(lava);
 
   addOppositeLandmass(root, rock, lavaRock);
@@ -3381,7 +3570,8 @@ function buildScene() {
   keyLight.castShadow = true;
   // The atlas is generated only once, so doubling its resolution improves
   // static shadow edges without adding per-frame shadow rendering work.
-  keyLight.shadow.mapSize.set(2048, 2048);
+  const shadowMapSize = props.embedded ? 1024 : 2048;
+  keyLight.shadow.mapSize.set(shadowMapSize, shadowMapSize);
   keyLight.shadow.camera.near = 1;
   keyLight.shadow.camera.far = 150;
   keyLight.shadow.camera.left = -68;
@@ -3402,10 +3592,17 @@ function buildScene() {
   renderer.shadowMap.needsUpdate = true;
 
   const clock = new THREE.Clock();
+  const runtime: CitadelRuntime = { scene, camera, renderer, controls };
+  if (props.gameplay) emit("runtimeReady", runtime);
   let lastRisingEmberUpdate = -1;
   const animate = () => {
     animationFrame = requestAnimationFrame(animate);
+    if (!previewIsVisible || document.hidden) return;
     const elapsed = clock.getElapsedTime();
+    if (towerPadGlowMaterial) {
+      const pulse = 0.5 + 0.5 * Math.sin(elapsed * Math.PI);
+      towerPadGlowMaterial.emissiveIntensity = 0.35 + pulse * pulse * 1.8;
+    }
     // Let requestAnimationFrame follow the display cadence. Comparing its
     // slightly jittery interval against an exact 1/60 previously skipped every
     // other callback on some 60 Hz displays, making the scene look like 30 FPS.
@@ -3452,6 +3649,7 @@ function buildScene() {
       controls.autoRotate = autoRotate.value;
       controls.update();
     }
+    runtime.beforeRender?.();
     if (renderer && scene && camera) renderer.render(scene, camera);
   };
   animate();
@@ -3493,9 +3691,18 @@ onMounted(() => {
   document.addEventListener("fullscreenchange", onFullscreenChange);
 });
 
+watch(
+  () => (props.configuration?.buildableTiles ?? []).map((point) => `${point.x}:${point.y}`).join("|"),
+  () => rebuildBridgeDecorations?.(),
+);
+watch(() => props.showPlacementPads, () => updatePlacementPadsVisibility?.());
+
 onBeforeUnmount(() => {
+  rebuildBridgeDecorations = null;
+  updatePlacementPadsVisibility = null;
   cancelAnimationFrame(animationFrame);
   resizeObserver?.disconnect();
+  previewVisibilityObserver?.disconnect();
   controls?.dispose();
   if (scene) {
     if (scene.background instanceof THREE.Texture) scene.background.dispose();
@@ -3511,6 +3718,7 @@ onBeforeUnmount(() => {
   surfaceTextures.forEach((texture) => texture.dispose());
   surfaceTextures.length = 0;
   lavaFlowMaterials.length = 0;
+  towerPadGlowMaterial = null;
   document.removeEventListener("fullscreenchange", onFullscreenChange);
   flames.length = 0;
   embers.length = 0;
@@ -3518,11 +3726,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="citadel-page">
+  <main class="citadel-page" :class="{ 'is-embedded': props.embedded, 'is-gameplay': props.gameplay }">
     <div ref="viewport" class="scene-viewport">
       <div class="vignette" aria-hidden="true" />
 
-      <div class="controls-hint">
+      <div v-if="!props.embedded" class="controls-hint">
         <span><b>DRAG</b> Rotate</span>
         <i />
         <span><b>SCROLL</b> Zoom</span>
@@ -3530,7 +3738,7 @@ onBeforeUnmount(() => {
         <span><b>RIGHT DRAG</b> Pan</span>
       </div>
 
-      <nav class="scene-actions" aria-label="Điều khiển khung cảnh">
+      <nav v-if="!props.embedded" class="scene-actions" aria-label="Điều khiển khung cảnh">
         <button type="button" :class="{ active: autoRotate }" title="Tự động xoay" @click="autoRotate = !autoRotate">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-5V2m4.1 5A8 8 0 1 0 20 16" /></svg>
         </button>
@@ -3571,6 +3779,30 @@ onBeforeUnmount(() => {
     radial-gradient(circle at 50% 120%, rgba(133, 22, 3, .34), transparent 42%),
     #070609;
   font-family: Inter, sans-serif;
+}
+
+.citadel-page.is-embedded {
+  min-height: 0;
+  padding: 0;
+  background: #070609;
+}
+.citadel-page.is-gameplay {
+  position: absolute;
+  inset: 0;
+}
+.citadel-page.is-embedded.is-gameplay .scene-viewport {
+  height: 100%;
+  min-height: 0;
+}
+.citadel-page.is-embedded .scene-viewport {
+  height: min(68vh, 720px);
+  min-height: 520px;
+  border: 0;
+  border-radius: 0;
+}
+.citadel-page.is-embedded .scene-viewport::before,
+.citadel-page.is-embedded .scene-viewport::after {
+  content: none;
 }
 
 .scene-viewport {

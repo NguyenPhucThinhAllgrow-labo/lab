@@ -119,7 +119,7 @@ export function createTowerDefenseImpactScene(
               ? 520
               : 420) / speedMultiplier;
     if (impact.kind === "frost") {
-      group.position.y = 0.08;
+      group.position.y += 0.08;
       const radius = (impact.radius ?? 1) * cellSize;
 
       // Sóng gradient lan trực tiếp từ chân tháp ra toàn bộ vùng sát thương.
@@ -162,7 +162,7 @@ export function createTowerDefenseImpactScene(
       group.userData.frostCascadeWave = [disc, innerWave];
       group.add(disc, innerWave);
     } else if (impact.kind === "fire") {
-      group.position.y = 0.08;
+      group.position.y += 0.08;
       const radius = (impact.radius ?? 1) * cellSize;
       const waveMaterial = (opacity: number) =>
         new THREE.MeshBasicMaterial({
@@ -202,7 +202,7 @@ export function createTowerDefenseImpactScene(
       group.userData.fireBlastWaves = [outerWave, innerWave];
       group.add(outerWave, innerWave);
     } else if (impact.kind === "water") {
-      group.position.y = 0.1;
+      group.position.y += 0.1;
       const radius = (impact.radius ?? 0.7) * cellSize;
       const up = new THREE.Vector3(0, 1, 0);
       for (let index = 0; index < 8; index++) {
@@ -266,7 +266,7 @@ export function createTowerDefenseImpactScene(
         group.add(droplet);
       }
     } else if (impact.kind === "thunder") {
-      group.position.y = 0.36;
+      group.position.y += 0.36;
       const flash = new THREE.Mesh(
         new THREE.SphereGeometry(0.18 + impact.level * 0.035, 12, 8),
         new THREE.MeshBasicMaterial({
@@ -301,7 +301,7 @@ export function createTowerDefenseImpactScene(
         group.add(arc);
       }
     } else if (impact.kind === "archer") {
-      group.position.y = 0.42;
+      group.position.y += 0.42;
       const slashCount = impact.level >= 3 ? 3 : impact.level === 2 ? 2 : 1;
       for (let index = 0; index < slashCount; index++) {
         const slash = new THREE.Mesh(
@@ -340,7 +340,7 @@ export function createTowerDefenseImpactScene(
         group.add(spark);
       }
     } else {
-      group.position.y = 0.08;
+      group.position.y += 0.08;
       const flash = new THREE.Mesh(
         new THREE.SphereGeometry(0.16 + impact.level * 0.035, 12, 8),
         new THREE.MeshBasicMaterial({

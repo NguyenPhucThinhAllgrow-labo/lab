@@ -115,6 +115,67 @@ class AdminTowerDefenseMapApiTest extends TestCase
         $this->assertSame($configuration['castle']['position'], $stored['castle']['position']);
     }
 
+    public function test_imported_citadel_configuration_survives_create_update_and_public_load(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+        $this->createEnemy('normal-one', 'normal');
+        $this->createEnemy('boss-one', 'boss');
+        $preset = json_decode(file_get_contents(base_path('tests/Fixtures/citadel-map.json')), true, flags: JSON_THROW_ON_ERROR);
+        $configuration = $preset['configuration'];
+        $configuration['enemyDefinitionIds'] = ['normal-one'];
+        $configuration['bossDefinitionIds'] = ['boss-one'];
+        // A custom pad directly on a bridge lane must not disappear on save.
+        $configuration['buildableTiles'][] = ['x' => 35, 'y' => 29];
+
+        $this->postJson('/api/admin/tower-defense/maps', [
+            'id' => 'saved-citadel', 'name' => 'Saved citadel',
+            'configuration' => $configuration, 'is_active' => true,
+        ])->assertCreated();
+        $this->assertDatabaseHas('tower_defense_maps', ['id' => 'saved-citadel']);
+
+        $first = $this->getJson('/api/tower-defense/maps/saved-citadel')->assertOk();
+        $first->assertJsonPath('data.scenePreset', 'citadel-of-cinders')
+            ->assertJsonPath('data.sceneSettings', $configuration['sceneSettings'])
+            ->assertJsonPath('data.buildableTiles', $configuration['buildableTiles'])
+            ->assertJsonPath('data.paths', $configuration['paths'])
+            ->assertJsonPath('data.castle.position', $configuration['castle']['position']);
+        $version = $first->json('data.configurationVersion');
+
+        $configuration['buildableTiles'] = [['x' => 40, 'y' => 30]];
+        $configuration['sceneSettings']['camera']['zoom'] = 0.85;
+        $this->putJson('/api/admin/tower-defense/maps/saved-citadel', [
+            'name' => 'Updated citadel', 'configuration' => $configuration, 'is_active' => true,
+        ])->assertOk();
+        $updated = $this->getJson('/api/tower-defense/maps')->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.buildableTiles', $configuration['buildableTiles'])
+            ->assertJsonPath('data.0.sceneSettings', $configuration['sceneSettings']);
+        $this->assertNotSame($version, $updated->json('data.0.configurationVersion'));
+
+        // Publishing is controlled by the existing active flag.
+        $this->putJson('/api/admin/tower-defense/maps/saved-citadel', [
+            'name' => 'Hidden citadel', 'configuration' => $configuration, 'is_active' => false,
+        ])->assertOk();
+        $this->getJson('/api/tower-defense/maps')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/tower-defense/maps/saved-citadel')->assertNotFound();
+    }
+
+    public function test_citadel_still_rejects_pads_on_spawn_or_castle(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+        $this->createEnemy('normal-one', 'normal');
+        $this->createEnemy('boss-one', 'boss');
+        $configuration = json_decode(file_get_contents(base_path('tests/Fixtures/citadel-map.json')), true, flags: JSON_THROW_ON_ERROR)['configuration'];
+        $configuration['enemyDefinitionIds'] = ['normal-one'];
+        $configuration['bossDefinitionIds'] = ['boss-one'];
+        foreach ([$configuration['spawnPoints'][0], $configuration['castle']['position']] as $point) {
+            $configuration['buildableTiles'] = [$point];
+            $this->postJson('/api/admin/tower-defense/maps', [
+                'id' => 'invalid-citadel', 'name' => 'Invalid', 'configuration' => $configuration,
+            ])->assertUnprocessable()->assertJsonValidationErrors(['configuration.buildableTiles.0']);
+        }
+    }
+
     private function createEnemy(string $id, string $kind): void
     {
         TowerDefenseEnemy::create([

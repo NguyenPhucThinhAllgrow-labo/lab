@@ -16,6 +16,16 @@ class TowerDefenseMapSeeder extends Seeder
             flags: JSON_THROW_ON_ERROR,
         );
 
+        // File seed là nguồn dữ liệu map duy nhất. Xóa các bản ghi cũ không
+        // còn trong file để chạy lại seeder không làm chúng xuất hiện trở lại.
+        $seededIds = array_column($maps, 'id');
+        if ($seededIds === []) {
+            TowerDefenseMap::query()->delete();
+
+            return;
+        }
+        TowerDefenseMap::query()->whereNotIn('id', $seededIds)->delete();
+
         foreach ($maps as $index => $definition) {
             $id = $definition['id'];
             $name = $definition['name'];

@@ -16,7 +16,7 @@ class TowerDefenseContentApiTest extends TestCase
     public function test_it_returns_only_active_maps_as_game_definitions(): void
     {
         TowerDefenseMap::create([
-            'id' => 'test-map',
+            'id' => 'lava-map',
             'name' => 'Test map',
             'configuration' => ['columns' => 18, 'rows' => 14],
             'sort_order' => 1,

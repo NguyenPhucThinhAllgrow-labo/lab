@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import * as THREE from "three";
+import LavaCitadelScene from "~/pages/games/tower-defense/test.vue";
+import lavaMapData from "~/data/tower-defense/lava-map.json";
+import { resolveCitadelCamera } from "~/utils/games/citadelCamera";
+import { enemyLightningTargetWorld } from "~/components/tower-defense/scene/enemy-target";
+import type { CitadelRuntime } from "~/components/tower-defense/scene/citadel-runtime";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   TOWER_DEFINITIONS,
@@ -11,6 +16,7 @@ import {
 import { mapPathPosition } from "~/games/tower-defense/map-path";
 import {
   createTowerDefenseMapScene,
+  addSpawnPortal,
   loadTowerDefenseBackgroundModel,
   loadTowerDefenseCastle,
   mapWorldPosition,
@@ -68,6 +74,8 @@ const props = defineProps<{
 }>();
 const DEFENSE_PATH_TILES = props.map.pathTiles;
 const DEFENSE_CELL_SIZE = props.map.cellSize;
+const isCitadel = props.map.scenePreset === "citadel-of-cinders";
+let citadelRuntime: CitadelRuntime | null = null;
 const isDarkEnvironment =
   props.map.environmentMode === "dark" || props.map.id === "lava-fortress";
 const emit = defineEmits<{
@@ -123,20 +131,23 @@ const cameraMapSpan = Math.max(
   props.map.rows * props.map.cellSize,
   8,
 );
-const configuredCameraPosition = props.map.camera?.position;
-const configuredCameraTarget = props.map.camera?.target;
+const mapCamera = isCitadel
+  ? resolveCitadelCamera(props.map.sceneSettings?.camera, lavaMapData.configuration.sceneSettings.camera)
+  : props.map.camera;
+const configuredCameraPosition = mapCamera?.position;
+const configuredCameraTarget = mapCamera?.target;
 const defaultCameraPosition = configuredCameraPosition?.every(Number.isFinite)
-  ? new THREE.Vector3(...configuredCameraPosition)
+  ? new THREE.Vector3(configuredCameraPosition[0], configuredCameraPosition[1], configuredCameraPosition[2])
   : new THREE.Vector3(
       cameraMapSpan * 0.58,
       cameraMapSpan * 0.82,
       cameraMapSpan * 0.68,
     );
 const defaultCameraTarget = configuredCameraTarget?.every(Number.isFinite)
-  ? new THREE.Vector3(...configuredCameraTarget)
+  ? new THREE.Vector3(configuredCameraTarget[0], configuredCameraTarget[1], configuredCameraTarget[2])
   : new THREE.Vector3(0, 0, 0);
-const defaultCameraZoom = Number.isFinite(props.map.camera?.zoom)
-  ? THREE.MathUtils.clamp(props.map.camera.zoom, 0.1, 4)
+const defaultCameraZoom = Number.isFinite(mapCamera?.zoom)
+  ? THREE.MathUtils.clamp(isCitadel ? Math.max(mapCamera!.zoom, lavaMapData.configuration.sceneSettings.camera.zoom) : mapCamera!.zoom, 0.1, 4)
   : 1;
 const towerScreenPosition = new THREE.Vector3();
 const thunderStartWorld = new THREE.Vector3();
@@ -163,6 +174,7 @@ let performanceMode = false;
 watch(
   () => props.showBrickBackground,
   (visible) => {
+    if (isCitadel) return;
     if (mapBackgroundLayer) {
       mapBackgroundLayer.setVisible(visible);
       return;
@@ -178,7 +190,7 @@ const worldPosition = (x: number, y: number) =>
 /** Đổi progress trên một lane gameplay thành Vector3 trong hệ tọa độ scene. */
 function pathPosition(progress: number, lane: 0 | 1 = 0) {
   const position = mapPathPosition(props.map, progress, lane);
-  return worldPosition(position.x, position.y);
+  return mapWorldPosition(props.map, position.x, position.y, false);
 }
 /** Tạo bóng tròn giả nhẹ hơn shadow map để model luôn tách khỏi mặt đất. */
 function groundShadow(radius: number) {
@@ -850,7 +862,7 @@ function decorateFrostTower(group: THREE.Group) {
     map: getFrostGlowTexture(),
     color: 0xb9f7ff,
     transparent: true,
-    opacity: 0.7,
+    opacity: 0.38,
     depthWrite: false,
     depthTest: true,
     blending: THREE.AdditiveBlending,
@@ -859,9 +871,9 @@ function decorateFrostTower(group: THREE.Group) {
   const glow = new THREE.Sprite(glowMaterial);
   glow.name = "frostGlowCentral";
   glow.position.y = centralY + 0.05;
-  glow.scale.set(0.68, 0.88, 1);
-  glow.userData.baseScaleX = 0.68;
-  glow.userData.baseScaleY = 0.88;
+  glow.scale.set(0.48, 0.62, 1);
+  glow.userData.baseScaleX = 0.48;
+  glow.userData.baseScaleY = 0.62;
   effects.add(glow);
   for (const [radius, tube, tilt, opacity] of [
     [0.43, 0.018, 0, 0.72],
@@ -970,8 +982,8 @@ function decorateElementalTowerGlow(
     thunder: { 1: 0.82, 2: 0.73, 3: 0.79 },
     water: { 1: 0.76, 2: 0.73, 3: 0.68 },
   } as const;
-  const glowScales = { fire: 1.5, thunder: 1, water: 1.02 } as const;
-  const levelBrightness = { 1: 1, 2: 1.5, 3: 2 } as const;
+  const glowScales = { fire: 0.75, thunder: 0.6, water: 0.62 } as const;
+  const levelBrightness = { 1: 1, 2: 1.08, 3: 1.16 } as const;
   group.updateMatrixWorld(true);
   const towerBounds = new THREE.Box3().setFromObject(group);
   const towerSize = towerBounds.getSize(new THREE.Vector3());
@@ -985,15 +997,15 @@ function decorateElementalTowerGlow(
   effect.userData.level = level;
   effect.position.copy(glowPosition);
 
-  // Hai lớp sprite additive tạo quầng rộng và lõi sáng rõ kể cả trên map tối.
+  // Compact glow obeys scene depth instead of floating above the tower silhouette.
   const outerMaterial = new THREE.SpriteMaterial({
     map: getFrostGlowTexture(),
     color: colors[kind],
     transparent: true,
     opacity:
-      (kind === "fire" ? 0.58 : 0.52) * levelBrightness[level],
+      (kind === "fire" ? 0.28 : 0.24) * levelBrightness[level],
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     blending: THREE.AdditiveBlending,
     toneMapped: false,
   });
@@ -1007,9 +1019,9 @@ function decorateElementalTowerGlow(
       map: getFrostGlowTexture(),
       color: colors[kind],
       transparent: true,
-      opacity: 0.92 * levelBrightness[level],
+      opacity: 0.48 * levelBrightness[level],
       depthWrite: false,
-      depthTest: false,
+      depthTest: true,
       blending: THREE.AdditiveBlending,
       toneMapped: false,
     }),
@@ -1035,12 +1047,8 @@ function decorateElementalTowerGlow(
       if (!(material instanceof THREE.MeshStandardMaterial)) continue;
       material.emissive.copy(emissiveColor);
       const levelIntensity =
-        { 1: 1.05, 2: 1.65, 3: 2.3 }[level] +
-        (kind === "thunder" ? 0.2 : 0);
-      material.emissiveIntensity = Math.max(
-        material.emissiveIntensity,
-        levelIntensity,
-      );
+        { 1: 0.45, 2: 0.55, 3: 0.65 }[level];
+      material.emissiveIntensity = levelIntensity;
       material.needsUpdate = true;
     }
   });
@@ -1129,7 +1137,8 @@ function getTowerLevelLabelTexture(level: number) {
 }
 
 function towerLevelScale(level: number) {
-  return level === 1 ? 1 : level === 2 ? 1.13 : 1.27;
+  const levelScale = level === 1 ? 1 : level === 2 ? 1.13 : 1.27;
+  return levelScale;
 }
 
 /** Tạo icon Gauge/Swords đồng bộ với avatar của hai trụ hỗ trợ trong sidebar. */
@@ -1246,7 +1255,7 @@ function syncTowerBuffBadges(group: THREE.Group, tower: Tower) {
     group.add(badges);
   }
 
-  const scale = towerLevelScale(tower.level);
+  const scale = group.scale.x || 1;
   const localTop = Number(group.userData.towerLocalTop) || 2.1;
   badges.visible = buffs.length > 0;
   badges.position.set(0, localTop + 0.035 / scale, 0);
@@ -1291,7 +1300,7 @@ function syncTowerLevelLabel(group: THREE.Group, level: number) {
     label.userData.level = normalizedLevel;
   }
 
-  const scale = towerLevelScale(normalizedLevel);
+  const scale = group.scale.x || 1;
   const localTop = Number(group.userData.towerLocalTop) || 2.1;
   label.position.set(0, localTop + 0.13 / scale, 0);
   label.scale.set(0.62 / scale, 0.23 / scale, 1 / scale);
@@ -1302,6 +1311,22 @@ function setTowerScale(
   group: THREE.Group,
   level: number,
 ) {
+  const definition = props.managedTowerModels?.[group.userData.kind as TowerKind];
+  if (definition) {
+    // GLB templates already have the DB height baked in. Procedural towers
+    // (archer/cannon or a missing GLB) must use the same per-level DB heights.
+    if (group.userData.heightFromConfiguration) {
+      group.scale.setScalar(1);
+    } else {
+      if (!group.userData.baseModelHeight) {
+        group.updateMatrixWorld(true);
+        group.userData.baseModelHeight = Math.max(new THREE.Box3().setFromObject(group).getSize(new THREE.Vector3()).y, 0.01);
+      }
+      const height = definition.targetHeightByLevel?.[level] ?? definition.targetHeight;
+      group.scale.setScalar(height / group.userData.baseModelHeight);
+    }
+    return;
+  }
   group.scale.setScalar(towerLevelScale(level));
 }
 
@@ -1875,6 +1900,7 @@ function createTowerModel(tower: Tower) {
     towerTemplates.get(tower.kind);
   if (!template) throw new Error(`Missing tower template: ${tower.kind}`);
   const group = template.clone(true);
+  group.userData.kind = tower.kind;
   bindTowerParts(group);
   setTowerScale(group, tower.level);
   applyTowerLevelAppearance(group, tower);
@@ -1890,7 +1916,7 @@ function createTowerModel(tower: Tower) {
       createThunderBeamEffect(tower.level, thunderBeamSegmentCapacity(tower)),
     );
   group.position.copy(worldPosition(tower.x, tower.y));
-  group.position.y = 0.05;
+  group.position.y += 0.05;
   group.userData.shotSequence = tower.shotSequence;
   group.userData.firedAt = 0;
   group.userData.level = tower.level;
@@ -1919,7 +1945,7 @@ function createTowerUpgradeEffect(tower: Tower, now: number) {
   if (existing) disposeObject(existing.group);
   const group = new THREE.Group();
   group.position.copy(worldPosition(tower.x, tower.y));
-  group.position.y = 0.1;
+  group.position.y += 0.1;
   const colors: Record<TowerKind, number> = {
     archer: 0x8ee85e,
     cannon: 0xffa83d,
@@ -2251,6 +2277,7 @@ function createTowerPreview(kind: TowerKind) {
     towerModelLibrary?.get(kind, 1) ?? towerTemplates.get(kind);
   if (!template || !scene) return;
   const preview = template.clone(true);
+  preview.userData.kind = kind;
   preview.traverse((child) => {
     if (!(child instanceof THREE.Mesh || child instanceof THREE.Sprite)) return;
     const makeTransparent = (original: THREE.Material) => {
@@ -2279,6 +2306,7 @@ function createTowerPreview(kind: TowerKind) {
 // ===== Map và lâu đài ========================================================
 /** Tải lâu đài theo map hiện tại rồi gắn vào scene nếu component còn tồn tại. */
 async function loadCastleModel() {
+  if (isCitadel) return; // The imported scene already owns its fortress.
   try {
     const container = await loadTowerDefenseCastle(props.map);
     if (!scene) {
@@ -2365,6 +2393,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     { x: number; y: number } | undefined;
   const hoveredIsPath = hovered
     ? defensePathTileSet.has(`${hovered.x}:${hovered.y}`)
+      && !(isCitadel && props.map.buildableTiles?.some(tile => tile.x === hovered.x && tile.y === hovered.y))
     : false;
   const hoveredHasTower = hovered
     ? props.towers.some(
@@ -2395,7 +2424,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     towerPreviewModel.visible = canPlacePreview;
     if (hovered && canPlacePreview) {
       towerPreviewModel.position.copy(worldPosition(hovered.x, hovered.y));
-      towerPreviewModel.position.y = 0.05;
+      towerPreviewModel.position.y += 0.05;
     }
   }
   if (attackRangeMarker) {
@@ -2415,7 +2444,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       attackRangeMarker.position.copy(
         worldPosition(previewCell.x, previewCell.y),
       );
-      attackRangeMarker.position.y = 0.14;
+      attackRangeMarker.position.y += 0.14;
       attackRangeMarker.scale.set(
         radius * DEFENSE_CELL_SIZE,
         1,
@@ -2442,7 +2471,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       towerFocusMarker.position.copy(
         worldPosition(selectedTower.x, selectedTower.y),
       );
-      towerFocusMarker.position.y = 0.12;
+      towerFocusMarker.position.y += 0.12;
       const pulse = 1 + Math.sin(elapsed * 3.2) * 0.025;
       towerFocusMarker.scale.setScalar(pulse);
     }
@@ -2452,7 +2481,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     hoverMarker.visible = Boolean(markerCell);
     if (markerCell) {
       hoverMarker.position.copy(worldPosition(markerCell.x, markerCell.y));
-      hoverMarker.position.y = 0.125;
+      hoverMarker.position.y += 0.125;
       const material = hoverMarker.material as THREE.MeshBasicMaterial;
       material.color.setHex(
         canPreviewMove ? 0x7ddc8b : selectedTower ? 0xffd36a : 0xf8edba,
@@ -2497,7 +2526,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     const recoilAge = now - Number(model.userData.firedAt);
     const recoil = recoilAge < 220 ? Math.sin((recoilAge / 220) * Math.PI) : 0;
     const towerPosition = worldPosition(tower.x, tower.y);
-    model.position.set(towerPosition.x, 0.05, towerPosition.z);
+    model.position.set(towerPosition.x, towerPosition.y + 0.05, towerPosition.z);
     setTowerScale(model, tower.level);
     syncSupportPulseEffect(model, tower, elapsed);
     syncTowerLevelLabel(model, tower.level);
@@ -2648,9 +2677,9 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
         const pulse =
           1 +
           Math.sin(
-            elapsed * (templateKind === "thunder" ? 8.5 : 5.2) + tower.id,
+            elapsed * (templateKind === "thunder" ? 3.6 : 2.8) + tower.id,
           ) *
-            0.12;
+            0.05;
         elementalGlow.scale.setScalar(pulse);
         const ring = elementalGlow.getObjectByName("elementalTowerGlowRing");
         if (ring) {
@@ -2709,10 +2738,9 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
         const segmentStarts = beamEffect.userData
           .segmentStarts as THREE.Vector3[];
         const segmentEnds = beamEffect.userData.segmentEnds as THREE.Vector3[];
-        const crystalAnchor =
-          tower.level === 2
-            ? model.getObjectByName("elementalTowerGlow")
-            : undefined;
+        // Every GLB level has its own normalized core anchor. Resolve it on
+        // the live model so placement, rotation and DB scale are respected.
+        const crystalAnchor = model.getObjectByName("elementalTowerGlow");
         for (let segmentIndex = 0; segmentIndex < targets.length; segmentIndex++) {
           if (segmentIndex === 0) {
             if (crystalAnchor)
@@ -2722,11 +2750,9 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
               model.localToWorld(thunderStartWorld);
             }
           } else {
-            targets[segmentIndex - 1]!.getWorldPosition(thunderStartWorld);
-            thunderStartWorld.y += 0.62;
+            enemyLightningTargetWorld(targets[segmentIndex - 1]!, thunderStartWorld);
           }
-          targets[segmentIndex]!.getWorldPosition(thunderEndWorld);
-          thunderEndWorld.y += 0.62;
+          enemyLightningTargetWorld(targets[segmentIndex]!, thunderEndWorld);
           segmentStarts[segmentIndex]!.copy(thunderStartWorld);
           segmentEnds[segmentIndex]!.copy(thunderEndWorld);
           model.worldToLocal(segmentStarts[segmentIndex]!);
@@ -2989,12 +3015,12 @@ function handleCameraResetShortcut(event: KeyboardEvent) {
  * Khởi tạo renderer/camera/light/map, đăng ký input, tải GLB song song và bắt
  * đầu animation loop. Mọi tài nguyên tạo ở đây được thu hồi trong onBeforeUnmount.
  */
-async function createWorld() {
+async function createWorld(runtime?: CitadelRuntime) {
   const target = host.value;
   if (!target) return;
   try {
     surfaceDetail = createSurfaceDetail();
-    scene = new THREE.Scene();
+    scene = runtime?.scene ?? new THREE.Scene();
     const archerTemplate = createArcherTower();
     archerTemplate.add(groundShadow(0.42));
     applyTowerMetallicFinish(archerTemplate, 0x8a7658);
@@ -3026,7 +3052,8 @@ async function createWorld() {
       cellSize: DEFENSE_CELL_SIZE,
       worldPosition,
     });
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer = runtime?.renderer ?? new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    if (!runtime) {
     // Giữ độ phân giải render ổn định suốt trận. Đổi pixel ratio giữa wave
     // khiến WebGL cấp phát lại framebuffer và tạo một nhịp khựng rõ rệt.
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
@@ -3035,26 +3062,29 @@ async function createWorld() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = isDarkEnvironment ? 0.94 : 1.12;
+    }
     towerModelLibrary = createTowerModelLibrary({
       renderer,
       faction: props.faction,
       managedModels: props.managedTowerModels,
       decorate: decorateLoadedTowerModel,
     });
-    target.appendChild(renderer.domElement);
+    if (!runtime) target.appendChild(renderer.domElement);
     const isLavaFortressMap = props.map.id === "lava-fortress";
     const clearColor = new THREE.Color(
       isLavaFortressMap ? 0x302a36 : props.map.theme.background,
     );
     if (isDarkEnvironment && !isLavaFortressMap)
       clearColor.lerp(new THREE.Color(0x11101f), 0.34);
-    renderer.setClearColor(clearColor, 1);
+    if (!runtime) renderer.setClearColor(clearColor, 1);
     const cameraFar = Math.max(250, cameraMapSpan * 10);
-    camera = new THREE.PerspectiveCamera(38, 1, 0.1, cameraFar);
+    camera = runtime?.camera ?? new THREE.PerspectiveCamera(38, 1, 0.1, cameraFar);
+    if (!runtime) {
     camera.position.copy(defaultCameraPosition);
     camera.zoom = defaultCameraZoom;
     camera.lookAt(defaultCameraTarget);
     camera.updateProjectionMatrix();
+    }
     enemyScene = createTowerDefenseEnemyScene(scene, camera, {
       enemyModel: props.map.enemyModel,
       bossModel: props.map.bossModel,
@@ -3069,12 +3099,15 @@ async function createWorld() {
           .map((definition) => [definition.id, definition.model!]),
       ),
       groundY: props.map.id === "lava-fortress" ? 0 : undefined,
+      preservePathHeight: isCitadel,
+      visualScale: 1,
     });
     damageNumberScene = createTowerDefenseDamageNumberScene(scene, {
       enemyModels: enemyScene.models,
       worldPosition: (point) => worldPosition(point.x, point.y),
     });
-    controls = new OrbitControls(camera, renderer.domElement);
+    controls = runtime?.controls ?? new OrbitControls(camera, renderer.domElement);
+    if (!runtime) {
     controls.target.copy(defaultCameraTarget);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
@@ -3125,6 +3158,23 @@ async function createWorld() {
     mysticParticles = mapScene.particles;
     updateSpawnPortal = mapScene.updatePortal;
     updateBuildableBorders = mapScene.updateBuildableBorders;
+    } else {
+      // Architecture comes from the imported scene; gameplay still owns its
+      // two spawn portals, positioned on the actual bridge surface.
+      updateSpawnPortal = addSpawnPortal(scene, props.map);
+      // Only the configured pads are interactive; no duplicate terrain/grid.
+      const geometry = new THREE.CircleGeometry(1.4, 16);
+      const material = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
+      for (const point of props.map.buildableTiles ?? []) {
+        const tile = new THREE.Mesh(geometry, material);
+        tile.rotation.x = -Math.PI / 2;
+        tile.position.copy(worldPosition(point.x, point.y));
+        tile.position.y += 0.08;
+        tile.userData.cell = point;
+        scene.add(tile);
+        tileMeshes.push(tile);
+      }
+    }
     hoverMarker = new THREE.Mesh(
       new THREE.PlaneGeometry(0.88, 0.88),
       new THREE.MeshBasicMaterial({
@@ -3204,9 +3254,11 @@ async function createWorld() {
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
     };
-    resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(target);
-    resize();
+    if (!runtime) {
+      resizeObserver = new ResizeObserver(resize);
+      resizeObserver.observe(target);
+      resize();
+    }
     const cellAtPointer = (event: PointerEvent) => {
       if (!renderer || !camera) return null;
       const bounds = renderer.domElement.getBoundingClientRect();
@@ -3267,23 +3319,26 @@ async function createWorld() {
       renderError.value =
         "Kết nối đồ họa 3D đã bị gián đoạn. Hãy tải lại trang.";
     });
-    const animate = () => {
-      animationFrame = requestAnimationFrame(animate);
+    const updateFrame = () => {
       const frameDelta = Math.min(clock.getDelta(), 0.05);
       if (!props.isPaused) {
         visualElapsed += frameDelta;
         visualNow += frameDelta * 1000;
       }
       if (cameraReturning) updateCameraReturn(frameDelta);
-      else controls?.update();
+      else if (!runtime) controls?.update();
       if (!props.isPaused) syncScene(visualElapsed, frameDelta, visualNow);
+    };
+    const animate = () => {
+      animationFrame = requestAnimationFrame(animate);
+      updateFrame();
       renderer!.render(scene!, camera!);
     };
     window.addEventListener("keydown", handleCameraResetShortcut);
     await Promise.allSettled([
       towerModelLibrary.load(),
       enemyScene.load(),
-      props.showBrickBackground
+      props.showBrickBackground && !isCitadel
         ? loadMapBackgroundModel()
         : Promise.resolve(),
       loadCastleModel(),
@@ -3292,7 +3347,8 @@ async function createWorld() {
     syncScene(visualElapsed, 0, visualNow);
     renderer.render(scene, camera);
     emit("ready");
-    animate();
+    if (runtime) runtime.beforeRender = updateFrame;
+    else animate();
     console.table({
       calls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles,
@@ -3310,18 +3366,24 @@ async function createWorld() {
 // Chờ DOM có host trước khi tạo WebGL context; requestAnimationFrame giúp Nuxt
 // hoàn tất layout để camera/renderer lấy đúng kích thước ban đầu.
 onMounted(async () => {
+  if (isCitadel) return;
   await nextTick();
   animationFrame = requestAnimationFrame(() => {
     void createWorld();
   });
 });
+function onCitadelReady(runtime: CitadelRuntime) {
+  citadelRuntime = runtime;
+  void createWorld(runtime);
+}
 // Thu hồi listener, animation frame, controls, skeleton, geometry, material,
 // texture và WebGL context để vào lại route không nhân đôi tài nguyên GPU.
 onBeforeUnmount(() => {
+  if (citadelRuntime) citadelRuntime.beforeRender = undefined;
   window.removeEventListener("keydown", handleCameraResetShortcut);
   cancelAnimationFrame(animationFrame);
   resizeObserver?.disconnect();
-  controls?.dispose();
+  if (!isCitadel) controls?.dispose();
   controls = null;
   tileMeshes.length = 0;
   projectileScene?.dispose();
@@ -3336,7 +3398,7 @@ onBeforeUnmount(() => {
   towerModelLibrary?.dispose();
   towerModelLibrary = null;
   towerUpgradeEffects.clear();
-  scene?.traverse((child) => {
+  if (!isCitadel) scene?.traverse((child) => {
     if (
       child instanceof THREE.Mesh ||
       child instanceof THREE.Sprite ||
@@ -3353,7 +3415,7 @@ onBeforeUnmount(() => {
   const mapBackgroundTexture = scene?.userData
     .towerMapBackgroundTexture as THREE.Texture | undefined;
   mapBackgroundTexture?.dispose();
-  if (scene) scene.background = null;
+  if (scene && !isCitadel) scene.background = null;
   surfaceDetail?.dispose();
   surfaceDetail = null;
   frostGlowTexture?.dispose();
@@ -3365,9 +3427,11 @@ onBeforeUnmount(() => {
   mysticParticles = null;
   updateSpawnPortal = null;
   updateBuildableBorders = null;
-  renderer?.dispose();
-  renderer?.forceContextLoss();
-  renderer?.domElement.remove();
+  if (!isCitadel) {
+    renderer?.dispose();
+    renderer?.forceContextLoss();
+    renderer?.domElement.remove();
+  }
   renderer = null;
   scene = null;
 });
@@ -3381,6 +3445,13 @@ onBeforeUnmount(() => {
     role="application"
     aria-label="Bản đồ phòng thủ 3D"
   >
+    <LavaCitadelScene
+      v-if="isCitadel"
+      embedded
+      gameplay
+      :configuration="map"
+      @runtime-ready="onCitadelReady"
+    />
     <p v-if="renderError" class="tower-defense-scene__error">
       {{ renderError }}
     </p>

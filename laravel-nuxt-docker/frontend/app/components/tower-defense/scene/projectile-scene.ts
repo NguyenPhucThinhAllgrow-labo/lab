@@ -198,8 +198,9 @@ export function createTowerDefenseProjectileScene(
       // Tâm ô grid là vị trí mặc định; từng loại tháp có thể hiệu chỉnh `from`.
       const from = worldPosition(projectile.from.x, projectile.from.y);
       const to = worldPosition(projectile.to.x, projectile.to.y);
-      const targetHeight = 0.45;
-      let startHeight = 0.72;
+      const sourceGroundY = from.y;
+      const targetHeight = to.y + 0.45;
+      let startHeight = sourceGroundY + 0.72;
       let arcHeight = 1.15;
 
       if (projectile.kind === "archer") {
@@ -227,7 +228,7 @@ export function createTowerDefenseProjectileScene(
           from.x = launchPoint.x + (directionX / horizontalDistance) * launchOffset;
           from.z = launchPoint.z + (directionZ / horizontalDistance) * launchOffset;
           startHeight = launchPoint.y;
-        } else startHeight = 1.24 * towerScale.vertical;
+        } else startHeight = sourceGroundY + 1.24 * towerScale.vertical;
         arcHeight = THREE.MathUtils.clamp(
           horizontalDistance * 0.28,
           0.55,
@@ -255,7 +256,7 @@ export function createTowerDefenseProjectileScene(
           from.copy(launchPoint);
         }
         startHeight = launchPoint?.y ??
-          0.05 + (1.08 + 0.13 + Math.sin(0.2) * 0.9) * towerScale.vertical;
+          sourceGroundY + 0.05 + (1.08 + 0.13 + Math.sin(0.2) * 0.9) * towerScale.vertical;
         arcHeight = 0.42;
       } else if (
         projectile.kind === "fire" ||
@@ -288,7 +289,7 @@ export function createTowerDefenseProjectileScene(
           elementalGlow.getWorldPosition(from);
           startHeight = from.y;
         } else {
-          startHeight = 0.05 + 1.72 * towerScale.vertical;
+          startHeight = sourceGroundY + 0.05 + 1.72 * towerScale.vertical;
         }
         arcHeight = projectile.kind === "water" ? 0.24 : 0;
       }

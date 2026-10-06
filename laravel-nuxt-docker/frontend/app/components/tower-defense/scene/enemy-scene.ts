@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { clipRootTravelSpeed, walkingPlaybackSpeed, walkingTimeScale } from "./enemy-locomotion";
 import type {
   BossClass,
   Enemy,
@@ -32,12 +33,7 @@ export interface EnemySceneSyncOptions {
   pathPosition: (progress: number, lane: 0 | 1) => THREE.Vector3;
 }
 
-// Clip walk của normal.glb đi 1.627 đơn vị trong 2.333 giây. Sau characterScale
-// 2 và sceneScale 0.494, nó đi khoảng 0.689 world-unit/giây. Cell của map rộng
-// 1.5 world-unit, nên playback 1× tương ứng khoảng 0.46 cell/giây. Hiệu chỉnh
-// nhẹ xuống 0.42 để bù độ dài bước chân thực tế khi model đã skin/animate.
-const WALK_PROGRESS_SPEED_AT_NORMAL_PLAYBACK = 0.42;
-const WALK_SPEED_RESPONSE = 20;
+const walkRootSpeeds = new WeakMap<THREE.AnimationClip, number>();
 const FACING_RESPONSE = 19;
 // Pivot của model nằm thấp hơn lòng bàn chân một chút; path top ở 0.025 nhưng
 // cần đặt wrapper tại 0.08 để bàn chân không xuyên qua mặt đường.
@@ -66,6 +62,9 @@ export interface TowerDefenseEnemySceneOptions {
   enemyModels?: Record<string, TowerDefenseCharacterModelDefinition>;
   bossModels?: Record<string, TowerDefenseCharacterModelDefinition>;
   groundY?: number;
+  preservePathHeight?: boolean;
+  /** Map-specific visual size; does not change health, speed or hit logic. */
+  visualScale?: number;
 }
 
 function disposeObject(object: THREE.Object3D, disposeResources = true) {
@@ -120,6 +119,7 @@ function createEnemyHealthBars(y: number) {
 
 function removeRootMotion(clip: THREE.AnimationClip) {
   const normalizedClip = clip.clone();
+  walkRootSpeeds.set(normalizedClip, clipRootTravelSpeed(clip));
   for (const track of normalizedClip.tracks) {
     // Chỉ chuẩn hóa bone hông. Không can thiệp bone `root` vì với Adventure
     // Kit nó là gốc của toàn bộ rig và thay đổi track này có thể làm model lệch.
@@ -154,6 +154,36 @@ function prepareCharacter(
       : cloneMaterial(child.material);
   });
   const wrapper = new THREE.Group();
+  // Measure only the character, not health bars/equipment. GLTF pivots are
+  // not necessarily at the soles; preserve this offset through skeleton clones.
+  character.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3().setFromObject(character);
+  wrapper.userData.characterHeight = bounds.isEmpty() ? 1 : bounds.max.y - bounds.min.y;
+  wrapper.userData.groundOffset = bounds.isEmpty() ? 0 : -bounds.min.y;
+  // Prefer an animated torso bone: a skinned mesh's rest-pose bounds can put
+  // a static height anchor above the head while the character is walking.
+  const lightningTarget = new THREE.Object3D();
+  lightningTarget.name = "enemyLightningTarget";
+  const torsoBones = new Map<string, THREE.Bone>();
+  character.traverse((child) => {
+    if (!(child instanceof THREE.Bone)) return;
+    const name = child.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    for (const part of ["chest", "spine1", "spine2", "spine"]) {
+      if (name.endsWith(part)) torsoBones.set(part, child);
+    }
+  });
+  const torso = torsoBones.get("chest") ?? torsoBones.get("spine1")
+    ?? torsoBones.get("spine2") ?? torsoBones.get("spine");
+  if (torso) {
+    torso.add(lightningTarget);
+  } else if (!bounds.isEmpty()) {
+    bounds.getCenter(lightningTarget.position);
+    lightningTarget.position.y = bounds.min.y + (bounds.max.y - bounds.min.y) * 0.5;
+    wrapper.add(lightningTarget);
+  } else {
+    lightningTarget.position.y = 0.62;
+    wrapper.add(lightningTarget);
+  }
   wrapper.add(character, createEnemyHealthBars(healthBarY));
   return wrapper;
 }
@@ -230,7 +260,6 @@ export function createTowerDefenseEnemyScene(
   } = {};
   let bossAnimations: THREE.AnimationClip[] = [];
   let disposed = false;
-  let reducedAnimationTime = 0;
 
   function getLavaBossGlowMaterial() {
     if (lavaBossGlowMaterial) return lavaBossGlowMaterial;
@@ -479,7 +508,7 @@ export function createTowerDefenseEnemyScene(
       pooledModel.userData.progressVelocity = enemy.speed;
       pooledModel.userData.renderProgress = enemy.progress;
       pooledModel.userData.hasFacingDirection = false;
-      pooledModel.userData.animationProgressSpeed = 0;
+      pooledModel.userData.hasWalkPosition = false;
       (pooledModel.userData.mixer as THREE.AnimationMixer | undefined)?.setTime(0);
       scene.add(pooledModel);
       return pooledModel;
@@ -577,9 +606,14 @@ export function createTowerDefenseEnemyScene(
       animations[0];
     const mixer = new THREE.AnimationMixer(group);
     if (walk) mixer.clipAction(walk).play();
+    group.userData.walkPlaybackSpeed = walk ? walkingPlaybackSpeed(
+      template, walk, definition?.characterScale ?? BOSS_CHARACTER_SCALE,
+      walkRootSpeeds.get(walk) ?? clipRootTravelSpeed(walk),
+    ) : 1;
+    group.userData.hasWalkPosition = false;
+    group.userData.walkPosition = new THREE.Vector2();
     group.userData.health = health;
     group.userData.mixer = mixer;
-    group.userData.animationProgressSpeed = 0;
     group.userData.poolKey = poolKey;
     group.userData.sceneScale = Math.max(
       Number(
@@ -589,15 +623,18 @@ export function createTowerDefenseEnemyScene(
       ) || 1,
       0.01,
     );
+    group.userData.sceneScale *= options.visualScale ?? 1;
     const sceneScale = Number(group.userData.sceneScale) || 1;
-    const shadowRadius = enemy.kind === "boss" ? 0.42 : 0.24;
+    const shadowRadius = (enemy.kind === "boss" ? 0.42 : 0.24) * (options.visualScale ?? 1);
     const groundShadow = new THREE.Mesh(
       groundShadowGeometry,
       groundShadowMaterial,
     );
     groundShadow.name = "enemyGroundShadow";
     groundShadow.rotation.x = -Math.PI / 2;
-    groundShadow.position.y = -0.02 / sceneScale;
+    const groundOffset = options.preservePathHeight
+      ? Number(group.userData.groundOffset) || 0 : 0;
+    groundShadow.position.y = -0.02 / sceneScale - groundOffset;
     groundShadow.scale.set(
       shadowRadius / sceneScale,
       (shadowRadius * 0.72) / sceneScale,
@@ -615,7 +652,7 @@ export function createTowerDefenseEnemyScene(
       const glowScale = 0.9 / sceneScale;
       lavaGlow.name = "lavaBossGroundGlow";
       lavaGlow.rotation.x = -Math.PI / 2;
-      lavaGlow.position.y = -0.012 / sceneScale;
+      lavaGlow.position.y = -0.012 / sceneScale - groundOffset;
       lavaGlow.scale.set(glowScale, glowScale, 1);
       lavaGlow.castShadow = false;
       lavaGlow.receiveShadow = false;
@@ -888,10 +925,6 @@ export function createTowerDefenseEnemyScene(
     reducedEffects,
     pathPosition,
   }: EnemySceneSyncOptions) {
-    reducedAnimationTime += frameDelta;
-    const updateMixers = !reducedEffects || reducedAnimationTime >= 1 / 30;
-    const mixerDelta = reducedEffects ? reducedAnimationTime : frameDelta;
-    if (updateMixers) reducedAnimationTime = 0;
     if (lavaBossGlowMaterial)
       lavaBossGlowMaterial.uniforms.uTime!.value = elapsed;
     activeEnemyIds.clear();
@@ -966,24 +999,21 @@ export function createTowerDefenseEnemyScene(
       const position = pathPosition(renderProgress, enemy.lane);
       const facingFrom = pathPosition(renderProgress - 0.045, enemy.lane);
       const facingTo = pathPosition(renderProgress + 0.065, enemy.lane);
-      // Bám tốc độ gameplay (đã gồm tốc độ Admin, slow và tốc độ trận đấu).
-      // Không dùng quãng đường world vì nó từng làm clip chạy hơn 2× so với preview.
-      const animationProgressSpeed = frozen
-        ? 0
-        : THREE.MathUtils.damp(
-            Number(model.userData.animationProgressSpeed) ||
-              Number(model.userData.progressVelocity),
-            Number(model.userData.progressVelocity),
-            WALK_SPEED_RESPONSE,
-            frameDelta,
-          );
-      model.userData.animationProgressSpeed = animationProgressSpeed;
-      const animationTimeScale = THREE.MathUtils.clamp(
-        animationProgressSpeed / WALK_PROGRESS_SPEED_AT_NORMAL_PLAYBACK,
-        0,
-        4.5,
-      );
-      model.position.copy(position.setY(enemyGroundY));
+      // Use the rendered displacement, including lane geometry, prediction,
+      // slow and game speed. Never count Y bobbing/ground offsets as travel.
+      const walkPosition = model.userData.walkPosition as THREE.Vector2;
+      const worldSpeed = !frozen && model.userData.hasWalkPosition && frameDelta > 0
+        ? Math.hypot(position.x - walkPosition.x, position.z - walkPosition.y) / frameDelta
+        : 0;
+      walkPosition.set(position.x, position.z);
+      model.userData.hasWalkPosition = true;
+      const animationTimeScale = walkingTimeScale(worldSpeed,
+        Number(model.userData.walkPlaybackSpeed), Number(model.userData.sceneScale));
+      model.position.copy(options.preservePathHeight ? position : position.setY(enemyGroundY));
+      if (options.preservePathHeight) {
+        model.position.y += (Number(model.userData.groundOffset) || 0)
+          * Number(model.userData.sceneScale) + 0.02;
+      }
       const targetRotation = Math.atan2(
         facingTo.x - facingFrom.x,
         facingTo.z - facingFrom.z,
@@ -1001,9 +1031,9 @@ export function createTowerDefenseEnemyScene(
       }
       model.scale.setScalar(Number(model.userData.sceneScale));
       const mixer = model.userData.mixer as THREE.AnimationMixer | undefined;
-      if (mixer && updateMixers) {
+      if (mixer) {
         mixer.timeScale = frozen ? 0 : animationTimeScale;
-        mixer.update(mixerDelta);
+        mixer.update(frameDelta);
       }
       const lavaFlames = model.getObjectByName("lavaBossFlames");
       if (lavaFlames) lavaFlames.visible = !reducedEffects;

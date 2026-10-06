@@ -1,3 +1,5 @@
+import type lavaMapData from "~/data/tower-defense/lava-map.json";
+
 export type TowerKind =
   "archer" | "cannon" | "frost" | "fire" | "thunder" | "water" | "support";
 export type EnemyKind = "normal" | "boss";
@@ -56,6 +58,9 @@ export interface TowerDefenseMapDefinition {
   bossOnly?: boolean;
   /** Tông ánh sáng và không khí riêng của map. */
   environmentMode?: "normal" | "dark";
+  /** Cảnh dựng thủ công dùng cho map thay vì bố cục địa hình mặc định. */
+  scenePreset?: "citadel-of-cinders";
+  sceneSettings?: typeof lavaMapData.configuration.sceneSettings;
   /** Khoảng cách world-space giữa tâm hai ô kề nhau. */
   cellSize: number;
   /** Vị trí hai cổng sinh quái theo tọa độ grid của map. */

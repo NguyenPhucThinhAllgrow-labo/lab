@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ENEMY_SPAWN_PROGRESS } from "~/games/tower-defense/gameplay-config";
 import { mapPathPosition } from "~/games/tower-defense/map-path";
+import { mapSpacePosition } from "~/games/tower-defense/map-space";
 import type {
   GridPoint,
   TowerDefenseMapDefinition,
@@ -19,12 +20,15 @@ export interface TowerDefenseBackgroundLayer {
   setVisible: (visible: boolean) => void;
 }
 
-/** Đổi tọa độ grid của một map sang hệ tọa độ world có tâm tại gốc scene. */
-export function mapWorldPosition(map: TowerDefenseMapDefinition, x: number, y: number) {
+/** Use the same slab projection as simulation, with optional pad elevation. */
+export function mapWorldPosition(map: TowerDefenseMapDefinition, x: number, y: number, includePadHeight = true) {
+  const position = mapSpacePosition(map, { x, y });
+  const buildable = includePadHeight && Number.isInteger(x) && Number.isInteger(y)
+    && map.buildableTiles?.some(tile => tile.x === x && tile.y === y);
   return new THREE.Vector3(
-    (x - (map.columns - 1) / 2) * map.cellSize,
-    0,
-    (y - (map.rows - 1) / 2) * map.cellSize,
+    position.x,
+    position.baseY + (buildable ? position.padOffset : position.surfaceOffset),
+    position.z,
   );
 }
 
@@ -344,7 +348,7 @@ function addScenery(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceD
   }
 }
 
-function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
+export function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
   const isLavaPortal = map.bossCombatProfileKey === "lava-boss";
   const portalColor = new THREE.Color(isLavaPortal ? 0xd93612 : 0x7040b8);
   const highlightColor = new THREE.Color(isLavaPortal ? 0xffa02c : 0x63b8e8);
@@ -492,14 +496,17 @@ function addSpawnPortal(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
     vortex.name = "spawnPortalVortex";
     const placement = spawnPortalPlacement(map, lane);
     const entranceDirection = placement.direction;
-    portal.rotation.y = Math.atan2(entranceDirection.x, entranceDirection.y);
-    portal.position.copy(
-      mapWorldPosition(map, placement.position.x, placement.position.y),
-    );
-    portal.scale.setScalar(2);
-    // Circle bán kính 0.61 và portal scale 2 => bán kính thực 1.22.
-    // Đặt tâm ở 1.24 để chân cổng vừa chạm mặt đất thay vì xuyên xuống dưới.
-    portal.position.y = 1.24;
+    const position = mapWorldPosition(map, placement.position.x, placement.position.y, false);
+    const facing = mapWorldPosition(map,
+      placement.position.x + entranceDirection.x,
+      placement.position.y + entranceDirection.y, false).sub(position);
+    portal.rotation.y = Math.atan2(facing.x, facing.z);
+    portal.position.copy(position);
+    const portalScale = map.scenePreset === "citadel-of-cinders" ? 3 : 2;
+    portal.scale.setScalar(portalScale);
+    // Offset the centre by the scaled radius so the portal rests on the
+    // actual surface (including the elevated citadel bridge).
+    portal.position.y += 0.61 * portalScale + 0.02;
     vortex.position.z = 0.012;
     portal.add(vortex);
     const light = new THREE.PointLight(portalColor, 2.1, 7.2, 2);

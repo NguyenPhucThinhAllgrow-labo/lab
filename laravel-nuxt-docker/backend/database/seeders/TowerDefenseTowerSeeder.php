@@ -136,7 +136,7 @@ class TowerDefenseTowerSeeder extends Seeder
                 '3' => round($tower['damage'] * $levelMultiplier[2], 2),
             ];
             $tower['max_level'] = 3;
-            $tower['model_configuration']['targetHeightByLevel'] = array_fill(1, $tower['max_level'], $tower['model_configuration']['targetHeight']);
+            $tower['model_configuration'] = \App\Services\TowerDefenseDefaultVisualScales::towerConfiguration($tower['id'], $tower['model_configuration']);
             $tower['level_stats'] = collect(range(1, $tower['max_level']))->mapWithKeys(function (int $level) use ($tower): array {
                 $rangeGrowth = in_array($tower['id'], ['frost', 'support'], true) ? 0 : ($level - 1) * 0.22;
                 $fireRateGrowth = $tower['id'] === 'archer' ? 0.35 : 0.18;

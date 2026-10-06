@@ -42,6 +42,7 @@ import {
   towerTemplateKind,
 } from "~/games/tower-defense/gameplay-config";
 import { mapPathPosition } from "~/games/tower-defense/map-path";
+import { createMapSpatialMetrics } from "~/games/tower-defense/map-space";
 import {
   damageEnemy,
   enemyEffectDuration,
@@ -51,11 +52,7 @@ export { FROST_EFFECT_RADIUS, FROST_SLOW_DURATION_SECONDS, MAX_TOWER_LEVEL, TOWE
 
 /** Cung cấp state, command và simulation loop độc lập với lớp render Three.js. */
 export function useTowerDefense(map: TowerDefenseMapDefinition) {
-  const distanceSquared = (a: GridPoint, b: GridPoint) => {
-    const dx = a.x - b.x;
-    const dy = a.y - b.y;
-    return dx * dx + dy * dy;
-  };
+  const { distanceSquared, aimAngle } = createMapSpatialMetrics(map);
   const storageKey = `${TOWER_DEFENSE_STORAGE_KEY}:${map.id}`;
   const startingCredits = Number.isFinite(map.startingCredits)
     ? Math.max(0, Math.floor(map.startingCredits))
@@ -157,6 +154,8 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
   }
   /** Map có bệ riêng chỉ cho xây tại các bệ đã khai báo. */
   function isBuildable(x: number, y: number) {
+    if (map.scenePreset === "citadel-of-cinders" && buildableKeys)
+      return buildableKeys.has(`${x}:${y}`);
     return !isPath(x, y) && (!buildableKeys || buildableKeys.has(`${x}:${y}`));
   }
   /** Tìm tower tại một ô grid, dùng cho cả selection và chống đặt chồng. */
@@ -624,10 +623,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         : [target];
       for (const affectedEnemy of affectedEnemies) {
         const affectedPosition = positionFor(affectedEnemy);
-        const distanceFromCenter = Math.hypot(
-          affectedPosition.x - position.x,
-          affectedPosition.y - position.y,
-        );
+        const distanceFromCenter = Math.sqrt(distanceSquared(affectedPosition, position));
         const splashExtent = (projectile.splashRadius ?? 0) + ENEMY_HIT_RADIUS;
         const distanceRatio =
           splashExtent > 0 ? Math.min(1, distanceFromCenter / splashExtent) : 0;
@@ -882,10 +878,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
         }
         tower.beamTargetIds = chainTargets.map((enemy) => enemy.id);
         const targetPosition = enemyPositions.get(target.id)!;
-        tower.aimAngle =
-          (Math.atan2(targetPosition.y - tower.y, targetPosition.x - tower.x) *
-            180) /
-          Math.PI;
+        tower.aimAngle = aimAngle(tower, targetPosition);
         tower.firingUntil = elapsed + dt * 2;
         continue;
       }
@@ -893,10 +886,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       tower.cooldown -= dt;
       if (tower.cooldown > 0 || !target) continue;
       const targetPosition = positionFor(target);
-      tower.aimAngle =
-        (Math.atan2(targetPosition.y - tower.y, targetPosition.x - tower.x) *
-          180) /
-        Math.PI;
+      tower.aimAngle = aimAngle(tower, targetPosition);
       tower.firingUntil = elapsed + 0.22;
       tower.shotSequence++;
       if (combatKind === "frost") {

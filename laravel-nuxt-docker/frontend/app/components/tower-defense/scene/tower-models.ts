@@ -309,6 +309,7 @@ export function createTowerModelLibrary({
           template.name = `${definition.modelName}Level${level}`;
           template.userData.kind = definition.kind;
           template.userData.level = level;
+          template.userData.heightFromConfiguration = Boolean(managed);
           if (visualKind === "frost")
             template.userData.frostEffectCenterY = 1.77;
           template.add(gltf.scene);

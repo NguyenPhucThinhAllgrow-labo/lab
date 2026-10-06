@@ -71,6 +71,7 @@ class TowerDefenseMapController extends Controller
             'configuration.startingCredits' => ['sometimes', 'integer', 'between:0,10000000'],
             'configuration.bossOnly' => ['sometimes', 'boolean'],
             'configuration.environmentMode' => ['sometimes', Rule::in(['normal', 'dark'])],
+            'configuration.scenePreset' => ['sometimes', Rule::in(['citadel-of-cinders'])],
             'configuration.cellSize' => ['required', 'numeric', 'gt:0'],
             'configuration.spawnPoints' => ['sometimes', 'array', 'size:2'],
             'configuration.spawnPoints.*.x' => ['required_with:configuration.spawnPoints', 'integer', 'min:0'],
@@ -173,6 +174,21 @@ class TowerDefenseMapController extends Controller
         }
 
         $blockedBuildableTiles = $pathTiles;
+        // Explicit citadel pads may occupy the bridge deck, even on a lane.
+        if (($configuration['scenePreset'] ?? null) === 'citadel-of-cinders') {
+            $bridge = $configuration['sceneSettings']['bridge'] ?? [];
+            $lava = $configuration['sceneSettings']['lava'] ?? [];
+            $cellSize = $configuration['cellSize'];
+            $start = (int) round((($bridge['castleEdgeX'] ?? 32) - ($bridge['length'] ?? 72) + ($lava['width'] ?? 180) / 2) / $cellSize);
+            $center = (int) floor($rows / 2);
+            $halfRows = (($bridge['paverRows'] ?? 3) - 1) / 2;
+            foreach ($pathTiles as $key => $point) {
+                if ($point['x'] >= $start && $point['x'] < $start + ($bridge['paverColumns'] ?? 36)
+                    && abs($point['y'] - $center) <= $halfRows) {
+                    unset($blockedBuildableTiles[$key]);
+                }
+            }
+        }
         foreach ($configuration['spawnPoints'] ?? [] as $point) {
             $blockedBuildableTiles["{$point['x']}:{$point['y']}"] = true;
         }

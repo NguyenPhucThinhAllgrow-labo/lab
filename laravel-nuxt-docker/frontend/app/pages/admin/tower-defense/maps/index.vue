@@ -22,6 +22,10 @@ import {
   X,
 } from "lucide-vue-next";
 import type { TowerDefenseMapDefinition } from "~/types/games/towerDefense";
+import { sharedLaneSegments } from "~/utils/games/sharedLaneSegments";
+import lavaMapData from "~/data/tower-defense/lava-map.json";
+import LavaCitadelTestScene from "~/pages/games/tower-defense/test.vue";
+import { citadelBridgeLayout, citadelBridgePointWorld, citadelBridgeTiles, citadelForecourtTiles, pickCitadelBridgePoint } from "~/utils/games/citadelBridgeLayout";
 
 type AssetType = "model" | "sound" | "image";
 type AssetPurpose =
@@ -172,10 +176,46 @@ interface MapEditorPoint {
 interface MapEditorConfiguration extends Record<string, unknown> {
   columns: number;
   rows: number;
+  cellSize: number;
   maxTowerCount: number;
   startingCredits: number;
   bossOnly?: boolean;
   environmentMode?: "normal" | "dark";
+  scenePreset?: "citadel-of-cinders";
+  sceneSettings?: {
+    bridge?: {
+      castleEdgeX: number;
+      length: number;
+      width?: number;
+      bayWidth: number;
+      paverColumns: number;
+      paverRows: number;
+      towerPadCount: number;
+      omittedTowerPierIndices?: number[];
+    };
+    lava?: {
+      width: number;
+      depth: number;
+    };
+    editorLayers?: Array<{
+      id:
+        | "lava"
+        | "opposite-foundation"
+        | "bridge-foundation"
+        | "bridge"
+        | "castle-foundation"
+        | "forecourt"
+        | "forest"
+        | "castle";
+      label: string;
+      bounds: {
+        xMin: number;
+        xMax: number;
+        yMin: number;
+        yMax: number;
+      };
+    }>;
+  };
   spawnPoints?: [MapEditorPoint, MapEditorPoint];
   paths: [MapEditorPoint[], MapEditorPoint[]];
   pathTiles: MapEditorPoint[];
@@ -245,12 +285,95 @@ const mapEditorPlacementMode = ref<
   "path" | "buildable" | "portal-0" | "portal-1" | "castle"
 >("path");
 const mapEditorAnchors = ref<[MapEditorPoint[], MapEditorPoint[]]>([[], []]);
-const mapEditorGrid = ref<HTMLElement | null>(null);
+const mapEditorGrid = ref<SVGSVGElement | null>(null);
+const mapEditorViewport = ref<HTMLDivElement | null>(null);
+const mapEditorZoom = ref(1);
+const isMapEditorPanning = ref(false);
+let mapEditorPanPointerId: number | null = null;
+let mapEditorPanClientX = 0;
+let mapEditorPanClientY = 0;
+let mapEditorPanScrollLeft = 0;
+let mapEditorPanScrollTop = 0;
 const draggedMapAnchor = ref<{ lane: 0 | 1; index: number } | null>(null);
 const draggedMapAnchorTarget = ref<MapEditorPoint | null>(null);
 let mapEditorDragPointerId: number | null = null;
 let ignoreMapEditorClickUntil = 0;
 const mapEditorMessage = ref("");
+const hoveredMapEditorPoint = ref<MapEditorPoint | null>(null);
+let mapEditorHoverFrame = 0;
+let pendingMapEditorPointer: PointerEvent | null = null;
+const mapEditorPadHint = computed(() => {
+  if (mapEditorPlacementMode.value !== "buildable" || !hoveredMapEditorPoint.value) return null;
+  const point = hoveredMapEditorPoint.value;
+  const status = mapPadPlacementStatus(point);
+  return { point, ...status };
+});
+
+function changeMapEditorZoom(step: number) {
+  mapEditorZoom.value = Math.min(
+    2,
+    Math.max(0.5, Number((mapEditorZoom.value + step).toFixed(2))),
+  );
+}
+
+function zoomMapEditorWithWheel(event: WheelEvent) {
+  const viewport = mapEditorViewport.value;
+  if (!viewport) return;
+  event.preventDefault();
+  const previousZoom = mapEditorZoom.value;
+  const nextZoom = Math.min(
+    2,
+    Math.max(
+      0.5,
+      Number((previousZoom + (event.deltaY < 0 ? 0.1 : -0.1)).toFixed(2)),
+    ),
+  );
+  if (nextZoom === previousZoom) return;
+
+  const bounds = viewport.getBoundingClientRect();
+  const pointerX = event.clientX - bounds.left;
+  const pointerY = event.clientY - bounds.top;
+  const contentX = viewport.scrollLeft + pointerX;
+  const contentY = viewport.scrollTop + pointerY;
+  mapEditorZoom.value = nextZoom;
+
+  void nextTick(() => {
+    const scale = nextZoom / previousZoom;
+    viewport.scrollLeft = contentX * scale - pointerX;
+    viewport.scrollTop = contentY * scale - pointerY;
+  });
+}
+
+function startMapEditorPan(event: PointerEvent) {
+  if (event.button !== 2 && event.button !== 1) return;
+  const viewport = mapEditorViewport.value;
+  if (!viewport) return;
+  event.preventDefault();
+  isMapEditorPanning.value = true;
+  mapEditorPanPointerId = event.pointerId;
+  mapEditorPanClientX = event.clientX;
+  mapEditorPanClientY = event.clientY;
+  mapEditorPanScrollLeft = viewport.scrollLeft;
+  mapEditorPanScrollTop = viewport.scrollTop;
+  viewport.setPointerCapture(event.pointerId);
+}
+
+function moveMapEditorPan(event: PointerEvent) {
+  const viewport = mapEditorViewport.value;
+  if (
+    !viewport
+    || !isMapEditorPanning.value
+    || event.pointerId !== mapEditorPanPointerId
+  ) return;
+  viewport.scrollLeft = mapEditorPanScrollLeft - (event.clientX - mapEditorPanClientX);
+  viewport.scrollTop = mapEditorPanScrollTop - (event.clientY - mapEditorPanClientY);
+}
+
+function endMapEditorPan(event?: PointerEvent) {
+  if (event && event.pointerId !== mapEditorPanPointerId) return;
+  isMapEditorPanning.value = false;
+  mapEditorPanPointerId = null;
+}
 
 const visualMapConfiguration = computed<MapEditorConfiguration | null>(() => {
   try {
@@ -270,10 +393,10 @@ const visualMapConfiguration = computed<MapEditorConfiguration | null>(() => {
   }
 });
 const mapEditorColumns = computed(() =>
-  Math.min(40, visualMapConfiguration.value?.columns ?? 0),
+  Math.min(100, visualMapConfiguration.value?.columns ?? 0),
 );
 const mapEditorRows = computed(() =>
-  Math.min(40, visualMapConfiguration.value?.rows ?? 0),
+  Math.min(100, visualMapConfiguration.value?.rows ?? 0),
 );
 const minimumMapColumns = computed(() =>
   Math.max(
@@ -293,15 +416,6 @@ const minimumMapRows = computed(() =>
     (visualMapConfiguration.value?.castle.position?.y ?? -1) + 1,
   ),
 );
-const mapEditorCells = computed(() =>
-  Array.from(
-    { length: mapEditorColumns.value * mapEditorRows.value },
-    (_, index) => ({
-      x: index % mapEditorColumns.value,
-      y: Math.floor(index / mapEditorColumns.value),
-    }),
-  ),
-);
 const mapEditorPathKeys = computed<[Set<string>, Set<string>]>(() => {
   const paths = visualMapConfiguration.value?.paths ?? [[], []];
   return [
@@ -316,6 +430,81 @@ const mapEditorBuildableKeys = computed(() =>
     ),
   ),
 );
+const mapEditorTerrainLayers = computed(() => {
+  const configuration = visualMapConfiguration.value;
+  const layers = (configuration?.sceneSettings?.editorLayers ?? []).map((layer) => {
+    if ((layer.id !== "bridge" && layer.id !== "bridge-foundation")
+      || configuration?.scenePreset !== "citadel-of-cinders")
+      return layer;
+    const layout = citadelBridgeLayout(configuration);
+    if (!layout) return layer;
+    const centerRow = layout.lava.depth / configuration.cellSize / 2;
+    const halfWidth = layout.width / configuration.cellSize / 2;
+    return {
+      ...layer,
+      bounds: {
+        xMin: (layout.startX + layout.lava.width / 2) / configuration.cellSize,
+        xMax: (layout.bridge.castleEdgeX + layout.lava.width / 2) / configuration.cellSize - 1,
+        yMin: centerRow - halfWidth,
+        yMax: centerRow + halfWidth - 1,
+      },
+    };
+  });
+  if (
+    configuration?.scenePreset !== "citadel-of-cinders"
+    || layers.some((layer) => layer.id === "forecourt")
+  ) return layers;
+  // Older imported documents omit the paved approach present in the 3D scene.
+  const foundationIndex = layers.findIndex((layer) => layer.id === "castle-foundation");
+  if (foundationIndex < 0) return layers;
+  return [
+    ...layers.slice(0, foundationIndex + 1),
+    {
+      id: "forecourt" as const,
+      label: "Sân lát nối cầu và cổng lâu đài",
+      bounds: { xMin: 61, xMax: 65, yMin: 24, yMax: 35 },
+    },
+    ...layers.slice(foundationIndex + 1),
+  ];
+});
+const mapEditorPathPolylines = computed(() =>
+  (visualMapConfiguration.value?.paths ?? [[], []]).map((path) =>
+    path.map((point) => {
+      const position = mapEditorDisplayPoint(point);
+      return `${position.x},${position.y}`;
+    }).join(" "),
+  ),
+);
+const mapEditorBridgeTiles = computed(() => {
+  const configuration = visualMapConfiguration.value;
+  return configuration?.scenePreset === "citadel-of-cinders"
+    ? [...citadelBridgeTiles(configuration), ...citadelForecourtTiles(configuration)] : [];
+});
+const mapEditorSharedLaneSegments = computed(() =>
+  sharedLaneSegments(visualMapConfiguration.value?.paths ?? []).map(segment => ({
+    key: segment.key,
+    from: mapEditorDisplayPoint(segment.from),
+    to: mapEditorDisplayPoint(segment.to),
+  })),
+);
+
+function mapEditorDisplayPoint(point: MapEditorPoint) {
+  const configuration = visualMapConfiguration.value;
+  if (configuration?.scenePreset === "citadel-of-cinders") {
+    const world = citadelBridgePointWorld(point, configuration);
+    const lava = configuration.sceneSettings?.lava;
+    if (world && lava) return {
+      x: (world.x + lava.width / 2) / configuration.cellSize,
+      y: (world.z + lava.depth / 2) / configuration.cellSize,
+    };
+  }
+  return { x: point.x + 0.5, y: point.y + 0.5 };
+}
+const mapEditorMarkers = computed(() => ({
+  spawnOne: configuredSpawnPoint(0),
+  spawnTwo: configuredSpawnPoint(1),
+  castle: configuredCastlePoint(),
+}));
 
 function configuredSpawnPoint(lane: 0 | 1) {
   const configuration = visualMapConfiguration.value;
@@ -417,6 +606,84 @@ watch(assetType, () => {
   )
     assetPurpose.value = "";
 });
+
+function applyImportedCitadelLayout(configuration: MapEditorConfiguration) {
+  const bridge = configuration.sceneSettings?.bridge;
+  const lava = configuration.sceneSettings?.lava;
+  if (!bridge || !lava) return;
+
+  // Lưới bao toàn bộ mặt bằng 180×120 của scene, không chỉ riêng mặt cầu.
+  // Cell 2 world-unit giữ đúng 36 cột gạch dọc cây cầu dài 72.
+  const cellSize = bridge.length / bridge.paverColumns;
+  const columns = Math.round(lava.width / cellSize);
+  const rows = Math.round(lava.depth / cellSize);
+  const centerRow = Math.floor(rows / 2);
+  const laneRows = [centerRow - 1, centerRow + 1] as const;
+  const bridgeStartWorldX = bridge.castleEdgeX - bridge.length;
+  const worldToGridX = (worldX: number) =>
+    Math.round((worldX + lava.width / 2) / cellSize);
+  const bridgeStartX = worldToGridX(bridgeStartWorldX);
+  const bridgeEndX = worldToGridX(bridge.castleEdgeX);
+  const gateTile = citadelForecourtTiles({ ...configuration, cellSize, rows }).find((tile) => tile.worldZ === 0 && tile.worldX === 41);
+  const castleX = gateTile?.point.x ?? bridgeEndX;
+  const approachX = bridgeEndX - 1;
+  const paths = laneRows.map((laneY) => [
+    ...Array.from(
+      { length: approachX - bridgeStartX + 1 },
+      (_, index) => ({ x: bridgeStartX + index, y: laneY }),
+    ),
+    { x: approachX, y: centerRow },
+    ...Array.from({ length: castleX - approachX }, (_, index) => ({ x: approachX + index + 1, y: centerRow })),
+  ]) as [MapEditorPoint[], MapEditorPoint[]];
+  const pierCount = Math.round(bridge.length / bridge.bayWidth) + 1;
+  const omitted = new Set(bridge.omittedTowerPierIndices ?? []);
+  const towerPierIndexes = Array.from({ length: pierCount }, (_, index) => index)
+    .filter((index) => index > 0 && index < pierCount - 1 && !omitted.has(index))
+    .slice(0, bridge.towerPadCount);
+  const buildableTiles = towerPierIndexes.map((pierIndex, index) => ({
+    x: worldToGridX(bridgeStartWorldX + pierIndex * bridge.bayWidth),
+    y: index % 2 === 0 ? centerRow - 3 : centerRow + 3,
+  }));
+
+  configuration.columns = columns;
+  configuration.rows = rows;
+  configuration.cellSize = cellSize;
+  configuration.spawnPoints = [
+    { x: bridgeStartX, y: laneRows[0] },
+    { x: bridgeStartX, y: laneRows[1] },
+  ];
+  configuration.paths = paths;
+  configuration.pathTiles = Array.from(
+    new Map(
+      paths.flat().map((point) => [`${point.x}:${point.y}`, point]),
+    ).values(),
+  );
+  configuration.buildableTiles = buildableTiles;
+  configuration.maxTowerCount = buildableTiles.length;
+  configuration.castle.position = { x: castleX, y: centerRow };
+}
+
+function importTestMapPreset() {
+  if (mapMode.value !== "create") return;
+  const preset = structuredClone(lavaMapData) as unknown as {
+    id: string;
+    name: string;
+    isActive: boolean;
+    configuration: MapEditorConfiguration;
+  };
+  applyImportedCitadelLayout(preset.configuration);
+  const removedProfiles = normalizeMapEnemyRoster(preset.configuration);
+  Object.assign(mapForm, {
+    id: preset.id,
+    name: preset.name,
+    isActive: preset.isActive,
+    configuration: JSON.stringify(preset.configuration, null, 2),
+  });
+  mapEditorMessage.value = removedProfiles > 0
+    ? `Đã nhập cấu hình map test; ${removedProfiles} hồ sơ quái không còn hoạt động đã được loại bỏ.`
+    : "Đã nhập đầy đủ cấu hình từ map test. Có thể chỉnh sửa trước khi lưu.";
+  void nextTick(refreshMapPreview);
+}
 
 const defaultMapConfiguration = () => {
   const paths = [3, 10].map((startY) => {
@@ -555,6 +822,15 @@ watch(previewMap, () => {
   if (renderedPreviewMap.value) mapPreviewDirty.value = true;
 });
 
+watch(
+  () => (visualMapConfiguration.value?.buildableTiles ?? [])
+    .map((point) => `${point.x}:${point.y}`)
+    .join("|"),
+  () => {
+    if (renderedPreviewMap.value) refreshMapPreview();
+  },
+);
+
 function compressPath(path: MapEditorPoint[]) {
   if (path.length <= 2) return path.map((point) => ({ ...point }));
   const anchors: MapEditorPoint[] = [{ ...path[0]! }];
@@ -647,41 +923,85 @@ function syncEditorPaths() {
   // Chỉ tạo danh sách giới hạn sau khi admin chủ động dùng công cụ đặt bệ.
   if (Object.hasOwn(configuration, "buildableTiles")) {
     nextConfiguration.buildableTiles = (configuration.buildableTiles ?? []).filter(
-      (point) => !pathKeys.has(`${point.x}:${point.y}`),
+      (point) => !pathKeys.has(`${point.x}:${point.y}`)
+        || (configuration.scenePreset === "citadel-of-cinders" && isBridgeSurfacePoint(point, configuration)),
     );
   }
   mapForm.configuration = JSON.stringify(nextConfiguration, null, 2);
 }
 
+function isBridgeSurfacePoint(
+  point: MapEditorPoint,
+  configuration: MapEditorConfiguration,
+) {
+  const bridgeBounds = configuration.sceneSettings?.editorLayers?.find(
+    (layer) => layer.id === "bridge",
+  )?.bounds;
+  return Boolean(
+    bridgeBounds
+    && point.x >= bridgeBounds.xMin
+    && point.x <= bridgeBounds.xMax
+    && point.y >= bridgeBounds.yMin
+    && point.y <= bridgeBounds.yMax
+  );
+}
+
+function mapPadPlacementStatus(point: MapEditorPoint) {
+  const configuration = visualMapConfiguration.value;
+  if (!configuration) return { allowed: false, removing: false, message: "Map chưa hợp lệ." };
+  const pads = configuration.buildableTiles ?? [];
+  if (pads.some((pad) => isConfiguredPoint(point, pad)))
+    return { allowed: true, removing: true, message: "Nhấn để xóa bệ này." };
+  if (isConfiguredPoint(point, configuredSpawnPoint(0))
+    || isConfiguredPoint(point, configuredSpawnPoint(1))
+    || isConfiguredPoint(point, configuredCastlePoint()))
+    return { allowed: false, removing: false, message: "Ô này là cổng; không thể đặt bệ." };
+  if (!isBridgeSurfacePoint(point, configuration)
+    && mapEditorPathKeys.value.some((keys) => keys.has(`${point.x}:${point.y}`)))
+    return { allowed: false, removing: false, message: "Ô này thuộc đường đi ngoài cầu." };
+  const position = (point: MapEditorPoint) => {
+    if (configuration.scenePreset === "citadel-of-cinders") {
+      const world = citadelBridgePointWorld(point, configuration);
+      if (world) return world;
+    }
+    return { x: point.x * configuration.cellSize, z: point.y * configuration.cellSize };
+  };
+  const target = position(point);
+  const overlaps = pads.some((pad) => {
+    const existing = position(pad);
+    return Math.hypot(existing.x - target.x, existing.z - target.z) < 2.8;
+  });
+  return overlaps
+    ? { allowed: false, removing: false, message: "Bệ sẽ chồng lên bệ bên cạnh. Chọn ô xa hơn." }
+    : { allowed: true, removing: false, message: "Nhấn để đặt bệ tại ô này." };
+}
+
 function selectMapEditorCell(point: MapEditorPoint) {
   if (performance.now() < ignoreMapEditorClickUntil) return;
   if (mapEditorPlacementMode.value === "buildable") {
-    const key = `${point.x}:${point.y}`;
-    const isPath = mapEditorPathKeys.value.some((keys) => keys.has(key));
-    if (
-      isPath ||
-      isConfiguredPoint(point, configuredSpawnPoint(0)) ||
-      isConfiguredPoint(point, configuredSpawnPoint(1)) ||
-      isConfiguredPoint(point, configuredCastlePoint())
-    ) {
-      mapEditorMessage.value =
-        "Bệ đặt trụ không được trùng đường đi, cổng spawn hoặc cổng lâu đài.";
+    const configuration = visualMapConfiguration.value;
+    if (!configuration) return;
+    const padPoint = { ...point };
+    const onBridgeSurface = isBridgeSurfacePoint(padPoint, configuration);
+    const status = mapPadPlacementStatus(padPoint);
+    if (!status.allowed) {
+      mapEditorMessage.value = status.message;
       return;
     }
     let added = false;
     updateMapConfiguration((configuration) => {
       const buildableTiles = configuration.buildableTiles ?? [];
       const existingIndex = buildableTiles.findIndex(
-        (cell) => cell.x === point.x && cell.y === point.y,
+        (cell) => cell.x === padPoint.x && cell.y === padPoint.y,
       );
       if (existingIndex >= 0) buildableTiles.splice(existingIndex, 1);
       else {
-        buildableTiles.push({ ...point });
+        buildableTiles.push({ ...padPoint });
         added = true;
       }
       configuration.buildableTiles = buildableTiles;
     });
-    mapEditorMessage.value = `${added ? "Đã thêm" : "Đã bỏ"} bệ đặt trụ tại ô ${point.x}, ${point.y}.`;
+    mapEditorMessage.value = `${added ? "Đã thêm" : "Đã bỏ"} bệ đặt trụ tại ô ${padPoint.x}, ${padPoint.y}${onBridgeSurface ? " trên mặt cầu" : ""}.`;
     return;
   }
   if (mapEditorPlacementMode.value !== "path") {
@@ -753,34 +1073,96 @@ function startMapAnchorDrag(event: PointerEvent, point: MapEditorPoint) {
 function mapEditorPointFromPointer(event: PointerEvent) {
   const grid = mapEditorGrid.value;
   if (!grid) return null;
-  const bounds = grid.getBoundingClientRect();
-  if (!bounds.width || !bounds.height) return null;
+  const matrix = grid.getScreenCTM();
+  if (!matrix) return null;
+  const { x, y } = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+  const configuration = visualMapConfiguration.value;
+  if (mapEditorPlacementMode.value === "buildable") {
+    const pad = visualMapConfiguration.value?.buildableTiles?.find((point) => {
+      const position = mapEditorDisplayPoint(point);
+      const radius = 1.4 / (visualMapConfiguration.value?.cellSize ?? 2);
+      return Math.hypot(position.x - x, position.y - y) <= radius;
+    });
+    if (pad) return { ...pad };
+  }
+  if (configuration?.scenePreset === "citadel-of-cinders") {
+    const bridgePoint = pickCitadelBridgePoint(x, y, configuration, mapEditorPlacementMode.value === "buildable");
+    if (bridgePoint) return bridgePoint;
+  }
+  const tile = mapEditorBridgeTiles.value.find((tile) =>
+    x >= tile.x && x < tile.x + tile.width && y >= tile.y && y < tile.y + tile.height,
+  );
+  if (tile) return { ...tile.point };
+  const pad = visualMapConfiguration.value?.buildableTiles?.find((point) => {
+    const position = mapEditorDisplayPoint(point);
+    return Math.hypot(position.x - x, position.y - y) < 0.5;
+  });
+  if (pad) return { ...pad };
   return {
     x: Math.max(
       0,
       Math.min(
         mapEditorColumns.value - 1,
-        Math.floor(((event.clientX - bounds.left) / bounds.width) * mapEditorColumns.value),
+        configuration?.scenePreset === "citadel-of-cinders" ? Math.round(x) : Math.floor(x),
       ),
     ),
     y: Math.max(
       0,
       Math.min(
         mapEditorRows.value - 1,
-        Math.floor(((event.clientY - bounds.top) / bounds.height) * mapEditorRows.value),
+        configuration?.scenePreset === "citadel-of-cinders" ? Math.round(y) : Math.floor(y),
       ),
     ),
   };
 }
 
+function startMapEditorPointer(event: PointerEvent) {
+  if (event.button !== 0) return;
+  const point = mapEditorPointFromPointer(event);
+  if (point) startMapAnchorDrag(event, point);
+}
+
+function selectMapEditorPointer(event: PointerEvent) {
+  const point = mapEditorPointFromPointer(event);
+  if (point) selectMapEditorCell(point);
+}
+
 function moveMapAnchorDrag(event: PointerEvent) {
+  pendingMapEditorPointer = event;
+  if (!mapEditorHoverFrame) {
+    mapEditorHoverFrame = requestAnimationFrame(() => {
+      mapEditorHoverFrame = 0;
+      const latest = pendingMapEditorPointer;
+      pendingMapEditorPointer = null;
+      if (latest) updateMapEditorPointer(latest);
+    });
+  }
+}
+
+function clearMapEditorHover() {
+  cancelAnimationFrame(mapEditorHoverFrame);
+  mapEditorHoverFrame = 0;
+  pendingMapEditorPointer = null;
+  hoveredMapEditorPoint.value = null;
+}
+
+onBeforeUnmount(clearMapEditorHover);
+
+function updateMapEditorPointer(event: PointerEvent) {
+  if (!isMapEditorPanning.value && mapEditorPlacementMode.value === "buildable") {
+    const point = mapEditorPointFromPointer(event);
+    const previous = hoveredMapEditorPoint.value;
+    if (point?.x !== previous?.x || point?.y !== previous?.y)
+      hoveredMapEditorPoint.value = point;
+  }
   if (
     !draggedMapAnchor.value ||
     event.pointerId !== mapEditorDragPointerId
   )
     return;
   const point = mapEditorPointFromPointer(event);
-  if (point) draggedMapAnchorTarget.value = point;
+  if (point && !isConfiguredPoint(point, draggedMapAnchorTarget.value))
+    draggedMapAnchorTarget.value = point;
 }
 
 function finishMapAnchorDrag(event: PointerEvent) {
@@ -1182,6 +1564,8 @@ async function openMapDialog(
   mapFormError.value = "";
   mapFieldErrors.value = {};
   mapEditorMessage.value = "";
+  mapEditorZoom.value = 1;
+  endMapEditorPan();
   // item đến từ ref nên configuration là Vue Proxy; structuredClone không thể
   // clone Proxy. Cấu hình map là tài liệu JSON, vì vậy chuyển về object thuần.
   const configuration = JSON.parse(JSON.stringify(
@@ -1204,7 +1588,15 @@ async function openMapDialog(
   if (removedProfiles > 0)
     mapEditorMessage.value = `Đã loại ${removedProfiles} hồ sơ quái/boss không còn hoạt động khỏi cấu hình map.`;
   mapDialog.value?.showModal();
-  if (mode !== "delete") void nextTick(refreshMapPreview);
+  if (mode !== "delete") {
+    void nextTick(() => {
+      if (mapEditorViewport.value) {
+        mapEditorViewport.value.scrollLeft = 0;
+        mapEditorViewport.value.scrollTop = 0;
+      }
+      refreshMapPreview();
+    });
+  }
 }
 
 function closeMapDialog() {
@@ -1502,6 +1894,15 @@ onMounted(() => {
           <header><div><small>MAP CONFIGURATION</small><h2>{{ mapMode === 'create' ? 'Thêm map' : mapMode === 'edit' ? 'Sửa map' : 'Xóa map?' }}</h2></div><button type="button" @click="closeMapDialog"><X /></button></header>
           <p v-if="mapMode === 'delete'" class="td-delete-copy">Map <strong>{{ selectedMap?.name }}</strong> sẽ bị xóa khỏi database và biến mất khỏi game. Asset liên quan không bị xóa.</p>
           <div v-else class="td-form-grid td-map-form">
+            <section v-if="mapMode === 'create'" class="td-map-preset-import is-full">
+              <div>
+                <strong>Map mẫu Citadel of Cinders</strong>
+                <small>Nhập cấu hình của cảnh /games/tower-defense/test để tiếp tục chỉnh sửa.</small>
+              </div>
+              <button class="td-button is-primary" type="button" @click="importTestMapPreset">
+                <Upload /> Import map test
+              </button>
+            </section>
             <label><span>ID map</span><input v-model="mapForm.id" :disabled="mapMode === 'edit'" required pattern="[a-z0-9-]+" placeholder="dark-forest" /><small v-if="mapFieldErrors.id">{{ mapFieldErrors.id[0] }}</small></label>
             <label><span>Tên hiển thị</span><input v-model="mapForm.name" required placeholder="Khu rừng Bóng tối" /><small v-if="mapFieldErrors.name">{{ mapFieldErrors.name[0] }}</small></label>
             <label class="td-checkbox"><input v-model="mapForm.isActive" type="checkbox" /><span>Cho phép người chơi chọn map này</span></label>
@@ -1547,8 +1948,8 @@ onMounted(() => {
             <section v-if="visualMapConfiguration" class="td-map-settings is-full">
               <header><div><strong>Thông số map và gameplay</strong><small>Các giá trị này được áp dụng trực tiếp khi người chơi mở map.</small></div></header>
               <div>
-                <label><span>Số cột</span><input :value="visualMapConfiguration.columns" type="number" :min="minimumMapColumns" max="40" step="1" required @change="updateMapNumber('columns', $event)" /><small v-if="mapFieldErrors['configuration.columns']">{{ mapFieldErrors['configuration.columns'][0] }}</small></label>
-                <label><span>Số hàng</span><input :value="visualMapConfiguration.rows" type="number" :min="minimumMapRows" max="40" step="1" required @change="updateMapNumber('rows', $event)" /><small v-if="mapFieldErrors['configuration.rows']">{{ mapFieldErrors['configuration.rows'][0] }}</small></label>
+                <label><span>Số cột</span><input :value="visualMapConfiguration.columns" type="number" :min="minimumMapColumns" max="100" step="1" required @change="updateMapNumber('columns', $event)" /><small v-if="mapFieldErrors['configuration.columns']">{{ mapFieldErrors['configuration.columns'][0] }}</small></label>
+                <label><span>Số hàng</span><input :value="visualMapConfiguration.rows" type="number" :min="minimumMapRows" max="100" step="1" required @change="updateMapNumber('rows', $event)" /><small v-if="mapFieldErrors['configuration.rows']">{{ mapFieldErrors['configuration.rows'][0] }}</small></label>
                 <label><span>Số trụ tối đa</span><input :value="visualMapConfiguration.maxTowerCount" type="number" min="1" max="1000" step="1" required @change="updateMapNumber('maxTowerCount', $event)" /><small v-if="mapFieldErrors['configuration.maxTowerCount']">{{ mapFieldErrors['configuration.maxTowerCount'][0] }}</small></label>
                 <label><span>Vàng khởi đầu</span><input :value="visualMapConfiguration.startingCredits ?? 3000" type="number" min="0" max="10000000" step="1" required @change="updateMapNumber('startingCredits', $event)" /><small v-if="mapFieldErrors['configuration.startingCredits']">{{ mapFieldErrors['configuration.startingCredits'][0] }}</small></label>
                 <button
@@ -1574,7 +1975,7 @@ onMounted(() => {
               <header>
                 <div>
                   <strong>Trình dựng bàn chơi trực tiếp</strong>
-                  <small>Vẽ lane, đặt cổng và chọn từng bệ được phép xây trụ. JSON được sinh tự động.</small>
+                  <small>Chuột trái để chỉnh · Lăn chuột để zoom · Kéo chuột phải để di chuyển. JSON được sinh tự động.</small>
                 </div>
                 <div class="td-lane-switcher">
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'path' && mapEditorLane === 0 }" @click="mapEditorLane = 0; mapEditorPlacementMode = 'path'">Vẽ lane 1</button>
@@ -1583,44 +1984,176 @@ onMounted(() => {
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'portal-0' }" @click="mapEditorPlacementMode = 'portal-0'">Đặt cổng 1</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'portal-1' }" @click="mapEditorPlacementMode = 'portal-1'">Đặt cổng 2</button>
                   <button type="button" :class="{ 'is-active': mapEditorPlacementMode === 'castle' }" @click="mapEditorPlacementMode = 'castle'">Đặt cổng lâu đài</button>
+                  <div class="td-map-zoom" aria-label="Thu phóng sơ đồ">
+                    <button type="button" :disabled="mapEditorZoom <= 0.5" title="Thu nhỏ" @click="changeMapEditorZoom(-0.25)">−</button>
+                    <button type="button" title="Đặt lại 100%" @click="mapEditorZoom = 1">{{ Math.round(mapEditorZoom * 100) }}%</button>
+                    <button type="button" :disabled="mapEditorZoom >= 2" title="Phóng lớn" @click="changeMapEditorZoom(0.25)">+</button>
+                  </div>
                 </div>
               </header>
 
               <div v-if="visualMapConfiguration" class="td-live-stage">
                 <div
-                  ref="mapEditorGrid"
-                  class="td-live-grid"
-                  :style="{
-                    '--map-columns': mapEditorColumns,
-                    '--map-terrain': colorNumber(visualMapConfiguration.theme?.terrain, '#1b211e'),
-                    '--map-grid': colorNumber(visualMapConfiguration.theme?.gridLine, '#303832'),
-                  }"
-                  @pointermove="moveMapAnchorDrag"
-                  @pointerup="finishMapAnchorDrag"
-                  @pointercancel="endMapAnchorDrag"
+                  ref="mapEditorViewport"
+                  class="td-live-grid-viewport"
+                  :class="{ 'is-panning': isMapEditorPanning }"
+                  @wheel="zoomMapEditorWithWheel"
+                  @pointerdown="startMapEditorPan"
+                  @pointermove="moveMapEditorPan"
+                  @pointerup="endMapEditorPan"
+                  @pointercancel="endMapEditorPan"
+                  @contextmenu.prevent
                 >
-                  <button
-                    v-for="point in mapEditorCells"
-                    :key="`${point.x}:${point.y}`"
-                    type="button"
-                    :title="`Ô ${point.x}, ${point.y}`"
-                    :class="{
-                      'is-lane-one': mapEditorPathKeys[0].has(`${point.x}:${point.y}`),
-                      'is-lane-two': mapEditorPathKeys[1].has(`${point.x}:${point.y}`),
-                      'is-buildable': mapEditorBuildableKeys.has(`${point.x}:${point.y}`),
-                      'is-anchor-one': isEditorAnchor(point, 0),
-                      'is-anchor-two': isEditorAnchor(point, 1),
-                      'is-portal-one': isConfiguredPoint(point, configuredSpawnPoint(0)),
-                      'is-portal-two': isConfiguredPoint(point, configuredSpawnPoint(1)),
-                      'is-castle': isConfiguredPoint(point, configuredCastlePoint()),
-                      'is-anchor-draggable': canDragMapAnchor(point),
-                      'is-anchor-drop-target': isMapAnchorDropTarget(point),
-                    }"
-                    @pointerdown="startMapAnchorDrag($event, point)"
-                    @click="selectMapEditorCell(point)"
-                  ><span>{{ editorCellContent(point) }}</span></button>
+                  <div
+                    class="td-live-grid-canvas"
+                    :style="{ width: `${mapEditorZoom * 100}%` }"
+                  >
+                    <svg
+                      ref="mapEditorGrid"
+                      class="td-live-grid"
+                      :class="{ 'is-placing-pad': Boolean(mapEditorPadHint) && !isMapEditorPanning }"
+                      :viewBox="`0 0 ${mapEditorColumns} ${mapEditorRows}`"
+                      role="grid"
+                      :aria-label="`Bố cục map ${mapEditorColumns} cột, ${mapEditorRows} hàng`"
+                      @pointerdown="startMapEditorPointer"
+                      :style="{
+                        '--map-terrain': colorNumber(visualMapConfiguration.theme?.terrain, '#1b211e'),
+                        '--map-grid': colorNumber(visualMapConfiguration.theme?.gridLine, '#303832'),
+                        '--map-aspect': `${mapEditorColumns} / ${mapEditorRows}`,
+                      }"
+                      @pointermove="moveMapAnchorDrag"
+                      @pointerleave="clearMapEditorHover"
+                      @pointerup="finishMapAnchorDrag"
+                      @pointercancel="endMapAnchorDrag"
+                      @click="selectMapEditorPointer"
+                    >
+                  <g v-memo="[visualMapConfiguration, mapEditorAnchors[0], mapEditorAnchors[1], draggedMapAnchorTarget]">
+                  <defs>
+                    <pattern id="td-map-grid-pattern" :x="visualMapConfiguration.scenePreset === 'citadel-of-cinders' ? -0.5 : 0" :y="visualMapConfiguration.scenePreset === 'citadel-of-cinders' ? -0.5 : 0" width="1" height="1" patternUnits="userSpaceOnUse">
+                      <path d="M 1 0 L 0 0 0 1" class="td-map-grid-line" />
+                    </pattern>
+                  </defs>
+                  <rect class="td-map-base" x="0" y="0" :width="mapEditorColumns" :height="mapEditorRows" />
+                  <rect
+                    v-for="(layer, index) in mapEditorTerrainLayers"
+                    :key="`${layer.id}-${index}`"
+                    class="td-map-layer"
+                    :class="`is-terrain-${layer.id}`"
+                    :x="layer.bounds.xMin"
+                    :y="layer.bounds.yMin"
+                    :width="layer.bounds.xMax - layer.bounds.xMin + 1"
+                    :height="layer.bounds.yMax - layer.bounds.yMin + 1"
+                  ><title>{{ layer.label }}</title></rect>
+                  <rect class="td-map-grid-overlay" x="0" y="0" :width="mapEditorColumns" :height="mapEditorRows" />
+                  <rect
+                    v-for="tile in mapEditorBridgeTiles"
+                    :key="`bridge-tile-${tile.point.x}-${tile.point.y}`"
+                    class="td-map-paver"
+                    :x="tile.x"
+                    :y="tile.y"
+                    :width="tile.width"
+                    :height="tile.height"
+                    :fill="tile.color"
+                  ><title>Gạch cầu {{ tile.point.x }}, {{ tile.point.y }}</title></rect>
+                  <polyline class="td-map-route is-one" :points="mapEditorPathPolylines[0]" />
+                  <polyline class="td-map-route is-two" :points="mapEditorPathPolylines[1]" />
+                  <line
+                    v-for="segment in mapEditorSharedLaneSegments"
+                    :key="`shared-lane-${segment.key}`"
+                    class="td-map-route is-one is-shared"
+                    :x1="segment.from.x"
+                    :y1="segment.from.y"
+                    :x2="segment.to.x"
+                    :y2="segment.to.y"
+                  ><title>Đoạn đi chung của lane 1 và lane 2</title></line>
+                  <circle
+                    v-for="point in visualMapConfiguration.buildableTiles ?? []"
+                    :key="`pad-${point.x}-${point.y}`"
+                    class="td-map-pad"
+                    :cx="mapEditorDisplayPoint(point).x"
+                    :cy="mapEditorDisplayPoint(point).y"
+                    :r="visualMapConfiguration.scenePreset === 'citadel-of-cinders' ? 1.4 / visualMapConfiguration.cellSize : 0.43"
+                  ><title>Bệ trụ {{ point.x }}, {{ point.y }}</title></circle>
+                  <circle
+                    v-for="(point, index) in mapEditorAnchors[0]"
+                    :key="`anchor-0-${index}`"
+                    class="td-map-anchor is-one"
+                    :cx="mapEditorDisplayPoint(point).x"
+                    :cy="mapEditorDisplayPoint(point).y"
+                    r="0.3"
+                  />
+                  <circle
+                    v-for="(point, index) in mapEditorAnchors[1]"
+                    :key="`anchor-1-${index}`"
+                    class="td-map-anchor is-two"
+                    :cx="mapEditorDisplayPoint(point).x"
+                    :cy="mapEditorDisplayPoint(point).y"
+                    r="0.3"
+                  />
+                  <rect
+                    v-if="mapEditorMarkers.spawnOne"
+                    class="td-map-marker is-portal-one"
+                    :x="mapEditorDisplayPoint(mapEditorMarkers.spawnOne).x - 0.42"
+                    :y="mapEditorDisplayPoint(mapEditorMarkers.spawnOne).y - 0.42"
+                    width="0.84"
+                    height="0.84"
+                    rx="0.16"
+                  />
+                  <rect
+                    v-if="mapEditorMarkers.spawnTwo"
+                    class="td-map-marker is-portal-two"
+                    :x="mapEditorDisplayPoint(mapEditorMarkers.spawnTwo).x - 0.42"
+                    :y="mapEditorDisplayPoint(mapEditorMarkers.spawnTwo).y - 0.42"
+                    width="0.84"
+                    height="0.84"
+                    rx="0.16"
+                  />
+                  <rect
+                    v-if="mapEditorMarkers.castle"
+                    class="td-map-marker is-castle"
+                    :x="mapEditorDisplayPoint(mapEditorMarkers.castle).x - 0.45"
+                    :y="mapEditorDisplayPoint(mapEditorMarkers.castle).y - 0.45"
+                    width="0.9"
+                    height="0.9"
+                    rx="0.12"
+                  />
+                  <rect
+                    v-if="draggedMapAnchorTarget"
+                    class="td-map-drop-target"
+                    :x="mapEditorDisplayPoint(draggedMapAnchorTarget).x - 0.45"
+                    :y="mapEditorDisplayPoint(draggedMapAnchorTarget).y - 0.45"
+                    width="0.9"
+                    height="0.9"
+                    rx="0.12"
+                  />
+                  </g>
+                  <g
+                    v-if="mapEditorPadHint"
+                    class="td-map-pad-cursor"
+                    :class="{ 'is-blocked': !mapEditorPadHint.allowed, 'is-removing': mapEditorPadHint.removing }"
+                    :transform="`translate(${mapEditorDisplayPoint(mapEditorPadHint.point).x}, ${mapEditorDisplayPoint(mapEditorPadHint.point).y})`"
+                  >
+                    <circle class="td-map-pad-hover" :r="1.4 / visualMapConfiguration.cellSize" />
+                    <path
+                      class="td-map-pad-crosshair"
+                      :d="mapEditorPadHint.removing ? 'M -0.2 0 H 0.2' : 'M -0.2 0 H 0.2 M 0 -0.2 V 0.2'"
+                    />
+                  </g>
+                    </svg>
+                  </div>
                 </div>
                 <aside>
+                  <p v-if="mapEditorPlacementMode === 'buildable'" class="td-pad-placement-hint" :class="{ 'is-blocked': mapEditorPadHint && !mapEditorPadHint.allowed }">
+                    {{ mapEditorPadHint?.message ?? 'Rê chuột để xem trước vị trí bệ. Nhấn vào bệ đã có để xóa.' }}
+                  </p>
+                  <div class="td-terrain-legend">
+                    <span class="is-lava" /> Lava
+                    <span class="is-foundation" /> Foundation
+                    <span class="is-bridge" /> Cầu
+                    <span class="is-forecourt" /> Sân trước cổng
+                    <span class="is-forest" /> Rừng cháy
+                    <span class="is-castle" /> Lâu đài
+                  </div>
                   <div class="td-live-legend"><span class="is-one" /> Lane 1 <span class="is-two" /> Lane 2 <span class="is-buildable" /> Bệ trụ</div>
                   <dl>
                     <div><dt>Kích thước</dt><dd>{{ visualMapConfiguration.columns }} × {{ visualMapConfiguration.rows }}</dd></div>
@@ -1639,28 +2172,37 @@ onMounted(() => {
               </div>
               <p v-else class="td-live-invalid">JSON chưa hợp lệ nên không thể dựng bản xem trước.</p>
               <p v-if="mapEditorMessage" class="td-editor-message">{{ mapEditorMessage }}</p>
-            </section>
 
-            <section v-if="renderedPreviewMap" class="td-map-preview is-full">
-              <header>
-                <div>
-                  <small>LIVE PREVIEW</small>
-                  <strong>Bản xem trước trong game</strong>
-                  <p>Preview chỉ dựng lại khi bạn yêu cầu để thao tác chỉnh lane luôn mượt.</p>
-                </div>
-                <div class="td-map-preview-actions">
-                  <span v-if="mapPreviewDirty">Có thay đổi chưa hiển thị</span>
-                  <button type="button" :disabled="!previewMap" @click="refreshMapPreview">
-                    <RefreshCw /> {{ mapPreviewDirty ? 'Cập nhật preview' : 'Dựng lại preview' }}
-                  </button>
-                </div>
-              </header>
-              <ClientOnly>
-                <TowerDefenseMapPreview :map="renderedPreviewMap" />
-                <template #fallback>
-                  <div class="td-map-preview-fallback">Đang khởi tạo trình xem 3D…</div>
-                </template>
-              </ClientOnly>
+              <div
+                v-if="renderedPreviewMap"
+                v-memo="[renderedPreviewMap, mapPreviewDirty]"
+                class="td-map-preview td-live-editor-preview"
+              >
+                <header>
+                  <div>
+                    <small>LIVE PREVIEW · MAP VỪA IMPORT</small>
+                    <strong>Bố cục thật trong game</strong>
+                    <p>Cảnh 3D và công cụ chỉnh lane/bệ cùng nằm trong một trình dựng.</p>
+                  </div>
+                  <div class="td-map-preview-actions">
+                    <span v-if="mapPreviewDirty">Có thay đổi chưa hiển thị</span>
+                    <button type="button" :disabled="!previewMap" @click="refreshMapPreview">
+                      <RefreshCw /> {{ mapPreviewDirty ? 'Cập nhật preview' : 'Dựng lại preview' }}
+                    </button>
+                  </div>
+                </header>
+                <ClientOnly>
+                  <LavaCitadelTestScene
+                    v-if="renderedPreviewMap.scenePreset === 'citadel-of-cinders'"
+                    embedded
+                    :configuration="renderedPreviewMap"
+                  />
+                  <TowerDefenseMapPreview v-else :map="renderedPreviewMap" />
+                  <template #fallback>
+                    <div class="td-map-preview-fallback">Đang khởi tạo trình xem 3D…</div>
+                  </template>
+                </ClientOnly>
+              </div>
             </section>
 
             <details class="td-json-editor is-full">
