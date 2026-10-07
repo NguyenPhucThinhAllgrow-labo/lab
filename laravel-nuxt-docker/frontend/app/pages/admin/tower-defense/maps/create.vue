@@ -3,5 +3,5 @@ import TowerDefenseMapManager from "~/components/admin/TowerDefenseMapManager.vu
 </script>
 
 <template>
-  <TowerDefenseMapManager />
+  <TowerDefenseMapManager editor-mode="create" />
 </template>

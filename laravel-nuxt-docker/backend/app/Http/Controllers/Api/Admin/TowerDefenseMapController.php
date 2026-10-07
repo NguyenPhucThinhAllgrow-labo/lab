@@ -22,6 +22,11 @@ class TowerDefenseMapController extends Controller
         );
     }
 
+    public function show(TowerDefenseMap $map): JsonResponse
+    {
+        return response()->json(['data' => $map]);
+    }
+
     private function perPage(Request $request): int
     {
         return min(500, max(1, $request->integer('per_page', 20)));
@@ -71,7 +76,22 @@ class TowerDefenseMapController extends Controller
             'configuration.startingCredits' => ['sometimes', 'integer', 'between:0,10000000'],
             'configuration.bossOnly' => ['sometimes', 'boolean'],
             'configuration.environmentMode' => ['sometimes', Rule::in(['normal', 'dark'])],
-            'configuration.scenePreset' => ['sometimes', Rule::in(['citadel-of-cinders'])],
+            'configuration.scenePreset' => ['sometimes', Rule::in(['citadel-of-cinders', 'gothic-swamp'])],
+            'configuration.swampSettings' => ['required_if:configuration.scenePreset,gothic-swamp', 'array'],
+            'configuration.swampSettings.seed' => ['required_with:configuration.swampSettings', 'integer', 'between:0,1000000'],
+            'configuration.swampSettings.treeCount' => ['required_with:configuration.swampSettings', 'integer', 'between:0,180'],
+            'configuration.swampSettings.waterColor' => ['required_with:configuration.swampSettings', 'integer', 'between:0,16777215'],
+            'configuration.swampSettings.islands' => ['required_with:configuration.swampSettings', 'array', 'max:24'],
+            'configuration.swampSettings.islands.*.x' => ['required', 'numeric', 'between:0,99'],
+            'configuration.swampSettings.islands.*.y' => ['required', 'numeric', 'between:0,99'],
+            'configuration.swampSettings.islands.*.radius' => ['required', 'numeric', 'between:1,8'],
+            'configuration.swampSettings.islands.*.spawnArea' => ['sometimes', 'boolean'],
+            'configuration.swampSettings.editorPadding' => ['sometimes', 'integer', 'between:0,48'],
+            'configuration.swampSettings.bridges' => ['required_with:configuration.swampSettings', 'array', 'max:24'],
+            'configuration.swampSettings.bridges.*.from.x' => ['required', 'integer', 'between:0,99'],
+            'configuration.swampSettings.bridges.*.from.y' => ['required', 'integer', 'between:0,99'],
+            'configuration.swampSettings.bridges.*.to.x' => ['required', 'integer', 'between:0,99'],
+            'configuration.swampSettings.bridges.*.to.y' => ['required', 'integer', 'between:0,99'],
             'configuration.cellSize' => ['required', 'numeric', 'gt:0'],
             'configuration.spawnPoints' => ['sometimes', 'array', 'size:2'],
             'configuration.spawnPoints.*.x' => ['required_with:configuration.spawnPoints', 'integer', 'min:0'],
@@ -108,6 +128,10 @@ class TowerDefenseMapController extends Controller
                 ),
             ],
             'configuration.castle' => ['required', 'array'],
+            'configuration.castle.maxSize' => ['sometimes', 'numeric', 'between:0.1,200'],
+            'configuration.castle.modelOffset' => ['sometimes', 'array'],
+            'configuration.castle.modelOffset.x' => ['required_with:configuration.castle.modelOffset', 'numeric', 'between:-1000,1000'],
+            'configuration.castle.modelOffset.z' => ['required_with:configuration.castle.modelOffset', 'numeric', 'between:-1000,1000'],
             'configuration.castle.position' => ['sometimes', 'array'],
             'configuration.castle.position.x' => ['required_with:configuration.castle.position', 'integer', 'min:0'],
             'configuration.castle.position.y' => ['required_with:configuration.castle.position', 'integer', 'min:0'],
@@ -130,6 +154,37 @@ class TowerDefenseMapController extends Controller
         $columns = (int) $configuration['columns'];
         $rows = (int) $configuration['rows'];
         $pathTiles = [];
+
+        if (($configuration['scenePreset'] ?? null) === 'gothic-swamp') {
+            $padding = (int) ($configuration['swampSettings']['editorPadding'] ?? 0);
+            if ($columns - 2 * $padding < 4 || $rows - 2 * $padding < 4) {
+                throw ValidationException::withMessages([
+                    'configuration.swampSettings.editorPadding' => 'Vùng mở rộng phải giữ lại tối thiểu 4 ô mỗi chiều cho map gốc.',
+                ]);
+            }
+            foreach ($configuration['swampSettings']['islands'] as $index => $island) {
+                if ($island['x'] >= $columns || $island['y'] >= $rows) {
+                    throw ValidationException::withMessages([
+                        "configuration.swampSettings.islands.{$index}" => 'Đảo phải nằm trong kích thước map.',
+                    ]);
+                }
+            }
+            foreach ($configuration['swampSettings']['bridges'] as $index => $bridge) {
+                foreach (['from', 'to'] as $end) {
+                    if ($bridge[$end]['x'] >= $columns || $bridge[$end]['y'] >= $rows) {
+                        throw ValidationException::withMessages([
+                            "configuration.swampSettings.bridges.{$index}.{$end}" => 'Đầu cầu phải nằm trong kích thước map.',
+                        ]);
+                    }
+                }
+                if ($bridge['from'] === $bridge['to'] ||
+                    ($bridge['from']['x'] !== $bridge['to']['x'] && $bridge['from']['y'] !== $bridge['to']['y'])) {
+                    throw ValidationException::withMessages([
+                        "configuration.swampSettings.bridges.{$index}" => 'Cầu phải có hai đầu khác nhau, cùng hàng hoặc cùng cột.',
+                    ]);
+                }
+            }
+        }
 
         foreach ($configuration['spawnPoints'] ?? [] as $laneIndex => $point) {
             if ((int) $point['x'] >= $columns || (int) $point['y'] >= $rows) {

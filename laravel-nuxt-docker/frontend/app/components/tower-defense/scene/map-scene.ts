@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ENEMY_SPAWN_PROGRESS } from "~/games/tower-defense/gameplay-config";
 import { mapPathPosition } from "~/games/tower-defense/map-path";
 import { mapSpacePosition } from "~/games/tower-defense/map-space";
+import { createSwampScene } from "~/components/tower-defense/scene/swamp-scene";
 import type {
   GridPoint,
   TowerDefenseMapDefinition,
@@ -729,6 +730,16 @@ function addAtmosphere(scene: THREE.Scene, map: TowerDefenseMapDefinition) {
 
 /** Dựng toàn bộ phần tĩnh của map và trả các object scene cần tương tác. */
 export function createTowerDefenseMapScene(scene: THREE.Scene, map: TowerDefenseMapDefinition, surfaceDetail: THREE.DataTexture | null): TowerDefenseMapScene {
+  if (map.scenePreset === "gothic-swamp") {
+    const swamp = createSwampScene(scene, map, surfaceDetail);
+    const portals = addSpawnPortal(scene, map);
+    const particles = addAtmosphere(scene, map);
+    return {
+      tileMeshes: swamp.tileMeshes, particles,
+      updatePortal: (elapsed) => { swamp.update(elapsed); portals(elapsed); },
+      updateBuildableBorders: () => {},
+    };
+  }
   addFoundation(scene, map, surfaceDetail);
   const tileMeshes = addTiles(scene, map, surfaceDetail);
   addCobblestonePath(scene, map, surfaceDetail);
@@ -845,8 +856,6 @@ export async function loadTowerDefenseCastle(map: TowerDefenseMapDefinition) {
   const bounds = new THREE.Box3().setFromObject(source);
   const size = bounds.getSize(new THREE.Vector3());
   const center = bounds.getCenter(new THREE.Vector3());
-  const largestHorizontalSide = Math.max(size.x, size.z, 0.001);
-  const modelScale = Math.min(map.castle.maxSize / Math.max(size.y, 0.001), map.castle.maxSize / largestHorizontalSide);
   source.position.set(-center.x, -bounds.min.y, -center.z);
   source.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
@@ -858,6 +867,15 @@ export async function loadTowerDefenseCastle(map: TowerDefenseMapDefinition) {
   const container = new THREE.Group();
   container.name = "castleModel";
   container.add(source);
+  container.userData.castleSourceSize = size;
+  return positionTowerDefenseCastle(container, map);
+}
+
+/** Reposition/resize an already loaded castle without fetching or rebuilding its model. */
+export function positionTowerDefenseCastle(container: THREE.Group, map: TowerDefenseMapDefinition) {
+  const size = container.userData.castleSourceSize as THREE.Vector3;
+  const largestHorizontalSide = Math.max(size.x, size.z, 0.001);
+  const modelScale = Math.min(map.castle.maxSize / Math.max(size.y, 0.001), map.castle.maxSize / largestHorizontalSide);
   container.scale.setScalar(modelScale);
   const castleCell = map.castle.position ?? {
     x: map.columns + map.castle.offsetX,
@@ -901,6 +919,9 @@ export async function loadTowerDefenseCastle(map: TowerDefenseMapDefinition) {
     container.position.x -= frontX * clearance;
     container.position.z -= frontZ * clearance;
   }
-  container.position.y = map.castle.offsetY;
+  container.position.y = map.castle.offsetY + (map.scenePreset
+    ? mapSpacePosition(map, castleCell).baseY + mapSpacePosition(map, castleCell).surfaceOffset : 0);
+  container.position.x += map.castle.modelOffset?.x ?? 0;
+  container.position.z += map.castle.modelOffset?.z ?? 0;
   return container;
 }

@@ -1,3 +1,5 @@
+import { TOWER_PAD_FOOTPRINT_SCALE } from "~/utils/games/towerPadSize";
+
 // Shared by the editor and the 3D floor so imported paving keeps the same palette.
 export const CITADEL_PAVING_COLORS = ["#54525e", "#605c69", "#494852", "#57545f"] as const;
 
@@ -92,7 +94,7 @@ export function pickCitadelBridgePoint(x: number, y: number, configuration: Conf
       Math.floor(worldZ / depth + bridge.paverRows / 2)));
     return { x: gridStartX + column, y: centerRow + row - (bridge.paverRows - 1) / 2 };
   }
-  if (includeBalconies && Math.abs(worldZ) <= width / 2 + 0.5 + 1.4)
+  if (includeBalconies && Math.abs(worldZ) <= width / 2 + 0.5 + 1.4 * TOWER_PAD_FOOTPRINT_SCALE)
     return { x: gridStartX + column, y: centerRow + Math.sign(worldZ) * 3 };
   return null;
 }

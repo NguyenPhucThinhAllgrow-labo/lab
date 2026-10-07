@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import * as THREE from "three";
+import { applyMapAppearance, addMapAppearanceLights } from "~/components/tower-defense/scene/map-appearance";
+import { supportBonusAt, towerSupportRange } from "~/games/tower-defense/gameplay-config";
+import { createMapSpatialMetrics } from "~/games/tower-defense/map-space";
+import { scaleScreenLabel } from "~/components/tower-defense/scene/screen-label";
+import { createLabelOverlay } from "~/components/tower-defense/scene/label-overlay";
 import LavaCitadelScene from "~/pages/games/tower-defense/test.vue";
 import lavaMapData from "~/data/tower-defense/lava-map.json";
 import { resolveCitadelCamera } from "~/utils/games/citadelCamera";
@@ -74,6 +79,7 @@ const props = defineProps<{
 }>();
 const DEFENSE_PATH_TILES = props.map.pathTiles;
 const DEFENSE_CELL_SIZE = props.map.cellSize;
+const buffSpatialMetrics = createMapSpatialMetrics(props.map);
 const isCitadel = props.map.scenePreset === "citadel-of-cinders";
 let citadelRuntime: CitadelRuntime | null = null;
 const isDarkEnvironment =
@@ -113,6 +119,27 @@ const towerUpgradeEffects = new Map<
   { group: THREE.Group; bornAt: number; kind: TowerKind }
 >();
 let enemyScene: TowerDefenseEnemyScene | null = null;
+let labelOverlay: ReturnType<typeof createLabelOverlay> = null;
+const overlaySprites: THREE.Sprite[] = [];
+
+function renderLabelOverlay() {
+  if (!camera || !labelOverlay) return;
+  overlaySprites.length = 0;
+  for (const model of towerModels.values()) {
+    const label = model.getObjectByName("towerLevelLabel");
+    if (label instanceof THREE.Sprite) overlaySprites.push(label);
+    model.getObjectByName("towerBuffBadges")?.children.forEach((badge) => {
+      if (badge instanceof THREE.Sprite) overlaySprites.push(badge);
+    });
+  }
+  for (const model of enemyScene?.models.values() ?? []) {
+    const badges = model.userData.statusBadges as THREE.Group | undefined;
+    badges?.children.forEach((badge) => {
+      if (badge instanceof THREE.Sprite) overlaySprites.push(badge);
+    });
+  }
+  labelOverlay.draw(camera, overlaySprites);
+}
 let projectileScene: TowerDefenseProjectileScene | null = null;
 let impactScene: TowerDefenseImpactScene | null = null;
 let damageNumberScene: TowerDefenseDamageNumberScene | null = null;
@@ -1116,12 +1143,12 @@ function getTowerLevelLabelTexture(level: number) {
 
   context.beginPath();
   context.roundRect(7, 7, 242, 82, 22);
-  context.fillStyle = "rgba(12, 17, 14, 0.9)";
+  context.fillStyle = "rgba(9, 12, 18, 0.97)";
   context.fill();
   context.lineWidth = 5;
   context.strokeStyle = "rgba(231, 190, 92, 0.95)";
   context.stroke();
-  context.fillStyle = "#fff0bd";
+  context.fillStyle = "#ffffff";
   context.font = "900 47px Arial, sans-serif";
   context.textAlign = "center";
   context.textBaseline = "middle";
@@ -1131,6 +1158,7 @@ function getTowerLevelLabelTexture(level: number) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
   texture.needsUpdate = true;
   towerLevelLabelTextures.set(normalizedLevel, texture);
   return texture;
@@ -1146,18 +1174,20 @@ function getTowerBuffBadgeTexture(kind: "damage" | "speed") {
   const cached = towerBuffBadgeTextures.get(kind);
   if (cached) return cached;
   const canvas = document.createElement("canvas");
-  canvas.width = 128;
-  canvas.height = 128;
+  canvas.width = 256;
+  canvas.height = 256;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Không thể tạo icon buff cho tower.");
+  context.scale(2, 2);
 
   const color = kind === "damage" ? "#ef4444" : "#22c55e";
-  const glow = context.createRadialGradient(64, 64, 7, 64, 64, 61);
-  glow.addColorStop(0, `${color}66`);
-  glow.addColorStop(0.58, `${color}28`);
-  glow.addColorStop(1, `${color}00`);
-  context.fillStyle = glow;
-  context.fillRect(0, 0, 128, 128);
+  context.fillStyle = "#0b111b";
+  context.strokeStyle = color;
+  context.lineWidth = 5;
+  context.beginPath();
+  context.roundRect(5, 5, 118, 118, 24);
+  context.fill();
+  context.stroke();
   context.lineWidth = 8;
   context.strokeStyle = color;
   context.lineCap = "round";
@@ -1206,6 +1236,7 @@ function getTowerBuffBadgeTexture(kind: "damage" | "speed") {
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
+  texture.generateMipmaps = false;
   towerBuffBadgeTextures.set(kind, texture);
   return texture;
 }
@@ -1217,13 +1248,7 @@ function syncTowerBuffBadges(group: THREE.Group, tower: Tower) {
     for (const kind of ["damage", "speed"] as const) {
       if (!canTowerReceiveSupportBuff(tower.kind, kind)) continue;
 
-      const receivesBuff = props.towers.some((support) => {
-        if (support.kind !== "support" || support.id === tower.id) return false;
-        return (
-          Math.hypot(support.x - tower.x, support.y - tower.y) <=
-          TOWER_DEFINITIONS.support.range
-        );
-      });
+      const receivesBuff = supportBonusAt(tower, props.towers, kind, buffSpatialMetrics.distanceSquared) > 0;
       if (receivesBuff) buffs.push(kind);
     }
   }
@@ -1247,19 +1272,30 @@ function syncTowerBuffBadges(group: THREE.Group, tower: Tower) {
           toneMapped: false,
         }),
       );
-      badge.position.x = (index - (buffs.length - 1) / 2) * 0.2;
-      badge.scale.setScalar(0.18);
+      badge.position.x = (index - (buffs.length - 1) / 2) * 28;
+      badge.scale.set(24, 24, 1);
+      badge.userData.screenWidth = badge.userData.screenHeight = 24;
       badge.renderOrder = 15;
       badges!.add(badge);
     });
     group.add(badges);
   }
 
+  badges.visible = buffs.length > 0;
+  positionTowerBuffBadges(group);
+}
+
+function positionTowerBuffBadges(group: THREE.Group) {
+  const badges = group.getObjectByName("towerBuffBadges");
+  if (!badges?.visible) return;
   const scale = group.scale.x || 1;
   const localTop = Number(group.userData.towerLocalTop) || 2.1;
-  badges.visible = buffs.length > 0;
-  badges.position.set(0, localTop + 0.035 / scale, 0);
-  badges.scale.setScalar(1 / scale);
+  badges.position.set(0, localTop + 0.18 / scale, 0);
+  if (camera) {
+    group.getWorldQuaternion(badges.quaternion);
+    badges.quaternion.invert().multiply(camera.quaternion);
+    scaleScreenLabel(badges, camera, renderer?.domElement.clientHeight || 600, 1, 1);
+  }
 }
 
 /** Gắn/cập nhật nhãn level trên đỉnh model và giữ kích thước world ổn định. */
@@ -1302,8 +1338,12 @@ function syncTowerLevelLabel(group: THREE.Group, level: number) {
 
   const scale = group.scale.x || 1;
   const localTop = Number(group.userData.towerLocalTop) || 2.1;
-  label.position.set(0, localTop + 0.13 / scale, 0);
-  label.scale.set(0.62 / scale, 0.23 / scale, 1 / scale);
+  label.position.set(0, localTop + 0.18 / scale, 0);
+  if (camera) {
+    scaleScreenLabel(label, camera, renderer?.domElement.clientHeight || 600, 54, 21);
+    // Leave a screen-space row for buff icons beneath the level badge.
+    label.position.y += label.scale.y * 0.9;
+  }
 }
 
 /** Áp scale level và bù trục Y cho một model tower. */
@@ -2306,7 +2346,7 @@ function createTowerPreview(kind: TowerKind) {
 // ===== Map và lâu đài ========================================================
 /** Tải lâu đài theo map hiện tại rồi gắn vào scene nếu component còn tồn tại. */
 async function loadCastleModel() {
-  if (isCitadel) return; // The imported scene already owns its fortress.
+  if (isCitadel || !props.map.castle.modelUrl) return; // Citadel component loads its configured castle.
   try {
     const container = await loadTowerDefenseCastle(props.map);
     if (!scene) {
@@ -2316,7 +2356,11 @@ async function loadCastleModel() {
     if (castleModel) disposeObject(castleModel);
     castleModel = container;
     scene.add(container);
+    const fortress = scene.getObjectByName("swampFortress");
+    if (fortress) fortress.visible = false;
   } catch (error) {
+    const fortress = scene?.getObjectByName("swampFortress");
+    if (fortress) fortress.visible = true;
     console.warn(`[Kingdom Defense] Không thể tải lâu đài của map ${props.map.id}.`, error);
   }
 }
@@ -2359,6 +2403,11 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
   // Tower: đối chiếu ID để tái sử dụng instance, cập nhật level, selection,
   // hướng turret và các animation khai hỏa/recoil theo snapshot hiện tại.
   if (!scene) return;
+  // Buff coverage changes with placements/upgrades, not on every animation tick.
+  const buffLayoutKey = props.towers.map((tower) =>
+    `${tower.id}:${tower.kind}:${tower.level}:${tower.x}:${tower.y}`
+      + (isSupportTowerKind(tower.kind) ? JSON.stringify(TOWER_DEFINITIONS[tower.kind].effects) : ""),
+  ).join("|");
   const sceneLoad =
     props.towers.length + props.enemies.length + props.projectiles.length;
   // Khi đã hạ chất lượng trong một wave thì giữ nguyên đến giờ nghỉ. Việc đổi
@@ -2440,7 +2489,9 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     attackRangeMarker.visible = Boolean(previewCell && previewKind);
     if (previewCell && previewKind) {
       const definition = TOWER_DEFINITIONS[previewKind];
-      const radius = towerRangeAtLevel(definition, selectedTower?.level ?? 1);
+      const radius = isSupportTowerKind(previewKind)
+        ? towerSupportRange(definition, selectedTower?.level ?? 1)
+        : towerRangeAtLevel(definition, selectedTower?.level ?? 1);
       attackRangeMarker.position.copy(
         worldPosition(previewCell.x, previewCell.y),
       );
@@ -2530,7 +2581,10 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
     setTowerScale(model, tower.level);
     syncSupportPulseEffect(model, tower, elapsed);
     syncTowerLevelLabel(model, tower.level);
-    syncTowerBuffBadges(model, tower);
+    if (model.userData.buffLayoutKey !== buffLayoutKey) {
+      syncTowerBuffBadges(model, tower);
+      model.userData.buffLayoutKey = buffLayoutKey;
+    } else positionTowerBuffBadges(model);
     animateTowerLevelAppearance(model, tower, elapsed);
     const configuredVisualEffects = model.getObjectByName("managedTowerVisualEffects");
     configuredVisualEffects?.children.forEach((effect) => {
@@ -3059,9 +3113,7 @@ async function createWorld(runtime?: CitadelRuntime) {
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.NeutralToneMapping;
-    renderer.toneMappingExposure = isDarkEnvironment ? 0.94 : 1.12;
+    applyMapAppearance(scene, renderer, props.map);
     }
     towerModelLibrary = createTowerModelLibrary({
       renderer,
@@ -3070,15 +3122,8 @@ async function createWorld(runtime?: CitadelRuntime) {
       decorate: decorateLoadedTowerModel,
     });
     if (!runtime) target.appendChild(renderer.domElement);
-    const isLavaFortressMap = props.map.id === "lava-fortress";
-    const clearColor = new THREE.Color(
-      isLavaFortressMap ? 0x302a36 : props.map.theme.background,
-    );
-    if (isDarkEnvironment && !isLavaFortressMap)
-      clearColor.lerp(new THREE.Color(0x11101f), 0.34);
-    if (!runtime) renderer.setClearColor(clearColor, 1);
     const cameraFar = Math.max(250, cameraMapSpan * 10);
-    camera = runtime?.camera ?? new THREE.PerspectiveCamera(38, 1, 0.1, cameraFar);
+    camera = runtime?.camera ?? new THREE.PerspectiveCamera(38, 1, 0.5, cameraFar);
     if (!runtime) {
     camera.position.copy(defaultCameraPosition);
     camera.zoom = defaultCameraZoom;
@@ -3086,6 +3131,7 @@ async function createWorld(runtime?: CitadelRuntime) {
     camera.updateProjectionMatrix();
     }
     enemyScene = createTowerDefenseEnemyScene(scene, camera, {
+      viewportHeight: () => renderer?.domElement.clientHeight || 600,
       enemyModel: props.map.enemyModel,
       bossModel: props.map.bossModel,
       enemyModels: Object.fromEntries(
@@ -3099,7 +3145,7 @@ async function createWorld(runtime?: CitadelRuntime) {
           .map((definition) => [definition.id, definition.model!]),
       ),
       groundY: props.map.id === "lava-fortress" ? 0 : undefined,
-      preservePathHeight: isCitadel,
+      preservePathHeight: isCitadel || props.map.scenePreset === "gothic-swamp",
       visualScale: 1,
     });
     damageNumberScene = createTowerDefenseDamageNumberScene(scene, {
@@ -3118,42 +3164,8 @@ async function createWorld(runtime?: CitadelRuntime) {
     controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
     controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
     controls.update();
-    scene.add(
-      new THREE.AmbientLight(
-        isDarkEnvironment ? 0xb9b6d4 : 0xffffff,
-        isDarkEnvironment ? 0.52 : 0.72,
-      ),
-    );
-    scene.add(
-      new THREE.HemisphereLight(
-        isDarkEnvironment ? 0xaab7e8 : 0xffffff,
-        isDarkEnvironment ? 0x21182e : 0x64706a,
-        isDarkEnvironment ? 1.12 : 1.45,
-      ),
-    );
-    const sun = new THREE.DirectionalLight(
-      isDarkEnvironment ? 0xd9ddff : 0xffffff,
-      isDarkEnvironment ? 2.35 : 2.85,
-    );
-    sun.position.set(-6, 12, 7);
-    // Map dung nham có nhiều mesh tĩnh và nguồn sáng phát quang; shadow pass
-    // render lại gần như toàn bộ cảnh, làm số triangles gần gấp đôi khi vừa mở map.
-    sun.castShadow = props.map.id !== "lava-fortress";
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.bias = -0.00008;
-    sun.shadow.normalBias = 0.025;
-    sun.shadow.camera.left = -9 * DEFENSE_CELL_SIZE;
-    sun.shadow.camera.right = 9 * DEFENSE_CELL_SIZE;
-    sun.shadow.camera.top = 7 * DEFENSE_CELL_SIZE;
-    sun.shadow.camera.bottom = -7 * DEFENSE_CELL_SIZE;
-    scene.add(sun);
-    const fill = new THREE.DirectionalLight(
-      isDarkEnvironment ? 0x8066c7 : 0xdbeafe,
-      isDarkEnvironment ? 0.42 : 0.58,
-    );
-    fill.position.set(7, 6, -8);
-    scene.add(fill);
-    const mapScene = createTowerDefenseMapScene(scene, props.map, surfaceDetail);
+    addMapAppearanceLights(scene, props.map);
+    const mapScene = createTowerDefenseMapScene(scene, props.map, null);
     tileMeshes.push(...mapScene.tileMeshes);
     mysticParticles = mapScene.particles;
     updateSpawnPortal = mapScene.updatePortal;
@@ -3319,6 +3331,7 @@ async function createWorld(runtime?: CitadelRuntime) {
       renderError.value =
         "Kết nối đồ họa 3D đã bị gián đoạn. Hãy tải lại trang.";
     });
+    labelOverlay = createLabelOverlay(host.value!);
     const updateFrame = () => {
       const frameDelta = Math.min(clock.getDelta(), 0.05);
       if (!props.isPaused) {
@@ -3328,9 +3341,11 @@ async function createWorld(runtime?: CitadelRuntime) {
       if (cameraReturning) updateCameraReturn(frameDelta);
       else if (!runtime) controls?.update();
       if (!props.isPaused) syncScene(visualElapsed, frameDelta, visualNow);
+      renderLabelOverlay();
     };
     const animate = () => {
       animationFrame = requestAnimationFrame(animate);
+      if (document.hidden) { clock.getDelta(); return; }
       updateFrame();
       renderer!.render(scene!, camera!);
     };
@@ -3345,6 +3360,7 @@ async function createWorld(runtime?: CitadelRuntime) {
     ]);
     if (!renderer || !scene || !camera || !host.value?.isConnected) return;
     syncScene(visualElapsed, 0, visualNow);
+    renderLabelOverlay();
     renderer.render(scene, camera);
     emit("ready");
     if (runtime) runtime.beforeRender = updateFrame;
@@ -3379,6 +3395,9 @@ function onCitadelReady(runtime: CitadelRuntime) {
 // Thu hồi listener, animation frame, controls, skeleton, geometry, material,
 // texture và WebGL context để vào lại route không nhân đôi tài nguyên GPU.
 onBeforeUnmount(() => {
+  labelOverlay?.dispose();
+  labelOverlay = null;
+  overlaySprites.length = 0;
   if (citadelRuntime) citadelRuntime.beforeRender = undefined;
   window.removeEventListener("keydown", handleCameraResetShortcut);
   cancelAnimationFrame(animationFrame);
@@ -3477,19 +3496,6 @@ onBeforeUnmount(() => {
 }
 .tower-defense-scene.is-dark-environment {
   background: linear-gradient(#55556f 0 45%, #302f47 45% 100%);
-}
-.tower-defense-scene.is-dark-environment::after {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  background: radial-gradient(
-    circle at 50% 44%,
-    transparent 42%,
-    rgb(13 9 27 / 18%) 72%,
-    rgb(7 5 17 / 34%) 100%
-  );
-  content: "";
-  pointer-events: none;
 }
 .tower-defense-scene__error {
   position: absolute;

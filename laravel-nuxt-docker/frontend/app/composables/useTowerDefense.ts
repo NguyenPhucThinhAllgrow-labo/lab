@@ -30,7 +30,7 @@ import {
   WATER_SLOW_DURATION_SECONDS,
   WAVE_BASE_REWARD,
   WAVE_REWARD_GROWTH,
-  canTowerReceiveSupportBuff,
+  supportBonusAt,
   isSupportTowerKind,
   towerFireInterval,
   towerEffectValue,
@@ -38,7 +38,6 @@ import {
   towerMaxLevel,
   towerRangeAtLevel,
   towerUpgradeCost,
-  towerSupportBonus,
   towerTemplateKind,
 } from "~/games/tower-defense/gameplay-config";
 import { mapPathPosition } from "~/games/tower-defense/map-path";
@@ -165,22 +164,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
 
   /** Buff cùng loại không cộng dồn; tower nhận mức mạnh nhất đang phủ lên nó. */
   function supportBonusFor(tower: Tower, supportKind: "speed" | "damage") {
-    if (!canTowerReceiveSupportBuff(tower.kind, supportKind)) return 0;
-
-    return towers.value.reduce((strongest, support) => {
-      if (support.id === tower.id) return strongest;
-      const supportDefinition = TOWER_DEFINITIONS[support.kind];
-      const effectType = supportKind === "speed" ? "attack_speed_aura" : "damage_aura";
-      const effect = supportDefinition.effects?.find((item) => item.behavior === effectType);
-      if (!effect) return strongest;
-      const range = effect.radius ?? towerRangeAtLevel(supportDefinition, support.level);
-      if (distanceSquared(support, tower) > range * range)
-        return strongest;
-      return Math.max(
-        strongest,
-        effect ? towerEffectValue(effect, support.level) : towerSupportBonus(support.level),
-      );
-    }, 0);
+    return supportBonusAt(tower, towers.value, supportKind, distanceSquared);
   }
 
   /** Các buff hỗ trợ thực tế mà tower đang chọn nhận tại vị trí hiện tại. */

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { scaleScreenLabel, labelWorldUnitsPerPixel } from "./screen-label";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { clipRootTravelSpeed, walkingPlaybackSpeed, walkingTimeScale } from "./enemy-locomotion";
@@ -57,6 +58,7 @@ type EnemyModelSeed = Pick<
 >;
 
 export interface TowerDefenseEnemySceneOptions {
+  viewportHeight?: () => number;
   enemyModel?: TowerDefenseCharacterModelDefinition;
   bossModel?: TowerDefenseCharacterModelDefinition;
   enemyModels?: Record<string, TowerDefenseCharacterModelDefinition>;
@@ -92,9 +94,10 @@ function createEnemyHealthBars(y: number) {
   healthBars.position.set(0, y, 0);
 
   const healthBack = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.82, 0.09),
+    new THREE.PlaneGeometry(0.82, 0.14),
     new THREE.MeshBasicMaterial({
-      color: 0x401b18,
+      color: 0x10151d,
+      depthTest: false,
       depthWrite: false,
       toneMapped: false,
     }),
@@ -103,9 +106,10 @@ function createEnemyHealthBars(y: number) {
   healthBack.renderOrder = 10;
 
   const health = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.76, 0.055),
+    new THREE.PlaneGeometry(0.76, 0.085),
     new THREE.MeshBasicMaterial({
       color: 0x78cf58,
+      depthTest: false,
       depthWrite: false,
       toneMapped: false,
     }),
@@ -365,17 +369,15 @@ export function createTowerDefenseEnemyScene(
     const cached = statusBadgeTextures.get(kind);
     if (cached) return cached;
     const canvas = document.createElement("canvas");
-    canvas.width = 96;
-    canvas.height = 96;
+    canvas.width = 288;
+    canvas.height = 288;
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Không thể tạo badge trạng thái enemy.");
+    context.scale(3, 3);
     context.fillStyle =
       kind === "fire" ? "#7f1d1d" : kind === "water" ? "#0c4a6e" : "#075985";
     context.strokeStyle =
       kind === "fire" ? "#fdba74" : kind === "water" ? "#7dd3fc" : "#bae6fd";
-    context.shadowColor =
-      kind === "fire" ? "#ff4d16" : kind === "water" ? "#22bdf2" : "#7ddfff";
-    context.shadowBlur = 14;
     context.lineWidth = 8;
     context.beginPath();
     context.arc(48, 48, 40, 0, Math.PI * 2);
@@ -429,6 +431,9 @@ export function createTowerDefenseEnemyScene(
     }
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
     statusBadgeTextures.set(kind, texture);
     return texture;
   }
@@ -449,6 +454,7 @@ export function createTowerDefenseEnemyScene(
         }),
       );
       badge.name = `enemyStatusBadge-${kind}`;
+      badge.userData.screenWidth = badge.userData.screenHeight = 24;
       badge.position.set(-0.17 + index * 0.34, 0, 0.01);
       badge.scale.set(0.28, 0.28, 1);
       badge.visible = false;
@@ -1067,6 +1073,11 @@ export function createTowerDefenseEnemyScene(
         .invert()
         .multiply(camera.quaternion);
       if (badges) {
+        const viewportHeight = options.viewportHeight?.() ?? 600;
+        scaleScreenLabel(badges, camera, viewportHeight, 24 / 0.28, 24 / 0.28);
+        const worldScale = Number(model.userData.sceneScale) || model.scale.y || 1;
+        badges.position.y = (healthBars?.position.y ?? 1.9)
+          + 20 * labelWorldUnitsPerPixel(model, camera, viewportHeight) / worldScale;
         badges.quaternion.copy(billboardQuaternion);
         const fireBadge = badges.getObjectByName("enemyStatusBadge-fire");
         const frostBadge = badges.getObjectByName("enemyStatusBadge-frost");
@@ -1081,12 +1092,14 @@ export function createTowerDefenseEnemyScene(
         activeStatusBadges.forEach((badge, index) => {
           badge.position.x =
             (index - (activeStatusBadges.length - 1) / 2) * 0.34;
-          badge.position.y = Math.sin(elapsed * 4.5 + index * 1.7) * 0.025;
-          const pulse = 1 + Math.sin(elapsed * 6 + enemy.id + index) * 0.1;
-          badge.scale.set(0.28 * pulse, 0.28 * pulse, 1);
+          badge.position.y = 0;
+          badge.scale.set(0.28, 0.28, 1);
         });
       }
-      healthBars?.quaternion.copy(billboardQuaternion);
+      if (healthBars) {
+        healthBars.quaternion.copy(billboardQuaternion);
+        scaleScreenLabel(healthBars, camera, options.viewportHeight?.() ?? 600, 44 / 0.82, 7 / 0.14);
+      }
       const health = model.userData.health as THREE.Mesh;
       const healthRatio = Math.max(0.02, enemy.hp / enemy.maxHp);
       health.scale.x = healthRatio;

@@ -621,6 +621,8 @@
 .td-map-preset-import strong { color: #fed7aa; font-size: 11px; }
 .td-map-preset-import small { color: #a8a29e; font-size: 9px; }
 .td-map-preset-import .td-button { flex: 0 0 auto; }
+.td-map-preset-select { min-width: 240px; flex: 0 1 360px; }
+.td-map-preset-select select { width: 100%; }
 .td-live-editor {
   overflow: hidden;
   border: 1px solid rgb(139 92 246 / 18%);

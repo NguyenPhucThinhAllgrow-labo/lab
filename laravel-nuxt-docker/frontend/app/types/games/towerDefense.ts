@@ -43,6 +43,15 @@ export interface TowerDefenseMapScenery {
  * Toàn bộ dữ liệu cần để gameplay và Three.js cùng chạy một map. Muốn thêm map
  * mới chỉ cần tạo một object đúng interface này và đăng ký trong maps/index.ts.
  */
+export interface TowerDefenseSwampSettings {
+  editorPadding?: number;
+  seed: number;
+  treeCount: number;
+  waterColor: number;
+  islands: Array<{ x: number; y: number; radius: number; spawnArea?: boolean }>;
+  bridges: Array<{ from: GridPoint; to: GridPoint }>;
+}
+
 export interface TowerDefenseMapDefinition {
   id: string;
   name: string;
@@ -59,7 +68,8 @@ export interface TowerDefenseMapDefinition {
   /** Tông ánh sáng và không khí riêng của map. */
   environmentMode?: "normal" | "dark";
   /** Cảnh dựng thủ công dùng cho map thay vì bố cục địa hình mặc định. */
-  scenePreset?: "citadel-of-cinders";
+  scenePreset?: "citadel-of-cinders" | "gothic-swamp";
+  swampSettings?: TowerDefenseSwampSettings;
   sceneSettings?: typeof lavaMapData.configuration.sceneSettings;
   /** Khoảng cách world-space giữa tâm hai ô kề nhau. */
   cellSize: number;
@@ -92,6 +102,8 @@ export interface TowerDefenseMapDefinition {
   bossDefinitions?: TowerDefenseManagedEnemyDefinition[];
   castle: {
     modelUrl: string;
+    /** Free model translation in world units; the gameplay gate stays on its grid cell. */
+    modelOffset?: { x: number; z: number };
     /** Điểm cuối path/cổng lâu đài; mặt trước model tự nằm sát điểm này. */
     position?: GridPoint;
     offsetX: number;

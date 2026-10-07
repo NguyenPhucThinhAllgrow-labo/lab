@@ -41,7 +41,8 @@ export function mapSpacePosition(map: TowerDefenseMapDefinition, point: GridPoin
   return {
     x: (point.x-(map.columns-1)/2)*map.cellSize,
     z: (point.y-(map.rows-1)/2)*map.cellSize,
-    surfaceOffset: 0, padOffset: 0, baseY: 0,
+    surfaceOffset: map.scenePreset === "gothic-swamp" ? 0.06 : 0,
+    padOffset: map.scenePreset === "gothic-swamp" ? 0.06 : 0, baseY: map.scenePreset === "gothic-swamp" ? 0.25 : 0,
   };
 }
 

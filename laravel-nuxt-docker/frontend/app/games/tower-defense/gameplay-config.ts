@@ -1,4 +1,4 @@
-import type { BossClass, TowerDefinition, TowerKind } from "~/types/games/towerDefense";
+import type { BossClass, GridPoint, Tower, TowerDefinition, TowerKind } from "~/types/games/towerDefense";
 
 export const TOWER_DEFENSE_STORAGE_KEY = "game-lab:kingdom-defense:best-wave";
 export const FROST_EFFECT_RADIUS = 1.47;
@@ -102,6 +102,38 @@ export function canTowerReceiveSupportBuff(
 
 export function towerSupportBonus(level: number) {
   return level >= 3 ? 0.5 : level === 2 ? 0.3 : 0.1;
+}
+
+/** Shared by simulation, buff badges and range preview; CMS variants are supported. */
+export function towerSupportRange(definition: TowerDefinition, level: number) {
+  const ranges = (definition.effects ?? [])
+    .filter((effect) => ["attack_speed_aura", "damage_aura"].includes(effect.behavior)
+      && towerEffectValue(effect, level) > 0)
+    .map((effect) => effect.radius ?? towerRangeAtLevel(definition, level));
+  return ranges.length ? Math.max(...ranges) : towerRangeAtLevel(definition, level);
+}
+
+export function supportBonusAt(
+  tower: Tower,
+  towers: readonly Tower[],
+  kind: "speed" | "damage",
+  distanceSquared: (a: GridPoint, b: GridPoint) => number,
+) {
+  if (!canTowerReceiveSupportBuff(tower.kind, kind)) return 0;
+  const behavior = kind === "speed" ? "attack_speed_aura" : "damage_aura";
+  let strongest = 0;
+  for (const support of towers) {
+    if (support.id === tower.id) continue;
+    const definition = TOWER_DEFINITIONS[support.kind];
+    if (!definition) continue;
+    for (const effect of definition.effects ?? []) {
+      if (effect.behavior !== behavior) continue;
+      const radius = effect.radius ?? towerRangeAtLevel(definition, support.level);
+      if (distanceSquared(support, tower) <= radius * radius)
+        strongest = Math.max(strongest, towerEffectValue(effect, support.level));
+    }
+  }
+  return strongest;
 }
 
 /** Thời gian giữa hai lần bắn; tháp cung nhận thêm tốc độ rõ rệt qua mỗi cấp. */

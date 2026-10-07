@@ -12,6 +12,25 @@ class AdminTowerDefenseMapApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_edit_page_can_load_an_inactive_map_by_id(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+        $this->createEnemy('normal-one', 'normal');
+        $this->createEnemy('boss-one', 'boss');
+        $configuration = $this->configuration(['normal-one'], ['boss-one']);
+        $this->postJson('/api/admin/tower-defense/maps', [
+            'id' => 'inactive-edit-map', 'name' => 'Inactive map',
+            'configuration' => $configuration, 'is_active' => false,
+        ])->assertCreated();
+        $this->getJson('/api/admin/tower-defense/maps/inactive-edit-map')
+            ->assertOk()->assertJsonPath('data.id', 'inactive-edit-map')
+            ->assertJsonPath('data.is_active', false)
+            ->assertJsonPath('data.configuration.paths', $configuration['paths']);
+        $this->getJson('/api/admin/tower-defense/maps/missing-map')->assertNotFound();
+        Sanctum::actingAs(User::factory()->create(['role' => 'user']));
+        $this->getJson('/api/admin/tower-defense/maps/inactive-edit-map')->assertForbidden();
+    }
+
     public function test_admin_can_assign_multiple_normal_enemies_and_bosses_to_a_map(): void
     {
         Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
@@ -174,6 +193,77 @@ class AdminTowerDefenseMapApiTest extends TestCase
                 'id' => 'invalid-citadel', 'name' => 'Invalid', 'configuration' => $configuration,
             ])->assertUnprocessable()->assertJsonValidationErrors(['configuration.buildableTiles.0']);
         }
+    }
+
+    public function test_swamp_scene_can_be_created_updated_and_loaded_by_the_game(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+        $this->createEnemy('dark-soldier', 'normal');
+        $this->createEnemy('dark-commander', 'boss');
+        $preset = json_decode(
+            file_get_contents(base_path('tests/Fixtures/swamp-map.json')),
+            true, flags: JSON_THROW_ON_ERROR,
+        );
+        $configuration = $preset['configuration'];
+        $this->postJson('/api/admin/tower-defense/maps', [
+            'id' => 'swamp-test', 'name' => 'Gothic Swamp', 'is_active' => true,
+            'configuration' => $configuration,
+        ])->assertCreated();
+        $this->getJson('/api/tower-defense/maps/swamp-test')
+            ->assertOk()->assertJsonPath('data.scenePreset', 'gothic-swamp')
+            ->assertJsonPath('data.swampSettings.treeCount', 160)
+            ->assertJsonPath('data.swampSettings.islands.10.spawnArea', true)
+            ->assertJsonPath('data.swampSettings.islands.14.radius', 7)
+            ->assertJsonPath('data.swampSettings.bridges.0.to.x', 20)
+            ->assertJsonCount(12, 'data.buildableTiles');
+        $configuration['swampSettings']['treeCount'] = 60;
+        $configuration['castle']['maxSize'] = 27.5;
+        $configuration['castle']['modelOffset'] = ['x' => 1.37, 'z' => -2.19];
+        $this->putJson('/api/admin/tower-defense/maps/swamp-test', [
+            'name' => 'Updated Swamp', 'configuration' => $configuration, 'is_active' => true,
+        ])->assertOk();
+        $this->getJson('/api/tower-defense/maps/swamp-test')
+            ->assertOk()->assertJsonPath('data.swampSettings.treeCount', 60)
+            ->assertJsonPath('data.castle.maxSize', 27.5)
+            ->assertJsonPath('data.castle.modelOffset.x', 1.37)
+            ->assertJsonPath('data.castle.modelOffset.z', -2.19);
+        $invalidSize = $configuration;
+        $invalidSize['castle']['maxSize'] = 0;
+        $this->putJson('/api/admin/tower-defense/maps/swamp-test', [
+            'name' => 'Invalid Castle Size', 'configuration' => $invalidSize,
+        ])->assertUnprocessable()->assertJsonValidationErrors('configuration.castle.maxSize');
+        $configuration['swampSettings']['treeCount'] = 181;
+        $this->putJson('/api/admin/tower-defense/maps/swamp-test', [
+            'name' => 'Invalid Swamp', 'configuration' => $configuration,
+        ])->assertUnprocessable()->assertJsonValidationErrors('configuration.swampSettings.treeCount');
+        $configuration['swampSettings']['treeCount'] = 60;
+        $configuration['swampSettings']['bridges'][0]['to'] = ['x' => 99, 'y' => 3];
+        $this->putJson('/api/admin/tower-defense/maps/swamp-test', [
+            'name' => 'Invalid Bridge', 'configuration' => $configuration,
+        ])->assertUnprocessable()->assertJsonValidationErrors('configuration.swampSettings.bridges.0.to');
+
+        $expanded = $preset['configuration'];
+        $shift = fn (array $point) => array_replace($point, ['x' => $point['x'] + 13, 'y' => $point['y'] + 13]);
+        $expanded['columns'] += 26;
+        $expanded['rows'] += 26;
+        foreach (['spawnPoints', 'pathTiles', 'buildableTiles'] as $field) {
+            $expanded[$field] = array_map($shift, $expanded[$field]);
+        }
+        $expanded['paths'] = array_map(fn ($lane) => array_map($shift, $lane), $expanded['paths']);
+        $expanded['castle']['position'] = $shift($expanded['castle']['position']);
+        $expanded['swampSettings']['islands'] = array_map($shift, $expanded['swampSettings']['islands']);
+        $expanded['swampSettings']['bridges'] = array_map(fn ($bridge) => [
+            'from' => $shift($bridge['from']), 'to' => $shift($bridge['to']),
+        ], $expanded['swampSettings']['bridges']);
+        $expanded['swampSettings']['editorPadding'] = 13;
+        $expanded['spawnPoints'][0] = ['x' => 5, 'y' => 24];
+        $this->putJson('/api/admin/tower-defense/maps/swamp-test', [
+            'name' => 'Expanded Swamp', 'configuration' => $expanded, 'is_active' => true,
+        ])->assertOk();
+        $this->getJson('/api/tower-defense/maps/swamp-test')->assertOk()
+            ->assertJsonPath('data.columns', 70)->assertJsonPath('data.rows', 60)
+            ->assertJsonPath('data.swampSettings.editorPadding', 13)
+            ->assertJsonPath('data.spawnPoints.0.x', 5);
     }
 
     private function createEnemy(string $id, string $kind): void

@@ -1,0 +1,546 @@
+[
+  {
+    "id": "archer",
+    "template_key": "archer",
+    "name": "Tháp cung",
+    "description": "Tầm xa; mỗi lần nâng cấp bắn thêm 2 mục tiêu.",
+    "role": "damage",
+    "damage_type": "physical",
+    "cost": 90,
+    "damage": 10,
+    "damage_by_level": {
+      "1": 10,
+      "2": 15.5,
+      "3": 21
+    },
+    "max_level": 3,
+    "level_stats": {
+      "1": {
+        "range": 3.4,
+        "damage": 10,
+        "fireRate": 0.75,
+        "chainRange": 1.65,
+        "upgradeCost": 90,
+        "chainTargets": 3,
+        "chainDamageRatio": 0.72
+      },
+      "2": {
+        "range": 3.62,
+        "damage": 15.5,
+        "fireRate": 0.556,
+        "chainRange": 1.77,
+        "upgradeCost": 70,
+        "chainTargets": 4,
+        "chainDamageRatio": 0.72
+      },
+      "3": {
+        "range": 3.84,
+        "damage": 21,
+        "fireRate": 0.441,
+        "chainRange": 1.89,
+        "upgradeCost": 100,
+        "chainTargets": 5,
+        "chainDamageRatio": 0.72
+      }
+    },
+    "range": 3.4,
+    "fire_rate": 0.75,
+    "color": "#65a30d",
+    "image_asset_key": null,
+    "effects": {
+      "items": [
+        {
+          "id": "bonus-damage-1791362002978-0jfx0",
+          "name": "Chí mạng",
+          "type": "critical-hit",
+          "color": "#facc15",
+          "ratio": 0.5,
+          "value": 0.15,
+          "radius": 3.4,
+          "behavior": "critical_hit",
+          "duration": 0,
+          "perLevel": 0.15,
+          "multiplier": 2.5
+        }
+      ]
+    },
+    "model_asset_keys": [],
+    "model_configuration": {
+      "targetHeight": 4,
+      "visualEffects": [],
+      "targetHeightByLevel": {
+        "1": 4,
+        "2": 4.52,
+        "3": 5.08
+      }
+    },
+    "sort_order": 0,
+    "is_active": true
+  },
+  {
+    "id": "cannon",
+    "template_key": "cannon",
+    "name": "Tháp pháo",
+    "description": "Uy lực lớn, nổ lan quanh mục tiêu.",
+    "role": "damage",
+    "damage_type": "physical",
+    "cost": 145,
+    "damage": 34,
+    "damage_by_level": {
+      "1": 34,
+      "2": 52.7,
+      "3": 71.4
+    },
+    "max_level": 3,
+    "level_stats": {
+      "1": {
+        "range": 2.7,
+        "damage": 34,
+        "fireRate": 1.45,
+        "chainRange": 1.65,
+        "upgradeCost": 145,
+        "chainTargets": 3,
+        "chainDamageRatio": 0.72
+      },
+      "2": {
+        "range": 2.92,
+        "damage": 52.7,
+        "fireRate": 1.229,
+        "chainRange": 1.77,
+        "upgradeCost": 110,
+        "chainTargets": 4,
+        "chainDamageRatio": 0.72
+      },
+      "3": {
+        "range": 3.14,
+        "damage": 71.4,
+        "fireRate": 1.066,
+        "chainRange": 1.89,
+        "upgradeCost": 160,
+        "chainTargets": 5,
+        "chainDamageRatio": 0.72
+      }
+    },
+    "range": 2.7,
+    "fire_rate": 1.45,
+    "color": "#d97706",
+    "image_asset_key": null,
+    "effects": {
+      "items": [
+        {
+          "id": "cannon-splash",
+          "name": "Nổ lan",
+          "type": "splash-damage",
+          "color": "#f59e0b",
+          "ratio": 0.45,
+          "value": 0,
+          "radius": 0.9,
+          "behavior": "splash_damage",
+          "duration": 0,
+          "perLevel": 0,
+          "multiplier": 2
+        },
+        {
+          "id": "bonus-damage-1791363068386-wfltg",
+          "name": "Chí mạng",
+          "type": "critical-hit",
+          "color": "#facc15",
+          "ratio": 0.5,
+          "value": 0.15,
+          "radius": 2.7,
+          "behavior": "critical_hit",
+          "duration": 0,
+          "perLevel": 0.15,
+          "multiplier": 2.5
+        }
+      ]
+    },
+    "model_asset_keys": [],
+    "model_configuration": {
+      "targetHeight": 4,
+      "visualEffects": [],
+      "targetHeightByLevel": {
+        "1": 4,
+        "2": 4.52,
+        "3": 5.08
+      }
+    },
+    "sort_order": 1,
+    "is_active": true
+  },
+  {
+    "id": "frost",
+    "template_key": "frost",
+    "name": "Tháp băng",
+    "description": "Đóng băng hoàn toàn kẻ địch trong vùng.",
+    "role": "damage",
+    "damage_type": "magic",
+    "cost": 120,
+    "damage": 0,
+    "damage_by_level": {
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    "max_level": 3,
+    "level_stats": {
+      "1": {
+        "range": 1.47,
+        "damage": 0,
+        "fireRate": 5.2,
+        "upgradeCost": 120
+      },
+      "2": {
+        "range": 1.47,
+        "damage": 0,
+        "fireRate": 4.407,
+        "upgradeCost": 90
+      },
+      "3": {
+        "range": 1.47,
+        "damage": 0,
+        "fireRate": 3.824,
+        "upgradeCost": 130
+      }
+    },
+    "range": 1.47,
+    "fire_rate": 5.2,
+    "color": "#0891b2",
+    "image_asset_key": null,
+    "effects": {
+      "items": []
+    },
+    "model_asset_keys": {
+      "dark1": "models/games/tower-defense/towers/frost/enemy/level1.glb",
+      "dark2": "models/games/tower-defense/towers/frost/enemy/level2.glb",
+      "dark3": "models/games/tower-defense/towers/frost/enemy/level3.glb"
+    },
+    "model_configuration": {
+      "targetHeight": 4.2,
+      "targetHeightByLevel": {
+        "1": 4.2,
+        "2": 4.746,
+        "3": 5.334
+      }
+    },
+    "sort_order": 2,
+    "is_active": true
+  },
+  {
+    "id": "fire",
+    "template_key": "fire",
+    "name": "Tháp lửa",
+    "description": "Cầu lửa nổ lan và thiêu đốt trong 4 giây.",
+    "role": "damage",
+    "damage_type": "magic",
+    "cost": 150,
+    "damage": 10,
+    "damage_by_level": {
+      "1": 10,
+      "2": 15.5,
+      "3": 21
+    },
+    "max_level": 3,
+    "level_stats": {
+      "1": {
+        "range": 2.7,
+        "damage": 10,
+        "fireRate": 1.1,
+        "upgradeCost": 150
+      },
+      "2": {
+        "range": 2.92,
+        "damage": 15.5,
+        "fireRate": 0.932,
+        "upgradeCost": 115
+      },
+      "3": {
+        "range": 3.14,
+        "damage": 21,
+        "fireRate": 0.809,
+        "upgradeCost": 165
+      }
+    },
+    "range": 2.7,
+    "fire_rate": 1.1,
+    "color": "#dc2626",
+    "image_asset_key": null,
+    "effects": {
+      "items": [
+        {
+          "id": "fire-burn",
+          "name": "Thiêu đốt",
+          "type": "damage-over-time",
+          "color": "#ef4444",
+          "value": 4,
+          "behavior": "damage_over_time",
+          "duration": 4,
+          "perLevel": 2.2
+        },
+        {
+          "id": "fire-splash",
+          "name": "Cầu lửa nổ",
+          "type": "splash-damage",
+          "color": "#f97316",
+          "ratio": 0.55,
+          "value": 0,
+          "radius": 1.05,
+          "behavior": "splash_damage",
+          "perLevel": 0
+        }
+      ],
+      "burnDuration": 4,
+      "splashRadius": 1.05,
+      "splashDamageRatio": 0.55,
+      "burnDamagePerSecond": 4
+    },
+    "model_asset_keys": {
+      "dark1": "models/games/tower-defense/towers/fire/enemy/level1.glb",
+      "dark2": "models/games/tower-defense/towers/fire/enemy/level2.glb",
+      "dark3": "models/games/tower-defense/towers/fire/enemy/level3.glb"
+    },
+    "model_configuration": {
+      "targetHeight": 4.2,
+      "targetHeightByLevel": {
+        "1": 4.2,
+        "2": 4.746,
+        "3": 5.334
+      }
+    },
+    "sort_order": 3,
+    "is_active": true
+  },
+  {
+    "id": "thunder",
+    "template_key": "thunder",
+    "name": "Tháp sét",
+    "description": "Tia điện liên tục, nối chuỗi qua nhiều mục tiêu.",
+    "role": "damage",
+    "damage_type": "magic",
+    "cost": 175,
+    "damage": 16,
+    "damage_by_level": {
+      "1": 16,
+      "2": 22.72,
+      "3": 29.44
+    },
+    "max_level": 3,
+    "level_stats": {
+      "1": {
+        "range": 3.05,
+        "damage": 16,
+        "fireRate": 0,
+        "chainRange": 1.65,
+        "upgradeCost": 175,
+        "chainTargets": 3,
+        "chainDamageRatio": 0.72
+      },
+      "2": {
+        "range": 3.27,
+        "damage": 22.72,
+        "fireRate": 0,
+        "chainRange": 1.77,
+        "upgradeCost": 130,
+        "chainTargets": 4,
+        "chainDamageRatio": 0.72
+      },
+      "3": {
+        "range": 3.49,
+        "damage": 29.44,
+        "fireRate": 0,
+        "chainRange": 1.89,
+        "upgradeCost": 195,
+        "chainTargets": 5,
+        "chainDamageRatio": 0.72
+      }
+    },
+    "range": 3.05,
+    "fire_rate": 0,
+    "color": "#7c3aed",
+    "image_asset_key": null,
+    "effects": {
+      "items": []
+    },
+    "model_asset_keys": {
+      "dark1": "models/games/tower-defense/towers/thunder/enemy/level1.glb",
+      "dark2": "models/games/tower-defense/towers/thunder/enemy/level2.glb",
+      "dark3": "models/games/tower-defense/towers/thunder/enemy/level3.glb"
+    },
+    "model_configuration": {
+      "targetHeight": 4.2,
+      "targetHeightByLevel": {
+        "1": 4.2,
+        "2": 4.746,
+        "3": 5.334
+      }
+    },
+    "sort_order": 4,
+    "is_active": true
+  },
+  {
+    "id": "water",
+    "template_key": "water",
+    "name": "Tháp nước",
+    "description": "Phun dòng nước gây sát thương lan và làm chậm cả nhóm.",
+    "role": "damage",
+    "damage_type": "magic",
+    "cost": 135,
+    "damage": 12,
+    "damage_by_level": {
+      "1": 12,
+      "2": 18.6,
+      "3": 25.2
+    },
+    "max_level": 3,
+    "level_stats": {
+      "1": {
+        "range": 2.85,
+        "damage": 12,
+        "fireRate": 0.85,
+        "upgradeCost": 135
+      },
+      "2": {
+        "range": 3.07,
+        "damage": 18.6,
+        "fireRate": 0.72,
+        "upgradeCost": 100
+      },
+      "3": {
+        "range": 3.29,
+        "damage": 25.2,
+        "fireRate": 0.625,
+        "upgradeCost": 150
+      }
+    },
+    "range": 2.85,
+    "fire_rate": 0.85,
+    "color": "#0284c7",
+    "image_asset_key": null,
+    "effects": {
+      "slow": 0.25,
+      "items": [
+        {
+          "id": "water-slow",
+          "name": "Dòng nước chậm",
+          "type": "slow",
+          "color": "#38bdf8",
+          "value": 0.25,
+          "behavior": "slow",
+          "duration": 2,
+          "perLevel": 0
+        },
+        {
+          "id": "water-splash",
+          "name": "Nước lan",
+          "type": "splash-damage",
+          "color": "#0ea5e9",
+          "ratio": 0.6,
+          "value": 0,
+          "radius": 0.85,
+          "behavior": "splash_damage",
+          "perLevel": 0
+        }
+      ],
+      "slowDuration": 2,
+      "splashRadius": 0.85,
+      "splashDamageRatio": 0.6
+    },
+    "model_asset_keys": {
+      "dark1": "models/games/tower-defense/towers/water/enemy/level1.glb",
+      "dark2": "models/games/tower-defense/towers/water/enemy/level2.glb",
+      "dark3": "models/games/tower-defense/towers/water/enemy/level3.glb",
+      "human1": "models/games/tower-defense/towers/water/human/level1.glb",
+      "human2": "models/games/tower-defense/towers/water/human/level2.glb",
+      "human3": "models/games/tower-defense/towers/water/human/level3.glb"
+    },
+    "model_configuration": {
+      "targetHeight": 4,
+      "targetHeightByLevel": {
+        "1": 4,
+        "2": 4.52,
+        "3": 5.08
+      }
+    },
+    "sort_order": 5,
+    "is_active": true
+  },
+  {
+    "id": "support",
+    "template_key": "support",
+    "name": "Trụ hỗ trợ",
+    "description": "Tăng tốc đánh và sát thương cho các tháp trong phạm vi.",
+    "role": "buff",
+    "damage_type": "none",
+    "cost": 175,
+    "damage": 0,
+    "damage_by_level": {
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    "max_level": 3,
+    "level_stats": {
+      "1": {
+        "range": 3.5,
+        "damage": 0,
+        "fireRate": 0,
+        "upgradeCost": 175
+      },
+      "2": {
+        "range": 3.5,
+        "damage": 0,
+        "fireRate": 0,
+        "upgradeCost": 130
+      },
+      "3": {
+        "range": 3.5,
+        "damage": 0,
+        "fireRate": 0,
+        "upgradeCost": 195
+      }
+    },
+    "range": 3.5,
+    "fire_rate": 0,
+    "color": "#a855f7",
+    "image_asset_key": null,
+    "effects": {
+      "items": [
+        {
+          "id": "support-speed-aura",
+          "name": "Hào quang tốc độ",
+          "type": "attack-speed-aura",
+          "color": "#22c55e",
+          "value": 0.1,
+          "radius": 3.5,
+          "behavior": "attack_speed_aura",
+          "perLevel": 0.2
+        },
+        {
+          "id": "support-damage-aura",
+          "name": "Hào quang sát thương",
+          "type": "damage-aura",
+          "color": "#ef4444",
+          "value": 0.1,
+          "radius": 3.5,
+          "behavior": "damage_aura",
+          "perLevel": 0.2
+        }
+      ]
+    },
+    "model_asset_keys": {
+      "dark1": "models/games/tower-defense/towers/supports/enemy/speed.glb",
+      "dark2": "models/games/tower-defense/towers/supports/enemy/speed.glb",
+      "dark3": "models/games/tower-defense/towers/supports/enemy/speed.glb"
+    },
+    "model_configuration": {
+      "targetHeight": 4,
+      "targetHeightByLevel": {
+        "1": 4,
+        "2": 4.52,
+        "3": 5.08
+      }
+    },
+    "sort_order": 6,
+    "is_active": true
+  }
+]

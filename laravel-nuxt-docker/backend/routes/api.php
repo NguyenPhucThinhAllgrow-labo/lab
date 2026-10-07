@@ -93,6 +93,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::get('/pandora/leaderboard/best', [DetectiveLeaderboardController::class, 'best']);
     Route::get('/pandora/leaderboard/history', [DetectiveLeaderboardController::class, 'history']);
     Route::get('/tower-defense/maps', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'index']);
+    Route::get('/tower-defense/maps/{map}', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'show']);
     Route::post('/tower-defense/maps', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'store']);
     Route::put('/tower-defense/maps/{map}', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'update']);
     Route::delete('/tower-defense/maps/{map}', [App\Http\Controllers\Api\Admin\TowerDefenseMapController::class, 'destroy']);

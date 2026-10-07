@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { applyMapAppearance, addMapAppearanceLights } from "./scene/map-appearance";
 import { RotateCcw } from "lucide-vue-next";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -6,12 +7,15 @@ import {
   createTowerDefenseMapScene,
   loadTowerDefenseBackgroundModel,
   loadTowerDefenseCastle,
+  positionTowerDefenseCastle,
 } from "./scene/map-scene";
 import type { TowerDefenseMapDefinition } from "~/types/games/towerDefense";
+import type { CitadelRuntime } from "./scene/citadel-runtime";
 
 const props = defineProps<{
   map: TowerDefenseMapDefinition;
 }>();
+const emit = defineEmits<{ runtimeReady: [runtime: CitadelRuntime] }>();
 
 const host = ref<HTMLDivElement | null>(null);
 const loading = ref(false);
@@ -25,6 +29,7 @@ let resizeObserver: ResizeObserver | null = null;
 let intersectionObserver: IntersectionObserver | null = null;
 let animationFrame = 0;
 let rebuildVersion = 0;
+let previewCameraKey = "";
 let rendererWidth = 0;
 let rendererHeight = 0;
 let previewIsVisible = true;
@@ -76,26 +81,7 @@ function clearScene() {
 
 function addLights(map: TowerDefenseMapDefinition) {
   if (!scene) return;
-  const dark = map.environmentMode === "dark";
-  scene.add(
-    new THREE.HemisphereLight(
-      dark ? 0xaab7e8 : 0xdbeafe,
-      dark ? 0x171022 : 0x17120e,
-      dark ? 1.5 : 2.25,
-    ),
-  );
-  const keyLight = new THREE.DirectionalLight(
-    dark ? 0xd9ddff : 0xfff1d6,
-    dark ? 2.35 : 3.2,
-  );
-  keyLight.position.set(8, 18, 10);
-  scene.add(keyLight);
-  const fillLight = new THREE.DirectionalLight(
-    dark ? 0x7154b3 : 0x8b5cf6,
-    dark ? 0.82 : 1.4,
-  );
-  fillLight.position.set(-12, 8, -10);
-  scene.add(fillLight);
+  addMapAppearanceLights(scene, map);
 }
 
 function fitCamera(map: TowerDefenseMapDefinition) {
@@ -133,21 +119,31 @@ function resetCamera() {
 
 async function rebuildPreview() {
   if (!scene) return;
+  const cameraKey = `${props.map.id}:${JSON.stringify(props.map.camera)}`;
+  const savedView = previewCameraKey === cameraKey && camera && controls
+    ? { position: camera.position.clone(), target: controls.target.clone(), zoom: camera.zoom }
+    : null;
+  previewCameraKey = cameraKey;
   const version = ++rebuildVersion;
   loading.value = true;
   errorMessage.value = "";
+  const retainedCastle = scene.getObjectByName("castleModel") as THREE.Group | undefined;
+  if (retainedCastle && retainedCastle.userData.modelUrl === props.map.castle.modelUrl) retainedCastle.removeFromParent();
   clearScene();
   addLights(props.map);
 
   try {
-    const dark = props.map.environmentMode === "dark";
-    const background = new THREE.Color(props.map.theme.background);
-    if (dark) background.lerp(new THREE.Color(0x11101f), 0.34);
-    scene.background = background;
-    if (renderer) renderer.toneMappingExposure = dark ? 0.9 : 1.05;
+    if (renderer) applyMapAppearance(scene, renderer, props.map);
     const mapScene = createTowerDefenseMapScene(scene, props.map, null);
     updatePortal = mapScene.updatePortal;
     fitCamera(props.map);
+    if (savedView && camera && controls) {
+      camera.position.copy(savedView.position);
+      camera.zoom = savedView.zoom;
+      controls.target.copy(savedView.target);
+      camera.updateProjectionMatrix();
+      controls.update();
+    }
 
     const optionalLoads: Promise<unknown>[] = [];
     if (props.map.backgroundModel?.url) {
@@ -161,12 +157,27 @@ async function rebuildPreview() {
       );
     }
     if (props.map.castle.modelUrl) {
+      if (retainedCastle && retainedCastle.userData.modelUrl === props.map.castle.modelUrl) {
+        scene.add(positionTowerDefenseCastle(retainedCastle, props.map));
+      } else {
       optionalLoads.push(
         loadTowerDefenseCastle(props.map).then((castle) => {
-          if (version === rebuildVersion) scene?.add(castle);
+          if (version === rebuildVersion && scene) {
+            castle.userData.modelUrl = props.map.castle.modelUrl;
+            scene.add(castle);
+            const fortress = scene.getObjectByName("swampFortress");
+            if (fortress) fortress.visible = false;
+          }
           else clearDetachedObject(castle);
+        }).catch((error) => {
+          if (version === rebuildVersion) {
+            const fortress = scene?.getObjectByName("swampFortress");
+            if (fortress) fortress.visible = true;
+          }
+          throw error;
         }),
       );
+      }
     }
 
     const results = await Promise.allSettled(optionalLoads);
@@ -180,7 +191,10 @@ async function rebuildPreview() {
     errorMessage.value =
       error instanceof Error ? error.message : "Không thể dựng preview map.";
   } finally {
-    if (version === rebuildVersion) loading.value = false;
+    if (version === rebuildVersion) {
+      loading.value = false;
+      if (scene && camera && renderer && controls) emit("runtimeReady", { scene, camera, renderer, controls });
+    }
   }
 }
 
@@ -199,13 +213,13 @@ function animate() {
   animationFrame = requestAnimationFrame(animate);
   // Render theo tần số quét của màn hình để camera damping và hiệu ứng portal
   // luôn mượt; khi canvas nằm ngoài viewport thì vẫn dừng hoàn toàn để giảm tải.
-  if (!previewIsVisible) return;
+  if (!previewIsVisible || document.hidden) return;
   controls?.update();
   updatePortal?.(clock.getElapsedTime());
   if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
-watch(() => props.map, () => void rebuildPreview());
+watch(() => props.map, () => void rebuildPreview(), { deep: true });
 
 onMounted(() => {
   if (!host.value) return;
@@ -217,7 +231,7 @@ onMounted(() => {
   host.value.appendChild(renderer.domElement);
 
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(38, 1, 0.1, 300);
+  camera = new THREE.PerspectiveCamera(38, 1, 0.5, 300);
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
