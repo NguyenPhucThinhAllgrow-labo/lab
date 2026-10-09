@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import * as THREE from "three";
+import { Orbit, Route, Layers, DoorOpen, Castle, Undo2, Redo2, Trash2, RotateCcw, ZoomIn, ZoomOut, Scan } from "lucide-vue-next";
 import LavaCitadelScene from "~/pages/games/tower-defense/test.vue";
 import MapPreview from "./MapPreview.client.vue";
 import type { CitadelRuntime } from "./scene/citadel-runtime";
@@ -8,6 +9,7 @@ import { mapSpacePosition } from "~/games/tower-defense/map-space";
 import { pickMapPreviewPoint } from "~/utils/games/mapPreviewPicking";
 
 type Tool = "path" | "buildable" | "portal-0" | "portal-1" | "castle";
+const toolIcons = { path: Route, buildable: Layers, "portal-0": DoorOpen, "portal-1": DoorOpen, castle: Castle };
 const props = defineProps<{ map: TowerDefenseMapDefinition; tool: Tool; lane: 0 | 1; anchors: [GridPoint[], GridPoint[]]; canUndo?: boolean; canRedo?: boolean }>();
 const emit = defineEmits<{
   select: [point: GridPoint];
@@ -369,14 +371,14 @@ onBeforeUnmount(() => { if (hoverFrame) cancelAnimationFrame(hoverFrame); detach
 <template>
   <div class="td-direct-map-editor">
     <div class="td-direct-map-tools">
-      <button type="button" :class="{ active: !editing }" @click="editing = false">Xoay camera</button>
+      <button type="button" :class="{ active: !editing }" @click="editing = false"><Orbit aria-hidden="true" />Xoay camera</button>
       <button v-for="item in tools" :key="item.label" type="button"
         :class="{ active: editing && !cornerDragMode && tool === item.tool && (item.lane === undefined || lane === item.lane) }"
-        @click="chooseTool(item)">{{ item.label }}</button>
+        @click="chooseTool(item)"><component :is="toolIcons[item.tool]" aria-hidden="true" />{{ item.label }}</button>
       <div class="td-direct-map-zoom" aria-label="Thu phóng preview 3D">
-        <button type="button" :disabled="!cameraReady" title="Thu nhỏ" @click="changePreviewZoom(1 / 1.25)">−</button>
-        <button type="button" :disabled="!cameraReady" title="Đặt lại 100%" @click="resetPreviewZoom">{{ zoomPercent }}%</button>
-        <button type="button" :disabled="!cameraReady" title="Phóng lớn" @click="changePreviewZoom(1.25)">+</button>
+        <button type="button" :disabled="!cameraReady" title="Thu nhỏ" aria-label="Thu nhỏ" @click="changePreviewZoom(1 / 1.25)"><ZoomOut aria-hidden="true" /></button>
+        <button type="button" :disabled="!cameraReady" title="Đặt lại 100%" @click="resetPreviewZoom"><Scan aria-hidden="true" />{{ zoomPercent }}%</button>
+        <button type="button" :disabled="!cameraReady" title="Phóng lớn" aria-label="Phóng lớn" @click="changePreviewZoom(1.25)"><ZoomIn aria-hidden="true" /></button>
       </div>
       <span>{{ editing && cornerDragMode ? `Lane ${lane + 1}: kéo chấm màu để đổi góc · Kéo vùng trống để xoay` : editing ? 'Bấm: chỉnh · Kéo vùng trống: xoay · Kéo điểm lane: di chuyển · Phải: pan · Lăn: zoom' : 'Kéo trái: xoay · Kéo phải: pan · Lăn: zoom' }}
         <template v-if="draggingCorner"> · Đang kéo góc</template>
@@ -387,11 +389,11 @@ onBeforeUnmount(() => { if (hoverFrame) cancelAnimationFrame(hoverFrame); detach
     <div class="td-direct-map-tools td-direct-map-actions">
       <span class="td-map-identity td-map-identity--one">● Lane 1 · Cổng 1</span>
       <span class="td-map-identity td-map-identity--two">● Lane 2 · Cổng 2</span>
-      <button type="button" title="Ctrl + Z / ⌘ + Z (Mac)" :disabled="!canUndo" @click="emit('undo')">Hoàn tác · Ctrl/⌘+Z</button>
-      <button type="button" title="Ctrl + U / ⌘ + U (Mac)" :disabled="!canRedo" @click="emit('redo')">Làm lại · Ctrl/⌘+U</button>
-      <button type="button" class="danger" :disabled="!anchors[lane].length" @click="emit('clearLane')">Xóa lane {{ lane + 1 }}</button>
-      <button type="button" class="danger" :disabled="!map.buildableTiles?.length" @click="emit('clearPads')">Xóa toàn bộ bệ</button>
-      <button type="button" class="reset" @click="emit('resetLayout')">Đặt lại mặc định</button>
+      <button type="button" title="Ctrl + Z / ⌘ + Z (Mac)" :disabled="!canUndo" @click="emit('undo')"><Undo2 aria-hidden="true" />Hoàn tác · Ctrl/⌘+Z</button>
+      <button type="button" title="Ctrl + U / ⌘ + U (Mac)" :disabled="!canRedo" @click="emit('redo')"><Redo2 aria-hidden="true" />Làm lại · Ctrl/⌘+U</button>
+      <button type="button" class="danger" :disabled="!anchors[lane].length" @click="emit('clearLane')"><Trash2 aria-hidden="true" />Xóa lane {{ lane + 1 }}</button>
+      <button type="button" class="danger" :disabled="!map.buildableTiles?.length" @click="emit('clearPads')"><Trash2 aria-hidden="true" />Xóa toàn bộ bệ</button>
+      <button type="button" class="reset" @click="emit('resetLayout')"><RotateCcw aria-hidden="true" />Đặt lại mặc định</button>
     </div>
     <LavaCitadelScene v-if="map.scenePreset === 'citadel-of-cinders'" embedded :configuration="map" @runtime-ready="ready" />
     <MapPreview v-else :map="map" @runtime-ready="ready" />
@@ -400,7 +402,8 @@ onBeforeUnmount(() => { if (hoverFrame) cancelAnimationFrame(hoverFrame); detach
 
 <style scoped>
 .td-direct-map-tools { display:flex; flex-wrap:wrap; gap:8px; padding:12px; align-items:center; background:#10101b; }
-.td-direct-map-tools button { padding:8px 12px; border:1px solid #353547; border-radius:8px; color:#c5c5d0; background:#171721; cursor:pointer; }
+.td-direct-map-tools button { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 12px; border:1px solid #353547; border-radius:8px; color:#c5c5d0; background:#171721; cursor:pointer; }
+.td-direct-map-tools button :deep(svg) { width:16px; height:16px; flex-shrink:0; }
 .td-direct-map-tools button.active { border-color:#4ade80; color:#a7f3c4; background:#153024; }
 .td-direct-map-tools span { font-size:12px; color:#a1a1b2; }
 .td-direct-map-tools button:disabled { opacity:0.4; cursor:not-allowed; }

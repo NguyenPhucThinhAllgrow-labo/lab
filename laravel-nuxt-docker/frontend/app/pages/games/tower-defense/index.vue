@@ -15,6 +15,7 @@ import {
   Pause,
   Play,
   RotateCcw,
+  RotateCw,
   ArrowRight,
   Trophy,
   ShieldCheck,
@@ -103,6 +104,7 @@ const {
   upgradeCost,
   selectCell,
   upgradeSelected,
+  rotateSelected,
   enableSelectedRelocation,
   sellSelected,
   undoSelectedPlacement,
@@ -752,9 +754,9 @@ onBeforeUnmount(() => {
             <div class="defense-story-intro__mission">
               <span><ShieldCheck /></span>
               <div>
-                <small>SỨ MỆNH CUỐI CÙNG</small>
-                <strong>Dựng phòng tuyến và bảo vệ lâu đài qua 20 đợt tiến công.</strong>
-                <p>Chỉ huy Liên minh Vương quốc hoặc Hắc Minh Ước, đánh bại các thủ lĩnh Hư Không và giải phóng từng vương quốc.</p>
+                <small>{{ map.story ? `CHƯƠNG ${map.story.chapter} · ${map.story.title}` : 'SỨ MỆNH CUỐI CÙNG' }}</small>
+                <strong>{{ map.story?.objective ?? 'Dựng phòng tuyến và bảo vệ lâu đài qua 20 đợt tiến công.' }}</strong>
+                <p>{{ map.story?.summary ?? 'Chỉ huy Liên minh Vương quốc hoặc Hắc Minh Ước, đánh bại các thủ lĩnh Hư Không và giải phóng từng vương quốc.' }}</p>
               </div>
             </div>
             <div class="defense-story-intro__factions">
@@ -1342,6 +1344,9 @@ onBeforeUnmount(() => {
                 <Move />{{
                   selectedTower.canRelocate ? "Đang chọn vị trí" : "Di chuyển"
                 }}
+              </button>
+              <button type="button" class="is-rotate" title="Xoay tháp 90 độ, không tốn vàng" @click="rotateSelected">
+                <RotateCw />Xoay 90°
               </button>
               <button type="button" class="is-sell" @click="sellSelected">
                 Bán · {{ Math.floor(selectedTower.invested * 0.7) }}

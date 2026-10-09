@@ -3,6 +3,7 @@ const props = defineProps<{ editorMode?: "create" | "edit"; mapId?: string }>();
 const mapEditorPageReady = ref(false);
 const loadingEditor = ref(Boolean(props.editorMode));
 import {
+  ArrowLeft,
   Box,
   Check,
   Copy,
@@ -18,6 +19,9 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Save,
+  Moon,
+  Sun,
   Skull,
   Trash2,
   Undo2,
@@ -29,6 +33,7 @@ import { sharedLaneSegments } from "~/utils/games/sharedLaneSegments";
 import { expandSwampEditableArea } from "~/utils/games/swampEditableArea";
 import lavaMapData from "~/data/tower-defense/lava-map.json";
 import swampMapData from "~/data/tower-defense/swamp-map.json";
+import moonfrostMapData from "~/data/tower-defense/moonfrost-lake-map.json";
 import LiveMapEditor from "~/components/tower-defense/LiveMapEditor.client.vue";
 import { citadelBridgeLayout, citadelBridgePointWorld, citadelBridgeTiles, citadelForecourtTiles, pickCitadelBridgePoint } from "~/utils/games/citadelBridgeLayout";
 
@@ -676,7 +681,7 @@ function applyImportedCitadelLayout(configuration: MapEditorConfiguration) {
 }
 
 const selectedMapPreset = ref("");
-const mapPresets = [lavaMapData, swampMapData].map((data) => ({ id: data.id, name: data.name, data }));
+const mapPresets = [lavaMapData, swampMapData, moonfrostMapData].map((data) => ({ id: data.id, name: data.name, data }));
 
 function selectMapPreset(event: Event) {
   if (mapMode.value !== "create") return;
@@ -690,7 +695,9 @@ function selectMapPreset(event: Event) {
     isActive: boolean;
     configuration: MapEditorConfiguration;
   };
-  applyImportedCitadelLayout(preset.configuration);
+  // Only the original bridge template needs its legacy layout regenerated.
+  // Campaign templates already contain authored lanes and tower positions.
+  if (selected.id === lavaMapData.id) applyImportedCitadelLayout(preset.configuration);
   preset.configuration = expandSwampEditableArea(preset.configuration);
   const removedProfiles = normalizeMapEnemyRoster(preset.configuration);
   Object.assign(mapForm, {
@@ -1430,9 +1437,8 @@ function selectSimpleAsset(
 }
 
 function selectCastleModel(key: string) {
-  if (!key) return;
   updateMapConfiguration((configuration) => {
-    configuration.castle.modelUrl = assetPath(key);
+    configuration.castle.modelUrl = key ? assetPath(key) : "";
   });
 }
 
@@ -1928,7 +1934,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleMapEditorShort
 
     <header v-else class="td-admin-header">
       <div><div class="td-admin-eyebrow"><MapPinned /> TOWER DEFENSE CMS</div><h1>{{ props.editorMode === 'create' ? 'Thêm map' : 'Chỉnh sửa map' }}</h1></div>
-      <NuxtLink class="td-button is-ghost" to="/admin/tower-defense/maps">Về danh sách map</NuxtLink>
+      <NuxtLink class="td-button is-ghost" to="/admin/tower-defense/maps"><ArrowLeft aria-hidden="true" />Về danh sách map</NuxtLink>
     </header>
     <section v-if="!props.editorMode" class="td-stats">
       <article>
@@ -2051,7 +2057,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleMapEditorShort
               <div class="td-content-grid">
                 <fieldset>
                   <legend>Công trình và không gian</legend>
-                  <label><span>Model lâu đài</span><AdminAssetPicker :model-value="configuredAssetKey(visualMapConfiguration.castle?.modelUrl)" :assets="selectableCastleAssets" placeholder="Chọn model lâu đài…" required @update:model-value="selectCastleModel" /></label>
+                  <label><span>Model lâu đài</span><AdminAssetPicker :model-value="configuredAssetKey(visualMapConfiguration.castle?.modelUrl)" :assets="selectableCastleAssets" placeholder="Không dùng model lâu đài" clear-label="Không dùng model lâu đài" @update:model-value="selectCastleModel" /><small v-if="!visualMapConfiguration.castle?.modelUrl">Dùng lâu đài mặc định của cảnh; áp dụng ngay trên LIVE PREVIEW và khi lưu map.</small></label>
                   <label v-if="visualMapConfiguration.castle?.modelUrl"><span>Kích thước model lâu đài</span><input :value="visualMapConfiguration.castle.maxSize" type="number" min="0.1" max="200" step="0.1" required @change="updateCastleModelSize" /><small>Đơn vị trong cảnh 3D; tăng để phóng to. Model giữ nguyên tỉ lệ và cập nhật trên LIVE PREVIEW.</small><small v-if="mapFieldErrors['configuration.castle.maxSize']">{{ mapFieldErrors['configuration.castle.maxSize'][0] }}</small></label>
                   <label><span>Model nền 3D</span><AdminAssetPicker :model-value="configuredAssetKey(visualMapConfiguration.backgroundModel?.url)" :assets="selectableMapModelAssets" placeholder="Chọn model nền…" clear-label="Không dùng model nền" @update:model-value="selectSimpleAsset('backgroundModel', $event)" /></label>
                   <label><span>Nhạc nền</span><AdminAssetPicker :model-value="configuredAssetKey(visualMapConfiguration.backgroundMusicUrl)" :assets="selectableMusicAssets" placeholder="Chọn nhạc nền…" clear-label="Không phát nhạc" @update:model-value="selectSimpleAsset('backgroundMusicUrl', $event)" /></label>
@@ -2098,6 +2104,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleMapEditorShort
                   :aria-pressed="visualMapConfiguration.environmentMode === 'dark'"
                   @click="toggleEnvironmentMode"
                 >
+                  <Moon v-if="visualMapConfiguration.environmentMode === 'dark'" aria-hidden="true" /><Sun v-else aria-hidden="true" />
                   <span><strong>Không khí map</strong><small>{{ visualMapConfiguration.environmentMode === 'dark' ? 'U tối' : 'Bình thường' }}</small></span>
                   <i>{{ visualMapConfiguration.environmentMode === 'dark' ? 'U TỐI' : 'THƯỜNG' }}</i>
                 </button>
@@ -2155,7 +2162,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleMapEditorShort
             </details>
           </div>
           <p v-if="mapFormError" class="td-form-error">{{ mapFormError }}</p>
-          <footer><button class="td-button is-ghost" type="button" @click="closeMapDialog">Hủy</button><button class="td-button" :class="mapMode === 'delete' ? 'is-danger' : 'is-primary'" type="submit" :disabled="savingMap">{{ savingMap ? 'Đang xử lý…' : mapMode === 'delete' ? 'Xóa map' : 'Lưu cấu hình' }}</button></footer>
+          <footer><button class="td-button is-ghost" type="button" @click="closeMapDialog"><X aria-hidden="true" />Hủy</button><button class="td-button" :class="mapMode === 'delete' ? 'is-danger' : 'is-primary'" type="submit" :disabled="savingMap"><Trash2 v-if="mapMode === 'delete'" aria-hidden="true" /><Save v-else aria-hidden="true" />{{ savingMap ? 'Đang xử lý…' : mapMode === 'delete' ? 'Xóa map' : 'Lưu cấu hình' }}</button></footer>
         </form>
       </component>
 
@@ -2178,6 +2185,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleMapEditorShort
 
 <style scoped src="~/assets/css/pages/admin/tower-defense.css"></style>
 <style scoped>
+.td-environment-toggle :deep(svg) { width:18px; height:18px; flex-shrink:0; }
 .td-dialog.td-map-editor-page {
   display: block;
   position: static;

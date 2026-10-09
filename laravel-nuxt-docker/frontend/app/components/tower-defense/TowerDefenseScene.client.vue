@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import * as THREE from "three";
-import { applyMapAppearance, addMapAppearanceLights } from "~/components/tower-defense/scene/map-appearance";
+import { createLaneLightTrails } from "~/components/tower-defense/scene/lane-light-trail";
+import { applyMapAppearance, addMapAppearanceLights, updateMapCameraFog } from "~/components/tower-defense/scene/map-appearance";
 import { supportBonusAt, towerSupportRange } from "~/games/tower-defense/gameplay-config";
 import { createMapSpatialMetrics } from "~/games/tower-defense/map-space";
 import { scaleScreenLabel } from "~/components/tower-defense/scene/screen-label";
@@ -105,6 +106,7 @@ let animationFrame = 0;
 let resizeObserver: ResizeObserver | null = null;
 let surfaceDetail: THREE.DataTexture | null = null;
 let frostGlowTexture: THREE.CanvasTexture | null = null;
+let towerOuterGlowTexture: THREE.CanvasTexture | null = null;
 const towerLevelLabelTextures = new Map<number, THREE.CanvasTexture>();
 const towerBuffBadgeTextures = new Map<"damage" | "speed", THREE.CanvasTexture>();
 const clock = new THREE.Clock();
@@ -195,6 +197,7 @@ let attackRangeMarker: THREE.Group | null = null;
 let towerFocusMarker: THREE.Group | null = null;
 let mysticParticles: THREE.Points | null = null;
 let updateSpawnPortal: ((elapsed: number) => void) | null = null;
+let laneLightTrails: ReturnType<typeof createLaneLightTrails> | null = null;
 let updateBuildableBorders: ((elapsed: number) => void) | null = null;
 let performanceMode = false;
 
@@ -575,6 +578,28 @@ function syncSupportPulseEffect(
 }
 
 /** Tạo lazy radial texture cho ánh sáng băng và cache để mọi instance dùng chung. */
+
+
+function getTowerOuterGlowTexture() {
+  if (towerOuterGlowTexture) return towerOuterGlowTexture;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 256;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Không thể tạo quầng sáng trụ.");
+  const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 126);
+  // A broad, low-contrast centre avoids an additive white disk inside the crystal.
+  gradient.addColorStop(0, "rgba(255,255,255,.55)");
+  gradient.addColorStop(0.25, "rgba(255,255,255,.55)");
+  gradient.addColorStop(0.55, "rgba(255,255,255,.5)");
+  gradient.addColorStop(0.8, "rgba(255,255,255,.18)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 256, 256);
+  towerOuterGlowTexture = new THREE.CanvasTexture(canvas);
+  towerOuterGlowTexture.colorSpace = THREE.SRGBColorSpace;
+  return towerOuterGlowTexture;
+}
+
 function getFrostGlowTexture() {
   if (frostGlowTexture) return frostGlowTexture;
   const canvas = document.createElement("canvas");
@@ -882,25 +907,44 @@ function createCannonTower() {
 /** Bổ sung marker, tinh thể và node hiệu ứng vào model tháp băng đã tải. */
 function decorateFrostTower(group: THREE.Group) {
   if (group.getObjectByName("frostVisualEffects")) return;
-  const centralY = Number(group.userData.frostEffectCenterY ?? 1.77);
+  // Measure only model meshes, in tower-local space. Saved glow sprites and
+  // world/map transforms must not move the crystal anchor or inflate its height.
+  group.updateWorldMatrix(true, true);
+  const inverse = group.matrixWorld.clone().invert();
+  const bounds = new THREE.Box3();
+  const meshBounds = new THREE.Box3();
+  const localMatrix = new THREE.Matrix4();
+  group.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    if (!child.geometry.boundingBox) child.geometry.computeBoundingBox();
+    if (!child.geometry.boundingBox) return;
+    localMatrix.multiplyMatrices(inverse, child.matrixWorld);
+    bounds.union(meshBounds.copy(child.geometry.boundingBox).applyMatrix4(localMatrix));
+  });
+  const height = bounds.isEmpty() ? 0 : bounds.max.y - bounds.min.y;
+  const fitted = Number.isFinite(height) && height > 0.001;
+  const center = fitted ? bounds.getCenter(new THREE.Vector3()) : new THREE.Vector3();
+  const effectScale = fitted ? height / 2.1 : 1;
+  const centralY = fitted ? bounds.min.y + height * (1.77 / 2.1) : 1.77;
   const effects = new THREE.Group();
   effects.name = "frostVisualEffects";
+  effects.position.set(center.x, 0, center.z);
   const glowMaterial = new THREE.SpriteMaterial({
-    map: getFrostGlowTexture(),
+    map: getTowerOuterGlowTexture(),
     color: 0xb9f7ff,
     transparent: true,
-    opacity: 0.38,
+    opacity: 0.98,
     depthWrite: false,
-    depthTest: true,
+    depthTest: false,
     blending: THREE.AdditiveBlending,
   });
   glowMaterial.toneMapped = false;
   const glow = new THREE.Sprite(glowMaterial);
   glow.name = "frostGlowCentral";
-  glow.position.y = centralY + 0.05;
-  glow.scale.set(0.48, 0.62, 1);
-  glow.userData.baseScaleX = 0.48;
-  glow.userData.baseScaleY = 0.62;
+  glow.position.y = centralY + 0.05 * effectScale;
+  glow.scale.set(0.92, 1.19, 1);
+  glow.userData.baseScaleX = 0.92;
+  glow.userData.baseScaleY = 1.19;
   effects.add(glow);
   for (const [radius, tube, tilt, opacity] of [
     [0.43, 0.018, 0, 0.72],
@@ -1009,8 +1053,8 @@ function decorateElementalTowerGlow(
     thunder: { 1: 0.82, 2: 0.73, 3: 0.79 },
     water: { 1: 0.76, 2: 0.73, 3: 0.68 },
   } as const;
-  const glowScales = { fire: 0.75, thunder: 0.6, water: 0.62 } as const;
-  const levelBrightness = { 1: 1, 2: 1.08, 3: 1.16 } as const;
+  const glowScales = { fire: 1.5, thunder: 1, water: 1.02 } as const;
+  const levelBrightness = { 1: 1, 2: 1.5, 3: 2 } as const;
   group.updateMatrixWorld(true);
   const towerBounds = new THREE.Box3().setFromObject(group);
   const towerSize = towerBounds.getSize(new THREE.Vector3());
@@ -1024,37 +1068,37 @@ function decorateElementalTowerGlow(
   effect.userData.level = level;
   effect.position.copy(glowPosition);
 
-  // Compact glow obeys scene depth instead of floating above the tower silhouette.
+  // Quầng rộng là chính; lớp trong chỉ bổ sung ánh sáng nhẹ, không tạo cục tròn.
   const outerMaterial = new THREE.SpriteMaterial({
-    map: getFrostGlowTexture(),
+    map: getTowerOuterGlowTexture(),
     color: colors[kind],
     transparent: true,
     opacity:
-      (kind === "fire" ? 0.28 : 0.24) * levelBrightness[level],
+      Math.min(1, (kind === "fire" ? 0.82 : 0.74) * levelBrightness[level]),
     depthWrite: false,
-    depthTest: true,
+    depthTest: false,
     blending: THREE.AdditiveBlending,
     toneMapped: false,
   });
   const outerGlow = new THREE.Sprite(outerMaterial);
   outerGlow.name = "elementalTowerGlowOuter";
-  outerGlow.scale.setScalar(glowScales[kind]);
+  outerGlow.scale.set(glowScales[kind] * 1.35, glowScales[kind] * 1.6, 1);
   outerGlow.renderOrder = 8;
 
   const innerGlow = new THREE.Sprite(
     new THREE.SpriteMaterial({
-      map: getFrostGlowTexture(),
+      map: getTowerOuterGlowTexture(),
       color: colors[kind],
       transparent: true,
-      opacity: 0.48 * levelBrightness[level],
+      opacity: Math.min(0.36, 0.18 * levelBrightness[level]),
       depthWrite: false,
-      depthTest: true,
+      depthTest: false,
       blending: THREE.AdditiveBlending,
       toneMapped: false,
     }),
   );
   innerGlow.name = "elementalTowerGlowInner";
-  innerGlow.scale.setScalar(glowScales[kind] * 0.58);
+  innerGlow.scale.set(glowScales[kind] * 0.58, glowScales[kind] * 0.82, 1);
   innerGlow.renderOrder = 9;
 
   effect.add(outerGlow, innerGlow);
@@ -1074,8 +1118,12 @@ function decorateElementalTowerGlow(
       if (!(material instanceof THREE.MeshStandardMaterial)) continue;
       material.emissive.copy(emissiveColor);
       const levelIntensity =
-        { 1: 0.45, 2: 0.55, 3: 0.65 }[level];
-      material.emissiveIntensity = levelIntensity;
+        { 1: 1.05, 2: 1.65, 3: 2.3 }[level] +
+        (kind === "thunder" ? 0.2 : 0);
+      material.emissiveIntensity = Math.max(
+        material.emissiveIntensity,
+        levelIntensity,
+      );
       material.needsUpdate = true;
     }
   });
@@ -2399,6 +2447,17 @@ async function loadMapBackgroundModel() {
  * chuyển động, animate tower/enemy/projectile/impact và cập nhật selection.
  * Hàm không thay đổi HP, cooldown hay luật spawn.
  */
+function syncTowerRotation(model: THREE.Group, tower: Tower) {
+  model.rotation.y = THREE.MathUtils.degToRad(Number.isFinite(tower.rotationY) ? tower.rotationY! : 0);
+  const turret = model.userData.turret as THREE.Group | undefined;
+  // Target aim is world-space; subtract the manually rotated model base.
+  const targetRotation = Math.PI / 2 - THREE.MathUtils.degToRad(tower.aimAngle) - model.rotation.y;
+  if (turret) turret.rotation.y += Math.atan2(
+    Math.sin(targetRotation - turret.rotation.y),
+    Math.cos(targetRotation - turret.rotation.y),
+  ) * 0.14;
+}
+
 function syncScene(elapsed: number, frameDelta: number, now: number) {
   // Tower: đối chiếu ID để tái sử dụng instance, cập nhật level, selection,
   // hướng turret và các animation khai hỏa/recoil theo snapshot hiện tại.
@@ -2561,15 +2620,7 @@ function syncScene(elapsed: number, frameDelta: number, now: number) {
       } else applyTowerLevelAppearance(model, tower);
     }
     model.userData.level = tower.level;
-    const turret = model.userData.turret as THREE.Group | undefined;
-    const targetRotation =
-      Math.PI / 2 - THREE.MathUtils.degToRad(tower.aimAngle);
-    if (turret)
-      turret.rotation.y +=
-        Math.atan2(
-          Math.sin(targetRotation - turret.rotation.y),
-          Math.cos(targetRotation - turret.rotation.y),
-        ) * 0.14;
+    syncTowerRotation(model, tower);
     if (model.userData.shotSequence !== tower.shotSequence) {
       model.userData.shotSequence = tower.shotSequence;
       model.userData.firedAt = now;
@@ -3088,7 +3139,6 @@ async function createWorld(runtime?: CitadelRuntime) {
     optimizeTemplateShadows(cannonTemplate);
     towerTemplates.set("cannon", cannonTemplate);
     const frostPlaceholder = new THREE.Group();
-    frostPlaceholder.userData.frostEffectCenterY = 1.77;
     frostPlaceholder.add(groundShadow(0.42));
     decorateFrostTower(frostPlaceholder);
     towerTemplates.set("frost", frostPlaceholder);
@@ -3331,6 +3381,7 @@ async function createWorld(runtime?: CitadelRuntime) {
       renderError.value =
         "Kết nối đồ họa 3D đã bị gián đoạn. Hãy tải lại trang.";
     });
+    laneLightTrails = createLaneLightTrails(scene, props.map);
     labelOverlay = createLabelOverlay(host.value!);
     const updateFrame = () => {
       const frameDelta = Math.min(clock.getDelta(), 0.05);
@@ -3341,6 +3392,12 @@ async function createWorld(runtime?: CitadelRuntime) {
       if (cameraReturning) updateCameraReturn(frameDelta);
       else if (!runtime) controls?.update();
       if (!props.isPaused) syncScene(visualElapsed, frameDelta, visualNow);
+      else for (const tower of props.towers) {
+        const model = towerModels.get(tower.id);
+        if (model) syncTowerRotation(model, tower);
+      }
+      laneLightTrails?.update(visualElapsed);
+      if (scene && camera && controls) updateMapCameraFog(scene, camera, controls.target, props.map);
       renderLabelOverlay();
     };
     const animate = () => {
@@ -3395,6 +3452,8 @@ function onCitadelReady(runtime: CitadelRuntime) {
 // Thu hồi listener, animation frame, controls, skeleton, geometry, material,
 // texture và WebGL context để vào lại route không nhân đôi tài nguyên GPU.
 onBeforeUnmount(() => {
+  laneLightTrails?.dispose();
+  laneLightTrails = null;
   labelOverlay?.dispose();
   labelOverlay = null;
   overlaySprites.length = 0;
@@ -3439,6 +3498,8 @@ onBeforeUnmount(() => {
   surfaceDetail = null;
   frostGlowTexture?.dispose();
   frostGlowTexture = null;
+  towerOuterGlowTexture?.dispose();
+  towerOuterGlowTexture = null;
   towerLevelLabelTextures.forEach((texture) => texture.dispose());
   towerLevelLabelTextures.clear();
   towerBuffBadgeTextures.forEach((texture) => texture.dispose());

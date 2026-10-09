@@ -255,6 +255,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
       invested: definition.cost,
       firingUntil: 0,
       aimAngle: 0,
+      rotationY: 0,
       shotSequence: 0,
       beamTargetIds: [],
       canRelocate: false,
@@ -283,6 +284,17 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     tower.level++;
     triggerRef(towers);
     message.value = `Đã nâng ${TOWER_DEFINITIONS[tower.kind].name} lên cấp ${tower.level}.`;
+  }
+
+  /** Xoay ngoại hình 90 độ, miễn phí; tự ngắm mục tiêu vẫn giữ nguyên. */
+  function rotateSelected() {
+    const tower = selectedTower.value;
+    if (!tower) return;
+    const current = Number.isFinite(tower.rotationY) ? tower.rotationY! : 0;
+    tower.rotationY = ((current + 90) % 360 + 360) % 360;
+    tower.aimAngle = ((tower.aimAngle - 90) % 360 + 360) % 360;
+    triggerRef(towers);
+    message.value = `Đã xoay ${TOWER_DEFINITIONS[tower.kind].name} 90°.`;
   }
 
   /** Chỉ tower vừa đặt trong giai đoạn chuẩn bị hiện tại mới được đổi vị trí. */
@@ -1308,6 +1320,7 @@ export function useTowerDefense(map: TowerDefenseMapDefinition) {
     isTowerFiring,
     selectCell,
     upgradeSelected,
+    rotateSelected,
     enableSelectedRelocation,
     sellSelected,
     undoSelectedPlacement,

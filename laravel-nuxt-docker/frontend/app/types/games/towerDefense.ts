@@ -44,6 +44,7 @@ export interface TowerDefenseMapScenery {
  * mới chỉ cần tạo một object đúng interface này và đăng ký trong maps/index.ts.
  */
 export interface TowerDefenseSwampSettings {
+  style?: "marsh" | "necropolis" | "moonfrost";
   editorPadding?: number;
   seed: number;
   treeCount: number;
@@ -53,6 +54,12 @@ export interface TowerDefenseSwampSettings {
 }
 
 export interface TowerDefenseMapDefinition {
+  story?: {
+    chapter: number;
+    title: string;
+    summary: string;
+    objective: string;
+  };
   id: string;
   name: string;
   /** Hash cấu hình dùng để không khôi phục snapshot thuộc phiên bản map cũ. */
@@ -244,6 +251,8 @@ export interface Tower extends GridPoint {
   invested: number;
   firingUntil: number;
   aimAngle: number;
+  /** Manual model rotation in degrees; old saved games default to zero. */
+  rotationY?: number;
   shotSequence: number;
   beamTargetIds: number[];
   lastAttackCritical?: boolean;

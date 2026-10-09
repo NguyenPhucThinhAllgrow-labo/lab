@@ -1,6 +1,36 @@
 import * as THREE from "three";
 import type { TowerDefenseMapDefinition } from "~/types/games/towerDefense";
 
+const fogRanges = new WeakMap<THREE.Fog, { near: number; far: number }>();
+const configuredPosition = new THREE.Vector3();
+const configuredTarget = new THREE.Vector3();
+
+/** Zooming out must not push the entire board beyond a fixed fog cutoff. */
+export function updateMapCameraFog(
+  scene: THREE.Scene,
+  camera: THREE.Camera,
+  target: THREE.Vector3,
+  map: TowerDefenseMapDefinition,
+) {
+  const fog = scene.fog;
+  if (!(fog instanceof THREE.Fog)) return;
+  let base = fogRanges.get(fog);
+  if (!base) {
+    base = { near: fog.near, far: fog.far };
+    fogRanges.set(fog, base);
+  }
+  const span = Math.max(map.columns * map.cellSize, map.rows * map.cellSize, 8);
+  const position = map.camera?.position;
+  const lookAt = map.camera?.target;
+  const referenceDistance = position?.every(Number.isFinite) && lookAt?.every(Number.isFinite)
+    ? configuredPosition.fromArray(position).distanceTo(configuredTarget.fromArray(lookAt))
+    : span;
+  const distance = camera.position.distanceTo(target);
+  const retreat = Math.max(0, distance - referenceDistance);
+  fog.near = base.near + retreat;
+  fog.far = Math.max(base.far + retreat, distance + span * 0.75, fog.near + 1);
+}
+
 /** Keep ordinary-map gameplay and LIVE PREVIEW on the same colour pipeline. */
 export function applyMapAppearance(
   scene: THREE.Scene,

@@ -1410,6 +1410,10 @@
   padding: 6px 8px;
   font-size: 10px;
 }
+.defense-upgrade__actions > button.is-rotate svg {
+  width: 14px;
+  height: 14px;
+}
 .defense-upgrade--floating .defense-upgrade__actions > button {
   margin: 0;
 }

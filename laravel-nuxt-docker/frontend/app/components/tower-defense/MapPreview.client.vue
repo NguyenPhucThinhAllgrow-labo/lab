@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { applyMapAppearance, addMapAppearanceLights } from "./scene/map-appearance";
+import { applyMapAppearance, addMapAppearanceLights, updateMapCameraFog } from "./scene/map-appearance";
 import { RotateCcw } from "lucide-vue-next";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -216,7 +216,10 @@ function animate() {
   if (!previewIsVisible || document.hidden) return;
   controls?.update();
   updatePortal?.(clock.getElapsedTime());
-  if (renderer && scene && camera) renderer.render(scene, camera);
+  if (renderer && scene && camera) {
+    if (controls) updateMapCameraFog(scene, camera, controls.target, props.map);
+    renderer.render(scene, camera);
+  }
 }
 
 watch(() => props.map, () => void rebuildPreview(), { deep: true });

@@ -10,7 +10,8 @@ function load(file) {
   const module = { exports: {} }; cache.set(file, module);
   const code = ts.transpileModule(fs.readFileSync(file, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   new Function("require", "module", "exports", code)((id) => id.startsWith("~/")
-    ? load(path.join(root, id.slice(2) + ".ts")) : require(id), module, module.exports);
+    ? load(path.join(root, id.slice(2) + ".ts"))
+    : id.startsWith(".") ? load(path.resolve(path.dirname(file), id + ".ts")) : require(id), module, module.exports);
   return module.exports;
 }
 const { GLTFLoader } = require("three/examples/jsm/loaders/GLTFLoader.js");
@@ -81,6 +82,24 @@ GLTFLoader.prototype.loadAsync = async (url) => {
     const scene = new THREE.Scene(); createSwampScene(scene, custom, null);
     assert.equal(scene.getObjectByName("swampFortress").visible, false,
       "default castle must stay hidden during custom-model loading, including full scene rebuilds");
+    const manager = fs.readFileSync(path.join(root, "components/admin/TowerDefenseMapManager.vue"), "utf8");
+    const selectCastleModel = manager.match(/function selectCastleModel\(key: string\) \{([\s\S]*?)\n\}/)[0];
+    let configuration = structuredClone(custom);
+    const select = new Function("updateMapConfiguration", "assetPath",
+      ts.transpileModule(selectCastleModel + "\nreturn selectCastleModel;", {
+        compilerOptions: { target: ts.ScriptTarget.ES2022 },
+      }).outputText)((change) => change(configuration), (key) => `/api/tower-defense/assets/${key}`);
+    const originalCastle = structuredClone(configuration.castle);
+    select("");
+    assert.deepEqual(configuration.castle, { ...originalCastle, modelUrl: "" },
+      "disabling the model keeps gate, size, rotation and offset configuration intact");
+    const fallbackScene = new THREE.Scene(); createSwampScene(fallbackScene, configuration, null);
+    assert.equal(fallbackScene.getObjectByName("swampFortress").visible, true);
+    select("models/replacement.glb");
+    assert.equal(configuration.castle.modelUrl, "/api/tower-defense/assets/models/replacement.glb");
+    const picker = manager.match(/<AdminAssetPicker[^>]*@update:model-value="selectCastleModel"[^>]*\/>/)[0];
+    assert.match(picker, /clear-label="Không dùng model lâu đài"/);
+    assert.doesNotMatch(picker, /\brequired\b/, "create/edit must both allow a castle without a model");
     console.log("PASS: selected castle URLs, preset floor heights, scale, gate alignment, preview/game replacement and live citadel updates");
   } finally { GLTFLoader.prototype.loadAsync = original; }
 })().catch((error) => { console.error(error); process.exitCode = 1; });

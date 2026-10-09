@@ -220,9 +220,9 @@ function getConfiguredGlowTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 128; canvas.height = 128;
   const context = canvas.getContext("2d")!;
-  const gradient = context.createRadialGradient(64, 64, 3, 64, 64, 62);
-  gradient.addColorStop(0, "#ffffff");
-  gradient.addColorStop(0.18, "#ffffffdd");
+  const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 62);
+  gradient.addColorStop(0, "#ffffff8c");
+  gradient.addColorStop(0.18, "#ffffff88");
   gradient.addColorStop(0.55, "#ffffff55");
   gradient.addColorStop(1, "#ffffff00");
   context.fillStyle = gradient; context.fillRect(0, 0, 128, 128);
@@ -246,6 +246,7 @@ export function decorateTowerVisualEffects(group: THREE.Group, effects: TowerVis
     effect.name = "managedTowerGlow";
     effect.position.set(center.x, bounds.min.y + size.y * THREE.MathUtils.clamp(definition.heightRatio ?? 0.9, 0, 2), center.z);
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: getConfiguredGlowTexture(), color: new THREE.Color(definition.color), transparent: true, opacity: THREE.MathUtils.clamp(definition.opacity, 0, 1), depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    sprite.name = "managedTowerGlowSprite";
     sprite.renderOrder = 10;
     effect.userData.baseScale = Math.max(0.05, definition.size);
     effect.userData.pulseSpeed = Math.max(0, definition.pulseSpeed);
@@ -310,8 +311,6 @@ export function createTowerModelLibrary({
           template.userData.kind = definition.kind;
           template.userData.level = level;
           template.userData.heightFromConfiguration = Boolean(managed);
-          if (visualKind === "frost")
-            template.userData.frostEffectCenterY = 1.77;
           template.add(gltf.scene);
           decorateTowerVisualEffects(template, managed?.visualEffects, level);
           decorate(template, visualKind, Math.min(3, level) as 1 | 2 | 3);

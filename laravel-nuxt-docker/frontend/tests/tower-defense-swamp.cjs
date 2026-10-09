@@ -101,6 +101,23 @@ for (const name of ["swampGreenTrees", "swampGravestones", "swampGrass"]) {
 assert.equal(environment.tileMeshes.length, 12);
 assert.equal(scene.getObjectByName("swampPathPaving").count, pathKeys.size * 4);
 const platforms = scene.getObjectByName("swampTowerPlatforms");
+const torchFlames = scene.getObjectByName("swampTorchFlames");
+for (let index = 0; index < torchFlames.count; index++) {
+  const matrix = new THREE.Matrix4(); torchFlames.getMatrixAt(index, matrix);
+  const x = matrix.elements[12], z = matrix.elements[14];
+  assert.ok(!map.paths.flat().some((point) => {
+    const road = mapSpacePosition(map, point);
+    return Math.abs(road.x - x) < map.cellSize / 2 + 0.374
+      && Math.abs(road.z - z) < map.cellSize / 2 + 0.374;
+  }), "lamp pedestals must not sit in the middle of a bend or crossing lane");
+}
+const waterContact = scene.getObjectByName("swampWaterContact");
+assert.ok(waterContact.userData.contactSegments > 0 && waterContact.userData.contactSegments <= 12000);
+assert.equal(waterContact.material.depthWrite, false);
+const contactGeometry = waterContact.geometry;
+environment.update(2.5);
+assert.equal(waterContact.material.uniforms.uTime.value, 2.5);
+assert.equal(waterContact.geometry, contactGeometry);
 const platformPositions = platforms.geometry.getAttribute("position");
 assert.ok(platforms.geometry.hasAttribute("color"), "stone courses have shaded recesses");
 const wornCap = Array.from({ length: platformPositions.count }, (_, i) => ({
